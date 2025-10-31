@@ -1,5 +1,5 @@
 // @app/server/controller.ts
-import {rpc} from '@deepkit/rpc';
+import {rpc} from '@d7/rpc';
 
 @rpc.controller('/main')
 class MyController {

@@ -1,5 +1,5 @@
-import { ControllerSymbol } from '@deepkit/rpc';
-import { deserializeType, entity, Excluded, ReflectionClass, ReflectionKind, Type, TypeMethod, TypeParameter } from '@deepkit/type';
+import { ControllerSymbol } from '@d7/rpc';
+import { deserializeType, entity, Excluded, ReflectionClass, ReflectionKind, Type, TypeMethod, TypeParameter } from '@d7/type';
 
 export class ApiRouteParameter {
     name!: string;

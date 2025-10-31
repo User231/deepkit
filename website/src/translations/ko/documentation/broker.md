@@ -7,14 +7,14 @@ Deepkit Broker는 클라이언트이자 서버를 겸합니다. 독립 실행형
 클라이언트는 다양한 백엔드를 지원하기 위해 adapter 패턴을 사용합니다. 동일한 코드를 서로 다른 백엔드에서 사용할 수 있고, 동시에 여러 백엔드를 사용할 수도 있습니다.
 
 현재 3개의 adapter가 제공됩니다. 하나는 기본 `BrokerDeepkitAdapter`로 Deepkit Broker 서버와 통신하며 Deepkit Broker에 기본 포함되어 있습니다(서버 포함).
-두 번째는 Redis 서버와 통신하는 [@deepkit/broker-redis](./package/broker-redis)의 `BrokerRedisAdapter`이며, 세 번째는 테스트 목적의 인메모리 adapter인 `BrokerMemoryAdapter`입니다.
+두 번째는 Redis 서버와 통신하는 [@d7/broker-redis](./package/broker-redis)의 `BrokerRedisAdapter`이며, 세 번째는 테스트 목적의 인메모리 adapter인 `BrokerMemoryAdapter`입니다.
 
 ## 설치
 
 Deepkit Framework를 사용할 때는 Deepkit Broker가 기본으로 설치 및 활성화됩니다. 그렇지 않다면 다음으로 설치할 수 있습니다:
 
 ```bash
-npm install @deepkit/broker
+npm install @d7/broker
 ```
 
 ## Broker Classes
@@ -30,7 +30,7 @@ Deepkit Broker는 다음과 같은 주요 broker 클래스들을 제공합니다
 이 클래스들은 broker 서버와 타입 세이프한 방식으로 통신하기 위해 broker adapter를 받도록 설계되었습니다.
 
 ```typescript
-import { BrokerBus, BrokerMemoryAdapter } from '@deepkit/broker';
+import { BrokerBus, BrokerMemoryAdapter } from '@d7/broker';
 
 const bus = new BrokerBus(new BrokerMemoryAdapter());
 const channel = bus.channel<{ foo: string }>('my-channel-name');
@@ -103,15 +103,15 @@ class Service {
 
 ## 커스텀 Adapter
 
-커스텀 adapter가 필요하다면, `@deepkit/broker`의 다음 interface 중 하나 이상을 구현하여 자체 adapter를 만들 수 있습니다:
+커스텀 adapter가 필요하다면, `@d7/broker`의 다음 interface 중 하나 이상을 구현하여 자체 adapter를 만들 수 있습니다:
 
 ```typescript
 export type BrokerAdapter = BrokerAdapterCache & BrokerAdapterBus & BrokerAdapterLock & BrokerAdapterQueue & BrokerAdapterKeyValue;
 ```
 
 ```typescript
-import { BrokerAdapterBus, BrokerBus, Release } from '@deepkit/broker';
-import { Type } from '@deepkit/type';
+import { BrokerAdapterBus, BrokerBus, Release } from '@d7/broker';
+import { Type } from '@d7/type';
 
 class MyAdapter implements BrokerAdapterBus {
   disconnect(): Promise<void> {

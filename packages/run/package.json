@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/run",
+  "name": "@d7/run",
   "version": "1.0.19",
-  "description": "Deepkit Run",
+  "description": "D7 Run",
   "module": "./dist/esm/index.js",
   "main": "./dist/cjs/index.js",
   "types": "./dist/cjs/index.d.ts",
@@ -19,7 +19,7 @@
   "scripts": {
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "dependencies": {

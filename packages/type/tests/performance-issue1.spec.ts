@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 import { test } from '@jest/globals';
-import { AbstractClassType, arrayRemoveItem, ClassType, CompilerContext, CustomError, getClassName, isClass, isFunction, urlJoin } from '@deepkit/core';
+import { AbstractClassType, arrayRemoveItem, ClassType, CompilerContext, CustomError, getClassName, isClass, isFunction, urlJoin } from '@d7/core';
 import { isExtendable } from '../src/reflection/extends.js';
 import { ReceiveType, reflect, resolveReceiveType } from '../src/reflection/reflection.js';
 import { isType, Type } from '../src/reflection/type.js';
@@ -944,7 +944,7 @@ export class InjectorContext {
     }
 }
 
-@entity.name('@deepkit/UploadedFile')
+@entity.name('@d7/UploadedFile')
 export class UploadedFile {
     /**
      * The size of the uploaded file in bytes.

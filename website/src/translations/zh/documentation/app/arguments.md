@@ -6,7 +6,7 @@
 根据类型（string、number、联合类型等），传入的值会被自动反序列化并验证。
 
 ```typescript
-import { cli } from '@deepkit/app';
+import { cli } from '@d7/app';
 
 // 函数式
 new App().command('test', (name: string) => {
@@ -54,7 +54,7 @@ Hello beautiful world
 标志是向命令传递值的另一种方式。大多数情况下它们是可选的，但也可以是必需的。使用 `Flag` 类型修饰的参数可以通过 `--name value` 或 `--name=value` 传入。
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 函数式
 new App().command('test', (id: number & Flag) => {
@@ -93,7 +93,7 @@ id 23
 标志的优势在于它也可以作为无值标志使用，例如用于激活某种行为。只要将参数标记为可选的布尔值，就会启用这种行为。
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 函数式
 new App().command('test', (remove: boolean & Flag = false) => {
@@ -121,7 +121,7 @@ delete? true
 若要为同一个标志传入多个值，可以将标志标记为数组。
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 函数式
 new App().command('test', (id: number[] & Flag = []) => {
@@ -152,7 +152,7 @@ ids: [12, 23]
 要允许以单个字符传递标志，可以使用 `Flag<{char: 'x'}>`。
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 函数式
 new App().command('test', (output: string & Flag<{char: 'o'}>) => {
@@ -255,10 +255,10 @@ $ ts-node app.ts test 123
 id 123 number
 ```
 
-可以使用来自 `@deepkit/type` 的类型注解定义额外的约束。
+可以使用来自 `@d7/type` 的类型注解定义额外的约束。
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 // 函数式
 new App().command('test', (id: number & Positive) => {
     console.log('id', id, typeof id);
@@ -286,7 +286,7 @@ Validation error in id: Number needs to be positive [positive]
 要描述一个标志或参数，请使用 `@description` 注释装饰器。
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 class TestCommand {
     async execute(

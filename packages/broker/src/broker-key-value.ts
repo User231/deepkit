@@ -1,9 +1,9 @@
 /** @group KeyValue */
 
 import { parseTime } from './utils.js';
-import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
+import { ReceiveType, resolveReceiveType, Type } from '@d7/type';
 import { BrokerAdapterBase } from './broker.js';
-import { ConsoleLogger, LoggerInterface } from '@deepkit/logger';
+import { ConsoleLogger, LoggerInterface } from '@d7/logger';
 
 
 export interface BrokerKeyValueOptions {

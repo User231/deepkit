@@ -3,14 +3,14 @@
 このアダプターにより、データベース ORM をファイルシステムのバックエンドとして使用できます。これは、すべてのファイルとフォルダーがデータベースに保存されることを意味します。
 
 ```sh
-npm install @deepkit/filesystem-database @deepkit/orm
+npm install @d7/filesystem-database @d7/orm
 ```
 
 ## 使用方法
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemDatabaseAdapter } from '@deepkit/filesystem-database';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemDatabaseAdapter } from '@d7/filesystem-database';
 
 const database = new Database(new MemoryDatabaseAdapter());
 // const database = new Database(new PostgresDatabaseAdapter());

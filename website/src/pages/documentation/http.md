@@ -19,14 +19,14 @@ This is very well tailored for simple use cases, but quickly becomes confusing a
 
 Deepkit's HTTP Library instead leverages the power of TypeScript and Dependency Injection. Serialization/Deserialization and validation of any values happen automatically based on the defined types. It also allows defining routes either via a functional API as in the example above or via controller classes to cover the different needs of an architecture.
 
-It can be used either with an existing HTTP server like Node's `http` module or with the Deepkit framework. Both API variants have access to the dependency injection container and can thus conveniently retrieve objects such as a database abstraction and configurations from the application.
+It can be used either with an existing HTTP server like Node's `http` module or with the D7 framework. Both API variants have access to the dependency injection container and can thus conveniently retrieve objects such as a database abstraction and configurations from the application.
 
 ## Example Functional API
 
 ```typescript
-import { Positive } from '@deepkit/type';
-import { http, HttpRouterRegistry } from '@deepkit/http';
-import { FrameworkModule } from "@deepkit/framework";
+import { Positive } from '@d7/type';
+import { http, HttpRouterRegistry } from '@d7/http';
+import { FrameworkModule } from "@d7/framework";
 
 //Functional API
 const app = new App({
@@ -46,9 +46,9 @@ app.run();
 ## Class Controller API
 
 ```typescript
-import { Positive } from '@deepkit/type';
-import { http, HttpRouterRegistry } from '@deepkit/http';
-import { FrameworkModule } from "@deepkit/framework";
+import { Positive } from '@d7/type';
+import { http, HttpRouterRegistry } from '@d7/http';
+import { FrameworkModule } from "@d7/framework";
 import { User } from "discord.js";
 
 //Controller API

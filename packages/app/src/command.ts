@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, getClassName, TypeAnnotation } from '@deepkit/core';
+import { ClassType, getClassName, TypeAnnotation } from '@d7/core';
 import {
     ClassDecoratorResult,
     createClassDecoratorContext,
@@ -30,13 +30,13 @@ import {
     TypePropertySignature,
     validate,
     ValidationError,
-} from '@deepkit/type';
-import { EventDispatcher } from '@deepkit/event';
-import { getInjectOptions, InjectorContext, InjectorModule, ServiceNotFoundError } from '@deepkit/injector';
+} from '@d7/type';
+import { EventDispatcher } from '@d7/event';
+import { getInjectOptions, InjectorContext, InjectorModule, ServiceNotFoundError } from '@d7/injector';
 import { ControllerConfig } from './service-container.js';
-import { LoggerInterface } from '@deepkit/logger';
+import { LoggerInterface } from '@d7/logger';
 import { onAppError, onAppExecute, onAppExecuted, onAppShutdown } from './app.js';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
+import { FrameCategory, Stopwatch } from '@d7/stopwatch';
 
 /**
  * Flag is a command line argument that is prefixed with `--` and can have a value.

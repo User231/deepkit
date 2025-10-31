@@ -5,7 +5,7 @@ Deepkit はデータベースにモダンな方法でアクセスできる Datab
 
 ```typescript
 import { entity, PrimaryKey, AutoIncrement, 
-    Unique, MinLength, MaxLength } from '@deepkit/type';
+    Unique, MinLength, MaxLength } from '@d7/type';
 
 type Username = string & Unique & MinLength<2> & MaxLength<16>;
 
@@ -39,10 +39,10 @@ Deepkit のあらゆる TypeScript の Type と検証デコレーターを使っ
 
 ## インストール
 
-Deepkit ORM は Runtime Types に基づいているため、`@deepkit/type` が正しくインストールされている必要があります。
+Deepkit ORM は Runtime Types に基づいているため、`@d7/type` が正しくインストールされている必要があります。
 [Runtime Type のインストール](../runtime-types/getting-started.md)を参照してください。
 
-これが完了したら、`@deepkit/orm` 本体とデータベースアダプターをインストールできます。
+これが完了したら、`@d7/orm` 本体とデータベースアダプターをインストールできます。
 
 Class をエンティティとして使用する場合は、tsconfig.json で `experimentalDecorators` を有効にする必要があります:
 
@@ -59,11 +59,11 @@ Class をエンティティとして使用する場合は、tsconfig.json で `e
 ### SQLite
 
 ```sh
-npm install @deepkit/orm @deepkit/sqlite
+npm install @d7/orm @d7/sqlite
 ```
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 
 const database = new Database(new SQLiteDatabaseAdapter('./example.sqlite'), [User]);
 const database = new Database(new SQLiteDatabaseAdapter(':memory:'), [User]);
@@ -72,11 +72,11 @@ const database = new Database(new SQLiteDatabaseAdapter(':memory:'), [User]);
 ### MySQL
 
 ```sh
-npm install @deepkit/orm @deepkit/mysql
+npm install @d7/orm @d7/mysql
 ```
 
 ```typescript
-import { MySQLDatabaseAdapter } from '@deepkit/mysql';
+import { MySQLDatabaseAdapter } from '@d7/mysql';
 
 const database = new Database(new MySQLDatabaseAdapter({
     host: 'localhost',
@@ -87,11 +87,11 @@ const database = new Database(new MySQLDatabaseAdapter({
 ### Postgres
 
 ```sh
-npm install @deepkit/orm @deepkit/postgres
+npm install @d7/orm @d7/postgres
 ```
 
 ```typescript
-import { PostgresDatabaseAdapter } from '@deepkit/postgres';
+import { PostgresDatabaseAdapter } from '@d7/postgres';
 
 const database = new Database(new PostgresDatabaseAdapter({
     host: 'localhost',
@@ -102,11 +102,11 @@ const database = new Database(new PostgresDatabaseAdapter({
 ### MongoDB
 
 ```sh
-npm install @deepkit/orm @deepkit/bson @deepkit/mongo
+npm install @d7/orm @d7/bson @d7/mongo
 ```
 
 ```typescript
-import { MongoDatabaseAdapter } from '@deepkit/mongo';
+import { MongoDatabaseAdapter } from '@d7/mongo';
 
 const database = new Database(new MongoDatabaseAdapter('mongodb://localhost/mydatabase'), [User]);
 ```
@@ -118,9 +118,9 @@ const database = new Database(new MongoDatabaseAdapter('mongodb://localhost/myda
 `Database` オブジェクトにはアダプターを渡します。これは各データベースアダプターのライブラリから提供されます。
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { Database } from '@d7/orm';
 
 async function main() {
     @entity.name('user')

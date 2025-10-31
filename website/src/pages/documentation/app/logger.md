@@ -20,8 +20,8 @@ By default, a logger has `info` level, i.e. it processes only info messages and 
 To use the logger in your Deepkit application, you can simply inject `Logger` into your services or controllers.
 
 ```typescript
-import { Logger } from '@deepkit/logger';
-import { App } from '@deepkit/app';
+import { Logger } from '@d7/logger';
+import { App } from '@d7/app';
 
 const app = new App();
 app.command('test', (logger: Logger) => {
@@ -47,7 +47,7 @@ For transporters that do not support colors, the color information is automatica
 You can configure a single transporter or multiple transporters. In a Deepkit application, the `ConsoleTransport` transporter is configured automatically. To configure additional transporters, you can use [Setup Calls](dependency-injection.md#di-setup-calls):
 
 ```typescript
-import { Logger, LoggerTransport } from '@deepkit/logger';
+import { Logger, LoggerTransport } from '@d7/logger';
 
 export class MyTransport implements LoggerTransport {
     write(message: string, level: LoggerLevel, rawMessage: string) {
@@ -69,7 +69,7 @@ new App()
 To replace all transporters with a new set of transporters, use `setTransport`:
 
 ```typescript
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 
 new App()
 .setup((module, config) => {
@@ -79,7 +79,7 @@ new App()
 ```
 
 ```typescript
-import { Logger, JSONTransport } from '@deepkit/logger';
+import { Logger, JSONTransport } from '@d7/logger';
 
 new App()
     .setup((module, config) => {
@@ -100,7 +100,7 @@ scopedLogger.log('Query', query);
 There is also a `ScopedLogger` type that you can use to inject scoped loggers into your services.
 
 ```typescript
-import { ScopedLogger } from '@deepkit/logger';
+import { ScopedLogger } from '@d7/logger';
 
 class MyService {
     constructor(protected logger: ScopedLogger) {}

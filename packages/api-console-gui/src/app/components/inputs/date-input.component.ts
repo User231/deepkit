@@ -1,7 +1,7 @@
 import { Component, EventEmitter, input, model, Output } from '@angular/core';
-import { TypeClass } from '@deepkit/type';
+import { TypeClass } from '@d7/type';
 import { DataStructure } from '../../store';
-import { InputComponent } from '@deepkit/desktop-ui';
+import { InputComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { TypeDecoration } from '../../utils.js';
 

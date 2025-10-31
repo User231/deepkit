@@ -1,10 +1,10 @@
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 import { BlogEntity, CommunityMessage, CommunityMessageVote, DocPageContent } from '@app/common/models';
 import { AppConfig } from '@app/server/config';
-import { PostgresDatabaseAdapter } from '@deepkit/postgres';
+import { PostgresDatabaseAdapter } from '@d7/postgres';
 import { BenchmarkRun } from '@app/common/benchmark';
-import { AutoIncrement, entity, Index, PrimaryKey, Reference, Unique } from '@deepkit/type';
-import { FileDataEntity, FileEntity } from '@deepkit/filesystem-database';
+import { AutoIncrement, entity, Index, PrimaryKey, Reference, Unique } from '@d7/type';
+import { FileDataEntity, FileEntity } from '@d7/filesystem-database';
 
 type DbConfig = Pick<AppConfig, 'databaseHost' | 'databaseName' | 'databasePort' | 'databaseUser' | 'databasePassword'>;
 

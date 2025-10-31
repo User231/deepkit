@@ -24,10 +24,10 @@
       "@app/*": [
         "./src/*"
       ],
-      "@deepkit/ui-library": [
+      "@d7/ui-library": [
         "../packages/ui-library/src/index.ts"
       ],
-      "@deepkit/desktop-ui": [
+      "@d7/desktop-ui": [
         "../packages/desktop-ui/src/index.ts"
       ]
     }

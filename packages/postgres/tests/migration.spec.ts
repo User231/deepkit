@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { schemaMigrationRoundTrip } from '@deepkit/sql';
+import { schemaMigrationRoundTrip } from '@d7/sql';
 import {
     AutoIncrement,
     Entity,
@@ -17,9 +17,9 @@ import {
     uint32,
     uint8,
     Unique
-} from '@deepkit/type';
+} from '@d7/type';
 import { PostgresDatabaseAdapter } from '../src/postgres-adapter.js';
-import { DatabaseEntityRegistry } from '@deepkit/orm';
+import { DatabaseEntityRegistry } from '@d7/orm';
 
 test('custom type', async () => {
     class post {

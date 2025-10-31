@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, getClassName, isClass, isFunction } from '@deepkit/core';
-import { EventDispatcher, EventListenerRegistered, isEventListenerContainerEntryCallback } from '@deepkit/event';
+import { ClassType, getClassName, isClass, isFunction } from '@d7/core';
+import { EventDispatcher, EventListenerRegistered, isEventListenerContainerEntryCallback } from '@d7/event';
 import { AddedListener, AppModule, ConfigurationInvalidError, MiddlewareConfig, ModuleDefinition } from './module.js';
 import {
     injectedFunction,
@@ -20,12 +20,12 @@ import {
     ProviderWithScope,
     resolveToken,
     Token,
-} from '@deepkit/injector';
+} from '@d7/injector';
 import { cli } from './command.js';
-import { WorkflowDefinition } from '@deepkit/workflow';
-import { deserialize, ReflectionClass, ReflectionFunction, validate } from '@deepkit/type';
-import { ConsoleTransport, Logger, ScopedLogger } from '@deepkit/logger';
-import { Stopwatch } from '@deepkit/stopwatch';
+import { WorkflowDefinition } from '@d7/workflow';
+import { deserialize, ReflectionClass, ReflectionFunction, validate } from '@d7/type';
+import { ConsoleTransport, Logger, ScopedLogger } from '@d7/logger';
+import { Stopwatch } from '@d7/stopwatch';
 
 /**
  * @reflection never

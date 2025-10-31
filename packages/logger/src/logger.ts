@@ -10,8 +10,8 @@
 
 import style from 'ansi-styles';
 import format from 'format-util';
-import { arrayRemoveItem, ClassType, Inject } from '@deepkit/core';
-import { tokenLabel, TransientInjectionTarget } from '@deepkit/injector';
+import { arrayRemoveItem, ClassType, Inject } from '@d7/core';
+import { tokenLabel, TransientInjectionTarget } from '@d7/injector';
 import { MemoryLoggerTransport } from './memory-logger.js';
 
 export enum LoggerLevel {

@@ -1,6 +1,6 @@
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 import { BlogEntity, CommunityMessage, CommunityQuestion, CommunityQuestionListItem, Content, DocPageContent, DocPageResult, Page, UiCodeExample } from '@app/common/models';
-import { findParentPath } from '@deepkit/app';
+import { findParentPath } from '@d7/app';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { Search } from '@app/server/search';
@@ -8,7 +8,7 @@ import { Observable } from 'rxjs';
 import { Questions } from '@app/server/questions';
 import { MarkdownParser } from '@app/common/markdown';
 import { PageProcessor } from '@app/server/page-processor';
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 import { UserAuthentication } from '@app/server/user-authentication';
 import { docs } from '@app/common/docs';
 import { readTranslationsFile } from '@app/server/commands/translate';

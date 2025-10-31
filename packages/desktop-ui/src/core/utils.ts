@@ -13,7 +13,7 @@
  */
 import { Subscription } from 'rxjs';
 import { ChangeDetectorRef, EventEmitter, Inject, Injectable } from '@angular/core';
-import { nextTick } from '@deepkit/core';
+import { nextTick } from '@d7/core';
 import { DOCUMENT } from '@angular/common';
 
 const electron = 'undefined' === typeof window ? undefined : (window as any).electron || ((window as any).require ? (window as any).require('electron') : undefined);

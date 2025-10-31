@@ -20,8 +20,8 @@ import {
     onDatabaseError,
     OrmEntity,
     RawFactory,
-} from '@deepkit/orm';
-import { AbstractClassType, ClassType, isArray } from '@deepkit/core';
+} from '@d7/orm';
+import { AbstractClassType, ClassType, isArray } from '@d7/core';
 import { MongoDatabaseQuery } from './query.js';
 import { MongoPersistence } from './persistence.js';
 import { MongoClient } from './client/client.js';
@@ -31,11 +31,11 @@ import { MongoDatabaseTransaction, MongoDatabaseTransactionMonitor } from './cli
 import { CreateIndex, CreateIndexesCommand } from './client/command/createIndexes.js';
 import { DropIndexesCommand } from './client/command/dropIndexes.js';
 import { CreateCollectionCommand } from './client/command/createCollection.js';
-import { entity, ReceiveType, ReflectionClass, resolveReceiveType } from '@deepkit/type';
+import { entity, ReceiveType, ReflectionClass, resolveReceiveType } from '@d7/type';
 import { Command } from './client/command/command.js';
 import { AggregateCommand } from './client/command/aggregate.js';
-import { EventDispatcher } from '@deepkit/event';
-import { Logger } from '@deepkit/logger';
+import { EventDispatcher } from '@d7/event';
+import { Logger } from '@d7/logger';
 import { CommandOptions } from './client/options.js';
 import { ExplainCommand } from './client/command/explain.js';
 import { FindCommand } from './client/command/find.js';

@@ -1,4 +1,4 @@
-import { AutoIncrement, deserialize, entity, PrimaryKey } from '@deepkit/type';
+import { AutoIncrement, deserialize, entity, PrimaryKey } from '@d7/type';
 import { expect, test } from '@jest/globals';
 import { getInstanceStateFromItem } from '../src/identity-map.js';
 import { Database } from '../src/database.js';

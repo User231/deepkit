@@ -5,7 +5,7 @@
 `typeOf` 関数は、Interface、オブジェクトリテラル、Class、Function、型エイリアスを含むすべての型で動作します。型に関するすべての情報を含む Type オブジェクトを返します。ジェネリックを含め、任意の型を型引数として渡すことができます。
 
 ```typescript
-import { typeOf } from '@deepkit/type';
+import { typeOf } from '@d7/type';
 
 typeOf<string>(); //{kind: 5}
 typeOf<number>(); //{kind: 6}
@@ -23,7 +23,7 @@ function test(id: number): string {}
 typeOf<typeof test>(); //{kind: 12, parameters: [...], return: {kind: 5}}
 ```
 
-Type オブジェクトは、Type オブジェクトの型を示す `kind` プロパティを持つ単純なオブジェクトリテラルです。`kind` プロパティは数値で、enum `ReflectionKind` の値に対応します。`ReflectionKind` は `@deepkit/type` パッケージで次のように定義されています:
+Type オブジェクトは、Type オブジェクトの型を示す `kind` プロパティを持つ単純なオブジェクトリテラルです。`kind` プロパティは数値で、enum `ReflectionKind` の値に対応します。`ReflectionKind` は `@d7/type` パッケージで次のように定義されています:
 
 ```typescript
 enum ReflectionKind {
@@ -178,9 +178,9 @@ typeOf<User>();
 ```
 
 Reflection.propertySignature の種別が Reflection.property に、Reflection.methodSignature が Reflection.method に変わっていることに注意してください。Class 上の Property と Method には追加の属性があるため、この情報も取得できます。後者には `visibility`、`abstract`、`default` などが含まれます。
-Class の Type オブジェクトには、その Class 自身の Property と Method のみが含まれ、スーパークラスのものは含まれません。これは、インターフェイスやオブジェクトリテラルの Type オブジェクトとは対照的で、そちらではすべての親の PropertySignature と MethodSignature が解決されて `types` に含まれます。スーパークラスの Property と Method を解決するには、ReflectionClass とその `ReflectionClass.getProperties()`（後続のセクション参照）または `@deepkit/type` の `resolveTypeMembers()` を使用できます。
+Class の Type オブジェクトには、その Class 自身の Property と Method のみが含まれ、スーパークラスのものは含まれません。これは、インターフェイスやオブジェクトリテラルの Type オブジェクトとは対照的で、そちらではすべての親の PropertySignature と MethodSignature が解決されて `types` に含まれます。スーパークラスの Property と Method を解決するには、ReflectionClass とその `ReflectionClass.getProperties()`（後続のセクション参照）または `@d7/type` の `resolveTypeMembers()` を使用できます。
 
-Type オブジェクトには非常に多くの種類があります。たとえば、literal、テンプレートリテラル、promise、enum、union、array、tuple などです。どれが存在し、どの情報が利用できるかを知るには、`@deepkit/type` から `Type` を import することをお勧めします。これは TypeAny、TypeUnknonwn、TypeVoid、TypeString、TypeNumber、TypeObjectLiteral、TypeArray、TypeClass など、すべての可能なサブタイプを含む `union` です。そこに正確な構造が記されています。
+Type オブジェクトには非常に多くの種類があります。たとえば、literal、テンプレートリテラル、promise、enum、union、array、tuple などです。どれが存在し、どの情報が利用できるかを知るには、`@d7/type` から `Type` を import することをお勧めします。これは TypeAny、TypeUnknonwn、TypeVoid、TypeString、TypeNumber、TypeObjectLiteral、TypeArray、TypeClass など、すべての可能なサブタイプを含む `union` です。そこに正確な構造が記されています。
 
 ## Type キャッシュ
 
@@ -243,7 +243,7 @@ typeOf<ID>();
 `typeOf<>()` 関数に加えて、Type オブジェクトに対する OOP 代替を提供するさまざまなリフレクション用クラスがあります。これらのリフレクション用クラスは Class、インターフェイス/オブジェクトリテラル、および Function とその直接のサブタイプ（Properties, Methods, Parameters）に対してのみ利用できます。より深い型は、再び Type オブジェクトで読み取る必要があります。
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 interface User {
     id: number;
@@ -278,7 +278,7 @@ function validate<T>(data: any, type?: ReceiveType<T>): void;
 最初の型引数 `T` への参照を持つ `ReceiveType` は、`validate` の各呼び出しで（`type` が第2引数として宣言されているため）その型を2番目の位置に配置するよう、型コンパイラに指示します。実行時にその情報を読み出すには、`resolveReceiveType` 関数を使用します。
 
 ```typescript
-import { resolveReceiveType, ReceiveType } from '@deepkit/type';
+import { resolveReceiveType, ReceiveType } from '@d7/type';
 
 function validate<T>(data: any, type?: ReceiveType<T>): void {
     type = resolveReceiveType(type);

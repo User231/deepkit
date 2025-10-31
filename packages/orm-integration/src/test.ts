@@ -1,6 +1,6 @@
-import { Database, DatabaseAdapter, DatabasePlugin } from '@deepkit/orm';
-import { AbstractClassType } from '@deepkit/core';
-import { ReflectionClass, Type } from '@deepkit/type';
+import { Database, DatabaseAdapter, DatabasePlugin } from '@d7/orm';
+import { AbstractClassType } from '@d7/core';
+import { ReflectionClass, Type } from '@d7/type';
 
 export type DatabaseFactory<T extends DatabaseAdapter = DatabaseAdapter> = (entities?: (Type | ReflectionClass<any> | AbstractClassType)[], plugins?: DatabasePlugin[]) => Promise<Database<T>>;
 

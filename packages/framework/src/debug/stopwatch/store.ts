@@ -1,16 +1,16 @@
-import { decodeCompoundKey, encodeCompoundKey, FrameEnd, FrameStart, FrameType, incrementCompoundKey, StopwatchStore } from '@deepkit/stopwatch';
+import { decodeCompoundKey, encodeCompoundKey, FrameEnd, FrameStart, FrameType, incrementCompoundKey, StopwatchStore } from '@d7/stopwatch';
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs';
 import { appendFile } from 'fs/promises';
 import { join } from 'path';
-import { decodeFrames, encodeAnalytic, encodeFrameData, encodeFrames } from '@deepkit/framework-debug-api';
-import { formatError, Mutex } from '@deepkit/core';
+import { decodeFrames, encodeAnalytic, encodeFrameData, encodeFrames } from '@d7/framework-debug-api';
+import { formatError, Mutex } from '@d7/core';
 import { FrameworkConfig } from '../../module.config.js';
 import { Zone } from '../../zone.js';
 import cluster from 'cluster';
 import { performance } from 'perf_hooks';
 import { DebugBrokerBus } from '../broker.js';
-import { BrokerBusChannel } from '@deepkit/broker';
-import { Logger } from '@deepkit/logger';
+import { BrokerBusChannel } from '@d7/broker';
+import { Logger } from '@d7/logger';
 
 export class FileStopwatchStore extends StopwatchStore {
     protected lastSync?: any;

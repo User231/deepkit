@@ -1,8 +1,8 @@
 import { Component, inject, input, output } from '@angular/core';
-import { Prism } from '@deepkit/ui-library';
+import { Prism } from '@d7/ui-library';
 import { derivedAsync } from 'ngxtension/derived-async';
 import { ControllerClient } from '@app/app/client.js';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { pendingTask } from '@d7/desktop-ui';
 
 @Component({
     selector: 'highlight-code',

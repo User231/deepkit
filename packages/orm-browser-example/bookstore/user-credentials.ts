@@ -1,4 +1,4 @@
-import { entity, PrimaryKey, Reference } from '@deepkit/type';
+import { entity, PrimaryKey, Reference } from '@d7/type';
 import { User } from './user.js';
 
 

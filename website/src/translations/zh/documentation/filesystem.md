@@ -4,17 +4,17 @@ Deepkit 文件系统是一个用于本地和远程文件系统的抽象层。它
 
 开箱即用的受支持文件系统：
 
-- 本地文件系统（包含于 `@deepkit/filesystem`）
-- 内存（包含于 `@deepkit/filesystem`）
-- FTP（包含于 `@deepkit/filesystem-ftp`）
-- SFTP（包含于 `@deepkit/filesystem-sftp`）
-- AWS S3（包含于 `@deepkit/filesystem-aws-s3`）
-- Google 云文件系统（包含于 `@deepkit/filesystem-google`）
+- 本地文件系统（包含于 `@d7/filesystem`）
+- 内存（包含于 `@d7/filesystem`）
+- FTP（包含于 `@d7/filesystem-ftp`）
+- SFTP（包含于 `@d7/filesystem-sftp`）
+- AWS S3（包含于 `@d7/filesystem-aws-s3`）
+- Google 云文件系统（包含于 `@d7/filesystem-google`）
 
 ## 安装
 
 ```bash
-npm install @deepkit/filesystem
+npm install @d7/filesystem
 ```
 
 注意：如果你不使用 NPM，请确保正确安装对等依赖。
@@ -22,7 +22,7 @@ npm install @deepkit/filesystem
 ## 用法
 
 ```typescript
-import { Filesystem, FilesystemLocalAdapter } from '@deepkit/filesystem';
+import { Filesystem, FilesystemLocalAdapter } from '@d7/filesystem';
 
 const adapter = new FilesystemLocalAdapter('/path/to/my/files');
 const filesystem = new Filesystem(adapter);

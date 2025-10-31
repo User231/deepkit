@@ -10,9 +10,9 @@
 
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ControllerClient } from '../../client';
-import { ConfigOption } from '@deepkit/framework-debug-api';
+import { ConfigOption } from '@d7/framework-debug-api';
 import { Lifecycle } from '../../utils';
-import { InputComponent, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { InputComponent, TableColumnDirective, TableComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 
 @Component({

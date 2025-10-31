@@ -10,7 +10,7 @@
 
 import { ClassDecoratorResult, createClassDecoratorContext, createPropertyDecoratorContext } from './decorator-builder.js';
 import { EntityData, ReceiveType, SerializerFn, TData } from './reflection/reflection.js';
-import { ClassType, isArray } from '@deepkit/core';
+import { ClassType, isArray } from '@d7/core';
 import { IndexOptions } from './reflection/type.js';
 import type { ValidateFunction } from './validator.js';
 import { typeSettings } from './core.js';

@@ -1,7 +1,7 @@
-# API `@deepkit/filesystem-sftp`
+# API `@d7/filesystem-sftp`
 
 ```shell
-npm install @deepkit/filesystem-sftp
+npm install @d7/filesystem-sftp
 ```
 
-<api-docs package="@deepkit/filesystem-sftp"></api-docs>
+<api-docs package="@d7/filesystem-sftp"></api-docs>

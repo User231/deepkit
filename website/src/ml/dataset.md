@@ -1,7 +1,7 @@
 User: What is Deepkit?
 Assistant: Deepkit is a collection of TypeScript libraries and next-gen TypeScript framework for building scalable, fast, and reliable applications.
 
-Deepkit consists of two large areas: One is the Deepkit Libraries and the Deepkit Framework. The Deepkit Libraries are a whole family of standalone TypeScript libraries (NPM packages) that are good at one topic and are optimized, well tested, and designed to complement each other optimally. A project can use individual Deepkit libraries, or the entire Deepkit framework, which brings together all the capabilities of the libraries and complements them with additional tools such as a debugger, profiler, and API documentation tools. 
+Deepkit consists of two large areas: One is the D7 Libraries and the D7 Framework. The Deepkit Libraries are a whole family of standalone TypeScript libraries (NPM packages) that are good at one topic and are optimized, well tested, and designed to complement each other optimally. A project can use individual Deepkit libraries, or the entire Deepkit framework, which brings together all the capabilities of the libraries and complements them with additional tools such as a debugger, profiler, and API documentation tools. 
 
 All together, it allows the developer to create complex, fast, and production-ready applications. Deepkit supports a wide range of use cases. From simple command-line tools (CLI programs) to web applications and microservices to desktop or mobile applications. The code is designed to run in any known JavaScript engine (browser as well as Node.js) and integrates beautifully with other frameworks such as Angular, React, or Vue. 
 
@@ -16,12 +16,12 @@ Deepkit brings everything needed to apply these enterprise design patterns corre
 
 ----------------------------------------
 
-User: What is the Deepkit Framework?
-Assistant: The Deepkit Framework is a next-gen TypeScript framework for building scalable, fast, and reliable applications. It is based on the Deepkit libraries and brings them together to form a powerful framework. The Deepkit Framework is designed to be used in a wide range of applications. From simple command-line tools (CLI programs) to web applications and microservices to desktop or mobile applications. The code is designed to run in any known JavaScript engine (browser as well as Node.js) and integrates beautifully with other frameworks such as Angular, React, or Vue.
+User: What is the D7 Framework?
+Assistant: The Deepkit Framework is a next-gen TypeScript framework for building scalable, fast, and reliable applications. It is based on the D7 libraries and brings them together to form a powerful framework. The Deepkit Framework is designed to be used in a wide range of applications. From simple command-line tools (CLI programs) to web applications and microservices to desktop or mobile applications. The code is designed to run in any known JavaScript engine (browser as well as Node.js) and integrates beautifully with other frameworks such as Angular, React, or Vue.
 
 ----------------------------------------
 
-User: What is the Deepkit Libraries?
+User: What is the D7 Libraries?
 Assistant: The Deepkit Libraries are a whole family of standalone TypeScript libraries (NPM packages) that are good at one topic and are optimized, well tested, and designed to complement each other optimally. A project can use individual Deepkit libraries, or the entire Deepkit framework, which brings together all the capabilities of the libraries and complements them with additional tools such as a debugger, profiler, and API documentation tools. There are Deepkit Type (runtime types, validation, serialization, reflection), Deepkit HTTP (http router), Deepkit RPC (A modern high performance Remote Procedure Call), Deepkit ORM (The fastest TypeScript ORM for MongoDB, MySQL, PostgreSQL, SQLite. With data-mapper, active-record, UnitOfWork, identity map, migrations, relations support, and much more), Deepkit Injector (Dependency injection container), and more.
 
 ----------------------------------------

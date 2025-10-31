@@ -2,13 +2,13 @@
 
 Da Deepkit HTTP auf Runtime Types basiert, ist es notwendig, dass Runtime Types bereits korrekt installiert sind. Siehe [Installation von Runtime Types](../runtime-types/getting-started.md).
 
-Wenn dies erfolgreich erfolgt ist, kann `@deepkit/app` installiert werden oder das Deepkit Framework, das die Library bereits unter der Haube verwendet.
+Wenn dies erfolgreich erfolgt ist, kann `@d7/app` installiert werden oder das Deepkit Framework, das die Library bereits unter der Haube verwendet.
 
 ```sh
-npm install @deepkit/http
+npm install @d7/http
 ```
 
-Beachte, dass `@deepkit/http` für die Controller-API auf TypeScript-Annotations basiert und dieses Feature beim Einsatz der Controller-API mit `experimentalDecorators` aktiviert werden muss.
+Beachte, dass `@d7/http` für die Controller-API auf TypeScript-Annotations basiert und dieses Feature beim Einsatz der Controller-API mit `experimentalDecorators` aktiviert werden muss.
 Wenn du keine Klassen verwendest, musst du dieses Feature nicht aktivieren.
 
 _Datei: tsconfig.json_
@@ -32,9 +32,9 @@ Sobald die Library installiert ist, kann ihre API direkt verwendet werden.
 Die funktionale API basiert auf Funktionen und kann über das Router-Registry registriert werden, die über den DI-Container der App bezogen werden kann.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry } from '@d7/http';
 
 const app = new App({
     imports: [new FrameworkModule]
@@ -52,9 +52,9 @@ app.run();
 Sobald Module verwendet werden, können funktionale Routen auch dynamisch von Modulen bereitgestellt werden.
 
 ```typescript
-import { App, createModuleClass } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App, createModuleClass } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry } from '@d7/http';
 
 class MyModule extends createModuleClass({}) {
   override process() {
@@ -78,9 +78,9 @@ Siehe [Framework-Module](../app/modules), um mehr über App-Module zu erfahren.
 Die Controller-API basiert auf Klassen und kann über die App-API unter der Option `controllers` registriert werden.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class MyPage {
     @http.GET('/')
@@ -98,9 +98,9 @@ new App({
 Sobald Module verwendet werden, können Controller auch durch Module bereitgestellt werden.
 
 ```typescript
-import { App, createModuleClass } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App, createModuleClass } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class MyPage {
   @http.GET('/')
@@ -152,7 +152,7 @@ Wenn das Deepkit Framework verwendet wird, ist ein HTTP-Server bereits integrier
 
 ```typescript
 import { Server } from 'http';
-import { HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpRequest, HttpResponse } from '@d7/http';
 
 const app = new App({
     controllers: [MyPage],
@@ -200,7 +200,7 @@ class UserController {
 Für alle Routen mit einem Namen kann die URL über `Router.resolveUrl()` abgefragt werden.
 
 ```typescript
-import { HttpRouter } from '@deepkit/http';
+import { HttpRouter } from '@d7/http';
 const router = app.get(HttpRouter);
 router.resolveUrl('userDetail', {id: 2}); //=> '/user/2'
 ```

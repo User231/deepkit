@@ -1,5 +1,5 @@
 {
-  "name": "@deepkit/rpc",
+  "name": "@d7/rpc",
   "version": "1.0.19",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -12,7 +12,7 @@
       "default": "./dist/esm/index.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -22,24 +22,24 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@deepkit/bson": "^1.0.1",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/core-rxjs": "^1.0.1",
-    "@deepkit/injector": "^1.0.1",
-    "@deepkit/logger": "^1.0.1",
-    "@deepkit/type": "^1.0.1",
+    "@d7/bson": "^1.0.1",
+    "@d7/core": "^1.0.1",
+    "@d7/core-rxjs": "^1.0.1",
+    "@d7/injector": "^1.0.1",
+    "@d7/logger": "^1.0.1",
+    "@d7/type": "^1.0.1",
     "rxjs": "*"
   },
   "dependencies": {
     "dot-prop": "^5.1.1"
   },
   "devDependencies": {
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/core-rxjs": "^1.0.19",
-    "@deepkit/injector": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@d7/bson": "^1.0.19",
+    "@d7/core": "^1.0.19",
+    "@d7/core-rxjs": "^1.0.19",
+    "@d7/injector": "^1.0.19",
+    "@d7/logger": "^1.0.19",
+    "@d7/type": "^1.0.19",
     "@types/dot-prop": "^5.0.1",
     "@types/fs-extra": "^9.0.1",
     "@types/node": "^22.13.1",

@@ -1,4 +1,4 @@
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 import { PoolConfig } from 'mariadb';
 
 interface AdapterClientConfig {

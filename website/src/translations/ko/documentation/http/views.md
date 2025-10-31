@@ -10,8 +10,8 @@ Deepkit HTTP에는 내장 HTML 뷰 렌더링 시스템이 포함되어 있습니
 JSX는 JavaScript의 문법 확장이며, 기본적으로 TypeScript 지원을 제공합니다. TypeScript에서 HTML을 작성할 수 있게 해줍니다. Vue.js 또는 React.js와 매우 유사합니다.
 
 ```tsx app=app.ts
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from "@deepkit/http";
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from "@d7/http";
 
 export function View() {
     return <div>

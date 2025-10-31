@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { IconComponent, InputComponent } from '@deepkit/desktop-ui';
+import { IconComponent, InputComponent } from '@d7/desktop-ui';
 
 @Component({
     selector: 'icon-browser',

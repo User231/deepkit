@@ -29,7 +29,7 @@ import type {
 } from 'estree';
 // @ts-ignore
 import abstractSyntaxTree from 'abstract-syntax-tree';
-import { inDebugMode } from '@deepkit/core';
+import { inDebugMode } from '@d7/core';
 import { escape, escapeHtml } from './utils.js';
 import { voidElements } from './template.js';
 

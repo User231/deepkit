@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/core",
+  "name": "@d7/core",
   "version": "1.0.19",
-  "description": "Deepkit core library",
+  "description": "D7 core library",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -17,7 +17,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "dependencies": {
@@ -25,7 +25,7 @@
     "to-fast-properties": "^3.0.1"
   },
   "devDependencies": {
-    "@deepkit/bench": "^1.0.19",
+    "@d7/bench": "^1.0.19",
     "@types/dot-prop": "~4.2.0"
   },
   "scripts": {

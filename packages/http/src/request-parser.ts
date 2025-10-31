@@ -1,5 +1,5 @@
-import { asyncOperation, ClassType, CompilerContext, getClassName, isObject } from '@deepkit/core';
-import { DependenciesUnmetError, InjectorModule } from '@deepkit/injector';
+import { asyncOperation, ClassType, CompilerContext, getClassName, isObject } from '@d7/core';
+import { DependenciesUnmetError, InjectorModule } from '@d7/injector';
 import {
     assertType,
     findMember,
@@ -16,7 +16,7 @@ import {
     typeAnnotation,
     typeToObject,
     ValidationError,
-} from '@deepkit/type';
+} from '@d7/type';
 import { BodyValidationError, createRequestWithCachedBody, getRegExp, HttpRequest, ValidatedBody } from './model.js';
 import { getRouteActionLabel, RouteConfig, UploadedFile, UploadedFileSymbol } from './router.js';
 import qs from 'qs';

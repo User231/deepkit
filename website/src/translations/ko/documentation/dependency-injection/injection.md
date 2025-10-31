@@ -27,7 +27,7 @@ class MyService {
 constructor injection의 대안으로 property injection이 있습니다. 이는 보통 dependency가 optional이거나 constructor가 너무 복잡할 때 사용됩니다. 인스턴스가 생성되면(즉, constructor가 실행되면) properties는 자동으로 할당됩니다.
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class MyService {
     // 필수
@@ -56,7 +56,7 @@ app.get('/', (database: Database) => {
 dependency를 동적으로 resolve하고 싶다면 `InjectorContext`를 주입하고 이를 사용하여 dependencies를 가져올 수 있습니다.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class MyService {
     constructor(protected context: InjectorContext) {

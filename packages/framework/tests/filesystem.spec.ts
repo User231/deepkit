@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemMemoryAdapter, NamedFilesystem, provideFilesystem, provideNamedFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemMemoryAdapter, NamedFilesystem, provideFilesystem, provideNamedFilesystem } from '@d7/filesystem';
 
 test('default provider', async () => {
     const app = new App({

@@ -28,10 +28,10 @@ Das HTTP-Modul verwendet eigene Event-Listener auf diesen Event-Token, um die Ve
 Angenommen, Sie möchten das Event abfangen, wenn ein Controller aufgerufen wird. Soll ein bestimmter Controller aufgerufen werden, prüfen wir, ob der Benutzer Zugriff darauf hat. Hat der Benutzer Zugriff, machen wir weiter. Wenn nicht, springen wir zum nächsten Workflow-Item `accessDenied`. Dort wird die Prozedur einer Zugriff-verweigert-Situation dann automatisch weiterverarbeitet.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HtmlResponse, http, httpAction, httpWorkflow } from '@deepkit/http';
-import { eventDispatcher } from '@deepkit/event';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HtmlResponse, http, httpAction, httpWorkflow } from '@d7/http';
+import { eventDispatcher } from '@d7/event';
 
 class MyWebsite {
     @http.GET('/')

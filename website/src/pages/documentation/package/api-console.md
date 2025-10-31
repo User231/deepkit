@@ -1,7 +1,7 @@
 # Deepkit API Console
 
 ```bash
-npms install @deepkit/api-console-module
+npms install @d7/api-console-module
 ```
 
 Auto documentation of HTTP and RPC API showing all routes, actions, parameters, return types, status codes, in TypeScript type syntax.
@@ -9,7 +9,7 @@ Auto documentation of HTTP and RPC API showing all routes, actions, parameters, 
 It is part of [Framework Debugger](../framework.md) but can also be used standalone.
 
 ```typescript
-import { ApiConsoleModule } from '@deepkit/api-console-module';
+import { ApiConsoleModule } from '@d7/api-console-module';
 
 new App({
     imports: [
@@ -37,4 +37,4 @@ Per default `new ApiConsoleModule` shows all HTTP and RPC routes. You can also s
 <app-image src="/assets/screenshots/api-console-overview-detail-get.png"></app-image>
 </app-images>
 
-<api-docs package="@deepkit/api-console-module"></api-docs>
+<api-docs package="@d7/api-console-module"></api-docs>

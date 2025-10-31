@@ -6,7 +6,7 @@ import { mediaWatch, PlatformHelper } from '@app/app/utils';
 import { HeaderLogoComponent, HeaderNavComponent } from '@app/app/components/header.component.js';
 import { TableOfContentComponent } from '@app/app/components/table-of-content.component.js';
 import { ContentTextService } from '@app/app/components/content-text.component.js';
-import { DuiApp } from '@deepkit/desktop-ui';
+import { DuiApp } from '@d7/desktop-ui';
 import { docs, texts } from '@app/common/docs';
 import { TranslatePipe, Translation } from '@app/app/components/translation.js';
 

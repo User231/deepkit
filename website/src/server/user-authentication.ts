@@ -1,5 +1,5 @@
 import { SessionEntity, UserEntity } from '@app/server/database';
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 
 const argon2 = require('argon2');
 

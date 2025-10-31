@@ -9,8 +9,8 @@
  */
 
 import { Injectable } from '@angular/core';
-import { Collection, RpcWebSocketClient } from '@deepkit/rpc';
-import { DebugControllerInterface, DebugMediaInterface, DebugRequest, Workflow } from '@deepkit/framework-debug-api';
+import { Collection, RpcWebSocketClient } from '@d7/rpc';
+import { DebugControllerInterface, DebugMediaInterface, DebugRequest, Workflow } from '@d7/framework-debug-api';
 
 @Injectable({ providedIn: 'root' })
 export class ControllerClient {

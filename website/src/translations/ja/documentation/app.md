@@ -20,14 +20,14 @@ Command-line Interface (CLI) プログラムは、テキスト入力とテキス
 Deepkit のコマンドは DI コンテナへ完全にアクセスできるため、すべてのプロバイダや設定オプションにアクセスできます。CLI コマンドの引数とオプションは
 TypeScript の型によるパラメータ宣言で制御され、自動的にシリアライズおよび検証されます。
 
-[Deepkit フレームワーク](./framework.md) の `@deepkit/framework` はこれをさらに拡張し、HTTP/RPC 用のアプリケーションサーバ、デバッガ/プロファイラなどを提供します。
+[Deepkit フレームワーク](./framework.md) の `@d7/framework` はこれをさらに拡張し、HTTP/RPC 用のアプリケーションサーバ、デバッガ/プロファイラなどを提供します。
 
 ## 簡単なインストール
 
 最も簡単な始め方は、NPM init を使って新しい Deepkit プロジェクトを作成することです。
 
 ```shell
-npm init @deepkit/app@latest my-deepkit-app
+npm init @d7/app@latest my-deepkit-app
 ````
 
 これにより、新しいフォルダー `my-deepkit-app` が作成され、すべての依存関係と基本的な `app.ts` ファイルが含まれます。
@@ -47,7 +47,7 @@ Deepkit App は [Deepkit ランタイム型](./runtime-types.md) を基盤とし
 mkdir my-project && cd my-project
 
 npm install typescript ts-node 
-npm install @deepkit/app @deepkit/type @deepkit/type-compiler
+npm install @d7/app @d7/type @d7/type-compiler
 ```
 
 次に、以下のコマンドを実行して、Deepkit の型コンパイラが `node_modules/typescript` にあるインストール済みの TypeScript パッケージへ導入されていることを確認します:
@@ -101,8 +101,8 @@ TypeScript の設定 tsconfig.json の2つだけです。
 ```
 
 ```typescript title=app.ts
-import { App } from '@deepkit/app';
-import { Logger } from '@deepkit/logger';
+import { App } from '@d7/app';
+import { Logger } from '@d7/logger';
 
 const app = new App();
 

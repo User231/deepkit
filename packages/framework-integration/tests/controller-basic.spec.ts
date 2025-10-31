@@ -1,13 +1,13 @@
 import { afterAll, expect, jest, test } from '@jest/globals';
-import { ClientProgress, JSONError, rpc } from '@deepkit/rpc';
+import { ClientProgress, JSONError, rpc } from '@d7/rpc';
 import { appModuleForControllers, closeAllCreatedServers, createServerClientPair, subscribeAndWait } from './util.js';
 import { Observable } from 'rxjs';
 import { bufferCount, first, skip } from 'rxjs/operators';
-import { ObserverTimer } from '@deepkit/core-rxjs';
-import { isArray } from '@deepkit/core';
+import { ObserverTimer } from '@d7/core-rxjs';
+import { isArray } from '@d7/core';
 import { fail } from 'assert';
 import ws from 'ws';
-import { entity, ValidationError, ValidationErrorItem } from '@deepkit/type';
+import { entity, ValidationError, ValidationErrorItem } from '@d7/type';
 
 // @ts-ignore
 global['WebSocket'] = ws;

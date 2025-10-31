@@ -1,5 +1,5 @@
 import { Component, computed, effect, inject, Injectable, signal } from '@angular/core';
-import { DropdownComponent, DropdownItemComponent, DropdownSplitterComponent, DuiApp, IconComponent, OpenDropdownDirective } from '@deepkit/desktop-ui';
+import { DropdownComponent, DropdownItemComponent, DropdownSplitterComponent, DuiApp, IconComponent, OpenDropdownDirective } from '@d7/desktop-ui';
 import { injectLocalStorageNumber, injectLocalStorageString } from '@app/app/utils.js';
 
 @Injectable({ providedIn: 'root' })

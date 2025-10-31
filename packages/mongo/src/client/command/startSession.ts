@@ -11,7 +11,7 @@
 import { BaseResponse, Command } from './command.js';
 import { MongoClientConfig } from '../config.js';
 import { Host } from '../host.js';
-import { UUID } from '@deepkit/type';
+import { UUID } from '@d7/type';
 import type { MongoDatabaseTransaction } from '../connection.js';
 
 interface SessionResponse extends BaseResponse {

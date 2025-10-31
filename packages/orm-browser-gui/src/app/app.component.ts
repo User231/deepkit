@@ -22,12 +22,12 @@ import {
     WindowSidebarComponent,
     WindowToolbarComponent,
     WindowToolbarContainerComponent,
-} from '@deepkit/desktop-ui';
+} from '@d7/desktop-ui';
 import { BrowserState } from './browser-state';
 import { ControllerClient } from './client';
 import { RouterOutlet } from '@angular/router';
 import { DatabaseBrowserListComponent } from './components/list.component';
-import { HeaderStatusBarComponent } from '@deepkit/ui-library';
+import { HeaderStatusBarComponent } from '@d7/ui-library';
 
 @Component({
     selector: 'app-root',

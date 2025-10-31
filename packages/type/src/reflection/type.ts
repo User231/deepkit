@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { AbstractClassType, arrayRemoveItem, ClassType, getClassName, getInheritanceChain, getParentClass, indent, isArray, isClass, isGlobalClass, TypeAnnotation } from '@deepkit/core';
-import { TypeNumberBrand } from '@deepkit/type-spec';
+import { AbstractClassType, arrayRemoveItem, ClassType, getClassName, getInheritanceChain, getParentClass, indent, isArray, isClass, isGlobalClass, TypeAnnotation } from '@d7/core';
+import { TypeNumberBrand } from '@d7/type-spec';
 import { getProperty, ReceiveType, reflect, ReflectionClass, resolveReceiveType, toSignature } from './reflection.js';
 import { isExtendable } from './extends.js';
 import { state } from './state.js';

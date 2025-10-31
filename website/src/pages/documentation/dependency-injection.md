@@ -90,10 +90,10 @@ But an obvious disadvantage can also be seen directly: Do I really need to creat
 
 For more complex applications, however, it is not necessary to manage all dependencies yourself, because that is exactly what a so-called dependency injection container is for. This not only creates all objects automatically, but also "injects" the dependencies automatically, so that a manual "new" call is no longer necessary. There are various types of injection, such as constructor injection, method injection, or property injection. This makes it easy to manage even complicated architectures with many dependencies.
 
-A dependency injection container (also called DI container or IoC container) brings Deepkit in `@deepkit/injector` or already ready integrated via App modules in the Deepkit Framework. The above code would look like this using a low-level API from the `@deepkit/injector` package.
+A dependency injection container (also called DI container or IoC container) brings Deepkit in `@d7/injector` or already ready integrated via App modules in the D7 Framework. The above code would look like this using a low-level API from the `@d7/injector` package.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 const injector = InjectorContext.forProviders(
     [UserRepository, HttpClient]
@@ -131,7 +131,7 @@ const injector = InjectorContext.forProviders([
 
 All types of providers are listed and explained in the [Dependency Injection Providers](./dependency-injection/providers.md) section.
 
-It should be mentioned here that Deepkit's DI container only works with Deepkit's runtime types. This means that any code that contains classes, types, interfaces, and functions must be compiled by the Deepkit Type Compiler in order to have the type information available at runtime. See the chapter [Runtime Types](./runtime-types.md).
+It should be mentioned here that Deepkit's DI container only works with Deepkit's runtime types. This means that any code that contains classes, types, interfaces, and functions must be compiled by the D7 Type Compiler in order to have the type information available at runtime. See the chapter [Runtime Types](./runtime-types.md).
 
 ## Dependency Inversion
 
@@ -163,7 +163,7 @@ This is called the dependency inversion principle. UserRepository no longer has 
 Merging the two implementations (UserRepository with an HTTP library) can now be done via the DI container.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 import { HttpClient } from './http-client';
 import { UserRepository } from './user-repository';
 
@@ -183,7 +183,7 @@ As soon as HttpClient modifies its API (for example, removes the `get` method) a
 As an alternative, the HttpClientInterface can be provided directly with a concrete implementation.
 
 ```typescript
-import { InjectorContext, provide } from '@deepkit/injector';
+import { InjectorContext, provide } from '@d7/injector';
 import { HttpClient } from './http-client';
 import { UserRepository, HttpClientInterface } from './user-repository';
 

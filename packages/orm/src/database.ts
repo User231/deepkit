@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { AbstractClassType, ClassType, forwardTypeArguments, getClassName, getClassTypeFromInstance } from '@deepkit/core';
+import { AbstractClassType, ClassType, forwardTypeArguments, getClassName, getClassTypeFromInstance } from '@d7/core';
 import {
     entityAnnotation,
     EntityOptions,
@@ -20,18 +20,18 @@ import {
     ReflectionKind,
     resolveReceiveType,
     Type,
-} from '@deepkit/type';
+} from '@d7/type';
 import { DatabaseAdapter, DatabaseEntityRegistry, MigrateOptions } from './database-adapter.js';
 import { DatabaseSession } from './database-session.js';
 import { Query } from './query.js';
 import { getReference } from './reference.js';
 import { OrmEntity } from './type.js';
 import { VirtualForeignKeyConstraint } from './virtual-foreign-key-constraint.js';
-import { Stopwatch } from '@deepkit/stopwatch';
+import { Stopwatch } from '@d7/stopwatch';
 import { getClassState, getInstanceState, getNormalizedPrimaryKey } from './identity-map.js';
-import { EventDispatcher, EventDispatcherUnsubscribe, EventListenerCallback, EventToken } from '@deepkit/event';
+import { EventDispatcher, EventDispatcherUnsubscribe, EventListenerCallback, EventToken } from '@d7/event';
 import { DatabasePlugin, DatabasePluginRegistry } from './plugin/plugin.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 
 /**
  * Hydrates not completely populated item and makes it completely accessible.

@@ -6,7 +6,7 @@ To work directly with the type information itself, there are two basic variants:
 The function `typeOf` works for all types, including interfaces, object literals, classes, functions, and type aliases. It returns a type object that contains all the information about the type. You can pass any type as a type argument, including generics.
 
 ```typescript
-import { typeOf } from '@deepkit/type';
+import { typeOf } from '@d7/type';
 
 typeOf<string>(); //{kind: 5}
 typeOf<number>(); //{kind: 6}
@@ -24,7 +24,7 @@ function test(id: number): string {}
 typeOf<typeof test>(); //{kind: 12, parameters: [...], return: {kind: 5}}
 ```
 
-The type object is a simple object literal that contains a `kind` property that indicates the type of the type object. The `kind` property is a number and gets its meaning from the enum `ReflectionKind`. `ReflectionKind` is defined in the `@deepkit/type` package as follows:
+The type object is a simple object literal that contains a `kind` property that indicates the type of the type object. The `kind` property is a number and gets its meaning from the enum `ReflectionKind`. `ReflectionKind` is defined in the `@d7/type` package as follows:
 
 ```typescript
 enum ReflectionKind {
@@ -179,9 +179,9 @@ typeOf<User>();
 ```
 
 Note that the type of Reflection.propertySignature has changed to Reflection.property and Reflection.methodSignature has changed to Reflection.method. Since properties and methods on classes have additional attributes, this information can also be retrieved. The latter additionally include `visibility`, `abstract`, and `default`.
-Type objects of classes contain only the properties and methods of the class itself and not of super-classes. This is contrary to type objects of interfacesobject-literals, which have all property signatures and method signatures of all parents resolved into `types`. To resolve the property and methods of the super-classes, either ReflectionClass and its `ReflectionClass.getProperties()` (see following sections) or `resolveTypeMembers()` of `@deepkit/type` can be used.
+Type objects of classes contain only the properties and methods of the class itself and not of super-classes. This is contrary to type objects of interfacesobject-literals, which have all property signatures and method signatures of all parents resolved into `types`. To resolve the property and methods of the super-classes, either ReflectionClass and its `ReflectionClass.getProperties()` (see following sections) or `resolveTypeMembers()` of `@d7/type` can be used.
 
-There is a whole plethora of type objects. For example for literal, template literals, promise, enum, union, array, tuple, and many more. To find out which ones all exist and what information is available, it is recommended to import `Type` from `@deepkit/type`. It is a `union` with all possible subtypes like TypeAny, TypeUnknonwn, TypeVoid, TypeString, TypeNumber, TypeObjectLiteral, TypeArray, TypeClass, and many more. There you can find the exact structure.
+There is a whole plethora of type objects. For example for literal, template literals, promise, enum, union, array, tuple, and many more. To find out which ones all exist and what information is available, it is recommended to import `Type` from `@d7/type`. It is a `union` with all possible subtypes like TypeAny, TypeUnknonwn, TypeVoid, TypeString, TypeNumber, TypeObjectLiteral, TypeArray, TypeClass, and many more. There you can find the exact structure.
 
 ## Type Cache
 
@@ -245,7 +245,7 @@ In the further course some functions and features are described, which are often
 In addition to the `typeOf<>()` function, there are various reflection classes that provide an OOP alternative to the Type objects. The reflection classes are only available for classes, InterfaceObject literals and functions and their direct sub-types (Properties, Methods, Parameters). All deeper types must be read again with the Type objects.
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 interface User {
     id: number;
@@ -281,7 +281,7 @@ function validate<T>(data: any, type?: ReceiveType<T>): void;
 `ReceiveType` with the reference to the first type arguments `T` signals the type compiler that each call to `validate` should put the type in second place (since `type` is declared in second place). To then read out the information at runtime, the `resolveReceiveType` function is used.
 
 ```typescript
-import { resolveReceiveType, ReceiveType } from '@deepkit/type';
+import { resolveReceiveType, ReceiveType } from '@d7/type';
 
 function validate<T>(data: any, type?: ReceiveType<T>): void {
     type = resolveReceiveType(type);

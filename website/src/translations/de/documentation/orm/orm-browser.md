@@ -9,8 +9,8 @@ Deepkit ORM Browser ist ein webbasiertes Tool, um das Datenbankschema und die Da
 Deepkit ORM Browser ist Teil des Deepkit Frameworks und wird aktiviert, wenn der Debug-Modus eingeschaltet ist.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Database } from '@deepkit/orm';
+import { App } from '@d7/app';
+import { Database } from '@d7/orm';
 
 class MyController {
     @http.GET('/')
@@ -35,12 +35,12 @@ new App({
 Alternativ kannst du Deepkit ORM Browser als eigenständiges Paket installieren.
 
 ```bash
-npm install @deepkit/orm-browser
+npm install @d7/orm-browser
 ```
 
 ```typescript
 // database.ts
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 
 class MainDatabase extends Database {
     constructor() {

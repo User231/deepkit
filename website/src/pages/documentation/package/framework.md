@@ -1,8 +1,8 @@
-# API `@deepkit/framework`
+# API `@d7/framework`
 
 ```shell
-npm install @deepkit/framework
+npm install @d7/framework
 ```
 
 
-<api-docs package="@deepkit/framework"></api-docs>
+<api-docs package="@d7/framework"></api-docs>

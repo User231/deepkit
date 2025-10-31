@@ -5,8 +5,8 @@
 要使用该插件，必须实例化 SoftDelete 类并为每个实体启用它。
 
 ```typescript
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { SoftDelete } from '@deepkit/orm';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { SoftDelete } from '@d7/orm';
 
 @entity.name('user')
 class User {
@@ -42,7 +42,7 @@ softDelete.disable(User);
 已删除的记录可以通过通过 `SoftDeleteQuery` 的“提升”查询进行恢复。它提供 `restoreOne` 和 `restoreMany`。
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreOne();
 await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreMany();
@@ -51,7 +51,7 @@ await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreMany()
 会话也支持恢复实体。
 
 ```typescript
-import { SoftDeleteSession } from '@deepkit/orm';
+import { SoftDeleteSession } from '@d7/orm';
 
 const session = database.createSession();
 const user1 = session.query(User).findOne();
@@ -65,7 +65,7 @@ await session.commit();
 要进行硬删除，请通过 SoftDeleteQuery 使用提升查询。这实质上恢复到了未使用软删除插件时的正常行为。
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 // 真正从数据库中删除该记录
 await database.query(User).lift(SoftDeleteQuery).hardDeleteOne();
@@ -81,7 +81,7 @@ await database.query(User).lift(SoftDeleteQuery).withSoftDeleted().deleteMany();
 通过 `SoftDeleteQuery` 的“提升”查询，你也可以包含已删除的记录。
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 // 查找所有，包括软删除和未删除的
 await database.query(User).lift(SoftDeleteQuery).withSoftDeleted().find();
@@ -95,7 +95,7 @@ await database.query(s).lift(SoftDeleteQuery).isSoftDeleted().count()
 可以通过查询和会话设置 `deletedBy`。
 
 ```typescript
-import { SoftDeleteSession } from '@deepkit/orm';
+import { SoftDeleteSession } from '@d7/orm';
 
 const session = database.createSession();
 const user1 = session.query(User).findOne();
@@ -104,7 +104,7 @@ session.from(SoftDeleteSession).setDeletedBy('Peter');
 session.remove(user1);
 
 await session.commit();
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 database.query(User).lift(SoftDeleteQuery)
 .deletedBy('Peter')

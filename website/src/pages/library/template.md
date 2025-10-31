@@ -1,6 +1,6 @@
 ---
 title: Deepkit Template
-package: "@deepkit/template"
+package: "@d7/template"
 doc: template
 api: template
 category: template

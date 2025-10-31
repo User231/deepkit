@@ -28,10 +28,10 @@ HTTP 模块在这些事件令牌上使用了自身的事件监听器来实现 HT
 例如，假设你想拦截控制器被调用时的事件。如果将要调用某个特定控制器，我们检查用户是否有访问权限。若有，则继续；若没有，则跳转到下一个工作流项 `accessDenied`。在那里，访问被拒绝的处理流程会被自动继续执行。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HtmlResponse, http, httpAction, httpWorkflow } from '@deepkit/http';
-import { eventDispatcher } from '@deepkit/event';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HtmlResponse, http, httpAction, httpWorkflow } from '@d7/http';
+import { eventDispatcher } from '@d7/event';
 
 class MyWebsite {
     @http.GET('/')

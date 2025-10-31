@@ -1,13 +1,13 @@
-import { assertType, ReceiveType, ReflectionKind, resolveReceiveType, stringifyType, Type } from '@deepkit/type';
-import { EventToken } from '@deepkit/event';
+import { assertType, ReceiveType, ReflectionKind, resolveReceiveType, stringifyType, Type } from '@d7/type';
+import { EventToken } from '@d7/event';
 import { parseTime } from './utils.js';
 import { BrokerAdapterCache } from './broker-cache.js';
 import { QueueMessageProcessing } from './model.js';
 import { BrokerAdapterKeyValue } from './broker-key-value.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 import { Subject } from 'rxjs';
-import { arrayRemoveItem, ensureError, formatError } from '@deepkit/core';
-import { provide, Provider } from '@deepkit/injector';
+import { arrayRemoveItem, ensureError, formatError } from '@d7/core';
+import { provide, Provider } from '@d7/injector';
 
 export interface BrokerTimeOptions {
     /**
@@ -473,7 +473,7 @@ export class BrokerBus {
 }
 
 /**
- * Provides a bus channel for the given path for @deepkit/injector modules.
+ * Provides a bus channel for the given path for @d7/injector modules.
  *
  * @see BrokerBusChannel
  */
@@ -488,7 +488,7 @@ export function provideBusChannel<T extends BrokerBusChannel<any>>(path: string,
 }
 
 /**
- * Provides a bus Subject for the given channel path for @deepkit/injector modules.
+ * Provides a bus Subject for the given channel path for @d7/injector modules.
  * This returns a transient provider, meaning that each time you inject it, a new subject is created.
  * The Subject automatically subscribes to the broker channel and unsubscribes when all subjects are garbage collected.
  *

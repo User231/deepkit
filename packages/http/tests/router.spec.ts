@@ -11,7 +11,7 @@ import {
     JSONResponse,
     Response,
 } from '../src/http.js';
-import { eventDispatcher } from '@deepkit/event';
+import { eventDispatcher } from '@d7/event';
 import {
     HttpBody,
     HttpBodyValidation,
@@ -24,7 +24,7 @@ import {
     HttpRequestParser,
     MemoryHttpResponse,
 } from '../src/model.js';
-import { getClassName, isObject, sleep, TypeAnnotation } from '@deepkit/core';
+import { getClassName, isObject, sleep, TypeAnnotation } from '@d7/core';
 import { createHttpKernel } from './utils.js';
 import {
     Excluded,
@@ -41,9 +41,9 @@ import {
     typeAnnotation,
     typeSettings,
     UnpopulatedCheck,
-} from '@deepkit/type';
+} from '@d7/type';
 import { Readable } from 'stream';
-import { provide } from '@deepkit/injector';
+import { provide } from '@d7/injector';
 
 test('router', async () => {
     class Controller {

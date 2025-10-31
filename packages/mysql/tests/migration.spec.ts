@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { AutoIncrement, Entity, float32, int16, int32, int8, integer, MySQL, PrimaryKey, Reference, typeOf, uint16, uint32, uint8, Unique, UUID } from '@deepkit/type';
-import { schemaMigrationRoundTrip } from '@deepkit/sql';
+import { AutoIncrement, Entity, float32, int16, int32, int8, integer, MySQL, PrimaryKey, Reference, typeOf, uint16, uint32, uint8, Unique, UUID } from '@d7/type';
+import { schemaMigrationRoundTrip } from '@d7/sql';
 import { MySQLDatabaseAdapter } from '../src/mysql-adapter.js';
-import { DatabaseEntityRegistry } from '@deepkit/orm';
+import { DatabaseEntityRegistry } from '@d7/orm';
 
 test('mysql custom type', async () => {
     class post {

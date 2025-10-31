@@ -27,7 +27,7 @@ class MyService {
 コンストラクタ インジェクションの代替として、プロパティ インジェクションがあります。これは通常、依存関係がオプションである場合や、コンストラクタがそれ以上引数でいっぱいな場合に使用されます。インスタンスが生成され（つまりコンストラクタが実行され）ると、プロパティは自動的に代入されます。
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class MyService {
     // 必須
@@ -55,7 +55,7 @@ app.get('/', (database: Database) => {
 依存関係を動的に解決したい場合は、`InjectorContext` をインジェクトして、それを使って依存関係を取得できます。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class MyService {
     constructor(protected context: InjectorContext) {

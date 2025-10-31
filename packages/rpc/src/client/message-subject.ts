@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, CustomError } from '@deepkit/core';
-import { ReceiveType } from '@deepkit/type';
+import { asyncOperation, CustomError } from '@d7/core';
+import { ReceiveType } from '@d7/type';
 import { RpcError, RpcTypes } from '../model.js';
 import type { RpcMessage } from '../protocol.js';
 

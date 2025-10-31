@@ -10,7 +10,7 @@ import {
     TypeGuardRegistry,
 } from '../src/serializer.js';
 import { ReflectionKind, stringifyResolvedType } from '../src/reflection/type.js';
-import { CompilerContext } from '@deepkit/core';
+import { CompilerContext } from '@d7/core';
 import { cast, deserialize, serialize } from '../src/serializer-facade.js';
 import { ValidationError } from '../src/validator';
 

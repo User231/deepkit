@@ -1,21 +1,21 @@
 # 入门
 
-要使用 Deepkit RPC，必须正确安装 `@deepkit/type`，因为它基于运行时类型。参见[运行时类型安装](../runtime-types.md)。
+要使用 Deepkit RPC，必须正确安装 `@d7/type`，因为它基于运行时类型。参见[运行时类型安装](../runtime-types.md)。
 
-成功完成后，即可安装 `@deepkit/rpc`，或安装已在底层使用该库的 Deepkit 框架。
+成功完成后，即可安装 `@d7/rpc`，或安装已在底层使用该库的 Deepkit 框架。
 
 ```sh
-npm install @deepkit/rpc
+npm install @d7/rpc
 ```
 
-请注意，`@deepkit/rpc` 中的控制器类基于 TypeScript 装饰器，必须启用 experimentalDecorators 功能。
+请注意，`@d7/rpc` 中的控制器类基于 TypeScript 装饰器，必须启用 experimentalDecorators 功能。
 
-如果服务器和客户端各自有自己的 package.json，则必须在二者上都安装 `@deepkit/rpc` 包。
+如果服务器和客户端各自有自己的 package.json，则必须在二者上都安装 `@d7/rpc` 包。
 
-若要通过 TCP 与服务器通信，必须在客户端和服务器上安装 `@deepkit/rpc-tcp` 包。
+若要通过 TCP 与服务器通信，必须在客户端和服务器上安装 `@d7/rpc-tcp` 包。
 
 ```sh
-npm install @deepkit/rpc-tcp
+npm install @d7/rpc-tcp
 ```
 
 对于 WebSocket 通信，该包同样需要在服务器上使用。另一方面，浏览器端客户端使用的是官方标准中的 WebSocket。
@@ -28,13 +28,13 @@ npm install ws
 
 ## 用法
 
-下面是一个基于 WebSocket 和 @deepkit/rpc 低级 API 的完整示例。在使用 Deepkit 框架时，控制器通过应用模块提供，而无需手动实例化 RpcKernel。
+下面是一个基于 WebSocket 和 @d7/rpc 低级 API 的完整示例。在使用 Deepkit 框架时，控制器通过应用模块提供，而无需手动实例化 RpcKernel。
 
 _文件：server.ts_
 
 ```typescript
-import { rpc, RpcKernel } from '@deepkit/rpc';
-import { RpcWebSocketServer } from '@deepkit/rpc-tcp';
+import { rpc, RpcKernel } from '@d7/rpc';
+import { RpcWebSocketServer } from '@d7/rpc-tcp';
 
 @rpc.controller('/main')
 export class Controller {
@@ -58,7 +58,7 @@ console.log('Server started at ws://127.0.0.1:8081');
 _文件：client.ts_
 
 ```typescript
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { RpcWebSocketClient } from '@d7/rpc';
 import type { Controller } from './server';
 
 async function main() {
@@ -80,7 +80,7 @@ main().catch(console.error);
 在远程过程调用（RPC）中，“Procedure”一词通常也称为“Action”。Action 是类中定义并使用 `@rpc.action` 装饰器标记的方法。类本身使用 `@rpc.controller` 装饰器标记为控制器并赋予唯一名称。该名称随后会在客户端中被引用，以定位到正确的控制器。可以按需定义并注册多个控制器。
 
 ```typescript
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 
 @rpc.controller('/main');
 class Controller {
@@ -123,7 +123,7 @@ class Controller {
 要注册一个类，请使用装饰器 `@entity.name('id')`。
 
 ```typescript
-import { entity } from '@deepkit/type';
+import { entity } from '@d7/type';
 
 @entity.name('user')
 class User {

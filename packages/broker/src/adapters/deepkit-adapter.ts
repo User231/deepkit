@@ -1,5 +1,5 @@
 import { BrokerAdapter, BrokerAdapterQueueProduceOptionsResolved, BrokerQueueMessage, BrokerTimeOptionsResolved, Release } from '../broker.js';
-import { Type } from '@deepkit/type';
+import { Type } from '@d7/type';
 import {
     brokerBusPublish,
     brokerBusResponseHandleMessage,
@@ -26,9 +26,9 @@ import {
     BrokerType,
     QueueMessageProcessing,
 } from '../model.js';
-import { ClientTransportAdapter, createRpcMessage, RpcBaseClient, RpcMessage, RpcMessageRouteType, RpcWebSocketClientAdapter } from '@deepkit/rpc';
-import { deserializeBSON, getBsonEncoder, serializeBSON } from '@deepkit/bson';
-import { arrayRemoveItem, formatError } from '@deepkit/core';
+import { ClientTransportAdapter, createRpcMessage, RpcBaseClient, RpcMessage, RpcMessageRouteType, RpcWebSocketClientAdapter } from '@d7/rpc';
+import { deserializeBSON, getBsonEncoder, serializeBSON } from '@d7/bson';
+import { arrayRemoveItem, formatError } from '@d7/core';
 import { BrokerCacheItemOptionsResolved } from '../broker-cache.js';
 import { fastHash } from '../utils.js';
 import { BrokerKeyValueOptionsResolved } from '../broker-key-value.js';

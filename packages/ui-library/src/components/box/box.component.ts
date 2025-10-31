@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { IconComponent } from '@deepkit/desktop-ui';
+import { IconComponent } from '@d7/desktop-ui';
 
 @Component({
     selector: 'deepkit-box',

@@ -1,6 +1,6 @@
 # Testing
 
-The services and controllers in the Deepkit framework are designed to support SOLID and clean code that is well-designed, encapsulated, and separated. These features make the code easy to test.
+The services and controllers in the D7 framework are designed to support SOLID and clean code that is well-designed, encapsulated, and separated. These features make the code easy to test.
 
 This documentation shows you how to set up a testing framework named [Jest](https://jestjs.io) with `ts-jest`. To do this, run the following command to install `jest` and `ts-jest`.
 
@@ -79,8 +79,8 @@ It's not always possible to write unit tests, nor is it always the most efficien
 As you have already learned in the Dependency Injection chapter, the Dependency Injection Container is the heart of Deepkit. This is where all services are built and run. Your application defines services (providers), controllers, listeners, and imports. For integration testing, you don't necessarily want to have all services available in a test case, but you usually want to have a stripped down version of the application available to test the critical areas.
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
-import { http, HttpRequest } from '@deepkit/http';
+import { createTestingApp } from '@d7/framework';
+import { http, HttpRequest } from '@d7/http';
 
 test('http controller', async () => {
     class MyController {
@@ -102,7 +102,7 @@ test('http controller', async () => {
 ```
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 
 test('service', async () => {
     class MyService {
@@ -157,7 +157,7 @@ new App({
 And test it without booting the entire application server.
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 import { AppCoreModule, MyService } from './app-core.ts';
 
 test('service simple', async () => {

@@ -8,9 +8,9 @@ Suppose you have an application like this in an `app.ts` file:
 
 ```typescript
 #!/usr/bin/env ts-node-script
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class Config {
     title: string = 'DEV my Page';
@@ -81,8 +81,8 @@ It is recommended (and sometimes required) to run your application over HTTPS wi
 |===
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // your config and http controller here
 
@@ -107,8 +107,8 @@ new App({
 In the local development environment, you can enable self-signed HTTPs with the `framework.selfSigned` option.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // your config and http controller here
 

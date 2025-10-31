@@ -1,7 +1,7 @@
 # Deepkit ORM Browser
 
 ```sh
-npm install @deepkit/orm-browser
+npm install @d7/orm-browser
 ```
 
 Deepkit ORM Browser は、Database ORM schema を閲覧し、コンテンツを編集し、Migration の変更を確認し、データベースを seed できる Web アプリケーションです。
@@ -15,4 +15,4 @@ Deepkit ORM Browser は、Database ORM schema を閲覧し、コンテンツを�
     <app-image src="/assets/screenshots-orm-browser/seed.png"></app-image>
 </app-images>
 
-<api-docs package="@deepkit/orm-browser"></api-docs>
+<api-docs package="@d7/orm-browser"></api-docs>

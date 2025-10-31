@@ -1,7 +1,7 @@
-# API `@deepkit/app`
+# API `@d7/app`
 
 ```shell
-npm install @deepkit/app
+npm install @d7/app
 ```
 
 Provides command line interface parser, service container and dependency injection, event dispatcher, app module system, and configuration loader.
@@ -11,4 +11,4 @@ You can register CLI controllers, HTTP controllers or routes, RPC controllers (v
 
 See [Deepkit App documentation](../app.md) for more information.
 
-<api-docs package="@deepkit/app"></api-docs>
+<api-docs package="@d7/app"></api-docs>

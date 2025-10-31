@@ -1,7 +1,7 @@
-# API `@deepkit/sql`
+# API `@d7/sql`
 
 ```shell
-npm install @deepkit/sql
+npm install @d7/sql
 ```
 
-<api-docs package="@deepkit/sql"></api-docs>
+<api-docs package="@d7/sql"></api-docs>

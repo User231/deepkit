@@ -1,4 +1,4 @@
-import { AngularModule, RequestHandler } from '@deepkit/angular-ssr';
+import { AngularModule, RequestHandler } from '@d7/angular-ssr';
 import { app } from './app';
 
 app.appModule.addImport(new AngularModule({

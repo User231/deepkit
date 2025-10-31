@@ -11,8 +11,8 @@ Dieses Kapitel erklärt, wie Sie Deepkit ORM mit Ihrer Deepkit App verwenden. Al
 Die einfachste Möglichkeit, das Objekt `Database` von Deepkit ORM innerhalb der Anwendung zu verwenden, besteht darin, eine davon abgeleitete Klasse zu registrieren.
 
 ```typescript
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 export class SQLiteDatabase extends Database {
@@ -32,8 +32,8 @@ Sie können diese Datenbankklasse nun als Provider registrieren. Außerdem aktiv
 Wir aktivieren außerdem `debug`, womit Sie beim Start des Servers der Anwendung den Debugger öffnen und Ihre Datenbank-Modelle direkt im integrierten ORM Browser verwalten können.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { SQLiteDatabase } from './database.ts';
 
 new App({
@@ -69,8 +69,8 @@ In vielen Fällen sollen Ihre Verbindungs-Credentials konfigurierbar sein. Beisp
 
 ```typescript
 //database.ts
-import { Database } from '@deepkit/orm';
-import { PostgresDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { PostgresDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 type DbConfig = Pick<AppConfig, 'databaseHost', 'databaseUser', 'databasePassword'>;
@@ -97,8 +97,8 @@ export class AppConfig {
 
 ```typescript
 //app.ts
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { MainDatabase } from './database.ts';
 import { AppConfig } from './config.ts';
 
@@ -163,7 +163,7 @@ Wenn Sie in der linken Seitenleiste auf `User` klicken, können Sie dessen Inhal
 ## Mehr erfahren
 
 Um mehr darüber zu erfahren, wie `SQLiteDatabase` funktioniert, lesen Sie bitte das Kapitel [Datenbank](../orm.md) und dessen Unterkapitel, wie das Abfragen von Daten, das Manipulieren von Daten über Sessions, das Definieren von Relationen und vieles mehr.
-Bitte beachten Sie, dass sich die Kapitel dort auf die eigenständige Bibliothek `@deepkit/orm` beziehen und keine Dokumentation über den Teil des Deepkit Frameworks enthalten, den Sie oben in diesem Kapitel gelesen haben. In der Standalone-Bibliothek instanziieren Sie Ihre Datenbankklasse manuell, zum Beispiel über `new SQLiteDatabase()`. In Ihrer Deepkit App geschieht dies jedoch automatisch mithilfe des Dependency-Injection-Containers.
+Bitte beachten Sie, dass sich die Kapitel dort auf die eigenständige Bibliothek `@d7/orm` beziehen und keine Dokumentation über den Teil des Deepkit Frameworks enthalten, den Sie oben in diesem Kapitel gelesen haben. In der Standalone-Bibliothek instanziieren Sie Ihre Datenbankklasse manuell, zum Beispiel über `new SQLiteDatabase()`. In Ihrer Deepkit App geschieht dies jedoch automatisch mithilfe des Dependency-Injection-Containers.
 
 ## Migration
 

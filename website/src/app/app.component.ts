@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { ViewportScroller } from '@angular/common';
 import { ActivatedRoute, RouterOutlet } from '@angular/router';
 import { AppTitle } from '@app/app/components/title';
-import { DuiApp, DuiStyleComponent } from '@deepkit/desktop-ui';
+import { DuiApp, DuiStyleComponent } from '@d7/desktop-ui';
 import { ContentTextService } from '@app/app/components/content-text.component.js';
 import { Translation } from '@app/app/components/translation.js';
 

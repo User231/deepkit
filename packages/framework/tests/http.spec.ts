@@ -1,7 +1,7 @@
 import { FrameworkModule } from '../src/module.js';
 import { expect, test } from '@jest/globals';
-import { HttpBody, HttpKernel, HttpRequest, HttpRouterRegistry } from '@deepkit/http';
-import { Logger } from '@deepkit/logger';
+import { HttpBody, HttpKernel, HttpRequest, HttpRouterRegistry } from '@d7/http';
+import { Logger } from '@d7/logger';
 import { createTestingApp } from '../src/testing.js';
 
 test('functional http app', async () => {

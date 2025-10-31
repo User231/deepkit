@@ -10,8 +10,8 @@
 
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { ControllerClient } from '../../client';
-import { RpcAction, Workflow } from '@deepkit/framework-debug-api';
-import { InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { RpcAction, Workflow } from '@d7/framework-debug-api';
+import { InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 
 @Component({

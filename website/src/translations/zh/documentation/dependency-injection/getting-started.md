@@ -2,10 +2,10 @@
 
 由于 Deepkit 中的依赖注入基于运行时类型（Runtime Types），因此需要先正确安装运行时类型。参见 [运行时类型](../runtime-types/getting-started.md)。
 
-一旦完成，便可安装 `@deepkit/injector`，或者安装已在内部使用该库的 Deepkit 框架。
+一旦完成，便可安装 `@d7/injector`，或者安装已在内部使用该库的 Deepkit 框架。
 
 ```sh
-	npm install @deepkit/injector
+	npm install @d7/injector
 ```
 
 安装完成后，即可直接使用其 API。
@@ -19,14 +19,14 @@
 * 模块 API
 * 应用 API（Deepkit 框架）
 
-如果在不使用 Deepkit 框架的情况下使用 `@deepkit/injector`，推荐前两种方式。
+如果在不使用 Deepkit 框架的情况下使用 `@d7/injector`，推荐前两种方式。
 
 ### 注入器 API
 
 注入器 API 已在[依赖注入简介](../dependency-injection)中介绍。其特点是通过单个类 `InjectorContext` 简单使用，创建一个 DI 容器，特别适合无模块的简单应用。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 const injector = InjectorContext.forProviders([
     UserRepository,
@@ -45,7 +45,7 @@ const repository = injector.get(UserRepository);
 如果应用更复杂且未使用 Deepkit 框架，应使用此 API。
 
 ```typescript
-import { InjectorModule, InjectorContext } from '@deepkit/injector';
+import { InjectorModule, InjectorContext } from '@d7/injector';
 
 const lowLevelModule = new InjectorModule([HttpClient])
      .addExport(HttpClient);
@@ -76,14 +76,14 @@ const lowLevelModule = new InjectorModule([HttpClient])
 
 ### 应用 API
 
-一旦使用 Deepkit 框架，模块将通过 `@deepkit/app` API 定义。它基于模块 API，因此前述能力同样适用。此外，还可以使用强大的钩子并定义配置加载器，以实现更为动态的架构。
+一旦使用 Deepkit 框架，模块将通过 `@d7/app` API 定义。它基于模块 API，因此前述能力同样适用。此外，还可以使用强大的钩子并定义配置加载器，以实现更为动态的架构。
 
 详见[框架模块](../app/modules.md)一章。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry, HttpBody } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry, HttpBody } from '@d7/http';
 
 interface User {
     username: string;

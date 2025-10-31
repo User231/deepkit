@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { DatabaseQueryModel, OrmEntity, SORT_ORDER } from '@deepkit/orm';
-import { MongoId, UUID } from '@deepkit/type';
+import { DatabaseQueryModel, OrmEntity, SORT_ORDER } from '@d7/orm';
+import { MongoId, UUID } from '@d7/type';
 import { CommandOptions } from './client/options.js';
 
 type BSONTypeAlias =

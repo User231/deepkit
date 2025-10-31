@@ -1,9 +1,9 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ControllerClient } from '../client';
-import { ApiAction, ApiEntryPoints, ApiRoute } from '@deepkit/api-console-api';
+import { ApiAction, ApiEntryPoints, ApiRoute } from '@d7/api-console-api';
 import { methods } from '../utils';
 import { Environment, RouteState, Store } from '../store';
-import { copy } from '@deepkit/core';
+import { copy } from '@d7/core';
 import { Subscription } from 'rxjs';
 import {
     ButtonComponent,
@@ -23,13 +23,13 @@ import {
     SelectBoxComponent,
     SplitterComponent,
     TabButtonComponent,
-} from '@deepkit/desktop-ui';
+} from '@d7/desktop-ui';
 import { EnvironmentDialogComponent } from '../components/environment-dialog.component';
 import { filterAndSortActions, filterAndSortRoutes } from './view-helper';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpRouteDetailComponent } from './http/route-detail.component';
 import { HttpRequestsComponent } from './http/results.component';
-import { ReflectionKind, stringifyType } from '@deepkit/type';
+import { ReflectionKind, stringifyType } from '@d7/type';
 import { FormsModule } from '@angular/forms';
 import { RpcDetailComponent } from './rpc/rpc-detail.component';
 

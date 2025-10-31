@@ -1,7 +1,7 @@
-import { FilesystemAdapter, FilesystemError, FilesystemFile, FileType, FileVisibility, Reporter } from '@deepkit/filesystem';
-import { ClassType, escapeRegExp, pathDirectory } from '@deepkit/core';
-import { Database, DatabaseSession } from '@deepkit/orm';
-import { entity, Index, PrimaryKey } from '@deepkit/type';
+import { FilesystemAdapter, FilesystemError, FilesystemFile, FileType, FileVisibility, Reporter } from '@d7/filesystem';
+import { ClassType, escapeRegExp, pathDirectory } from '@d7/core';
+import { Database, DatabaseSession } from '@d7/orm';
+import { entity, Index, PrimaryKey } from '@d7/type';
 
 export interface FilesystemModel {
     path: string;

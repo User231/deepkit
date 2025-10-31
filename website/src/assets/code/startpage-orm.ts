@@ -1,7 +1,7 @@
 import { AutoIncrement, MaxLength, MinLength,
-    PrimaryKey, Unique } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
-import { SqliteDatabaseAdapter } from '@deepkit/sql';
+    PrimaryKey, Unique } from '@d7/type';
+import { Database } from '@d7/orm';
+import { SqliteDatabaseAdapter } from '@d7/sql';
 
 type Username = string & Unique & MinLength<3> & MaxLength<20>;
 

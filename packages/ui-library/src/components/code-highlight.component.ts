@@ -1,8 +1,8 @@
 import { booleanAttribute, Component, computed, inject, Injectable, input, PendingTasks, ViewEncapsulation } from '@angular/core';
 import { type default as PrismT } from 'prismjs';
 import { derivedAsync } from 'ngxtension/derived-async';
-import { asyncOperation } from '@deepkit/core';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { asyncOperation } from '@d7/core';
+import { pendingTask } from '@d7/desktop-ui';
 
 @Component({
     selector: 'code-highlight',

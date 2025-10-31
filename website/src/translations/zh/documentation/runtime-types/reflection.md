@@ -5,7 +5,7 @@
 函数 `typeOf` 适用于所有类型，包括接口、对象字面量、类、函数和类型别名。它返回一个包含该类型全部信息的类型对象。你可以传入任意类型作为类型参数，包括泛型。
 
 ```typescript
-import { typeOf } from '@deepkit/type';
+import { typeOf } from '@d7/type';
 
 typeOf<string>(); //{kind: 5}
 typeOf<number>(); //{kind: 6}
@@ -23,7 +23,7 @@ function test(id: number): string {}
 typeOf<typeof test>(); //{kind: 12, parameters: [...], return: {kind: 5}}
 ```
 
-类型对象是一个简单的对象字面量，包含一个 `kind` 属性用来指示该类型对象的类型。`kind` 属性是一个数字，其含义取自枚举 `ReflectionKind`。`ReflectionKind` 在 `@deepkit/type` 包中定义如下：
+类型对象是一个简单的对象字面量，包含一个 `kind` 属性用来指示该类型对象的类型。`kind` 属性是一个数字，其含义取自枚举 `ReflectionKind`。`ReflectionKind` 在 `@d7/type` 包中定义如下：
 
 ```typescript
 enum ReflectionKind {
@@ -178,9 +178,9 @@ typeOf<User>();
 ```
 
 请注意，Reflection.propertySignature 的类型变为了 Reflection.property，而 Reflection.methodSignature 变为了 Reflection.method。由于类上的属性和方法具有附加的属性，这些信息也可以被检索。后者还包括 `visibility`、`abstract` 和 `default`。
-类的类型对象仅包含类自身的属性和方法，而不包含父类的。这与接口/对象字面量的类型对象相反，后者会将所有父级的属性签名和方法签名解析到 `types` 中。若要解析父类的属性和方法，可以使用 ReflectionClass 及其 `ReflectionClass.getProperties()`（见下节），或使用 `@deepkit/type` 的 `resolveTypeMembers()`。
+类的类型对象仅包含类自身的属性和方法，而不包含父类的。这与接口/对象字面量的类型对象相反，后者会将所有父级的属性签名和方法签名解析到 `types` 中。若要解析父类的属性和方法，可以使用 ReflectionClass 及其 `ReflectionClass.getProperties()`（见下节），或使用 `@d7/type` 的 `resolveTypeMembers()`。
 
-类型对象种类繁多。例如，字面量、模板字面量、Promise、枚举、联合、数组、元组等。要了解都有哪些以及可用的信息，建议从 `@deepkit/type` 导入 `Type`。它是一个包含所有可能子类型的 `union`，如 TypeAny、TypeUnknonwn、TypeVoid、TypeString、TypeNumber、TypeObjectLiteral、TypeArray、TypeClass 等。在那里你可以找到精确的结构。
+类型对象种类繁多。例如，字面量、模板字面量、Promise、枚举、联合、数组、元组等。要了解都有哪些以及可用的信息，建议从 `@d7/type` 导入 `Type`。它是一个包含所有可能子类型的 `union`，如 TypeAny、TypeUnknonwn、TypeVoid、TypeString、TypeNumber、TypeObjectLiteral、TypeArray、TypeClass 等。在那里你可以找到精确的结构。
 
 ## 类型缓存
 
@@ -243,7 +243,7 @@ typeOf<ID>();
 除了 `typeOf<>()` 函数外，还有各种反射类，它们为类型对象提供了面向对象（OOP）的替代方案。反射类仅适用于类、接口/对象字面量和函数及其直接子类型（属性、方法、参数）。更深层的类型必须再次通过类型对象读取。
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 interface User {
     id: number;
@@ -278,7 +278,7 @@ function validate<T>(data: any, type?: ReceiveType<T>): void;
 带有对第一个类型参数 `T` 的引用的 `ReceiveType` 会向类型编译器发出信号，表示每次调用 `validate` 都应把该类型放在第二个位置（因为 `type` 在第二个位置声明）。随后在运行时读取该信息，使用 `resolveReceiveType` 函数。
 
 ```typescript
-import { resolveReceiveType, ReceiveType } from '@deepkit/type';
+import { resolveReceiveType, ReceiveType } from '@d7/type';
 
 function validate<T>(data: any, type?: ReceiveType<T>): void {
     type = resolveReceiveType(type);

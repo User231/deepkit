@@ -5,8 +5,8 @@ Soft-Delete plugin은 데이터베이스 레코드를 실제로 삭제하지 않
 plugin을 사용하려면 SoftDelete class를 인스턴스화하고 각 entity에 대해 활성화해야 합니다.
 
 ```typescript
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { SoftDelete } from '@deepkit/orm';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { SoftDelete } from '@d7/orm';
 
 @entity.name('user')
 class User {
@@ -42,7 +42,7 @@ softDelete.disable(User);
 삭제된 레코드는 `SoftDeleteQuery`를 통해 'lifted' query로 복원할 수 있습니다. `restoreOne`과 `restoreMany`가 있습니다.
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreOne();
 await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreMany();
@@ -51,7 +51,7 @@ await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreMany()
 session 또한 요소 복원을 지원합니다.
 
 ```typescript
-import { SoftDeleteSession } from '@deepkit/orm';
+import { SoftDeleteSession } from '@d7/orm';
 
 const session = database.createSession();
 const user1 = session.query(User).findOne();
@@ -65,7 +65,7 @@ await session.commit();
 레코드를 하드 삭제하려면 SoftDeleteQuery를 통해 lifted query를 사용하세요. 이는 본질적으로 soft-delete plugin이 사용되지 않는 일반 동작을 복원합니다.
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 // 데이터베이스에서 레코드를 실제로 삭제
 await database.query(User).lift(SoftDeleteQuery).hardDeleteOne();
@@ -81,7 +81,7 @@ await database.query(User).lift(SoftDeleteQuery).withSoftDeleted().deleteMany();
 `SoftDeleteQuery`를 통해 "lifted" query를 사용하면 삭제된 레코드도 포함할 수 있습니다.
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 // soft deleted와 삭제되지 않은 항목을 포함하여 모두 조회
 await database.query(User).lift(SoftDeleteQuery).withSoftDeleted().find();
@@ -95,7 +95,7 @@ await database.query(s).lift(SoftDeleteQuery).isSoftDeleted().count()
 `deletedBy`는 query와 session을 통해 설정할 수 있습니다.
 
 ```typescript
-import { SoftDeleteSession } from '@deepkit/orm';
+import { SoftDeleteSession } from '@d7/orm';
 
 const session = database.createSession();
 const user1 = session.query(User).findOne();
@@ -104,7 +104,7 @@ session.from(SoftDeleteSession).setDeletedBy('Peter');
 session.remove(user1);
 
 await session.commit();
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 database.query(User).lift(SoftDeleteQuery)
 .deletedBy('Peter')

@@ -7,7 +7,7 @@
 下面的示例展示了如何将类 `Point` 序列化/反序列化为元组 `[number, number]`。
 
 ```typescript
-import { serializer, SerializationError } from '@deepkit/type';
+import { serializer, SerializationError } from '@d7/type';
 
 class Point {
   constructor(public x: number, public y: number) {
@@ -51,6 +51,6 @@ const json = serialize<Point>(point);
 expect(json).toEqual([1, 2]);
 ```
 
-请注意，这仅适用于常规的 `@deepkit/type` 函数，例如 `cast`、`deserialize` 和 `serialize`。
+请注意，这仅适用于常规的 `@d7/type` 函数，例如 `cast`、`deserialize` 和 `serialize`。
 
 这不会被传递到数据库层，因为数据库层在迁移和序列化时使用实体类中定义的类型（例如 BSON 序列化）。

@@ -8,10 +8,10 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ControllerSymbol } from '@deepkit/rpc';
+import { ControllerSymbol } from '@d7/rpc';
 import { DebugRequest, MediaFile } from './model.js';
 import { Subject } from 'rxjs';
-import { deserializeType, entity, Excluded, Type } from '@deepkit/type';
+import { deserializeType, entity, Excluded, Type } from '@d7/type';
 
 export class ConfigOption {
     name!: string;

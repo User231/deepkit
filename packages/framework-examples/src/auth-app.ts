@@ -17,11 +17,11 @@ $ curl http://localhost:8080
 
 */
 
-import { http, HttpAction, httpWorkflow, JSONResponse, RouteParameterResolverContext } from '@deepkit/http';
-import { eventDispatcher } from '@deepkit/event';
-import { Logger } from '@deepkit/logger';
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { http, HttpAction, httpWorkflow, JSONResponse, RouteParameterResolverContext } from '@d7/http';
+import { eventDispatcher } from '@d7/event';
+import { Logger } from '@d7/logger';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 class User {
     constructor(

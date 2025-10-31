@@ -6,13 +6,13 @@ Um Deepkits Runtime Type System zu installieren, werden zwei Packages benötigt:
 ## Installation 
 
 ```sh
-npm install --save @deepkit/type
-npm install --save-dev @deepkit/type-compiler typescript ts-node
+npm install --save @d7/type
+npm install --save-dev @d7/type-compiler typescript ts-node
 ```
 
 Runtime Type Information wird nicht standardmäßig generiert. Dazu muss `"reflection": true` in der Datei `tsconfig.json` gesetzt werden, um sie zu aktivieren. 
 
-Wenn Decorators verwendet werden sollen, muss `"experimentalDecorators": true` in `tsconfig.json` aktiviert sein. Das ist nicht zwingend erforderlich, um mit `@deepkit/type` zu arbeiten, aber für bestimmte Funktionen anderer Deepkit Libraries und im Deepkit Framework notwendig.
+Wenn Decorators verwendet werden sollen, muss `"experimentalDecorators": true` in `tsconfig.json` aktiviert sein. Das ist nicht zwingend erforderlich, um mit `@d7/type` zu arbeiten, aber für bestimmte Funktionen anderer Deepkit Libraries und im Deepkit Framework notwendig.
 
 _Datei: tsconfig.json_
 
@@ -33,7 +33,7 @@ Schreiben Sie Ihren ersten Code mit Runtime Type Information:
 _Datei: app.ts_
 
 ```typescript
-import { cast, MinLength, ReflectionClass } from '@deepkit/type';
+import { cast, MinLength, ReflectionClass } from '@d7/type';
 
 interface User {
     username: string & MinLength<3>;
@@ -62,7 +62,7 @@ Hier ist ein CodeSandbox-Beispiel: https://codesandbox.io/p/sandbox/deepkit-runt
 
 ## Type Compiler
 
-TypeScript selbst erlaubt es nicht, den Type Compiler über eine `tsconfig.json` zu konfigurieren. Dazu muss entweder die TypeScript Compiler API direkt verwendet werden oder ein Build-System wie Webpack mit _ts-loader_. Um Deepkit-Nutzern diesen umständlichen Weg zu ersparen, installiert sich der Deepkit Type Compiler automatisch in `node_modules/typescript`, sobald `@deepkit/type-compiler` installiert ist (dies geschieht über NPM Install Hooks).
+TypeScript selbst erlaubt es nicht, den Type Compiler über eine `tsconfig.json` zu konfigurieren. Dazu muss entweder die TypeScript Compiler API direkt verwendet werden oder ein Build-System wie Webpack mit _ts-loader_. Um Deepkit-Nutzern diesen umständlichen Weg zu ersparen, installiert sich der Deepkit Type Compiler automatisch in `node_modules/typescript`, sobald `@d7/type-compiler` installiert ist (dies geschieht über NPM Install Hooks).
 Dadurch haben alle Build-Tools, die auf das lokal installierte TypeScript (das in `node_modules/typescript`) zugreifen, den Type Compiler automatisch aktiviert. So funktionieren _tsc_, Angular, webpack, _ts-node_ und einige andere Tools automatisch mit dem Deepkit Type Compiler.
 
 Falls der Type Compiler nicht automatisch erfolgreich installiert werden konnte (z. B. weil NPM Install Hooks deaktiviert sind), kann dies manuell mit folgendem Befehl erfolgen:
@@ -80,7 +80,7 @@ Wenn Sie den Type Compiler in einem webpack-Build verwenden möchten, können Si
 _Datei: webpack.config.js_
 
 ```javascript
-const typeCompiler = require('@deepkit/type-compiler');
+const typeCompiler = require('@d7/type-compiler');
 
 module.exports = {
   entry: './app.ts',
@@ -91,7 +91,7 @@ module.exports = {
           use: {
             loader: 'ts-loader',
             options: {
-              //aktiviert den Type Compiler von @deepkit/type
+              //aktiviert den Type Compiler von @d7/type
               getCustomTransformers: (program, getProgram) => ({
                 before: [typeCompiler.transformer],
                 afterDeclarations: [typeCompiler.declarationTransformer],

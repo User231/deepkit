@@ -1,6 +1,6 @@
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 import { AppSession } from '@app/server/rpc';
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 import { BlogEntity, getTitleFromBlocks, setTitleAndSlugFromBlocks } from '@app/common/models';
 
 @rpc.controller('admin')

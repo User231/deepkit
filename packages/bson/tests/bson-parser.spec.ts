@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
 import bson, { Binary } from 'bson';
 import { deserializeBSON, getBSONDeserializer } from '../src/bson-deserializer.js';
-import { BinaryBigInt, copyAndSetParent, MinLength, MongoId, nodeBufferToArrayBuffer, PrimaryKey, Reference, ReflectionKind, SerializedTypes, SignedBinaryBigInt, TypeObjectLiteral, typeOf, uuid, UUID } from '@deepkit/type';
-import { getClassName } from '@deepkit/core';
+import { BinaryBigInt, copyAndSetParent, MinLength, MongoId, nodeBufferToArrayBuffer, PrimaryKey, Reference, ReflectionKind, SerializedTypes, SignedBinaryBigInt, TypeObjectLiteral, typeOf, uuid, UUID } from '@d7/type';
+import { getClassName } from '@d7/core';
 import { getBSONSerializer, serializeBSON, serializeBSONWithoutOptimiser } from '../src/bson-serializer.js';
 import { BSONType } from '../src/utils';
 import { deserializeBSONWithoutOptimiser } from '../src/bson-parser';

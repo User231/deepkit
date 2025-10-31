@@ -1,7 +1,7 @@
-# API `@deepkit/filesystem`
+# API `@d7/filesystem`
 
 ```shell
-npm install @deepkit/filesystem
+npm install @d7/filesystem
 ```
 
-<api-docs package="@deepkit/filesystem"></api-docs>
+<api-docs package="@d7/filesystem"></api-docs>

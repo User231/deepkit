@@ -13,7 +13,7 @@ Deepkit Broker Cache 类是一个多级（2 级）缓存，它在内存中保留
 Deepkit Broker 中的缓存抽象与简单的键/值存储截然不同。它通过定义一个缓存名称和一个构建器函数工作：当缓存为空或过期时，会自动调用该函数。该构建器函数负责构建随后存储到缓存中的数据。
 
 ```typescript
-import { BrokerCache, BrokerCacheItem } from '@deepkit/broker';
+import { BrokerCache, BrokerCacheItem } from '@d7/broker';
 
 const cache = new BrokerCache(adapter);
 
@@ -47,8 +47,8 @@ await cacheItem.set(xy);
 更多信息参见入门页面。
 
 ```typescript
-import { BrokerCache, BrokerCacheItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerCache, BrokerCacheItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // 最好将这些类型定义在一个公共文件中，以便复用
 // 并将它们注入到你的服务中

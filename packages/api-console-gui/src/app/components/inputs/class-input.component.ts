@@ -1,8 +1,8 @@
 import { Component, computed, input, model } from '@angular/core';
-import { isBackReferenceType, isReferenceType, ReflectionClass, TypeClass, TypeObjectLiteral } from '@deepkit/type';
+import { isBackReferenceType, isReferenceType, ReflectionClass, TypeClass, TypeObjectLiteral } from '@d7/type';
 import { isReferenceLike, TypeDecoration } from '../../utils';
 import { DataStructure } from '../../store';
-import { OptionDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
+import { OptionDirective, SelectBoxComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { InputComponent } from './input.component';
 

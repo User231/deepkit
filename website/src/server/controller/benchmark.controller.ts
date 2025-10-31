@@ -1,7 +1,7 @@
-import { rpc } from '@deepkit/rpc';
-import { http, HttpBody } from '@deepkit/http';
+import { rpc } from '@d7/rpc';
+import { http, HttpBody } from '@d7/http';
 import { BenchmarkControllerInterface, BenchmarkRun } from "@app/common/benchmark";
-import { Database } from "@deepkit/orm";
+import { Database } from "@d7/orm";
 import { AppConfig } from "@app/server/config";
 
 @rpc.controller(BenchmarkControllerInterface)

@@ -1,8 +1,8 @@
-# API `@deepkit/filesystem-ftp`
+# API `@d7/filesystem-ftp`
 
 ```shell
-npm install @deepkit/filesystem-ftp
+npm install @d7/filesystem-ftp
 ```
 
 
-<api-docs package="@deepkit/filesystem-ftp"></api-docs>
+<api-docs package="@d7/filesystem-ftp"></api-docs>

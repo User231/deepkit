@@ -1,7 +1,7 @@
-# API `@deepkit/app`
+# API `@d7/app`
 
 ```shell
-npm install @deepkit/app
+npm install @d7/app
 ```
 
 command-line interface (CLI) parser, 서비스 컨테이너와 DI (Dependency Injection), 이벤트 디스패처, 앱 모듈 시스템, configuration loader를 제공합니다.
@@ -11,4 +11,4 @@ CLI 컨트롤러, HTTP 컨트롤러 또는 라우트, RPC 컨트롤러([framewor
 
 자세한 내용은 [Deepkit App 문서](../app.md)를 참조하세요.
 
-<api-docs package="@deepkit/app"></api-docs>
+<api-docs package="@d7/app"></api-docs>

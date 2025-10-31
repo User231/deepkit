@@ -1,5 +1,5 @@
-import { LoggerInterface } from '@deepkit/logger';
-import { eventDispatcher } from '@deepkit/event';
+import { LoggerInterface } from '@d7/logger';
+import { eventDispatcher } from '@d7/event';
 import { httpWorkflow } from './http.js';
 
 export class HttpLogger {

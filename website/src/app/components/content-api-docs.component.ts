@@ -2,7 +2,7 @@ import { Component, computed, forwardRef, inject, input } from '@angular/core';
 import type { ApiType } from '../../../api-docs';
 import { RouterLink } from '@angular/router';
 import { derivedAsync } from 'ngxtension/derived-async';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { pendingTask } from '@d7/desktop-ui';
 import { ApiDocProvider } from '@app/app/pages/documentation/desktop-ui/api-doc.component';
 import { ContentRenderComponent } from './content-render.component';
 import { HighlightCodeComponent } from '@app/app/components/highlight-code.component.js';

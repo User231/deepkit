@@ -9,8 +9,8 @@
  */
 
 import { AfterViewInit, ChangeDetectorRef, Component, ContentChildren, Input, OnChanges, QueryList, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
-import { BrowserText } from '@deepkit/desktop-ui';
-import { Workflow } from '@deepkit/framework-debug-api';
+import { BrowserText } from '@d7/desktop-ui';
+import { Workflow } from '@d7/framework-debug-api';
 import { graphlib, layout, Node } from 'dagre';
 import { NgTemplateOutlet } from '@angular/common';
 

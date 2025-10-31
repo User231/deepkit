@@ -3,7 +3,7 @@
 Standardmäßig können alle RPC-Funktionen von jedem Client aufgerufen werden, und die Peer-to-Peer-Kommunikation ist aktiviert. Um präzise zu steuern, welcher Client was darf, können Sie die Klasse `RpcKernelSecurity` überschreiben.
 
 ```typescript
-import { RpcKernelSecurity, Session, RpcControllerAccess } from '@deepkit/type';
+import { RpcKernelSecurity, Session, RpcControllerAccess } from '@d7/type';
 
 //enthält Standardimplementierungen
 class MyKernelSecurity extends RpcKernelSecurity {
@@ -38,9 +38,9 @@ const kernel = new RpcKernel([{provide: RpcKernelSecurity, useClass: MyKernelSec
 Oder überschreiben Sie im Fall einer Deepkit-App die Klasse `RpcKernelSecurity` mit einem Provider in der App:
 
 ```typescript
-import { App } from '@deepkit/type';
-import { RpcKernelSecurity } from '@deepkit/rpc';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/type';
+import { RpcKernelSecurity } from '@d7/rpc';
+import { FrameworkModule } from '@d7/framework';
 
 new App({
     controllers: [MyRpcController],
@@ -68,7 +68,7 @@ const controller = client.controller<Controller>('/main');
 In diesem Fall erhält `RpcKernelSecurity.authenticate` das Token `123456789` und kann entsprechend eine andere Session zurückgeben. Die zurückgegebene Session wird dann an alle anderen Methoden wie `hasControllerAccess` weitergegeben.
 
 ```typescript
-import { Session, RpcKernelSecurity } from '@deepkit/rpc';
+import { Session, RpcKernelSecurity } from '@d7/rpc';
 
 class UserSession extends Session {
 }

@@ -13,8 +13,8 @@
  * This collection "lives" in the sense that its items are automatically
  * updated, added and removed. When such a change happens, an event is triggered* you can listen on.
  */
-import { ClassType, getClassName, isArray } from '@deepkit/core';
-import { tearDown } from '@deepkit/core-rxjs';
+import { ClassType, getClassName, isArray } from '@d7/core';
+import { tearDown } from '@d7/core-rxjs';
 import { ReplaySubject, Subject, TeardownLogic } from 'rxjs';
 import { EntitySubject, IdInterface, RpcError } from './model.js';
 
@@ -51,13 +51,13 @@ type RegExpForString<T> = T extends string ? (RegExp | T) : T;
 type MongoAltQuery<T> = T extends Array<infer U> ? (T | RegExpForString<U>) : RegExpForString<T>;
 export type Condition<T> = MongoAltQuery<T> | QuerySelector<MongoAltQuery<T>>;
 
-//should be in sync with @deepkit/orm
+//should be in sync with @d7/orm
 export type FilterQuery<T> = {
     [P in keyof T & string]?: Condition<T[P]>;
 } &
     RootQuerySelector<T>;
 
-//should be in sync with @deepkit/orm
+//should be in sync with @d7/orm
 export type SORT_ORDER = 'asc' | 'desc' | any;
 export type Sort<T, ORDER extends SORT_ORDER = SORT_ORDER> = { [P in keyof T & string]?: ORDER };
 

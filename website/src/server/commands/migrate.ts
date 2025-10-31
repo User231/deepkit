@@ -1,5 +1,5 @@
-import { Database } from "@deepkit/orm";
-import { sql } from "@deepkit/sql";
+import { Database } from "@d7/orm";
+import { sql } from "@d7/sql";
 
 export async function migrate(database: Database) {
 

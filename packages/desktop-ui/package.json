@@ -1,5 +1,5 @@
 {
-  "name": "@deepkit/desktop-ui",
+  "name": "@d7/desktop-ui",
   "version": "1.0.19",
   "description": "Library for desktop UI widgets in Angular 10+",
   "keywords": [
@@ -10,7 +10,7 @@
   "bin": {
     "dui-create-font": "./bin/create-font.js"
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "sideEffects": false,
@@ -66,16 +66,16 @@
     "@angular/platform-browser": "^20.0.4",
     "@angular/platform-browser-dynamic": "^20.0.4",
     "@angular/router": "^20.0.4",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/core-rxjs": "^1.0.1",
-    "@deepkit/event": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@d7/core": "^1.0.1",
+    "@d7/core-rxjs": "^1.0.1",
+    "@d7/event": "^1.0.1",
+    "@d7/type": "^1.0.1"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/core-rxjs": "^1.0.19",
-    "@deepkit/event": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@d7/core": "^1.0.19",
+    "@d7/core-rxjs": "^1.0.19",
+    "@d7/event": "^1.0.19",
+    "@d7/type": "^1.0.19",
     "@types/fs-extra": "^8.0.1",
     "@types/node": "^22.13.1",
     "fs-extra": "^8.1.0",

@@ -9,10 +9,10 @@
 참조를 저장하는 엔티티는 보통 `owning side` 또는 참조를 `owns`하는 쪽이라고 부릅니다. 다음 코드는 `User`와 `Post` 사이의 일대다 관계를 가진 두 엔티티를 보여줍니다. 이는 하나의 `User`가 여러 개의 `Post`를 가질 수 있음을 의미합니다. `post` 엔티티에는 `post->user` 관계가 있습니다. 데이터베이스 자체에는 이제 `User`의 기본 키를 담고 있는 `Post."author"` 필드가 생깁니다.
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { entity, PrimaryKey, AutoIncrement, 
-    Reference } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+    Reference } from '@d7/type';
+import { Database } from '@d7/orm';
 
 @entity.collection('users')
 class User {

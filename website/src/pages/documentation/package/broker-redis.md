@@ -1,17 +1,17 @@
-# API `@deepkit/broker-redis`
+# API `@d7/broker-redis`
 
 ```sh
-npm install @deepkit/broker-redis
+npm install @d7/broker-redis
 ```
 
-Provides a Redis-based implementation of the Deepkit Broker. This uses ioredis under the hood.
+Provides a Redis-based implementation of the D7 Broker. This uses ioredis under the hood.
 
 This adapter does not implement the queue adapter of Deepkit Broker.
 
 ```typescript
-import { BrokerKeyValue, BrokerBus } from '@deepkit/broker';
-import { BrokerRedisAdapter } from '@deepkit/broker-redis';
-import { ConsoleLogger } from '@deepkit/logger';
+import { BrokerKeyValue, BrokerBus } from '@d7/broker';
+import { BrokerRedisAdapter } from '@d7/broker-redis';
+import { ConsoleLogger } from '@d7/logger';
 
 const adapter = new RedisBrokerAdapter({
     preifx: 'myapp:',
@@ -26,4 +26,4 @@ const bus = new BrokerBus(adapter);
 // ...
 ```
 
-<api-docs package="@deepkit/broker-redis"></api-docs>
+<api-docs package="@d7/broker-redis"></api-docs>

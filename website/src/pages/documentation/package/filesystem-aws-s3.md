@@ -1,7 +1,7 @@
-# API `@deepkit/filesystem-aws-s3`
+# API `@d7/filesystem-aws-s3`
 
 ```shell
-npm install @deepkit/filesystem-aws-s3
+npm install @d7/filesystem-aws-s3
 ```
 
-<api-docs package="@deepkit/filesystem-aws-s3"></api-docs>
+<api-docs package="@d7/filesystem-aws-s3"></api-docs>

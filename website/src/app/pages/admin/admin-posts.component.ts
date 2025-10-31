@@ -1,5 +1,5 @@
 import { Component, computed, effect, input, signal } from '@angular/core';
-import { ButtonGroupComponent, ButtonGroupsComponent, CheckboxComponent, FilesystemApi, InputComponent, ListComponent, ListItemComponent, MenuComponent, MenuItemComponent, SplitterComponent } from '@deepkit/desktop-ui';
+import { ButtonGroupComponent, ButtonGroupsComponent, CheckboxComponent, FilesystemApi, InputComponent, ListComponent, ListItemComponent, MenuComponent, MenuItemComponent, SplitterComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { TextEditorComponent } from '@app/app/pages/admin/text-editor.component.js';
@@ -10,7 +10,7 @@ import { linkedQueryParam } from 'ngxtension/linked-query-param';
 import { createNotifier } from 'ngxtension/create-notifier';
 import { derivedAsync } from 'ngxtension/derived-async';
 import { blogDateFormat, BlogEntity, isBlocksEqual } from '@app/common/models.js';
-import { formatError } from '@deepkit/core';
+import { formatError } from '@d7/core';
 
 @Component({
     selector: 'dw-admin-posts',

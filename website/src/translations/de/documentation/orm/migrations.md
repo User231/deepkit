@@ -11,7 +11,7 @@ Deepkit ORM-Migrationen sind standardmäßig aktiviert, wenn das Deepkit Framewo
 - `migration:up` - Führt ausstehende Migrationsdateien aus.
 - `migration:down` - Führt die Down-Migration aus und macht ältere Migrationsdateien rückgängig
 
-Diese Befehle sind entweder in der Anwendung verfügbar, wenn Sie das `FrameworkModule` importieren, oder über das Kommandozeilen-Tool `deepkit-sql` aus `@deepkit/sql`.
+Diese Befehle sind entweder in der Anwendung verfügbar, wenn Sie das `FrameworkModule` importieren, oder über das Kommandozeilen-Tool `deepkit-sql` aus `@d7/sql`.
 
 Die [Migrations-Integration des FrameworkModule](../framework/database.md#migration) liest Ihre Datenbanken automatisch (Sie müssen sie als Provider definieren), während Sie bei `deepkit-sql` die TypeScript-Datei angeben müssen, die die Datenbank exportiert. Letzteres ist nützlich, wenn Sie Deepkit ORM eigenständig ohne Deepkit Framework verwenden.
 
@@ -19,8 +19,8 @@ Die [Migrations-Integration des FrameworkModule](../framework/database.md#migrat
 
 ```typescript
 //database.ts
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 export class SQLiteDatabase extends Database {

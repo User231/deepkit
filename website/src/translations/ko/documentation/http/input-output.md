@@ -41,20 +41,20 @@ $ curl http://localhost:8080/user/23
 추가적인 validation constraints도 타입에 적용할 수 있습니다.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 router.get('/user/:id', (id: number & Positive) => {
     return `${id} ${typeof id}`;
 });
 ```
 
-`@deepkit/type`의 모든 validation types를 적용할 수 있습니다. 이에 대한 자세한 내용은 [HTTP Validation](#validation)을 참고하세요.
+`@d7/type`의 모든 validation types를 적용할 수 있습니다. 이에 대한 자세한 내용은 [HTTP Validation](#validation)을 참고하세요.
 
 Path parameters는 URL 매칭 시 기본적으로 정규식 `[^]+`가 설정됩니다. 이 RegExp는 다음과 같이 사용자 정의할 수 있습니다:
 
 ```typescript
-import { HttpRegExp } from '@deepkit/http';
-import { Positive } from '@deepkit/type';
+import { HttpRegExp } from '@d7/http';
+import { Positive } from '@d7/type';
 
 router.get('/user/:id', (id: HttpRegExp<number & Positive, '[0-9]+'>) => {
     return `${id} ${typeof id}`;
@@ -68,7 +68,7 @@ router.get('/user/:id', (id: HttpRegExp<number & Positive, '[0-9]+'>) => {
 Query parameters는 URL에서 `?` 문자 이후의 값이며 `HttpQuery<T>` 타입으로 읽을 수 있습니다. Parameter의 이름은 query parameter의 이름과 동일합니다.
 
 ```typescript
-import { HttpQuery } from '@deepkit/http';
+import { HttpQuery } from '@d7/http';
 
 router.get('/', (text: HttpQuery<number>) => {
     return `Hello ${text}`;
@@ -83,8 +83,8 @@ Hello galaxy
 Query parameters도 자동으로 deserialize되고 validate됩니다.
 
 ```typescript
-import { HttpQuery } from '@deepkit/http';
-import { MinLength } from '@deepkit/type';
+import { HttpQuery } from '@d7/http';
+import { MinLength } from '@d7/type';
 
 router.get('/', (text: HttpQuery<string> & MinLength<3>) => {
     return 'Hello ' + text;
@@ -98,7 +98,7 @@ $ curl http://localhost:8080/\?text\=ga
 error
 ```
 
-`@deepkit/type`의 모든 validation types를 적용할 수 있습니다. 이에 대한 자세한 내용은 [HTTP Validation](#validation)을 참고하세요.
+`@d7/type`의 모든 validation types를 적용할 수 있습니다. 이에 대한 자세한 내용은 [HTTP Validation](#validation)을 참고하세요.
 
 경고: Parameter 값은 escape/sanitize되지 않습니다. 이를 HTML로 route에서 문자열에 직접 반환하면 보안 취약점(XSS)이 발생합니다. 외부 입력은 절대 신뢰하지 말고 필요한 곳에서 filter/sanitize/convert 하세요.
 
@@ -107,7 +107,7 @@ error
 Query parameters가 많아지면 쉽게 혼란스러워질 수 있습니다. 이를 정리하기 위해 모든 가능한 query parameters를 요약하는 model(Class 또는 Interface)을 사용할 수 있습니다.
 
 ```typescript
-import { HttpQueries } from '@deepkit/http';
+import { HttpQueries } from '@d7/http';
 
 class HelloWorldQuery {
     text!: string;
@@ -125,14 +125,14 @@ $ curl http://localhost:8080/\?text\=galaxy&page=1
 Hello galaxy at page 1
 ```
 
-지정된 model의 Properties는 `@deepkit/type`가 지원하는 모든 TypeScript Types 및 validation types를 포함할 수 있습니다. [Serialization](../runtime-types/serialization.md) 및 [Validation](../runtime-types/validation.md) 챕터를 참고하세요.
+지정된 model의 Properties는 `@d7/type`가 지원하는 모든 TypeScript Types 및 validation types를 포함할 수 있습니다. [Serialization](../runtime-types/serialization.md) 및 [Validation](../runtime-types/validation.md) 챕터를 참고하세요.
 
 ### Body
 
 HTTP body를 허용하는 HTTP Method의 경우, body model도 지정할 수 있습니다. HTTP 요청의 body content type은 Deepkit이 이를 JavaScript 객체로 자동 변환할 수 있도록 `application/x-www-form-urlencoded`, `multipart/form-data` 또는 `application/json`이어야 합니다.
 
 ```typescript
-import { HttpBody } from '@deepkit/type';
+import { HttpBody } from '@d7/type';
 
 class HelloWorldBody {
     text!: string;
@@ -152,7 +152,7 @@ router.post('/', (body: HttpBody<HelloWorldBody>) => {
 Body model의 validation을 수동으로 처리하려면 특수 타입 `HttpBodyValidation<T>`를 사용할 수 있습니다. 이를 통해 유효하지 않은 body 데이터도 수신하고 에러 메시지에 매우 구체적으로 대응할 수 있습니다.
 
 ```typescript
-import { HttpBodyValidation } from '@deepkit/type';
+import { HttpBodyValidation } from '@d7/type';
 
 class HelloWorldBody {
     text!: string;
@@ -171,14 +171,14 @@ router.post('/', (body: HttpBodyValidation<HelloWorldBody>) => {
 
 `valid()`가 `false`를 반환하는 즉시 지정된 model의 값들은 오류 상태일 수 있습니다. 이는 validation이 실패했음을 의미합니다. `HttpBodyValidation`이 사용되지 않고 잘못된 HTTP 요청이 수신되면, 요청은 즉시 중단되고 Function 내부의 코드는 실행되지 않습니다. 예를 들어 body에 대한 에러 메시지를 동일한 route에서 수동으로 처리해야 하는 경우에만 `HttpBodyValidation`을 사용하세요.
 
-지정된 model의 Properties는 `@deepkit/type`가 지원하는 모든 TypeScript Types 및 validation types를 포함할 수 있습니다. [Serialization](../runtime-types/serialization.md) 및 [Validation](../runtime-types/validation.md) 챕터를 참고하세요.
+지정된 model의 Properties는 `@d7/type`가 지원하는 모든 TypeScript Types 및 validation types를 포함할 수 있습니다. [Serialization](../runtime-types/serialization.md) 및 [Validation](../runtime-types/validation.md) 챕터를 참고하세요.
 
 ### 파일 업로드
 
 클라이언트가 파일을 업로드할 수 있도록 body model에 특수 Property Type을 사용할 수 있습니다. `UploadedFile`은 원하는 만큼 사용할 수 있습니다.
 
 ```typescript
-import { UploadedFile, HttpBody } from '@deepkit/http';
+import { UploadedFile, HttpBody } from '@d7/http';
 import { readFileSync } from 'fs';
 
 class HelloWordBody {
@@ -211,13 +211,13 @@ $ curl http://localhost:8080/ -X POST -H "Content-Type: multipart/form-data" -F 
 
 ## Validation
 
-HTTP 서버에서 Validation은 필수 기능입니다. 거의 항상 신뢰할 수 없는 데이터와 작업하기 때문입니다. 데이터가 여러 곳에서 validate될수록 서버는 더 안정적입니다. HTTP routes에서 Validation은 types와 validation constraints를 통해 편리하게 사용할 수 있으며, `@deepkit/type`의 고도로 최적화된 validator로 검증되므로 성능 문제는 없습니다. 따라서 이러한 validation 기능을 적극 사용하는 것이 매우 권장됩니다. 과유불급보다는 차라리 한 번 더 Validate하는 편이 낫습니다.
+HTTP 서버에서 Validation은 필수 기능입니다. 거의 항상 신뢰할 수 없는 데이터와 작업하기 때문입니다. 데이터가 여러 곳에서 validate될수록 서버는 더 안정적입니다. HTTP routes에서 Validation은 types와 validation constraints를 통해 편리하게 사용할 수 있으며, `@d7/type`의 고도로 최적화된 validator로 검증되므로 성능 문제는 없습니다. 따라서 이러한 validation 기능을 적극 사용하는 것이 매우 권장됩니다. 과유불급보다는 차라리 한 번 더 Validate하는 편이 낫습니다.
 
-path parameters, query parameters, body parameters 등 모든 입력은 지정된 TypeScript Type에 대해 자동으로 validate됩니다. 추가 constraints가 `@deepkit/type`의 types를 통해 지정되면, 이들도 함께 검사됩니다.
+path parameters, query parameters, body parameters 등 모든 입력은 지정된 TypeScript Type에 대해 자동으로 validate됩니다. 추가 constraints가 `@d7/type`의 types를 통해 지정되면, 이들도 함께 검사됩니다.
 
 ```typescript
-import { HttpQuery, HttpQueries, HttpBody } from '@deepkit/http';
-import { MinLength } from '@deepkit/type';
+import { HttpQuery, HttpQueries, HttpBody } from '@d7/http';
+import { MinLength } from '@d7/type';
 
 router.get('/:text', (text: string & MinLength<3>) => {
     return 'Hello ' + text;
@@ -275,7 +275,7 @@ router.get('/', (): ResultType => {
 HTML을 보내는 방법은 두 가지가 있습니다. `HtmlResponse` 객체를 사용하거나 JSX가 있는 Template Engine을 사용하는 것입니다.
 
 ```typescript
-import { HtmlResponse } from '@deepkit/http';
+import { HtmlResponse } from '@d7/http';
 
 router.get('/', () => {
     // Content-Type: text/html로 전송됩니다
@@ -298,7 +298,7 @@ JSX가 있는 템플릿 엔진 방식은 사용된 변수가 자동으로 HTML e
 HTML과 JSON 외에도 특정 content type으로 텍스트 또는 바이너리 데이터를 보낼 수 있습니다. 이는 `Response` 객체를 통해 수행됩니다.
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
     return new Response('<title>Hello World</title>', 'text/xml');
@@ -310,7 +310,7 @@ router.get('/', () => {
 여러 HTTP errors를 throw하여 HTTP 요청의 처리를 즉시 중단하고 해당 error의 HTTP status를 출력할 수 있습니다.
 
 ```typescript
-import { HttpNotFoundError } from '@deepkit/http';
+import { HttpNotFoundError } from '@d7/http';
 
 router.get('/user/:id', async (id: number, database: Database) => {
     const user = await database.query(User).filter({ id }).findOneOrUndefined();
@@ -348,7 +348,7 @@ export class HttpMyError extends createHttpError(412, 'My Error Message') {
 controller action에서 throw된 errors는 HTTP workflow 이벤트 `onControllerError`에 의해 처리됩니다. 기본 구현은 에러 메시지와 상태 코드로 JSON response를 반환하는 것입니다. 이 이벤트를 구독해 다른 response를 반환하도록 사용자 정의할 수 있습니다.
 
 ```typescript
-import { httpWorkflow } from '@deepkit/http';
+import { httpWorkflow } from '@d7/http';
 
 new App()
     .listen(httpWorkflow.onControllerError, (event) => {
@@ -369,7 +369,7 @@ new App()
 HTTP response의 header를 수정하려면 `Response`, `JSONResponse`, `HTMLResponse` 객체에서 추가 Method를 호출할 수 있습니다.
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
     return new Response('Access Denied', 'text/plain')
@@ -383,7 +383,7 @@ router.get('/', () => {
 301 또는 302 redirect를 response로 반환하려면 `Redirect.toRoute` 또는 `Redirect.toUrl`을 사용할 수 있습니다.
 
 ```typescript
-import { Redirect } from '@deepkit/http';
+import { Redirect } from '@d7/http';
 
 router.get({ path: '/', name: 'homepage' }, () => {
     return <b>Hello
@@ -424,9 +424,9 @@ router.post('/user', (user: HttpBody<User>) => {
 Router는 복잡한 parameter types를 resolve하는 방법을 지원합니다. 예를 들어 `/user/:id`와 같은 route가 주어졌을 때, 이 `id`를 resolver를 사용해 route 외부에서 `user` 객체로 resolve할 수 있습니다. 이는 HTTP 추상화와 route 코드를 더욱 분리하여 테스트와 모듈화를 더 단순화합니다.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http, RouteParameterResolverContext, RouteParameterResolver } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http, RouteParameterResolverContext, RouteParameterResolver } from '@d7/http';
 
 class UserResolver implements RouteParameterResolver {
     constructor(protected database: Database) {

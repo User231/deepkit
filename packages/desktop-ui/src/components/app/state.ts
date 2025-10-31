@@ -9,7 +9,7 @@ import {
     Type,
     typeAnnotation,
     TypeClass,
-} from '@deepkit/type';
+} from '@d7/type';
 import {
     ClassType,
     getClassTypeFromInstance,
@@ -17,8 +17,8 @@ import {
     setPathValue,
     throttleTime,
     TypeAnnotation,
-} from '@deepkit/core';
-import { EventToken } from '@deepkit/event';
+} from '@d7/core';
+import { EventToken } from '@d7/event';
 import { ApplicationRef, Injector } from '@angular/core';
 import { NavigationEnd, ResolveEnd, Router } from '@angular/router';
 import onChange from 'on-change';

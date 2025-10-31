@@ -14,8 +14,8 @@
 `publicDir` 옵션을 변경하려면, `FrameworkModule`의 첫 번째 인자를 변경하면 됩니다.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // 여기에 config와 HTTP controller를 정의하세요
 

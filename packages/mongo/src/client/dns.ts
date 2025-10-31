@@ -9,7 +9,7 @@
  */
 
 import { resolveSrv, resolveTxt } from 'dns';
-import { asyncOperation } from '@deepkit/core';
+import { asyncOperation } from '@d7/core';
 
 function matchesParentDomain(srvAddress, parentDomain) {
     const regex = /^.*?\./;

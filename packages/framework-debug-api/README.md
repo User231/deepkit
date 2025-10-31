@@ -1,10 +1,10 @@
 # Framework Debugger API
 
-This is the API package of the Deepkit Framework Debugger.
+This is the API package of the D7 Framework Debugger.
 
 ## Storage Architecture
 
-The debugger storage works together with @deepkit/stopwatch. 
+The debugger storage works together with @d7/stopwatch. 
 Stopwatcher is a library that exposes the classes, functions, and decorators to work indirectly
 with the debugger storage. It collects all data points and puts them into a queue. 
 The debugger (if enabled) then reads this queue and puts it on disk and streams changes to a broker,

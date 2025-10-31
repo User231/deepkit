@@ -5,7 +5,7 @@ HTTP 미들웨어는 HTTP events의 대안으로 요청/응답 사이클에 hook
 미들웨어는 의존성 주입 컨테이너에 의해 인스턴스화되는 Class이거나, 간단한 Function일 수 있습니다.
 
 ```typescript
-import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@d7/http';
 
 class MyMiddleware implements HttpMiddleware {
     async execute(request: HttpRequest, response: HttpResponse, next: (err?: any) => void) {
@@ -35,7 +35,7 @@ new App({
 `httpMiddleware.for(MyMiddleware)`를 사용하면 미들웨어가 모든 라우트에 전역으로 등록됩니다.
 
 ```typescript
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 new App({
     providers: [MyMiddleware],

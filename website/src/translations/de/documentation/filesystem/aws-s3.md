@@ -2,17 +2,17 @@
 
 Der AWS S3 Filesystem-Adapter ermöglicht es Ihnen, den AWS S3 Service als Deepkit Filesystem zu verwenden.
 
-Es ist Teil von `@deepkit/filesystem-aws-s3`, das separat installiert werden muss.
+Es ist Teil von `@d7/filesystem-aws-s3`, das separat installiert werden muss.
 
 ```sh
-npm install @deepkit/filesystem-aws-s3
+npm install @d7/filesystem-aws-s3
 ```
 
 ## Verwendung
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemAwsS3Adapter } from '@deepkit/filesystem-aws-s3';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemAwsS3Adapter } from '@d7/filesystem-aws-s3';
 
 const adapter = new FilesystemAwsS3Adapter({
     bucket: 'my-bucket',

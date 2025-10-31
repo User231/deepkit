@@ -7,7 +7,7 @@ Deepkit UG (haftungsbeschränkt)
 Im Feriendorf 14
 78132 Hornberg, Germany
 
-info@deepkit.io
+info@d7.io
 
 Managing Director: Marc J. Schmidt
 ```

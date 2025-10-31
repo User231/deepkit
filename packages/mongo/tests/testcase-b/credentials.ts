@@ -1,4 +1,4 @@
-import { entity, PrimaryKey, Reference, t, UUID, uuid } from '@deepkit/type';
+import { entity, PrimaryKey, Reference, t, UUID, uuid } from '@d7/type';
 import { User } from './user.js';
 
 @entity.name('b-user-credentials')

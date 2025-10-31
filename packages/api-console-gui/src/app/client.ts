@@ -9,9 +9,9 @@
  */
 
 import { Injectable } from '@angular/core';
-import { RpcWebSocketClient } from '@deepkit/rpc';
-import { ApiConsoleApi, ApiDocument, ApiEntryPoints } from '@deepkit/api-console-api';
-import { LiveSubject } from '@deepkit/ui-library';
+import { RpcWebSocketClient } from '@d7/rpc';
+import { ApiConsoleApi, ApiDocument, ApiEntryPoints } from '@d7/api-console-api';
+import { LiveSubject } from '@d7/ui-library';
 
 @Injectable({ providedIn: 'root' })
 export class ControllerClient {

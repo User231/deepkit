@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
 import { BaseQuery, Formatter, getInstanceStateFromItem, getNormalizedPrimaryKey } from '../index.js';
 import { getReference } from '../src/reference.js';
-import { PrimaryKey, Reference, ReflectionClass, serializer } from '@deepkit/type';
-import { getClassTypeFromInstance } from '@deepkit/core';
+import { PrimaryKey, Reference, ReflectionClass, serializer } from '@d7/type';
+import { getClassTypeFromInstance } from '@d7/core';
 
 test('getNormalizedPrimaryKey', () => {
     class User {

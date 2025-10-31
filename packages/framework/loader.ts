@@ -1,7 +1,7 @@
 // @ts-ignore
 import * as tsNode from 'ts-node/esm';
-import { optimizeJSX } from '@deepkit/template';
-import { inDebugMode } from '@deepkit/core';
+import { optimizeJSX } from '@d7/template';
+import { inDebugMode } from '@d7/core';
 import { importedFiles } from './src/watch.js';
 
 export async function resolve(specifier: string, context: { parentURL: string }, defaultResolve: typeof resolve): Promise<{ url: string }> {
@@ -22,7 +22,7 @@ export async function transformSource(source: any, context: { url: string, forma
     if (inDebugMode()) return code; //we don't optimize code in debug-mode, since we break sourcemaps with it.
 
     if (context.url.endsWith('.tsx')) {
-        if (code.source.indexOf('@deepkit/framework/jsx-runtime') === -1) return code;
+        if (code.source.indexOf('@d7/framework/jsx-runtime') === -1) return code;
         if (code.source.startsWith('#!')) {
             //allow shebang
             code.source = code.source.substr(code.source.indexOf('\n'));

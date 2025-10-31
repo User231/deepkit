@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { AnyAdapter, BrokerBus, BrokerBusChannel, BrokerLock, BrokerQueue, isBrokerAdapterBus, isBrokerAdapterCache, isBrokerAdapterKeyValue, isBrokerAdapterLock, isBrokerAdapterQueue, provideBusChannel, provideBusSubject } from '../src/broker.js';
 import { BrokerMemoryAdapter } from '../src/adapters/memory-adapter.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@d7/core';
 import { BrokerCache } from '../src/broker-cache.js';
 import { QueueMessageProcessing } from '../src/model.js';
 import { BrokerKeyValue } from '../src/broker-key-value.js';
-import { InjectorContext, InjectorModule, provide } from '@deepkit/injector';
+import { InjectorContext, InjectorModule, provide } from '@d7/injector';
 import { skip, Subject } from 'rxjs';
 
 jest.setTimeout(10000);

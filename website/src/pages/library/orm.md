@@ -1,6 +1,6 @@
 ---
 title: Deepkit ORM
-package: "@deepkit/type"
+package: "@d7/type"
 doc: orm/getting-started
 api: orm
 category: orm
@@ -39,7 +39,7 @@ With full support for nominal classes including constructor arguments and method
 
 ```typescript
 import { PrimaryKey, AutoIncrement, Email, 
-    Index, MinLength, Unique } from '@deepkit/type';
+    Index, MinLength, Unique } from '@d7/type';
 
 type Username = string & MinLength<3> & Unique
 
@@ -69,7 +69,7 @@ Use both classes or interfaces in your application. Deepkit ORM automatically co
 
 ```typescript
 import { PrimaryKey, AutoIncrement, Email, 
-    Index, MinLength, Unique } from '@deepkit/type';
+    Index, MinLength, Unique } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -92,8 +92,8 @@ Simple yet powerful Database abstraction layer with adapters for MongoDB, MySQL,
 Write your own adapter for any other database system or create as many database connections as you want.
 
 ```typescript
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 
 const adapter = new SQLiteDatabaseAdapter(':memory:'); 
 const database = new Database(adapter);
@@ -167,7 +167,7 @@ You want to use the full power of SQL? No problem. Deepkit ORM supports typesafe
 All parameters are automatically serialized and returned records are deserialized and validated to the correct type.
 
 ```typescript
-import { sql } from '@deepkit/sql';
+import { sql } from '@d7/sql';
 
 const username = 'Peter';
 
@@ -284,7 +284,7 @@ class User {
 ```
 
 ```typescript title=my-app/migration/20200917-1727.ts
-import {Migration} from '@deepkit/framework';
+import {Migration} from '@d7/framework';
 export class SchemaMigration implements Migration {
     up() {
         return [
@@ -313,8 +313,8 @@ For prototyping purposes Deepkit ORM also supports the ActiveRecord pattern.
 It allows you to directly work with the entity class, without accessing a Database object.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
-import { ActiveRecord } from '@deepkit/orm';
+import { PrimaryKey } from '@d7/type';
+import { ActiveRecord } from '@d7/orm';
 
 class User extends ActiveRecord {
     id: number & PrimaryKey = 0;

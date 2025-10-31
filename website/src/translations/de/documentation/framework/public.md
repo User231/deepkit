@@ -14,8 +14,8 @@ Um die Bereitstellung öffentlicher Dateien zu aktivieren, setzen Sie `publicDir
 Um die Option `publicDir` zu ändern, können Sie das erste Argument von `FrameworkModule` ändern.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // Ihre Config und HTTP Controller hier
 

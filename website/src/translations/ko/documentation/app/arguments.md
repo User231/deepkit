@@ -6,7 +6,7 @@
 타입(string, number, union 등)에 따라 전달된 값은 자동으로 역직렬화되고 검증됩니다.
 
 ```typescript
-import { cli } from '@deepkit/app';
+import { cli } from '@d7/app';
 
 // 함수형
 new App().command('test', (name: string) => {
@@ -54,7 +54,7 @@ string, number, boolean, 문자열 리터럴, 이들의 유니온, 그리고 이
 플래그는 명령에 값을 전달하는 또 다른 방법입니다. 대부분 선택 사항이지만 반드시 그럴 필요는 없습니다. `Flag` 타입으로 데코레이션된 매개변수는 `--name value` 또는 `--name=value`로 전달할 수 있습니다.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 함수형
 new App().command('test', (id: number & Flag) => {
@@ -93,7 +93,7 @@ id 23
 플래그는 특정 동작을 활성화하기 위해 값 없이도 사용할 수 있다는 장점이 있습니다. 매개변수가 선택적 boolean으로 표시되는 즉시 이 동작이 활성화됩니다.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 함수형
 new App().command('test', (remove: boolean & Flag = false) => {
@@ -121,7 +121,7 @@ delete? true
 같은 플래그에 여러 값을 전달하려면, 플래그를 배열로 표시할 수 있습니다.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 함수형
 new App().command('test', (id: number[] & Flag = []) => {
@@ -152,7 +152,7 @@ ids: [12, 23]
 플래그를 한 글자로도 전달할 수 있도록 하려면 `Flag<{char: 'x'}>`를 사용할 수 있습니다.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 // 함수형
 new App().command('test', (output: string & Flag<{char: 'o'}>) => {
@@ -256,10 +256,10 @@ $ ts-node app.ts test 123
 id 123 number
 ```
 
-추가 제약 조건은 `@deepkit/type`의 타입 애노테이션으로 정의할 수 있습니다.
+추가 제약 조건은 `@d7/type`의 타입 애노테이션으로 정의할 수 있습니다.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 // 함수형
 new App().command('test', (id: number & Positive) => {
     console.log('id', id, typeof id);
@@ -287,7 +287,7 @@ Validation error in id: Number needs to be positive [positive]
 플래그나 인자를 설명하려면 `@description` 주석 데코레이터를 사용하세요.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 class TestCommand {
     async execute(

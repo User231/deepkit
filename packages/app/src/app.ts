@@ -8,14 +8,14 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, ExtractClassType, isFunction, isObject, pathBasename, setPathValue } from '@deepkit/core';
+import { ClassType, ExtractClassType, isFunction, isObject, pathBasename, setPathValue } from '@d7/core';
 import { ConfigLoader, ServiceContainer } from './service-container.js';
-import { ConfigureProviderOptions, injectedFunction, InjectorContext, ResolveToken, Scope, Token } from '@deepkit/injector';
+import { ConfigureProviderOptions, injectedFunction, InjectorContext, ResolveToken, Scope, Token } from '@d7/injector';
 import { AppModule, RootModuleDefinition } from './module.js';
 import { EnvConfiguration } from './configuration.js';
-import { DataEventToken, DispatchArguments, EventDispatcher, EventDispatcherDispatchType, EventListener, EventListenerCallback, EventToken } from '@deepkit/event';
-import { ReceiveType, ReflectionClass, ReflectionKind } from '@deepkit/type';
-import { Logger } from '@deepkit/logger';
+import { DataEventToken, DispatchArguments, EventDispatcher, EventDispatcherDispatchType, EventListener, EventListenerCallback, EventToken } from '@d7/event';
+import { ReceiveType, ReflectionClass, ReflectionKind } from '@d7/type';
+import { Logger } from '@d7/logger';
 import { executeCommand, getArgsFromEnvironment, getBinFromEnvironment } from './command.js';
 
 /**
@@ -193,7 +193,7 @@ interface AppErrorEvent extends AppEvent {
 /**
  * When a CLI command is about to be executed, this event is emitted.
  *
- * This is different to @deepkit/framework's onBootstrap event, which is only executed
+ * This is different to @d7/framework's onBootstrap event, which is only executed
  * when the server:start is execute. This event is executed for every CLI command (including server:start).
  */
 export const onAppExecute = new DataEventToken<AppEvent>('app.execute');

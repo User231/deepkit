@@ -28,10 +28,10 @@ HTTP モジュールは、これらのイベントトークンに対して独自
 例えば、コントローラーが呼び出されたときのイベントを捕捉したいとします。特定のコントローラーが呼び出される場合、ユーザーがそれにアクセスできるかを確認します。ユーザーにアクセス権があればそのまま続行します。そうでなければ、次のワークフロー項目 `accessDenied` にジャンプします。そこでは、アクセス拒否の処理が自動的に継続されます。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HtmlResponse, http, httpAction, httpWorkflow } from '@deepkit/http';
-import { eventDispatcher } from '@deepkit/event';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HtmlResponse, http, httpAction, httpWorkflow } from '@d7/http';
+import { eventDispatcher } from '@d7/event';
 
 class MyWebsite {
     @http.GET('/')

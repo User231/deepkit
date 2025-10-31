@@ -1,9 +1,9 @@
-import { Database } from '@deepkit/orm';
-import { findParentPath } from '@deepkit/app';
+import { Database } from '@d7/orm';
+import { findParentPath } from '@d7/app';
 import { readdir } from 'fs/promises';
 import { PageProcessor } from '@app/server/page-processor';
 import { CommunityMessage } from '@app/common/models';
-import { getCurrentDirName } from '@deepkit/core';
+import { getCurrentDirName } from '@d7/core';
 
 const currentDir = getCurrentDirName();
 

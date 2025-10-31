@@ -1,7 +1,7 @@
 //@ts-ignore
 import objectInspect from 'object-inspect';
-import { getClassName } from '@deepkit/core';
-import { getTypeJitContainer, isBackReferenceType, isReferenceType, ReflectionKind, stringifyType, Type } from '@deepkit/type';
+import { getClassName } from '@d7/core';
+import { getTypeJitContainer, isBackReferenceType, isReferenceType, ReflectionKind, stringifyType, Type } from '@d7/type';
 
 export function isReferenceLike(type: Type): boolean {
     return isReferenceType(type) || isBackReferenceType(type);

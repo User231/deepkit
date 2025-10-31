@@ -2,7 +2,7 @@ import { expect, test } from '@jest/globals';
 import { RpcKernel } from '../src/server/kernel.js';
 import { rpc } from '../src/decorators.js';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { asyncOperation } from '@deepkit/core';
+import { asyncOperation } from '@d7/core';
 import { RpcClient } from '../src/client/client.js';
 import { RpcHttpClientAdapter } from '../src/client/http.js';
 

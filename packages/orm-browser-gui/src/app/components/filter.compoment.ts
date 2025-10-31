@@ -1,8 +1,8 @@
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
-import { arrayRemoveItem } from '@deepkit/core';
+import { arrayRemoveItem } from '@d7/core';
 import { FilterItem } from '../browser-state';
-import { isBackReferenceType, ReflectionClass, ReflectionKind, Type, TypeProperty, TypePropertySignature } from '@deepkit/type';
-import { ButtonComponent, ButtonGroupComponent, OptionDirective, OptionSeparatorDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
+import { isBackReferenceType, ReflectionClass, ReflectionKind, Type, TypeProperty, TypePropertySignature } from '@d7/type';
+import { ButtonComponent, ButtonGroupComponent, OptionDirective, OptionSeparatorDirective, SelectBoxComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { PropertyComponent } from './property.component';
 

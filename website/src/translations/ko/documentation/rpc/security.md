@@ -3,7 +3,7 @@
 기본적으로 모든 RPC Function은 어떤 클라이언트든 호출할 수 있으며, peer-to-peer 통신 기능이 활성화되어 있습니다. 어떤 클라이언트가 무엇을 할 수 있는지 세밀하게 제어하려면 `RpcKernelSecurity` Class를 override 할 수 있습니다.
 
 ```typescript
-import { RpcKernelSecurity, Session, RpcControllerAccess } from '@deepkit/type';
+import { RpcKernelSecurity, Session, RpcControllerAccess } from '@d7/type';
 
 //기본 구현이 포함되어 있습니다
 class MyKernelSecurity extends RpcKernelSecurity {
@@ -38,9 +38,9 @@ const kernel = new RpcKernel([{provide: RpcKernelSecurity, useClass: MyKernelSec
 또는 Deepkit app의 경우, app에서 provider로 `RpcKernelSecurity` Class를 override 합니다:
 
 ```typescript
-import { App } from '@deepkit/type';
-import { RpcKernelSecurity } from '@deepkit/rpc';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/type';
+import { RpcKernelSecurity } from '@d7/rpc';
+import { FrameworkModule } from '@d7/framework';
 
 new App({
     controllers: [MyRpcController],
@@ -68,7 +68,7 @@ const controller = client.controller<Controller>('/main');
 이 경우 `RpcKernelSecurity.authenticate`는 token `123456789`를 받아 그에 따라 다른 세션을 반환할 수 있습니다. 반환된 세션은 `hasControllerAccess`와 같은 다른 모든 Method로 전달됩니다.
 
 ```typescript
-import { Session, RpcKernelSecurity } from '@deepkit/rpc';
+import { Session, RpcKernelSecurity } from '@d7/rpc';
 
 class UserSession extends Session {
 }

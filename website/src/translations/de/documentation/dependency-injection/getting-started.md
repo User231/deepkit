@@ -2,10 +2,10 @@
 
 Da Dependency Injection in Deepkit auf Runtime Types basiert, müssen Runtime Types bereits korrekt installiert sein. Siehe [Runtime Type](../runtime-types/getting-started.md).
 
-Wenn dies erfolgreich erledigt ist, kann `@deepkit/injector` installiert werden oder das Deepkit Framework, das die Library bereits unter der Haube verwendet.
+Wenn dies erfolgreich erledigt ist, kann `@d7/injector` installiert werden oder das Deepkit Framework, das die Library bereits unter der Haube verwendet.
 
 ```sh
-	npm install @deepkit/injector
+	npm install @d7/injector
 ```
 
 Sobald die Library installiert ist, kann deren API direkt verwendet werden.
@@ -19,14 +19,14 @@ Um Dependency Injection zu verwenden, gibt es drei Möglichkeiten.
 * Module-API
 * App-API (Deepkit Framework)
 
-Soll `@deepkit/injector` ohne das Deepkit Framework verwendet werden, werden die ersten beiden Varianten empfohlen.
+Soll `@d7/injector` ohne das Deepkit Framework verwendet werden, werden die ersten beiden Varianten empfohlen.
 
 ### Injector-API
 
 Die Injector-API wurde bereits in der [Einführung zu Dependency Injection](../dependency-injection) vorgestellt. Sie zeichnet sich durch eine sehr einfache Nutzung mittels einer einzigen Class `InjectorContext` aus, die einen einzelnen DI-Container erstellt und sich besonders für einfachere Anwendungen ohne Module eignet.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 const injector = InjectorContext.forProviders([
     UserRepository,
@@ -45,7 +45,7 @@ Eine komplexere API ist die Class `InjectorModule`, mit der Provider in verschie
 Diese API sollte verwendet werden, wenn die Anwendung komplexer ist und das Deepkit Framework nicht verwendet wird.
 
 ```typescript
-import { InjectorModule, InjectorContext } from '@deepkit/injector';
+import { InjectorModule, InjectorContext } from '@d7/injector';
 
 const lowLevelModule = new InjectorModule([HttpClient])
      .addExport(HttpClient);
@@ -76,14 +76,14 @@ const lowLevelModule = new InjectorModule([HttpClient])
 
 ### App-API
 
-Sobald das Deepkit Framework verwendet wird, werden Module mit der `@deepkit/app`-API definiert. Diese basiert auf der Module-API, sodass deren Möglichkeiten ebenfalls verfügbar sind. Zusätzlich ist es möglich, mit leistungsfähigen Hooks zu arbeiten und Configuration Loader zu definieren, um noch dynamischere Architekturen abzubilden.
+Sobald das Deepkit Framework verwendet wird, werden Module mit der `@d7/app`-API definiert. Diese basiert auf der Module-API, sodass deren Möglichkeiten ebenfalls verfügbar sind. Zusätzlich ist es möglich, mit leistungsfähigen Hooks zu arbeiten und Configuration Loader zu definieren, um noch dynamischere Architekturen abzubilden.
 
 Das Kapitel [Framework-Module](../app/modules.md) beschreibt dies ausführlicher.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry, HttpBody } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry, HttpBody } from '@d7/http';
 
 interface User {
     username: string;

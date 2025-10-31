@@ -2,13 +2,13 @@
 
 ## 外部のクラス
 
-TypeScript はデフォルトでは型情報を含まないため、他のパッケージからインポートされた型/クラス（@deepkit/type-compiler を使用していないもの）には型情報がありません。
+TypeScript はデフォルトでは型情報を含まないため、他のパッケージからインポートされた型/クラス（@d7/type-compiler を使用していないもの）には型情報がありません。
 
 外部クラスに型を注釈付けするには `annotateClass` を使用し、インポートしたクラスがどこかで使用される前に、この関数がアプリケーションのブートストラップ段階で実行されるようにしてください。
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 interface AnnotatedClass {
     id: number;
@@ -33,7 +33,7 @@ interface User {
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 class AnnotatedClass<T> {
     id!: T;

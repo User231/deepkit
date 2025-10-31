@@ -10,8 +10,8 @@ It optimises the JSX code at runtime and caches the result. It's therefore very 
 JSX is a syntax extension to JavaScript and comes with TypeScript support out of the box. It allows you to write HTML in TypeScript. It's very similar to Vue.js or React.js.
 
 ```tsx app=app.ts
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from "@deepkit/http";
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from "@d7/http";
 
 export function View() {
     return <div>

@@ -1,6 +1,6 @@
 # Deepkit 框架
 
-Deepkit 框架基于 `@deepkit/app` 中的 [Deepkit App](./app.md)，并在 `@deepkit/framework` 中提供 `FrameworkModule` 模块，可在你的应用中导入。
+Deepkit 框架基于 `@d7/app` 中的 [Deepkit App](./app.md)，并在 `@d7/framework` 中提供 `FrameworkModule` 模块，可在你的应用中导入。
 
 `App` 抽象提供：
 
@@ -32,12 +32,12 @@ Deepkit 框架基于 [Deepkit App](./app.md)。请确保你已遵循其安装说
 之后你可以安装 Deepkit 框架并在你的 `App` 中导入 `FrameworkModule`。
 
 ```sh
-npm install @deepkit/framework
+npm install @d7/framework
 ```
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 const app = new App({
     imports: [new FrameworkModule({ debug: true })]
@@ -55,8 +55,8 @@ app.run();
 其中之一是 `server:start`，它会启动 HTTP 服务器。要使用它，我们需要至少注册一个 HTTP 路由。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from '@d7/http';
 
 const app = new App({
     imports: [new FrameworkModule({ debug: true })]
@@ -105,7 +105,7 @@ const app = new App({
 const eventDispatcher = app.get(EventDispatcher);
 ```
 
-你可以获取到 `EventDispatcher`，因为 `FrameworkModule` 将其与许多其他服务（Logger、ApplicationServer，以及[更多](https://github.com/deepkit/deepkit-framework/blob/master/packages/framework/src/module.ts)）一起注册为服务提供者。
+你可以获取到 `EventDispatcher`，因为 `FrameworkModule` 将其与许多其他服务（Logger、ApplicationServer，以及[更多](https://github.com/marcj/d7/blob/master/packages/framework/src/module.ts)）一起注册为服务提供者。
 
 你也可以注册你自己的服务。
 
@@ -135,8 +135,8 @@ service.helloWorld();
 你的应用及所有模块的配置值可以在调试器中显示。启用 `FrameworkModule` 的 debug 选项，并打开 `http://localhost:8080/_debug/configuration`。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 new App({
     config: Config,
@@ -199,8 +199,8 @@ Deepkit 框架带有多种事件令牌，可以在其上注册事件监听器。
 事件通过 `EventDispatcher` 类发送。在 Deepkit 应用中，这可以通过依赖注入提供。
 
 ```typescript
-import { cli, Command } from '@deepkit/app';
-import { EventDispatcher } from '@deepkit/event';
+import { cli, Command } from '@d7/app';
+import { EventDispatcher } from '@d7/event';
 
 @cli.controller('test')
 export class TestCommand implements Command {

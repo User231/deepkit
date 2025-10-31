@@ -1,10 +1,10 @@
 {
-  "name": "@deepkit/create-app",
+  "name": "@d7/create-app",
   "version": "1.0.19",
   "description": "asdasd",
   "type": "commonjs",
   "main": "./dist/cjs/main.js",
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -17,10 +17,10 @@
     "deepkit-app": "dist/cjs/main.js"
   },
   "dependencies": {
-    "@deepkit/app": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@d7/app": "^1.0.19",
+    "@d7/core": "^1.0.19",
+    "@d7/logger": "^1.0.19",
+    "@d7/type": "^1.0.19",
     "fs-extra": "^9.1.0"
   },
   "devDependencies": {

@@ -9,8 +9,8 @@
  */
 
 import { BaseResponse, Command, TransactionalMessage, WriteConcernMessage } from './command.js';
-import { toFastProperties } from '@deepkit/core';
-import { InlineRuntimeType, ReflectionClass, typeOf } from '@deepkit/type';
+import { toFastProperties } from '@d7/core';
+import { InlineRuntimeType, ReflectionClass, typeOf } from '@d7/type';
 import type { MongoClientConfig } from '../config.js';
 import type { Host } from '../host.js';
 import type { MongoDatabaseTransaction } from '../connection.js';

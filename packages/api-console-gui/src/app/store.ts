@@ -1,7 +1,7 @@
-import { ApiAction, ApiRoute } from '@deepkit/api-console-api';
-import { RemoteController, RpcClient, RpcClientEventIncomingMessage, RpcClientEventOutgoingMessage } from '@deepkit/rpc';
+import { ApiAction, ApiRoute } from '@d7/api-console-api';
+import { RemoteController, RpcClient, RpcClientEventIncomingMessage, RpcClientEventOutgoingMessage } from '@d7/rpc';
 import { Observable, Subject, Subscription } from 'rxjs';
-import { deserialize, Excluded, isBackReferenceType, isMapType, isOptional, isReferenceType, isSetType, ReflectionClass, ReflectionKind, serialize, Type, TypeParameter } from '@deepkit/type';
+import { deserialize, Excluded, isBackReferenceType, isMapType, isOptional, isReferenceType, isSetType, ReflectionClass, ReflectionKind, serialize, Type, TypeParameter } from '@d7/type';
 import { Injectable, signal, WritableSignal } from '@angular/core';
 
 export class DataStructure {
@@ -137,26 +137,26 @@ export class Request {
 
     get result() {
         if (this.loadedResult === undefined) {
-            this.loadedResult = localStorage.getItem('@deepkit/api-console/request/result/' + this.bodyStoreId) || undefined;
+            this.loadedResult = localStorage.getItem('@d7/api-console/request/result/' + this.bodyStoreId) || undefined;
         }
         return this.loadedResult || undefined;
     }
 
     set result(v: string | undefined) {
         this.loadedResult = v;
-        if (v) localStorage.setItem('@deepkit/api-console/request/result/' + this.bodyStoreId, v);
+        if (v) localStorage.setItem('@d7/api-console/request/result/' + this.bodyStoreId, v);
     }
 
     get json() {
         if (this.loadedJson === undefined) {
-            this.loadedJson = localStorage.getItem('@deepkit/api-console/request/json/' + this.bodyStoreId) || undefined;
+            this.loadedJson = localStorage.getItem('@d7/api-console/request/json/' + this.bodyStoreId) || undefined;
         }
         return this.loadedJson || undefined;
     }
 
     set json(v: string | undefined) {
         this.loadedJson = v;
-        if (v) localStorage.setItem('@deepkit/api-console/request/json/' + this.bodyStoreId, v);
+        if (v) localStorage.setItem('@d7/api-console/request/json/' + this.bodyStoreId, v);
     }
 
     headers: { name: string, value: string }[] = [];
@@ -268,7 +268,7 @@ export class RpcExecution {
 
     get result() {
         if (this._result === undefined) {
-            const json = localStorage.getItem('@deepkit/api-console/rpcExecution/result/' + this.bodyStoreId);
+            const json = localStorage.getItem('@d7/api-console/rpcExecution/result/' + this.bodyStoreId);
             if (json) {
                 this._result = JSON.parse(json);
             }
@@ -278,7 +278,7 @@ export class RpcExecution {
 
     set result(v: any | undefined) {
         this._result = v;
-        if (v) localStorage.setItem('@deepkit/api-console/rpcExecution/result/' + this.bodyStoreId, JSON.stringify(v));
+        if (v) localStorage.setItem('@d7/api-console/rpcExecution/result/' + this.bodyStoreId, JSON.stringify(v));
     }
 
     get bodyStoreId(): string {
@@ -385,7 +385,7 @@ export class Store {
     }
 
     restore() {
-        const t = localStorage.getItem('@deepkit/api-console');
+        const t = localStorage.getItem('@d7/api-console');
         if (!t) return;
         try {
             this.state = deserialize<StoreValue>(JSON.parse(t));
@@ -398,7 +398,7 @@ export class Store {
     }
 
     store() {
-        localStorage.setItem('@deepkit/api-console', JSON.stringify(serialize<StoreValue>(this.state)));
+        localStorage.setItem('@d7/api-console', JSON.stringify(serialize<StoreValue>(this.state)));
     }
 
     set(cb: (store: StoreValue) => void) {

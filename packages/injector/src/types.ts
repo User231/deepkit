@@ -1,5 +1,5 @@
-import { reflect, ReflectionKind, Type } from '@deepkit/type';
-import { getParentClass } from '@deepkit/core';
+import { reflect, ReflectionKind, Type } from '@d7/type';
+import { getParentClass } from '@d7/core';
 
 /**
  * Checks if given type is nominally compatible with the given interface.

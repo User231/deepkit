@@ -9,7 +9,7 @@
  */
 
 import { Directive, HostListener, input, OnInit } from '@angular/core';
-import { nextTick } from '@deepkit/core';
+import { nextTick } from '@d7/core';
 import { injectElementRef } from './utils';
 
 @Directive({

@@ -1,5 +1,5 @@
-import { ClassType } from '@deepkit/core';
-import { TypeRegistry } from '@deepkit/type';
+import { ClassType } from '@d7/core';
+import { TypeRegistry } from '@d7/type';
 import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })

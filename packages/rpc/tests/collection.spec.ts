@@ -1,10 +1,10 @@
-import { entity } from '@deepkit/type';
+import { entity } from '@d7/type';
 import { expect, test } from '@jest/globals';
 import { DirectClient } from '../src/client/client-direct.js';
 import { Collection } from '../src/collection.js';
 import { rpc } from '../src/decorators.js';
 import { RpcKernel } from '../src/server/kernel.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@d7/core';
 
 test('collection basic', () => {
     class Item {

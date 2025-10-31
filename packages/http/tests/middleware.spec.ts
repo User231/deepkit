@@ -3,8 +3,8 @@ import { http } from '../src/decorator.js';
 import { createHttpKernel } from './utils.js';
 import { HttpMiddleware, httpMiddleware } from '../src/middleware.js';
 import { HttpRequest, HttpResponse } from '../src/model.js';
-import { AppModule } from '@deepkit/app';
-import { sleep } from '@deepkit/core';
+import { AppModule } from '@d7/app';
+import { sleep } from '@d7/core';
 
 class Controller {
     @http.GET('user/:name')

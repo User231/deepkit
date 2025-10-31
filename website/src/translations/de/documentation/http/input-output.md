@@ -41,20 +41,20 @@ $ curl http://localhost:8080/user/23
 Zusätzliche Validierungs-Constraints können ebenfalls auf die Types angewendet werden.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 router.get('/user/:id', (id: number & Positive) => {
     return `${id} ${typeof id}`;
 });
 ```
 
-Alle Validation Types aus `@deepkit/type` können angewendet werden. Mehr dazu siehe [HTTP-Validierung](#validation).
+Alle Validation Types aus `@d7/type` können angewendet werden. Mehr dazu siehe [HTTP-Validierung](#validation).
 
 Die Path-Parameter haben standardmäßig `[^]+` als regulären Ausdruck im URL-Matching gesetzt. Die RegExp kann dafür wie folgt angepasst werden:
 
 ```typescript
-import { HttpRegExp } from '@deepkit/http';
-import { Positive } from '@deepkit/type';
+import { HttpRegExp } from '@d7/http';
+import { Positive } from '@d7/type';
 
 router.get('/user/:id', (id: HttpRegExp<number & Positive, '[0-9]+'>) => {
     return `${id} ${typeof id}`;
@@ -68,7 +68,7 @@ Dies ist nur in Ausnahmefällen notwendig, da häufig die Types in Kombination m
 Query-Parameter sind Werte aus der URL nach dem Zeichen `?` und können mit dem Type `HttpQuery<T>` gelesen werden. Der Name des Parameters entspricht dem Namen des Query-Parameters.
 
 ```typescript
-import { HttpQuery } from '@deepkit/http';
+import { HttpQuery } from '@d7/http';
 
 router.get('/', (text: HttpQuery<number>) => {
     return `Hello ${text}`;
@@ -83,8 +83,8 @@ Hello galaxy
 Query-Parameter werden ebenfalls automatisch deserialisiert und validiert.
 
 ```typescript
-import { HttpQuery } from '@deepkit/http';
-import { MinLength } from '@deepkit/type';
+import { HttpQuery } from '@d7/http';
+import { MinLength } from '@d7/type';
 
 router.get('/', (text: HttpQuery<string> & MinLength<3>) => {
     return 'Hello ' + text;
@@ -98,7 +98,7 @@ $ curl http://localhost:8080/\?text\=ga
 error
 ```
 
-Alle Validation Types aus `@deepkit/type` können angewendet werden. Mehr dazu siehe [HTTP-Validierung](#validation).
+Alle Validation Types aus `@d7/type` können angewendet werden. Mehr dazu siehe [HTTP-Validierung](#validation).
 
 Warnung: Parameterwerte sind nicht escaped/sanitized. Deren direkte Rückgabe in einem String in einer Route als HTML eröffnet eine Sicherheitslücke (XSS). Stelle sicher, dass externen Eingaben niemals vertraut wird und filtere/sanitisieren/konvertiere Daten wo notwendig.
 
@@ -107,7 +107,7 @@ Warnung: Parameterwerte sind nicht escaped/sanitized. Deren direkte Rückgabe in
 Bei einer großen Anzahl von Query-Parametern kann es schnell unübersichtlich werden. Um wieder Ordnung zu schaffen, kann ein Modell (Class oder Interface) verwendet werden, das alle möglichen Query-Parameter zusammenfasst.
 
 ```typescript
-import { HttpQueries } from '@deepkit/http';
+import { HttpQueries } from '@d7/http';
 
 class HelloWorldQuery {
     text!: string;
@@ -125,14 +125,14 @@ $ curl http://localhost:8080/\?text\=galaxy&page=1
 Hello galaxy at page 1
 ```
 
-Die Properties im angegebenen Modell können alle TypeScript Types und Validation Types enthalten, die `@deepkit/type` unterstützt. Siehe die Kapitel [Serialisierung](../runtime-types/serialization.md) und [Validierung](../runtime-types/validation.md).
+Die Properties im angegebenen Modell können alle TypeScript Types und Validation Types enthalten, die `@d7/type` unterstützt. Siehe die Kapitel [Serialisierung](../runtime-types/serialization.md) und [Validierung](../runtime-types/validation.md).
 
 ### Body
 
 Für HTTP-Methoden, die einen HTTP-Body erlauben, kann ebenfalls ein Body-Modell angegeben werden. Der Body Content-Type des HTTP-Requests muss entweder `application/x-www-form-urlencoded`, `multipart/form-data` oder `application/json` sein, damit Deepkit dies automatisch in JavaScript-Objekte konvertieren kann.
 
 ```typescript
-import { HttpBody } from '@deepkit/type';
+import { HttpBody } from '@d7/type';
 
 class HelloWorldBody {
     text!: string;
@@ -152,7 +152,7 @@ router.post('/', (body: HttpBody<HelloWorldBody>) => {
 Um die Validierung des Body-Modells manuell zu übernehmen, kann ein spezieller Type `HttpBodyValidation<T>` verwendet werden. Er ermöglicht es, auch invalide Body-Daten zu empfangen und sehr spezifisch auf Fehlermeldungen zu reagieren.
 
 ```typescript
-import { HttpBodyValidation } from '@deepkit/type';
+import { HttpBodyValidation } from '@d7/type';
 
 class HelloWorldBody {
     text!: string;
@@ -171,14 +171,14 @@ router.post('/', (body: HttpBodyValidation<HelloWorldBody>) => {
 
 Sobald `valid()` `false` zurückgibt, können die Werte im angegebenen Modell in einem fehlerhaften Zustand sein. Das bedeutet, dass die Validierung fehlgeschlagen ist. Wenn `HttpBodyValidation` nicht verwendet wird und ein fehlerhafter HTTP-Request empfangen wird, würde die Request direkt abgebrochen und der Code in der Function würde niemals ausgeführt werden. Verwende `HttpBodyValidation` nur, wenn z. B. Fehlermeldungen bezüglich des Bodys in derselben Route manuell verarbeitet werden sollen.
 
-Die Properties im angegebenen Modell können alle TypeScript Types und Validation Types enthalten, die `@deepkit/type` unterstützt. Siehe die Kapitel [Serialisierung](../runtime-types/serialization.md) und [Validierung](../runtime-types/validation.md).
+Die Properties im angegebenen Modell können alle TypeScript Types und Validation Types enthalten, die `@d7/type` unterstützt. Siehe die Kapitel [Serialisierung](../runtime-types/serialization.md) und [Validierung](../runtime-types/validation.md).
 
 ### Datei-Upload
 
 Ein spezieller Property Type im Body-Modell kann verwendet werden, um dem Client das Hochladen von Dateien zu erlauben. Es können beliebig viele `UploadedFile` verwendet werden.
 
 ```typescript
-import { UploadedFile, HttpBody } from '@deepkit/http';
+import { UploadedFile, HttpBody } from '@d7/http';
 import { readFileSync } from 'fs';
 
 class HelloWordBody {
@@ -211,13 +211,13 @@ Standardmäßig speichert der Router alle hochgeladenen Dateien in einem tempor�
 
 ## Validierung
 
-Validierung in einem HTTP-Server ist eine zwingend notwendige Funktionalität, denn fast immer wird mit nicht vertrauenswürdigen Daten gearbeitet. Je mehr Stellen Daten validiert werden, desto stabiler ist der Server. Validierung in HTTP-Routen kann bequem über Types und Validierungs-Constraints genutzt werden und wird mit einem hochoptimierten Validator aus `@deepkit/type` geprüft, sodass es diesbezüglich keine Performance-Probleme gibt. Es wird daher dringend empfohlen, diese Validierungsmöglichkeiten zu nutzen. Lieber einmal zu viel als einmal zu wenig.
+Validierung in einem HTTP-Server ist eine zwingend notwendige Funktionalität, denn fast immer wird mit nicht vertrauenswürdigen Daten gearbeitet. Je mehr Stellen Daten validiert werden, desto stabiler ist der Server. Validierung in HTTP-Routen kann bequem über Types und Validierungs-Constraints genutzt werden und wird mit einem hochoptimierten Validator aus `@d7/type` geprüft, sodass es diesbezüglich keine Performance-Probleme gibt. Es wird daher dringend empfohlen, diese Validierungsmöglichkeiten zu nutzen. Lieber einmal zu viel als einmal zu wenig.
 
-Alle Inputs wie Path-Parameter, Query-Parameter und Body-Parameter werden automatisch für den angegebenen TypeScript Type validiert. Wenn zusätzliche Constraints über Types von `@deepkit/type` angegeben sind, werden diese ebenfalls geprüft.
+Alle Inputs wie Path-Parameter, Query-Parameter und Body-Parameter werden automatisch für den angegebenen TypeScript Type validiert. Wenn zusätzliche Constraints über Types von `@d7/type` angegeben sind, werden diese ebenfalls geprüft.
 
 ```typescript
-import { HttpQuery, HttpQueries, HttpBody } from '@deepkit/http';
-import { MinLength } from '@deepkit/type';
+import { HttpQuery, HttpQueries, HttpBody } from '@d7/http';
+import { MinLength } from '@d7/type';
 
 router.get('/:text', (text: string & MinLength<3>) => {
     return 'Hello ' + text;
@@ -275,7 +275,7 @@ router.get('/', (): ResultType => {
 Zum Senden von HTML gibt es zwei Möglichkeiten. Entweder wird das Objekt `HtmlResponse` oder die Template-Engine mit JSX verwendet.
 
 ```typescript
-import { HtmlResponse } from '@deepkit/http';
+import { HtmlResponse } from '@d7/http';
 
 router.get('/', () => {
     // wird mit Content-Type: text/html gesendet
@@ -298,7 +298,7 @@ Die Template-Engine-Variante mit JSX hat den Vorteil, dass verwendete Variablen 
 Neben HTML und JSON ist es auch möglich, Text- oder Binärdaten mit einem bestimmten Content-Type zu senden. Dies geschieht über das Objekt `Response`.
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
     return new Response('<title>Hello World</title>', 'text/xml');
@@ -310,7 +310,7 @@ router.get('/', () => {
 Durch Werfen verschiedener HTTP-Fehler ist es möglich, die Verarbeitung eines HTTP-Requests sofort zu unterbrechen und den entsprechenden HTTP-Status des Fehlers auszugeben.
 
 ```typescript
-import { HttpNotFoundError } from '@deepkit/http';
+import { HttpNotFoundError } from '@d7/http';
 
 router.get('/user/:id', async (id: number, database: Database) => {
     const user = await database.query(User).filter({ id }).findOneOrUndefined();
@@ -348,7 +348,7 @@ export class HttpMyError extends createHttpError(412, 'My Error Message') {
 Geworfene Fehler in einer Controller-Action werden vom HTTP-Workflow-Event `onControllerError` behandelt. Die Standardimplementierung besteht darin, eine JSON-Response mit der Fehlermeldung und dem Statuscode zurückzugeben. Dies kann angepasst werden, indem man auf dieses Event lauscht und eine andere Response zurückgibt.
 
 ```typescript
-import { httpWorkflow } from '@deepkit/http';
+import { httpWorkflow } from '@d7/http';
 
 new App()
     .listen(httpWorkflow.onControllerError, (event) => {
@@ -369,7 +369,7 @@ new App()
 Um den Header einer HTTP-Response zu ändern, können zusätzliche Methods an den Objekten `Response`, `JSONResponse` und `HTMLResponse` aufgerufen werden.
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
     return new Response('Access Denied', 'text/plain')
@@ -383,7 +383,7 @@ router.get('/', () => {
 Um eine 301- oder 302-Weiterleitung als Response zurückzugeben, können `Redirect.toRoute` oder `Redirect.toUrl` verwendet werden.
 
 ```typescript
-import { Redirect } from '@deepkit/http';
+import { Redirect } from '@d7/http';
 
 router.get({ path: '/', name: 'homepage' }, () => {
     return <b>Hello
@@ -424,9 +424,9 @@ Standardmäßig verwenden beide eine 302-Weiterleitung. Dies kann über das Argu
 Der Router unterstützt eine Möglichkeit, komplexe Parameter Types zu resolven. Beispiel: Bei einer Route wie `/user/:id` kann diese `id` mittels eines Resolvers außerhalb der Route zu einem `user`-Objekt aufgelöst werden. Das entkoppelt die HTTP-Abstraktion und den Routen-Code weiter und vereinfacht Tests und Modularität zusätzlich.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http, RouteParameterResolverContext, RouteParameterResolver } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http, RouteParameterResolverContext, RouteParameterResolver } from '@d7/http';
 
 class UserResolver implements RouteParameterResolver {
     constructor(protected database: Database) {

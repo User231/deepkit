@@ -2,7 +2,7 @@ import { computed, inject, Injectable, Pipe, PipeTransform, Signal, signal } fro
 import { Router } from '@angular/router';
 import { ControllerClient } from '@app/app/client';
 import { derivedAsync } from 'ngxtension/derived-async';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { pendingTask } from '@d7/desktop-ui';
 
 
 @Injectable({ providedIn: 'root' })

@@ -9,8 +9,8 @@ import {
     TransientInjectionTarget,
 } from '../src/injector.js';
 import { InjectorModule } from '../src/module.js';
-import { Inject } from '@deepkit/core';
-import { ReflectionClass, ReflectionKind, typeOf } from '@deepkit/type';
+import { Inject } from '@d7/core';
+import { ReflectionClass, ReflectionKind, typeOf } from '@d7/type';
 import { provide } from '../src/provider.js';
 
 export const a = 'asd';

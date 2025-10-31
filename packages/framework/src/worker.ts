@@ -8,23 +8,23 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { RpcKernel, RpcKernelBaseConnection, RpcKernelConnection, SessionState, TransportConnection } from '@deepkit/rpc';
+import { RpcKernel, RpcKernelBaseConnection, RpcKernelConnection, SessionState, TransportConnection } from '@d7/rpc';
 import http, { Server } from 'http';
 import https from 'https';
 import type { Server as WebSocketServer, ServerOptions as WebSocketServerOptions } from 'ws';
 import ws from 'ws';
 import selfsigned from 'selfsigned';
 
-import { HttpConfig, HttpKernel, HttpRequest, HttpResponse } from '@deepkit/http';
-import { InjectorContext } from '@deepkit/injector';
+import { HttpConfig, HttpKernel, HttpRequest, HttpResponse } from '@d7/http';
+import { InjectorContext } from '@d7/injector';
 import { RpcControllers } from './rpc.js';
 import { SecureContextOptions, TlsOptions } from 'tls';
 
 // @ts-ignore
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { LoggerInterface } from '@deepkit/logger';
-import { sleep } from '@deepkit/core';
+import { LoggerInterface } from '@d7/logger';
+import { sleep } from '@d7/core';
 
 // @ts-ignore
 import compression from 'compression';

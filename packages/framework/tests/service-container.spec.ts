@@ -1,10 +1,10 @@
 import { expect, test } from '@jest/globals';
-import { rpc } from '@deepkit/rpc';
-import { App, AppModule, createModuleClass, ServiceContainer } from '@deepkit/app';
+import { rpc } from '@d7/rpc';
+import { App, AppModule, createModuleClass, ServiceContainer } from '@d7/app';
 import { FrameworkModule } from '../src/module.js';
-import { Database, DatabaseEvent, DatabaseRegistry, MemoryDatabaseAdapter, Query } from '@deepkit/orm';
-import { EventDispatcher } from '@deepkit/event';
-import { PrimaryKey } from '@deepkit/type';
+import { Database, DatabaseEvent, DatabaseRegistry, MemoryDatabaseAdapter, Query } from '@d7/orm';
+import { EventDispatcher } from '@d7/event';
+import { PrimaryKey } from '@d7/type';
 
 test('controller', () => {
     class MyService {

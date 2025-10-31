@@ -1,11 +1,11 @@
 import { Component, ElementRef, inject, Injectable, OnDestroy, signal, viewChild } from '@angular/core';
-import { ButtonComponent, ButtonGroupComponent, ButtonGroupsComponent, DuiApp, DuiStyleComponent, FilesystemComponent, FileUploaderComponent, InputComponent, LoadingSpinnerComponent, SplitterComponent, TabButtonComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, ButtonGroupComponent, ButtonGroupsComponent, DuiApp, DuiStyleComponent, FilesystemComponent, FileUploaderComponent, InputComponent, LoadingSpinnerComponent, SplitterComponent, TabButtonComponent } from '@d7/desktop-ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { provideRpcWebSocketClient, RpcWebSocketClient } from '@deepkit/rpc';
+import { provideRpcWebSocketClient, RpcWebSocketClient } from '@d7/rpc';
 import { injectAdminRpc, injectMainRpc } from '@app/app/pages/admin/admin-client.js';
 import { HeaderLogoComponent } from '@app/app/components/header.component.js';
 import { Subscription } from 'rxjs';
-import { formatError } from '@deepkit/core';
+import { formatError } from '@d7/core';
 import { injectLocalStorageNumber } from '@app/app/utils.js';
 import { toSignal } from '@angular/core/rxjs-interop';
 import type { AdminFilesController } from '@app/server/controller/admin-files.controller';

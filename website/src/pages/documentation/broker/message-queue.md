@@ -9,7 +9,7 @@ The data is persisted on the server, so even if the server crashes, the data is 
 ## Usage
 
 ```typescript
-import { BrokerQueue, BrokerQueueChannel } from '@deepkit/broker';
+import { BrokerQueue, BrokerQueueChannel } from '@d7/broker';
 
 const queue = new BrokerQueue(adapter);
 

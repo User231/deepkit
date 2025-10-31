@@ -7,9 +7,9 @@
 In `src/server/app.ts`:
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { AngularModule, RequestHandler } from '@deepkit/angular-ssr';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { AngularModule, RequestHandler } from '@d7/angular-ssr';
 
 const app = new App({
   controllers: [

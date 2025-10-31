@@ -1,9 +1,9 @@
 import { expect, test } from '@jest/globals';
-import { Database, DatabaseErrorEvent, onDatabaseError } from '@deepkit/orm';
+import { Database, DatabaseErrorEvent, onDatabaseError } from '@d7/orm';
 import { MongoDatabaseAdapter } from '../src/adapter.js';
-import { entity, MongoId, PrimaryKey } from '@deepkit/type';
+import { entity, MongoId, PrimaryKey } from '@d7/type';
 import { MongoConnectionError, MongoDatabaseError } from '../src/client/error.js';
-import { assertDefined, assertInstanceOf } from '@deepkit/core';
+import { assertDefined, assertInstanceOf } from '@d7/core';
 
 test('simple', async () => {
     @entity.name('asd')

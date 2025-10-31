@@ -1,6 +1,6 @@
 ---
 title: Deepkit App
-package: "@deepkit/app"
+package: "@d7/app"
 doc: app
 api: app
 category: app
@@ -30,7 +30,7 @@ Write CLI commands with class methods or simple async functions.
 All CLI arguments and flags are extracted out of the function signature and are automatically deserialized and validated based on its types.
 
 ```typescript title=class-command.ts
-import { App } from '@deepkit/app';
+import { App } from '@d7/app';
 
 class MyCommand {
     async execute(name: string = 'body') {
@@ -45,7 +45,7 @@ app.run();
 ```
 
 ```typescript title=functional-command.sh
-import { App } from '@deepkit/app';
+import { App } from '@d7/app';
 
 const app = new App();
 
@@ -66,7 +66,7 @@ Arguments and flags are automatically deserialized based on its types, validated
 
 
 ```typescript
-import { Flag, App } from '@deepkit/app';
+import { Flag, App } from '@d7/app';
 
 const app = new App();
 
@@ -91,7 +91,7 @@ The service container allows you to inject dependencies into your commands, cont
 without any boilerplate code.
 
 ```typescript
-import { App } from '@deepkit/app';
+import { App } from '@d7/app';
 
 class MyDatabase extends Database {} //your database class
 
@@ -121,7 +121,7 @@ Define your configuration as class including validation constraint and load it a
 Configuration options can be injected into your commands, controllers, and hooks.
 
 ```typescript
-import { App } from '@deepkit/app';
+import { App } from '@d7/app';
 
 class Config {
     domain: string = 'localhost';
@@ -156,7 +156,7 @@ Powerful module system with hooks and inheritance that allows to easily extend y
 Modules can bring their own providers, controllers, event listeners, and configuration.
 
 ```typescript
-import { App, AppModule } from '@deepkit/app';
+import { App, AppModule } from '@d7/app';
 
 export function myModule(options: {}) {
     return (module: AppModule) => {
@@ -199,7 +199,7 @@ All listeners have full access to the service container and can receive dependen
 allowing to write nicely decoupled code.
 
 ```typescript
-import { App, onAppExecute } from '@deepkit/app';
+import { App, onAppExecute } from '@d7/app';
 
 const app = new App();
 

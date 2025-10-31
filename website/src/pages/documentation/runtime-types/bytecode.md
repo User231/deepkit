@@ -4,10 +4,10 @@ To learn in detail how Deepkit encodes and reads the type information in JavaScr
 
 ## Typen-Compiler
 
-The type compiler (in @deepkit/type-compiler) is responsible for reading the defined types in the TypeScript files and compiling them into a bytecode. This bytecode has everything needed to execute the types in runtime.
+The type compiler (in @d7/type-compiler) is responsible for reading the defined types in the TypeScript files and compiling them into a bytecode. This bytecode has everything needed to execute the types in runtime.
 At the time of this writing, the type compiler is a so-called TypeScript transformer. This transformer is a plugin for the TypeScript compiler itself and converts a TypeScript AST (Abstract Syntax Tree) into another TypeScript AST. Deepkit's type compiler reads the AST in this process, produces the corresponding bytecode, and inserts it into the AST.
 
-TypeScript itself does not allow you to configure this plugin aka transformer via a tsconfig.json. It is either necessary to use the TypeScript compiler API directly, or a build system like Webpack with `ts-loader`. To save this inconvenient way for Deepkit users, the Deepkit type compiler automatically installs itself in `node_modules/typescript` whenever `@deepkit/type-compiler` is installed. This makes it possible for all build tools that access the locally installed TypeScript (the one in `node_modules/typescript`) to automatically have the type compiler enabled. This makes tsc, Angular, webpack, ts-node, and some other tools work automatically with Deepkit's type compiler.
+TypeScript itself does not allow you to configure this plugin aka transformer via a tsconfig.json. It is either necessary to use the TypeScript compiler API directly, or a build system like Webpack with `ts-loader`. To save this inconvenient way for Deepkit users, the D7 type compiler automatically installs itself in `node_modules/typescript` whenever `@d7/type-compiler` is installed. This makes it possible for all build tools that access the locally installed TypeScript (the one in `node_modules/typescript`) to automatically have the type compiler enabled. This makes tsc, Angular, webpack, ts-node, and some other tools work automatically with Deepkit's type compiler.
 
 If automatic running of NPM install scripts is not enabled and thus the locally installed typescript is not modified, this process must be run manually if you want to. Alternatively, the types compiler can be used manually in a build tool such as webpack. See the Installation section above.
 
@@ -23,7 +23,7 @@ type TypeA = string;
 const typeA = ['&'];
 ```
 
-The existing commands themselves are each one byte in size and can be found in `@deepkit/type-spec` as `ReflectionOp` enums. At the time of this writing, the command set is over 81 commands in size.
+The existing commands themselves are each one byte in size and can be found in `@d7/type-spec` as `ReflectionOp` enums. At the time of this writing, the command set is over 81 commands in size.
 
 ```typescript
 enum ReflectionOp {
@@ -71,6 +71,6 @@ log.__type = ['message', 'log', 'P&2!$/"'];
 
 ## Virtual Machine
 
-A virtual machine (in `@deepkit/type` the class Processor) at runtime is responsible for decoding and executing the encoded bytecode. It always returns a type object as described in the [Reflection API](./reflection.md).
+A virtual machine (in `@d7/type` the class Processor) at runtime is responsible for decoding and executing the encoded bytecode. It always returns a type object as described in the [Reflection API](./reflection.md).
 
 More information can be found in [TypeScript Bytecode Interpreter / Runtime Types #47658](https://github.com/microsoft/TypeScript/issues/47658)

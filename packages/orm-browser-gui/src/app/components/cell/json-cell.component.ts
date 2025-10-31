@@ -1,5 +1,5 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit } from '@angular/core';
-import { isArray, isObject } from '@deepkit/core';
+import { isArray, isObject } from '@d7/core';
 import { objToString } from './utils';
 import { BrowserState } from '../../browser-state';
 import { BinaryCellComponent } from './binary-cell.component';

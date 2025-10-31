@@ -2,8 +2,8 @@ import { expect, test } from '@jest/globals';
 import { InjectorModule } from '../src/module.js';
 import { Injector, InjectorContext } from '../src/injector.js';
 import { provide } from '../src/provider.js';
-import { Inject } from '@deepkit/core';
-import { Logger } from '@deepkit/logger';
+import { Inject } from '@d7/core';
+import { Logger } from '@d7/logger';
 
 test('class + scope support', () => {
     class ServiceA {

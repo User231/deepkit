@@ -1,11 +1,11 @@
 import { OpenAI, toFile } from 'openai';
-import { findParentPath } from '@deepkit/app';
+import { findParentPath } from '@d7/app';
 import { join } from 'path';
 import { readFile, writeFile } from 'fs/promises';
 import glob from 'tiny-glob';
 import { getSystem } from '../questions';
 import { magicSeparator } from '@app/common/models';
-import { getCurrentDirName } from '@deepkit/core';
+import { getCurrentDirName } from '@d7/core';
 
 const dirname = getCurrentDirName();
 

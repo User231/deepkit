@@ -10,8 +10,8 @@ Deepkit HTTP 自带一个内置的 HTML 视图渲染系统。它基于 JSX，并
 JSX 是 JavaScript 的语法扩展，并且开箱即用地支持 TypeScript。它允许你在 TypeScript 中编写 HTML。它与 Vue.js 或 React.js 非常相似。
 
 ```tsx app=app.ts
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from "@deepkit/http";
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from "@d7/http";
 
 export function View() {
     return <div>

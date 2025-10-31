@@ -8,8 +8,8 @@
 ## 示例
 
 ```typescript
-import { MinLength } from '@deepkit/type';
-import { App } from '@deepkit/app';
+import { MinLength } from '@d7/type';
+import { App } from '@d7/app';
 
 class Config {
     pageTitle: string & MinLength<2> = 'Cool site';
@@ -130,7 +130,7 @@ $ APP_CONFIG='{"framework": {"port": 9999}}' ts-node app.ts server:start
 ## 配置类
 
 ```typescript
-import { MinLength } from '@deepkit/type';
+import { MinLength } from '@d7/type';
 
 export class Config {
     title!: string & MinLength<2>; //这使其成为必填项，必须提供
@@ -141,7 +141,7 @@ export class Config {
 ```
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 import { Config } from './module.config.ts';
 
 export class MyModule extends createModuleClass({

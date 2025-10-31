@@ -1,6 +1,6 @@
 # Deepkit Framework
 
-Das Deepkit Framework basiert auf [Deepkit App](./app.md) in `@deepkit/app` und stellt das Modul `FrameworkModule` in `@deepkit/framework` bereit, das in Ihrer Anwendung importiert werden kann.
+Das Deepkit Framework basiert auf [Deepkit App](./app.md) in `@d7/app` und stellt das Modul `FrameworkModule` in `@d7/framework` bereit, das in Ihrer Anwendung importiert werden kann.
 
 Die `App`-Abstraktion bringt:
 
@@ -32,12 +32,12 @@ Das Deepkit Framework basiert auf [Deepkit App](./app.md). Stellen Sie sicher, d
 Falls ja, können Sie das Deepkit Framework installieren und das `FrameworkModule` in Ihre `App` importieren. 
 
 ```sh
-npm install @deepkit/framework
+npm install @d7/framework
 ```
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 const app = new App({
     imports: [new FrameworkModule({ debug: true })]
@@ -55,8 +55,8 @@ Da die App jetzt das `FrameworkModule` importiert, sehen wir, dass mehr Befehle 
 Einer davon ist `server:start`, der den HTTP-Server startet. Um ihn zu verwenden, müssen wir mindestens eine HTTP-Route registrieren.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from '@d7/http';
 
 const app = new App({
     imports: [new FrameworkModule({ debug: true })]
@@ -106,7 +106,7 @@ const app = new App({
 const eventDispatcher = app.get(EventDispatcher);
 ```
 
-Sie können den `EventDispatcher` abrufen, weil das `FrameworkModule` ihn als Service-Provider registriert, wie viele andere (Logger, ApplicationServer und [vieles mehr](https://github.com/deepkit/deepkit-framework/blob/master/packages/framework/src/module.ts)).
+Sie können den `EventDispatcher` abrufen, weil das `FrameworkModule` ihn als Service-Provider registriert, wie viele andere (Logger, ApplicationServer und [vieles mehr](https://github.com/marcj/d7/blob/master/packages/framework/src/module.ts)).
 
 Sie können auch Ihren eigenen Service registrieren.
 
@@ -136,8 +136,8 @@ service.helloWorld();
 Die Konfigurationswerte Ihrer Anwendung und aller Module können im Debugger angezeigt werden. Aktivieren Sie die Option `debug` im `FrameworkModule` und öffnen Sie `http://localhost:8080/_debug/configuration`.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 new App({
     config: Config,
@@ -200,8 +200,8 @@ Siehe das Kapitel [Events](./app/events.md), um mehr darüber zu erfahren, wie E
 Events werden über die `EventDispatcher`-Klasse gesendet. In einer Deepkit-App kann dieser über Dependency Injection bereitgestellt werden.
 
 ```typescript
-import { cli, Command } from '@deepkit/app';
-import { EventDispatcher } from '@deepkit/event';
+import { cli, Command } from '@d7/app';
+import { EventDispatcher } from '@d7/event';
 
 @cli.controller('test')
 export class TestCommand implements Command {

@@ -7,7 +7,7 @@ import { AppDescription, AppTitle } from '@app/app/components/title';
 import { LoadingComponent } from '@app/app/components/loading';
 import { injectRouteData } from 'ngxtension/inject-route-data';
 import { derivedAsync } from 'ngxtension/derived-async';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { pendingTask } from '@d7/desktop-ui';
 import { HeaderComponent } from '@app/app/components/header.component.js';
 import { FooterComponent } from '@app/app/components/footer.component.js';
 import { ContentTextComponent } from '@app/app/components/content-text.component.js';

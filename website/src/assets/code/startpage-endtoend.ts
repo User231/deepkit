@@ -1,5 +1,5 @@
 import {AutoIncrement, PrimaryKey,
-    MinLength, Unique} from '@deepkit/type';
+    MinLength, Unique} from '@d7/type';
 
 type Username = string & Unique & MinLength<4>;
 

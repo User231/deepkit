@@ -90,10 +90,10 @@ const users = new UserRepository(new HttpClient());
 
 然而，对于更复杂的应用，没有必要自己管理所有依赖，因为这正是所谓依赖注入容器的用途。它不仅会自动创建所有对象，还会自动“注入”依赖，因此不再需要手动的 “new” 调用。注入有多种类型，例如构造函数注入、方法注入或属性注入。这样，即便是拥有许多依赖的复杂架构也可以轻松管理。
 
-Deepkit 提供了依赖注入容器（也称 DI 容器或 IoC 容器），位于 `@deepkit/injector`，或通过 Deepkit Framework 中的 App 模块已集成就绪。使用 `@deepkit/injector` 包的低层 API，上面的代码将如下所示。
+Deepkit 提供了依赖注入容器（也称 DI 容器或 IoC 容器），位于 `@d7/injector`，或通过 Deepkit Framework 中的 App 模块已集成就绪。使用 `@d7/injector` 包的低层 API，上面的代码将如下所示。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 const injector = InjectorContext.forProviders(
     [UserRepository, HttpClient]
@@ -163,7 +163,7 @@ class UserRepository {
 现在可以通过 DI 容器将这两个实现（带有 HTTP 库的 UserRepository）合并在一起。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 import { HttpClient } from './http-client';
 import { UserRepository } from './user-repository';
 
@@ -182,7 +182,7 @@ const injector = InjectorContext.forProviders([
 作为替代方案，也可以直接为 HttpClientInterface 提供一个具体实现。
 
 ```typescript
-import { InjectorContext, provide } from '@deepkit/injector';
+import { InjectorContext, provide } from '@d7/injector';
 import { HttpClient } from './http-client';
 import { UserRepository, HttpClientInterface } from './user-repository';
 

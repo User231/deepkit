@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Injectable, Input, OnChanges, OnDestroy, OnInit, Output, QueryList, SimpleChanges, ViewChild, ViewChildren } from '@angular/core';
 import { ControllerClient } from '../../client';
 import { ActivatedRoute, Router } from '@angular/router';
-import { EventDispatcher } from '@deepkit/event';
+import { EventDispatcher } from '@d7/event';
 import { fileAddedEvent, fileQueuedEvent, fileUploadedEvent, State } from '../../state';
 import {
     ButtonComponent,
@@ -24,12 +24,12 @@ import {
     TableCellDirective,
     TableColumnDirective,
     TableComponent,
-} from '@deepkit/desktop-ui';
-import { ClientProgress, Progress } from '@deepkit/rpc';
-import { asyncOperation } from '@deepkit/core';
-import { MediaFile } from '@deepkit/framework-debug-api';
+} from '@d7/desktop-ui';
+import { ClientProgress, Progress } from '@d7/rpc';
+import { asyncOperation } from '@d7/core';
+import { MediaFile } from '@d7/framework-debug-api';
 import { Lifecycle, trackByIndex } from '../../utils';
-import { LoadingSpinnerComponent } from '@deepkit/ui-library';
+import { LoadingSpinnerComponent } from '@d7/ui-library';
 import { AsyncPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 

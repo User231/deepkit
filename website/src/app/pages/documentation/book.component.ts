@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { ContentRenderComponent } from '@app/app/components/content-render.component.js';
 import { derivedAsync } from 'ngxtension/derived-async';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { pendingTask } from '@d7/desktop-ui';
 import { ControllerClient } from '@app/app/client.js';
 import { ContentTextComponent } from '@app/app/components/content-text.component.js';
 

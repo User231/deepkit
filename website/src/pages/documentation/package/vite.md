@@ -1,7 +1,7 @@
-# API `@deepkit/vite`
+# API `@d7/vite`
 
 ```shell
-npm install @deepkit/vite
+npm install @d7/vite
 ```
 
-<api-docs package="@deepkit/vite"></api-docs>
+<api-docs package="@d7/vite"></api-docs>

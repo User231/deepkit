@@ -13,7 +13,7 @@ BrokerCache가 의존성 주입 컨테이너에서 사용 가능하도록 애플
 Deepkit Broker의 캐시 추상화는 단순한 key/value store와 매우 다릅니다. 캐시 이름과 캐시가 비어 있거나 만료되었을 때 자동으로 호출되는 builder Function을 정의하는 방식으로 동작합니다. 이 builder Function은 캐시에 저장될 데이터를 생성하는 역할을 합니다.
 
 ```typescript
-import { BrokerCache, BrokerCacheItem } from '@deepkit/broker';
+import { BrokerCache, BrokerCacheItem } from '@d7/broker';
 
 const cache = new BrokerCache(adapter);
 
@@ -47,8 +47,8 @@ await cacheItem.set(xy);
 자세한 내용은 시작하기 페이지를 참고하세요.
 
 ```typescript
-import { BrokerCache, BrokerCacheItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerCache, BrokerCacheItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // 이러한 타입을 공통 파일에 정의해 두면 재사용하기 좋고
 // 서비스에 주입하기도 용이합니다

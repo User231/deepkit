@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { sleep } from '@deepkit/core';
-import { DatabaseEntityRegistry, UniqueConstraintFailure } from '@deepkit/orm';
-import { User, UserCredentials } from '@deepkit/orm-integration';
-import { sql } from '@deepkit/sql';
+import { sleep } from '@d7/core';
+import { DatabaseEntityRegistry, UniqueConstraintFailure } from '@d7/orm';
+import { User, UserCredentials } from '@d7/orm-integration';
+import { sql } from '@d7/sql';
 import {
     AutoIncrement,
     BackReference,
@@ -21,13 +21,13 @@ import {
     Unique,
     UUID,
     uuid,
-} from '@deepkit/type';
+} from '@d7/type';
 
 
 import { SQLiteDatabaseAdapter, SQLiteDatabaseTransaction } from '../src/sqlite-adapter.js';
 import { SQLitePlatform } from '../src/sqlite-platform.js';
 import { databaseFactory } from './factory.js';
-import { MemoryLogger } from '@deepkit/logger';
+import { MemoryLogger } from '@d7/logger';
 
 
 test('reflection circular reference', () => {

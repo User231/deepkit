@@ -1,6 +1,6 @@
-import { AutoIncrement, entity, PrimaryKey, t } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { AutoIncrement, entity, PrimaryKey, t } from '@d7/type';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 
 @entity.name('group')
 export class Group {

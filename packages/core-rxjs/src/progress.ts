@@ -1,5 +1,5 @@
 import { BehaviorSubject } from 'rxjs';
-import { throttleTime } from '@deepkit/core';
+import { throttleTime } from '@d7/core';
 
 export interface ProgressTrackerState {
     total: number;
@@ -123,11 +123,11 @@ export class ProgressTrackerGroup {
 /**
  * This class allows to track multiple progress states.
  *
- * Natively supported as return type in @deepkit/rpc methods.
+ * Natively supported as return type in @d7/rpc methods.
  * The client can stop either a single progress state or all of them, to which the server
  * can react by stopping the current operation.
  *
- * @deepkit/desktop-ui has a component to display the progress.
+ * @d7/desktop-ui has a component to display the progress.
  */
 export class ProgressTracker extends BehaviorSubject<ProgressTrackerState[]> {
     groups: ProgressTrackerGroup[] = [];

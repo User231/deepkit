@@ -36,8 +36,8 @@ import {
     Replace,
     Resolve,
     SORT_ORDER,
-} from '@deepkit/orm';
-import { AbstractClassType, ClassType, isArray, isClass } from '@deepkit/core';
+} from '@d7/orm';
+import { AbstractClassType, ClassType, isArray, isClass } from '@d7/core';
 import {
     castFunction,
     Changes,
@@ -50,14 +50,14 @@ import {
     ReflectionKind,
     resolveReceiveType,
     Type,
-} from '@deepkit/type';
+} from '@d7/type';
 import { DefaultPlatform, SqlPlaceholderStrategy } from './platform/default-platform.js';
 import { Sql, SqlBuilder } from './sql-builder.js';
 import { SqlFormatter } from './sql-formatter.js';
 import { DatabaseComparator, DatabaseModel } from './schema/table.js';
-import { Stopwatch } from '@deepkit/stopwatch';
+import { Stopwatch } from '@d7/stopwatch';
 import { getPreparedEntity, PreparedEntity, PreparedField } from './prepare.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 
 export type SORT_TYPE = SORT_ORDER | { $meta: 'textScore' };
 export type DEEP_SORT<T extends OrmEntity> = { [P in keyof T]?: SORT_TYPE } & { [P: string]: SORT_TYPE };

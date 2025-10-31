@@ -1,9 +1,9 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit } from '@angular/core';
 import { filetypeinfo } from 'magic-bytes.js';
 import * as FileSaver from 'file-saver';
-import { Type } from '@deepkit/type';
+import { Type } from '@d7/type';
 import { TypeDecoration } from './utils';
-import { DropdownComponent, HumanFileSizePipe, IconComponent, ObjectURLPipe, OpenDropdownHoverDirective } from '@deepkit/desktop-ui';
+import { DropdownComponent, HumanFileSizePipe, IconComponent, ObjectURLPipe, OpenDropdownHoverDirective } from '@d7/desktop-ui';
 
 @Component({
     selector: 'orm-browser-binary-cell',

@@ -9,7 +9,7 @@
  */
 
 import { Buffer } from 'buffer';
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@d7/core';
 
 //on unpopulated properties access
 export enum UnpopulatedCheck {

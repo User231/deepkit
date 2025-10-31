@@ -7,7 +7,7 @@ There are several ways to implement inheritance in Deepkit ORM.
 One way is the use of class inheritance, which uses simple classes with `extends`.
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 class BaseModel {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -56,7 +56,7 @@ CREATE TABLE customer (
 Single Table Inheritance is a way to store multiple entities in one table.  Instead of having separate tables for each model, a single table is used, and an additional column (often named type or similar) is utilized to determine the type of each record. This is useful if you have a lot of entities that share the same properties.
 
 ```typescript
-import { PrimaryKey, AutoIncrement, entity } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, entity } from '@d7/type';
 
 @entity.collection('persons')
 abstract class Person {

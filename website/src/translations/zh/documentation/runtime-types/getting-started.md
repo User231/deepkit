@@ -5,13 +5,13 @@
 ## 安装 
 
 ```sh
-npm install --save @deepkit/type
-npm install --save-dev @deepkit/type-compiler typescript ts-node
+npm install --save @d7/type
+npm install --save-dev @d7/type-compiler typescript ts-node
 ```
 
 默认不会生成运行时类型信息。必须在 `tsconfig.json` 文件中设置 `"reflection": true` 才能启用。 
 
-如果要使用装饰器，必须在 `tsconfig.json` 中启用 `"experimentalDecorators": true`。这对使用 `@deepkit/type` 并非绝对必要，但对其他 Deepkit 库的某些功能以及 Deepkit 框架是必要的。
+如果要使用装饰器，必须在 `tsconfig.json` 中启用 `"experimentalDecorators": true`。这对使用 `@d7/type` 并非绝对必要，但对其他 Deepkit 库的某些功能以及 Deepkit 框架是必要的。
 
 _文件：tsconfig.json_
 
@@ -32,7 +32,7 @@ _文件：tsconfig.json_
 _文件：app.ts_
 
 ```typescript
-import { cast, MinLength, ReflectionClass } from '@deepkit/type';
+import { cast, MinLength, ReflectionClass } from '@d7/type';
 
 interface User {
     username: string & MinLength<3>;
@@ -61,7 +61,7 @@ console.log(reflection.getProperty('username').type);
 
 ## 类型编译器
 
-TypeScript 本身不允许通过 `tsconfig.json` 配置类型编译器。必须直接使用 TypeScript 编译器 API，或者使用像 Webpack 配合 _ts-loader_ 这样的构建系统。为避免这种不便，Deepkit 类型编译器在安装 `@deepkit/type-compiler` 后会自动将自身安装到 `node_modules/typescript` 中（这是通过 NPM 的 install hooks 完成的）。
+TypeScript 本身不允许通过 `tsconfig.json` 配置类型编译器。必须直接使用 TypeScript 编译器 API，或者使用像 Webpack 配合 _ts-loader_ 这样的构建系统。为避免这种不便，Deepkit 类型编译器在安装 `@d7/type-compiler` 后会自动将自身安装到 `node_modules/typescript` 中（这是通过 NPM 的 install hooks 完成的）。
 这使得所有访问本地安装的 TypeScript（即 `node_modules/typescript` 中的那个）的构建工具都能自动启用类型编译器。这使得 _tsc_、Angular、webpack、_ts-node_ 和其他一些工具能够自动与 Deepkit 类型编译器一起工作。
 
 如果类型编译器未能成功自动安装（例如因为 NPM install hooks 被禁用），可以使用以下命令手动完成：
@@ -79,7 +79,7 @@ node_modules/.bin/deepkit-type-install
 _文件：webpack.config.js_
 
 ```javascript
-const typeCompiler = require('@deepkit/type-compiler');
+const typeCompiler = require('@d7/type-compiler');
 
 module.exports = {
   entry: './app.ts',
@@ -90,7 +90,7 @@ module.exports = {
           use: {
             loader: 'ts-loader',
             options: {
-              // 这将启用 @deepkit/type 的类型编译器
+              // 这将启用 @d7/type 的类型编译器
               getCustomTransformers: (program, getProgram) => ({
                 before: [typeCompiler.transformer],
                 afterDeclarations: [typeCompiler.declarationTransformer],

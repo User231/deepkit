@@ -8,9 +8,9 @@
 
 ```typescript
 #!/usr/bin/env ts-node-script
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class Config {
     title: string = 'DEV my Page';
@@ -81,8 +81,8 @@ dist
 |===
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // 在此处编写你的配置和 HTTP 控制器
 
@@ -107,8 +107,8 @@ new App({
 在本地开发环境中，可通过 `framework.selfSigned` 选项启用自签名 HTTPS。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // 在此处编写你的配置和 HTTP 控制器
 

@@ -1,4 +1,4 @@
-import { AutoIncrement, deserialize, entity, PrimaryKey } from '@deepkit/type';
+import { AutoIncrement, deserialize, entity, PrimaryKey } from '@d7/type';
 import { expect, test } from '@jest/globals';
 import { Database } from '../src/database.js';
 import { MemoryDatabaseAdapter } from '../src/memory-db.js';

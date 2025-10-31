@@ -1,5 +1,5 @@
-import { SoftDeletePlugin, SoftDeleteQuery, SoftDeleteSession } from '@deepkit/orm';
-import { AutoIncrement, cast, entity, PrimaryKey } from '@deepkit/type';
+import { SoftDeletePlugin, SoftDeleteQuery, SoftDeleteSession } from '@d7/orm';
+import { AutoIncrement, cast, entity, PrimaryKey } from '@d7/type';
 import { DatabaseFactory } from './test.js';
 import { expect } from '@jest/globals';
 

@@ -1,7 +1,7 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Optional, Output, SkipSelf } from '@angular/core';
-import { arrayRemoveItem } from '@deepkit/core';
-import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog, InputComponent } from '@deepkit/desktop-ui';
-import { deserialize, getPrimaryKeyHashGenerator, isNullable, isOptional, isReferenceType, ReflectionClass, ReflectionKind, resolveClassType, serialize, Type } from '@deepkit/type';
+import { arrayRemoveItem } from '@d7/core';
+import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog, InputComponent } from '@d7/desktop-ui';
+import { deserialize, getPrimaryKeyHashGenerator, isNullable, isOptional, isReferenceType, ReflectionClass, ReflectionKind, resolveClassType, serialize, Type } from '@d7/type';
 import { BrowserState } from '../../browser-state';
 import { getParentProperty } from '../../utils';
 import { FormsModule } from '@angular/forms';

@@ -1,4 +1,4 @@
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { RpcWebSocketClient } from '@d7/rpc';
 import { inject } from '@angular/core';
 import type { AdminController } from '@app/server/controller/admin.controller';
 import type { MainController } from '@app/server/controller/main.controller';

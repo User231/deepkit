@@ -1,11 +1,11 @@
 // import algoliasearch, { SearchClient } from 'algoliasearch';
 // import { AppConfig } from "@app/server/config";
-import { findParentPath } from '@deepkit/app';
+import { findParentPath } from '@d7/app';
 import glob from 'tiny-glob';
 import { bodyToString, CommunityMessage, DocPageContent, Page, projectMap } from '@app/common/models';
 import { PageProcessor } from '@app/server/page-processor';
-import { Database } from '@deepkit/orm';
-import { sql } from '@deepkit/sql';
+import { Database } from '@d7/orm';
+import { sql } from '@d7/sql';
 
 function createIndexEntriesForPage(page: Page, rootPath: string = ''): DocPageContent[] {
     const entries: DocPageContent[] = [];

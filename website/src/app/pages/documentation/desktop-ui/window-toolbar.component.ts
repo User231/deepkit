@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import {
     ButtonComponent,
     ButtonGroupComponent,
@@ -13,7 +13,7 @@ import {
     WindowHeaderComponent,
     WindowSidebarComponent,
     WindowToolbarComponent,
-} from '@deepkit/desktop-ui';
+} from '@d7/desktop-ui';
 import { CodeFrameComponent } from './api-doc.component.js';
 import { AppTitle } from '@app/app/components/title.js';
 

@@ -7,7 +7,7 @@
 この例では、Class `Point` をタプル `[number, number]` にシリアライズ/デシリアライズする方法を示します。
 
 ```typescript
-import { serializer, SerializationError } from '@deepkit/type';
+import { serializer, SerializationError } from '@d7/type';
 
 class Point {
   constructor(public x: number, public y: number) {
@@ -51,6 +51,6 @@ const json = serialize<Point>(point);
 expect(json).toEqual([1, 2]);
 ```
 
-これは `cast`、`deserialize`、`serialize` など、通常の `@deepkit/type` の Function に対してのみ機能する点に注意してください。
+これは `cast`、`deserialize`、`serialize` など、通常の `@d7/type` の Function に対してのみ機能する点に注意してください。
 
 これはデータベース層には適用されません。データベース層は、マイグレーションやシリアライズ（例: BSON のシリアライズ）のために、Entity Class で定義された Type を使用するためです。

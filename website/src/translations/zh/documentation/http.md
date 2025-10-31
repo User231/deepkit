@@ -24,9 +24,9 @@ http.get('/user/:id', (request, response) => {
 ## 示例：函数式 API
 
 ```typescript
-import { Positive } from '@deepkit/type';
-import { http, HttpRouterRegistry } from '@deepkit/http';
-import { FrameworkModule } from "@deepkit/framework";
+import { Positive } from '@d7/type';
+import { http, HttpRouterRegistry } from '@d7/http';
+import { FrameworkModule } from "@d7/framework";
 
 //函数式 API
 const app = new App({
@@ -46,9 +46,9 @@ app.run();
 ## 类控制器 API
 
 ```typescript
-import { Positive } from '@deepkit/type';
-import { http, HttpRouterRegistry } from '@deepkit/http';
-import { FrameworkModule } from "@deepkit/framework";
+import { Positive } from '@d7/type';
+import { http, HttpRouterRegistry } from '@d7/http';
+import { FrameworkModule } from "@d7/framework";
 import { User } from "discord.js";
 
 //控制器 API

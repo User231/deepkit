@@ -9,7 +9,7 @@ Deepkit Broker Key-Value の Class は、ブローカーサーバーと連携す
 ## 使い方
 
 ```typescript
-import { BrokerKeyValue } from '@deepkit/broker';
+import { BrokerKeyValue } from '@d7/broker';
 
 const keyValue = new BrokerKeyValue(adapter, {
   ttl: '60s', // 各 key の有効期間。0 は ttl なし（デフォルト）を意味します。
@@ -61,8 +61,8 @@ await activeUsers.remove();
 詳しくは Getting started ページを参照してください。
 
 ```typescript
-import { BrokerKeyValue, BrokerKeyValueItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerKeyValue, BrokerKeyValueItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // この Type は共有ファイルに移動してください
 type MyKeyValueItem = BrokerKeyValueItem<User[]>;

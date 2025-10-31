@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/template",
+  "name": "@d7/template",
   "version": "1.0.19",
-  "description": "Deepkit template engine based on TSX",
+  "description": "D7 template engine based on TSX",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -18,7 +18,7 @@
       "default": "./dist/esm/jsx-runtime.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -28,20 +28,20 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/injector": "^1.0.1",
-    "@deepkit/stopwatch": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@d7/core": "^1.0.1",
+    "@d7/injector": "^1.0.1",
+    "@d7/stopwatch": "^1.0.1",
+    "@d7/type": "^1.0.1"
   },
   "dependencies": {
     "@types/estree": "^0.0.45",
     "abstract-syntax-tree": "^2.9.4"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/injector": "^1.0.19",
-    "@deepkit/stopwatch": "^1.0.19",
-    "@deepkit/type": "^1.0.19"
+    "@d7/core": "^1.0.19",
+    "@d7/injector": "^1.0.19",
+    "@d7/stopwatch": "^1.0.19",
+    "@d7/type": "^1.0.19"
   },
   "jest": {
     "transform": {

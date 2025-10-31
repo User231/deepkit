@@ -1,5 +1,5 @@
 import { Component, ComponentFactoryResolver, ComponentRef, inject, Input, ViewContainerRef } from '@angular/core';
-import { TypeArray } from '@deepkit/type';
+import { TypeArray } from '@d7/type';
 import { ComponentRegistry } from '../../registry';
 import { JsonPipe } from '@angular/common';
 

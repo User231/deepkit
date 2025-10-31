@@ -1,18 +1,18 @@
-import { assertType, entity, Minimum, Positive, ReflectionClass, ReflectionKind } from '@deepkit/type';
+import { assertType, entity, Minimum, Positive, ReflectionClass, ReflectionKind } from '@d7/type';
 import { expect, test } from '@jest/globals';
 import { AsyncDirectClient, DirectClient, RpcDirectClientAdapter } from '../src/client/client-direct.js';
 import { getActions, rpc, RpcController } from '../src/decorators.js';
 import { RpcKernel, RpcKernelConnection } from '../src/server/kernel.js';
 import { Session, SessionState } from '../src/server/security.js';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { getClassName, sleep } from '@deepkit/core';
-import { ProgressTracker } from '@deepkit/core-rxjs';
-import { Logger, MemoryLogger } from '@deepkit/logger';
+import { getClassName, sleep } from '@d7/core';
+import { ProgressTracker } from '@d7/core-rxjs';
+import { Logger, MemoryLogger } from '@d7/logger';
 import { RpcClient } from '../src/client/client.js';
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 import { RpcControllerState } from '../src/client/action.js';
 import { onRpcAction, onRpcAuth, onRpcConnection, onRpcConnectionClose, onRpcControllerAccess } from '../src/events.js';
-import { eventWatcher } from '@deepkit/event';
+import { eventWatcher } from '@d7/event';
 
 test('default name', () => {
     @rpc.controller()

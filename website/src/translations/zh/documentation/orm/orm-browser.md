@@ -9,8 +9,8 @@ Deepkit ORM 浏览器是一个基于 Web 的工具，用于探索你的数据库
 Deepkit ORM 浏览器是 Deepkit 框架的一部分，并且在启用调试模式时会自动启用。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Database } from '@deepkit/orm';
+import { App } from '@d7/app';
+import { Database } from '@d7/orm';
 
 class MyController {
     @http.GET('/')
@@ -35,12 +35,12 @@ new App({
 或者，你可以将 Deepkit ORM 浏览器作为独立包安装。
 
 ```bash
-npm install @deepkit/orm-browser
+npm install @d7/orm-browser
 ```
 
 ```typescript
 // database.ts
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 
 class MainDatabase extends Database {
     constructor() {

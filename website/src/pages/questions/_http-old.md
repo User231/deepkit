@@ -3,9 +3,9 @@ assistant: Deepkit's HTTP Library leverages the power of TypeScript and Dependen
 
 Example Functional API:
 ```typescript
-import { Positive } from '@deepkit/type';
-import { http, HttpRouterRegistry } from '@deepkit/http';
-import { FrameworkModule } from "@deepkit/framework";
+import { Positive } from '@d7/type';
+import { http, HttpRouterRegistry } from '@d7/http';
+import { FrameworkModule } from "@d7/framework";
 
 //Functional API
 const app = new App({
@@ -24,9 +24,9 @@ app.run();
 
 Class Controller API:
 ```typescript
-import { Positive } from '@deepkit/type';
-import { http, HttpRouterRegistry } from '@deepkit/http';
-import { FrameworkModule } from "@deepkit/framework";
+import { Positive } from '@d7/type';
+import { http, HttpRouterRegistry } from '@d7/http';
+import { FrameworkModule } from "@d7/framework";
 import { User } from "discord.js";
 
 //Controller API
@@ -81,15 +81,15 @@ assistant: Deepkit's HTTP Library leverages TypeScript and Dependency Injection 
 user: What are the advantages of defining routes via a functional API in Deepkit?
 assistant: The advantages of defining routes via a functional API in Deepkit are:
 - Automatic serialization/deserialization and validation of input values based on defined types.
-- Can be easily integrated with the Deepkit framework.
+- Can be easily integrated with the D7 framework.
 - Allows for convenient retrieval of objects such as database abstractions and configurations from the application using the dependency injection container.
 
 Here's an example of defining a route using the functional API in Deepkit:
 
 ```typescript
-import { Positive } from '@deepkit/type';
-import { http, HttpRouterRegistry } from '@deepkit/http';
-import { FrameworkModule } from "@deepkit/framework";
+import { Positive } from '@d7/type';
+import { http, HttpRouterRegistry } from '@d7/http';
+import { FrameworkModule } from "@d7/framework";
 
 const app = new App({
     imports: [new FrameworkModule()]
@@ -117,8 +117,8 @@ assistant: Objects such as a database abstraction and configurations can be retr
 
 ##-------------------------------------------------##
 
-user: What is the purpose of the `Positive` import from `@deepkit/type` in the functional API example?
-assistant: The `Positive` import from `@deepkit/type` in the functional API example is used to ensure that the `id` parameter passed to the route handler is both of type `number` and is a positive value. It is a type annotation that enforces this constraint, providing automatic validation of the input.
+user: What is the purpose of the `Positive` import from `@d7/type` in the functional API example?
+assistant: The `Positive` import from `@d7/type` in the functional API example is used to ensure that the `id` parameter passed to the route handler is both of type `number` and is a positive value. It is a type annotation that enforces this constraint, providing automatic validation of the input.
 
 ##-------------------------------------------------##
 

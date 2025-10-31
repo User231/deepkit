@@ -1,5 +1,5 @@
-import { isMongoIdType, isSetType, isUUIDType, ReflectionKind } from '@deepkit/type';
-import { getClassName } from '@deepkit/core';
+import { isMongoIdType, isSetType, isUUIDType, ReflectionKind } from '@d7/type';
+import { getClassName } from '@d7/core';
 import { StringInputComponent } from './components/edit/string-input.component';
 import { ArrayInputComponent } from './components/edit/array-input.component';
 import { JsonInputComponent } from './components/edit/json-input.component';

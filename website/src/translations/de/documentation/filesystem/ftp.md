@@ -2,17 +2,17 @@
 
 Dieser Adapter ermöglicht es, einen FTP-Server als Dateisystem zu verwenden.
 
-Er ist Teil von `@deepkit/filesystem-ftp`, das separat installiert werden muss.
+Er ist Teil von `@d7/filesystem-ftp`, das separat installiert werden muss.
 
 ```sh
-npm install @deepkit/filesystem-ftp
+npm install @d7/filesystem-ftp
 ```
 
 ## Verwendung
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemFtpAdapter } from '@deepkit/filesystem-ftp';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemFtpAdapter } from '@d7/filesystem-ftp';
 
 const adapter = new FilesystemFtpAdapter({
     root: 'folder',

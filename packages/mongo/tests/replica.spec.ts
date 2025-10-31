@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { createMongoClientFactory, MongoEnv, MongoInstance } from './client/env-setup.js';
-import { AutoIncrement, PrimaryKey, ReflectionClass } from '@deepkit/type';
+import { AutoIncrement, PrimaryKey, ReflectionClass } from '@d7/type';
 import { FindOptions, MongoClient as MongoMongoClient } from 'mongodb';
 import { MongoClient } from '../src/client/client.js';
 import { FindCommand } from '../src/client/command/find.js';
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 import { MongoDatabaseAdapter } from '../src/adapter.js';
-import { ConsoleLogger, LoggerLevel, MemoryLogger } from '@deepkit/logger';
-import { sleep } from '@deepkit/core';
+import { ConsoleLogger, LoggerLevel, MemoryLogger } from '@d7/logger';
+import { sleep } from '@d7/core';
 
 jest.setTimeout(60 * 1000);
 

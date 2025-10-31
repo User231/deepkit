@@ -9,7 +9,7 @@
  */
 
 import { BaseResponse } from './command/command.js';
-import { DatabaseError } from '@deepkit/orm';
+import { DatabaseError } from '@d7/orm';
 
 
 /**

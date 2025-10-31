@@ -4,10 +4,10 @@
 
 ## Typen-Compiler
 
-类型编译器（位于 @deepkit/type-compiler）负责读取 TypeScript 文件中定义的类型，并将其编译为字节码。该字节码包含在运行时执行类型所需的一切。
+类型编译器（位于 @d7/type-compiler）负责读取 TypeScript 文件中定义的类型，并将其编译为字节码。该字节码包含在运行时执行类型所需的一切。
 截至本文撰写时，类型编译器是所谓的 TypeScript transformer。此转换器是 TypeScript 编译器本身的一个插件，会将一个 TypeScript AST（抽象语法树）转换为另一个 TypeScript AST。Deepkit 的类型编译器在此过程中读取 AST，生成相应的字节码，并将其插入到 AST 中。
 
-TypeScript 本身不允许通过 tsconfig.json 配置该插件（即 transformer）。要么需要直接使用 TypeScript 编译器 API，要么使用像 Webpack 搭配 `ts-loader` 这样的构建系统。为避免给 Deepkit 用户带来这种不便，只要安装了 `@deepkit/type-compiler`，Deepkit 的类型编译器就会自动安装到 `node_modules/typescript` 中。这样，所有访问本地安装 TypeScript（即 `node_modules/typescript` 中的那个）的构建工具都会自动启用类型编译器。由此，tsc、Angular、webpack、ts-node 以及其他一些工具都可以自动与 Deepkit 的类型编译器协同工作。
+TypeScript 本身不允许通过 tsconfig.json 配置该插件（即 transformer）。要么需要直接使用 TypeScript 编译器 API，要么使用像 Webpack 搭配 `ts-loader` 这样的构建系统。为避免给 Deepkit 用户带来这种不便，只要安装了 `@d7/type-compiler`，Deepkit 的类型编译器就会自动安装到 `node_modules/typescript` 中。这样，所有访问本地安装 TypeScript（即 `node_modules/typescript` 中的那个）的构建工具都会自动启用类型编译器。由此，tsc、Angular、webpack、ts-node 以及其他一些工具都可以自动与 Deepkit 的类型编译器协同工作。
 
 如果未启用 NPM 安装脚本的自动运行，从而没有修改本地安装的 typescript，则需要按需手动运行该过程。或者，也可以在诸如 webpack 之类的构建工具中手动使用类型编译器。参见上文的安装章节。
 
@@ -23,7 +23,7 @@ type TypeA = string;
 const typeA = ['&'];
 ```
 
-已有的指令每条占用一个字节，可以在 `@deepkit/type-spec` 中找到，作为 `ReflectionOp` 枚举。截至本文撰写时，指令集包含 81 条以上的指令。
+已有的指令每条占用一个字节，可以在 `@d7/type-spec` 中找到，作为 `ReflectionOp` 枚举。截至本文撰写时，指令集包含 81 条以上的指令。
 
 ```typescript
 enum ReflectionOp {
@@ -71,6 +71,6 @@ log.__type = ['message', 'log', 'P&2!$/"'];
 
 ## 虚拟机
 
-在运行时，虚拟机（`@deepkit/type` 中的 Processor 类）负责解码并执行已编码的字节码。它始终返回一个类型对象，如[反射 API](./reflection.md)中所述。
+在运行时，虚拟机（`@d7/type` 中的 Processor 类）负责解码并执行已编码的字节码。它始终返回一个类型对象，如[反射 API](./reflection.md)中所述。
 
 更多信息参见[TypeScript 字节码解释器 / 运行时类型 #47658](https://github.com/microsoft/TypeScript/issues/47658)。

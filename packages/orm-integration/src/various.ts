@@ -11,10 +11,10 @@ import {
     Unique,
     uuid,
     UUID,
-} from '@deepkit/type';
-import { identifier, sql, SQLDatabaseAdapter } from '@deepkit/sql';
+} from '@d7/type';
+import { identifier, sql, SQLDatabaseAdapter } from '@d7/sql';
 import { DatabaseFactory } from './test.js';
-import { hydrateEntity, isDatabaseOf, UniqueConstraintFailure } from '@deepkit/orm';
+import { hydrateEntity, isDatabaseOf, UniqueConstraintFailure } from '@d7/orm';
 import { randomBytes } from 'crypto';
 
 Error.stackTraceLimit = 20;

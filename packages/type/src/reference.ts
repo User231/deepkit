@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, isObject } from '@deepkit/core';
+import { ClassType, isObject } from '@d7/core';
 import { ReflectionClass, reflectionClassSymbol } from './reflection/reflection.js';
 import { typeSettings, UnpopulatedCheck, unpopulatedSymbol } from './core.js';
 import { ReflectionKind, Type } from './reflection/type.js';

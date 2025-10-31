@@ -5,7 +5,7 @@ HTTP middlewares allow you to hook into the request/response cycle as an alterna
 A middleware can either be a class (which is instantiated by the dependency injection container) or a simple function.
 
 ```typescript
-import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@d7/http';
 
 class MyMiddleware implements HttpMiddleware {
     async execute(request: HttpRequest, response: HttpResponse, next: (err?: any) => void) {
@@ -35,7 +35,7 @@ new App({
 By using httpMiddleware.for(MyMiddleware) a middleware is registered for all routes, globally.
 
 ```typescript
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 new App({
     providers: [MyMiddleware],

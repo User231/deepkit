@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { ReceiveType, resolveReceiveType } from '../../src/reflection/reflection';
 import { Type } from '../../src/reflection/type';
-import { forwardTypeArguments } from '@deepkit/core';
+import { forwardTypeArguments } from '@d7/core';
 
 test('function default', () => {
     class Clazz {

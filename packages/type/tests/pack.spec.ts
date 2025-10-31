@@ -1,7 +1,7 @@
 /** @reflection never */
 import { expect, test } from '@jest/globals';
 import { pack, unpack } from '../src/reflection/processor.js';
-import { ReflectionOp } from '@deepkit/type-spec';
+import { ReflectionOp } from '@d7/type-spec';
 
 Error.stackTraceLimit = 200;
 

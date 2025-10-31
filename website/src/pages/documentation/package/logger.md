@@ -1,7 +1,7 @@
-# API `@deepkit/logger`
+# API `@d7/logger`
 
 ```sh
-npm install @deepkit/logger
+npm install @d7/logger
 ```
 
-<api-docs package="@deepkit/logger"></api-docs>
+<api-docs package="@d7/logger"></api-docs>

@@ -2,17 +2,17 @@
 
 AWS S3 文件系统适配器允许你将 AWS S3 服务用作 Deepkit 文件系统。
 
-它属于需要单独安装的 `@deepkit/filesystem-aws-s3`。
+它属于需要单独安装的 `@d7/filesystem-aws-s3`。
 
 ```sh
-npm install @deepkit/filesystem-aws-s3
+npm install @d7/filesystem-aws-s3
 ```
 
 ## 用法
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemAwsS3Adapter } from '@deepkit/filesystem-aws-s3';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemAwsS3Adapter } from '@d7/filesystem-aws-s3';
 
 const adapter = new FilesystemAwsS3Adapter({
     bucket: 'my-bucket',

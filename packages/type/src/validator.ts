@@ -1,6 +1,6 @@
 import { ReceiveType } from './reflection/reflection.js';
 import { getValidatorFunction, is } from './typeguard.js';
-import { CustomError, TypeAnnotation } from '@deepkit/core';
+import { CustomError, TypeAnnotation } from '@d7/core';
 import { stringifyType, Type } from './reflection/type.js';
 import { entity } from './decorator.js';
 import { serializer, Serializer } from './serializer.js';

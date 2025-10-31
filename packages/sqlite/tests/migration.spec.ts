@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { schemaMigrationRoundTrip } from '@deepkit/sql';
-import { AutoIncrement, Entity, integer, PrimaryKey, Reference, SQLite, typeOf, Unique } from '@deepkit/type';
+import { schemaMigrationRoundTrip } from '@d7/sql';
+import { AutoIncrement, Entity, integer, PrimaryKey, Reference, SQLite, typeOf, Unique } from '@d7/type';
 import { SQLiteDatabaseAdapter } from '../src/sqlite-adapter.js';
-import { DatabaseEntityRegistry } from '@deepkit/orm';
+import { DatabaseEntityRegistry } from '@d7/orm';
 
 test('custom type', async () => {
     interface Post extends Entity<{ name: 'post' }> {

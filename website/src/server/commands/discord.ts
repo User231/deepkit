@@ -1,9 +1,9 @@
 import { AnyThreadChannel, ChannelType, Client, EmbedBuilder, GatewayIntentBits, Message } from 'discord.js';
 import { Questions } from "@app/server/questions";
 import { AppConfig } from "@app/server/config";
-import { Logger } from "@deepkit/logger";
+import { Logger } from "@d7/logger";
 import { CommunityMessage } from "@app/common/models";
-import { Database } from "@deepkit/orm";
+import { Database } from "@d7/orm";
 
 export async function registerBot(
     event: any,

@@ -120,7 +120,7 @@ import { AppTitle } from '@app/app/components/title';
                         </p>
 
                         <div style="margin-top: 50px;">
-                            <a href="mailto:info@deepkit.io" class="button big">Contact us</a>
+                            <a href="mailto:info@d7.io" class="button big">Contact us</a>
                         </div>
                     </div>
                 </div>
@@ -345,7 +345,7 @@ import { AppTitle } from '@app/app/components/title';
                                 </li>
                             </ul>
                             <div class="actions">
-                                <a href="mailto:info@deepkit.io" class="button">Contact us</a>
+                                <a href="mailto:info@d7.io" class="button">Contact us</a>
                             </div>
                         </div>
                         <div class="app-box">
@@ -368,7 +368,7 @@ import { AppTitle } from '@app/app/components/title';
                                 </li>
                             </ul>
                             <div class="actions">
-                                <a href="mailto:info@deepkit.io" class="button">Contact us</a>
+                                <a href="mailto:info@d7.io" class="button">Contact us</a>
                             </div>
                         </div>
                     </div>

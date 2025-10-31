@@ -87,7 +87,7 @@ assistant: One of the limitations and disadvantages of using design patterns in 
 
 ##-------------------------------------------------##
 
-user: How does the Deepkit runtime type system simplify the application of design patterns?
+user: How does the D7 runtime type system simplify the application of design patterns?
 assistant: The Deepkit runtime type system simplifies the application of design patterns by leaving type information in place and allowing dynamic types to be computed at runtime. This paradigm shift provides the required information for various use cases, such as data transformation, validation, and meta-information handling. By preserving type information at runtime, Deepkit enables the full power and expressiveness of TypeScript to be used not only during development but also at runtime. This allows developers to leverage the benefits of TypeScript's type system and apply design patterns in a more natural and efficient way, reducing the need for boilerplate and improving code expressiveness.
 
 ##-------------------------------------------------##

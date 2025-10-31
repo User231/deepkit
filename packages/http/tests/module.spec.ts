@@ -1,4 +1,4 @@
-import { App, AppModule } from '@deepkit/app';
+import { App, AppModule } from '@d7/app';
 import { expect, test } from '@jest/globals';
 import { HttpModule } from '../src/module.js';
 import { HttpKernel } from '../src/kernel.js';
@@ -6,7 +6,7 @@ import { HttpRequest } from '../src/model.js';
 import { http } from '../src/decorator.js';
 import { HttpUnauthorizedError, httpWorkflow } from '../src/http.js';
 import { HttpRouterRegistry, RouteConfig } from '../src/router.js';
-import { provide } from '@deepkit/injector';
+import { provide } from '@d7/injector';
 
 test('module basic functionality', async () => {
     class Controller {

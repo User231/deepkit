@@ -11,7 +11,7 @@
 import { booleanAttribute, Component, EventEmitter, HostBinding, HostListener, inject, input, OnDestroy, Output } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ngValueAccessor, ValueAccessorBase } from '../../core/form';
-import { arrayRemoveItem } from '@deepkit/core';
+import { arrayRemoveItem } from '@d7/core';
 import { injectElementRef } from '../app/utils';
 
 /**

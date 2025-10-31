@@ -1,9 +1,9 @@
-import { AutoIncrement, entity, PrimaryKey, ReflectionKind } from '@deepkit/type';
+import { AutoIncrement, entity, PrimaryKey, ReflectionKind } from '@d7/type';
 import { SchemaParser } from '../src/reverse/schema-parser.js';
 import { DatabaseModel } from '../src/schema/table.js';
 import { DefaultPlatform } from '../src/platform/default-platform.js';
 import { expect, test } from '@jest/globals';
-import { DatabaseEntityRegistry } from '@deepkit/orm';
+import { DatabaseEntityRegistry } from '@d7/orm';
 
 @(entity.name('person').collection('persons'))
 abstract class Person {

@@ -21,12 +21,12 @@ It provides:
 A command in Deepkit has full access to the DI container and can thus access all providers and configuration options. The arguments and options of the CLI commands are controlled
 by parameters declaration via TypeScript types and are automatically serialized and validated.
 
-[Deepkit Framework](./framework.md) with `@deepkit/framework` extends this further with an application server for HTTP/RPC, a debugger/profiler, and much more.
+[Deepkit Framework](./framework.md) with `@d7/framework` extends this further with an application server for HTTP/RPC, a debugger/profiler, and much more.
 
 Example:
 
 ```typescript
-import { App, Flag } from '@deepkit/app';
+import { App, Flag } from '@d7/app';
 import { Database } from './database';
 
 const app = new App({
@@ -56,7 +56,7 @@ ts-node app.ts test John --age 42
 The easiest way to get started is to use NPM init to create a new Deepkit project.
 
 ```shell
-npm init @deepkit/app@latest my-deepkit-app
+npm init @d7/app@latest my-deepkit-app
 ````
 
 This will create a new folder `my-deepkit-app` with all the dependencies and a basic `app.ts` file.
@@ -76,7 +76,7 @@ Deepkit App is based on [Deepkit Runtime Types](./runtime-types.md), so let's in
 mkdir my-project && cd my-project
 
 npm install typescript ts-node 
-npm install @deepkit/app @deepkit/type @deepkit/type-compiler
+npm install @d7/app @d7/type @d7/type-compiler
 ```
 
 Next, we make sure Deepkit's type compiler is installed into the installed TypeScript package at `node_modules/typescript` by running the following command:
@@ -95,7 +95,7 @@ reason, `ts-node` is used in all examples in this documentation.
 
 ## First application
 
-Since the Deepkit framework does not use configuration files or a special folder structure, you can structure your project however you want. The only two files you need to get
+Since the D7 framework does not use configuration files or a special folder structure, you can structure your project however you want. The only two files you need to get
 started are the TypeScript app.ts file and the TypeScript configuration tsconfig.json.
 
 Our goal is to have the following files in our project folder:
@@ -130,8 +130,8 @@ This is required to use the dependency injection container and other features.
 ```
 
 ```typescript title=app.ts
-import { App } from '@deepkit/app';
-import { Logger } from '@deepkit/logger';
+import { App } from '@d7/app';
+import { Logger } from '@d7/logger';
 
 const app = new App();
 

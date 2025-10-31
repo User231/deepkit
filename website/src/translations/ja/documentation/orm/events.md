@@ -5,7 +5,7 @@
 イベントはイベントトークンに対して `Database.listen` を介して登録されます。短命なイベントリスナーはセッション上にも登録できます。
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 database.listen(Query.onFetch, async (event) => {
@@ -25,7 +25,7 @@ Query イベントは、`Database.query()` または `Session.query()` を介し
 各イベントには、エンティティの型、クエリ自体、データベースセッションなどの追加のプロパティがあります。`Event.query` に新しいクエリを設定することで、クエリを上書きできます。
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 

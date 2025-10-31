@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import { ApiDocComponent, CodeFrameComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
-import { ButtonComponent, ButtonGroupComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DialogDirective, DuiDialogConfirmDirective } from '@deepkit/desktop-ui';
+import { ButtonComponent, ButtonGroupComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DialogDirective, DuiDialogConfirmDirective } from '@d7/desktop-ui';
 import { AppTitle } from '@app/app/components/title.js';
 
 @Component({

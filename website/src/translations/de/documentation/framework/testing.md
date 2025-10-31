@@ -79,8 +79,8 @@ Es ist nicht immer möglich, Unit-Tests zu schreiben, und es ist auch nicht imme
 Wie Sie bereits im Kapitel Dependency Injection gelernt haben, ist der Dependency Injection Container das Herz von Deepkit. Hier werden alle Services erstellt und ausgeführt. Ihre Anwendung definiert Services (Providers), Controller, Listener und Imports. Für Integrationstests möchten Sie in einem Testfall nicht unbedingt alle Services verfügbar haben, sondern in der Regel eine abgespeckte Version der Anwendung, um die kritischen Bereiche zu testen.
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
-import { http, HttpRequest } from '@deepkit/http';
+import { createTestingApp } from '@d7/framework';
+import { http, HttpRequest } from '@d7/http';
 
 test('http controller', async () => {
     class MyController {
@@ -102,7 +102,7 @@ test('http controller', async () => {
 ```
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 
 test('service', async () => {
     class MyService {
@@ -157,7 +157,7 @@ new App({
 Und testen Sie es, ohne den gesamten Anwendungsserver zu starten.
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 import { AppCoreModule, MyService } from './app-core.ts';
 
 test('service simple', async () => {

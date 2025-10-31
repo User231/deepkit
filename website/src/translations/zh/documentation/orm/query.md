@@ -340,7 +340,7 @@ const userCount: number = await database.query(User).count();
 对查询进行“提升”意味着向其添加新功能。这通常由插件或复杂架构使用，以将较大的查询类拆分为多个方便、可复用的类。
 
 ```typescript
-import { FilterQuery, Query } from '@deepkit/orm';
+import { FilterQuery, Query } from '@d7/orm';
 
 class UserQuery<T extends {birthdate?: Date}> extends Query<T>  {
     hasBirthday() {

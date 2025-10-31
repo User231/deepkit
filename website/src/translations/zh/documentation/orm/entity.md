@@ -1,14 +1,14 @@
 # 实体
 
 实体要么是一个类，要么是一个对象字面量（interface），并且始终有一个主键。
-实体使用来自 `@deepkit/type` 的类型注解标注所需的全部信息。例如，定义主键、各种字段及其校验约束。这些字段反映数据库结构，通常对应一张表或一个集合。
+实体使用来自 `@d7/type` 的类型注解标注所需的全部信息。例如，定义主键、各种字段及其校验约束。这些字段反映数据库结构，通常对应一张表或一个集合。
 
 通过 `Mapped<'name'>` 之类的特殊类型注解，还可以将字段名映射为数据库中的另一个名称。
 
 ## 类
 
 ```typescript
-import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 @entity.name('user')
 class User {
@@ -35,7 +35,7 @@ console.log('all users', allUsers);
 ## 接口
 
 ```typescript
-import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -80,7 +80,7 @@ interface User {
 对于数值类型可以使用 `AutoIncrement`。
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -94,7 +94,7 @@ interface User {
 自增字段是一个自动计数器，只能用于主键。数据库会自动确保 ID 只被使用一次。
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement;
@@ -106,7 +106,7 @@ interface User {
 需要为 UUID（v4）类型的字段使用 UUID 装饰器标注。其运行时类型为 `string`，在数据库中多为二进制存储。使用 `uuid()` 函数可创建一个新的 UUID v4。
 
 ```typescript
-import { uuid, UUID, PrimaryKey } from '@deepkit/type';
+import { uuid, UUID, PrimaryKey } from '@d7/type';
 
 class User {
     id: UUID & PrimaryKey = uuid();
@@ -120,7 +120,7 @@ class User {
 MongoID 字段在插入时会自动获得新值。字段名不必是 `_id`，可以使用任意名称。
 
 ```typescript
-import { PrimaryKey, MongoId } from '@deepkit/type';
+import { PrimaryKey, MongoId } from '@d7/type';
 
 class User {
     id: MongoId & PrimaryKey = '';
@@ -135,7 +135,7 @@ class User {
 在下面的示例中，modified 字段是可选的，因此在运行时可以是 undefined，尽管在数据库中始终表示为 NULL。
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -146,7 +146,7 @@ class User {
 此示例展示了可空类型的用法。无论在数据库还是在 JavaScript 运行时都使用 NULL。相较于 `modified?: Date` 更为啰嗦，且不常使用。
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -174,7 +174,7 @@ class User {
 通过 `DatabaseField` 可以将字段映射为任意数据库类型。该类型必须是有效的 SQL 片段，并会原样传递给迁移系统。
 
 ```typescript
-import { DatabaseField } from '@deepkit/type';
+import { DatabaseField } from '@d7/type';
 
 interface User {
     title: string & DatabaseField<{type: 'VARCHAR(244)'}>;
@@ -186,7 +186,7 @@ interface User {
 ### SQLite
 
 ```typescript
-import { SQLite } from '@deepkit/type';
+import { SQLite } from '@d7/type';
 
 interface User {
     title: string & SQLite<{type: 'text'}>;
@@ -196,7 +196,7 @@ interface User {
 ### MySQL
 
 ```typescript
-import { MySQL } from '@deepkit/type';
+import { MySQL } from '@d7/type';
 
 interface User {
     title: string & MySQL<{type: 'text'}>;
@@ -206,7 +206,7 @@ interface User {
 ### Postgres
 
 ```typescript
-import { Postgres } from '@deepkit/type';
+import { Postgres } from '@d7/type';
 
 interface User {
     title: string & Postgres<{type: 'text'}>;

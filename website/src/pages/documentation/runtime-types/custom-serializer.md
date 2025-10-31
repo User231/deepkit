@@ -1,6 +1,6 @@
 # Custom Serializer
 
-By default, `@deepkit/type` comes with a JSON serializer and type validation for TypeScript types. You can extend this and add or remove the serialization functionality or change the way validation is done, as validation is also linked to the serializer.
+By default, `@d7/type` comes with a JSON serializer and type validation for TypeScript types. You can extend this and add or remove the serialization functionality or change the way validation is done, as validation is also linked to the serializer.
 
 ## New Serializer
 
@@ -11,7 +11,7 @@ Only during the execution of the compiler template function do you (or should yo
 The following example creates an empty serializer.
 
 ```typescript
-import { EmptySerializer } from '@deepkit/type';
+import { EmptySerializer } from '@d7/type';
 
 class User {
     name: string = '';
@@ -68,7 +68,7 @@ Our new serializer now correctly converts the date from the Date object to a str
 
 ## Examples
 
-To see many more examples, you can take a look at the code of the [JSON-Serializers](https://github.com/deepkit/deepkit-framework/blob/master/packages/type/src/serializer.ts#L1688) included in Deepkit Type.
+To see many more examples, you can take a look at the code of the [JSON-Serializers](https://github.com/marcj/d7/blob/master/packages/type/src/serializer.ts#L1688) included in Deepkit Type.
 
 ## Extending Existing Serializer
 

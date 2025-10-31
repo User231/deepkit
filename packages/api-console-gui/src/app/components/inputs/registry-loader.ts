@@ -1,4 +1,4 @@
-import { isMapType, isMongoIdType, isSetType, isUUIDType, ReflectionKind, TypeRegistry } from '@deepkit/type';
+import { isMapType, isMongoIdType, isSetType, isUUIDType, ReflectionKind, TypeRegistry } from '@d7/type';
 import { StringInputComponent } from './string-input.component';
 import { UnionInputComponent } from './union-input.component';
 import { ArrayInputComponent } from './array-input.component';
@@ -8,7 +8,7 @@ import { BinaryInputComponent } from './binary-input.component';
 import { EnumInputComponent } from './enum-input.component';
 import { ClassInputComponent } from './class-input.component';
 import { MapInputComponent } from './map-input.component';
-import { ClassType, getClassName } from '@deepkit/core';
+import { ClassType, getClassName } from '@d7/core';
 
 export function loadRegistry(inputRegistry: TypeRegistry<ClassType>) {
     inputRegistry.set(ReflectionKind.string, StringInputComponent);

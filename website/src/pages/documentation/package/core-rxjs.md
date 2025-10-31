@@ -1,7 +1,7 @@
-# API `@deepkit/core-rxjs`
+# API `@d7/core-rxjs`
 
 ```shell
-npm install @deepkit/core-rxjs
+npm install @d7/core-rxjs
 ```
 
-<api-docs package="@deepkit/core-rxjs"></api-docs>
+<api-docs package="@d7/core-rxjs"></api-docs>

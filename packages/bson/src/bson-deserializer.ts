@@ -7,8 +7,8 @@ import {
     resolveReceiveType,
     TemplateState,
     Type,
-} from '@deepkit/type';
-import { CompilerContext, toFastProperties } from '@deepkit/core';
+} from '@d7/type';
+import { CompilerContext, toFastProperties } from '@d7/core';
 import { seekElementSize } from './continuation.js';
 import { BSONBinarySerializer, bsonBinarySerializer } from './bson-serializer.js';
 import { BaseParser } from './bson-parser.js';

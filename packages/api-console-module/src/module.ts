@@ -1,11 +1,11 @@
-import { createModuleClass, findParentPath } from '@deepkit/app';
-import { HttpRouteFilter, normalizeDirectory, registerStaticHttpController } from '@deepkit/http';
-import { ApiConsoleApi } from '@deepkit/api-console-api';
+import { createModuleClass, findParentPath } from '@d7/app';
+import { HttpRouteFilter, normalizeDirectory, registerStaticHttpController } from '@d7/http';
+import { ApiConsoleApi } from '@d7/api-console-api';
 import { Config } from './module.config.js';
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 import { ApiConsoleController } from './controller.js';
 import { dirname } from 'path';
-import { getCurrentFileName } from '@deepkit/core';
+import { getCurrentFileName } from '@d7/core';
 
 export class ApiConsoleModule extends createModuleClass({
     name: 'apiConsole',
@@ -38,8 +38,8 @@ export class ApiConsoleModule extends createModuleClass({
 
         this.addController(NamedApiConsoleController);
 
-        const localPath = findParentPath('node_modules/@deepkit/api-console-gui/dist/api-console-gui', dirname(getCurrentFileName()));
-        if (!localPath) throw new Error('node_modules/@deepkit/api-console-gui not installed in ' + dirname(getCurrentFileName()));
+        const localPath = findParentPath('node_modules/@d7/api-console-gui/dist/api-console-gui', dirname(getCurrentFileName()));
+        if (!localPath) throw new Error('node_modules/@d7/api-console-gui not installed in ' + dirname(getCurrentFileName()));
 
         registerStaticHttpController(this, {
             path: this.config.path,

@@ -1,6 +1,6 @@
 # カスタムシリアライザ
 
-デフォルトでは、`@deepkit/type` には JSON シリアライザと TypeScript の型検証が付属しています。これを拡張してシリアライズ機能を追加・削除したり、検証の方法を変更することができます。検証はシリアライザとも連動しています。
+デフォルトでは、`@d7/type` には JSON シリアライザと TypeScript の型検証が付属しています。これを拡張してシリアライズ機能を追加・削除したり、検証の方法を変更することができます。検証はシリアライザとも連動しています。
 
 ## 新しいシリアライザ
 
@@ -11,7 +11,7 @@
 次の例では空のシリアライザを作成します。
 
 ```typescript
-import { EmptySerializer } from '@deepkit/type';
+import { EmptySerializer } from '@d7/type';
 
 class User {
     name: string = '';
@@ -68,7 +68,7 @@ console.log(serialize(user1, undefined, mySerializer));
 
 ## 例
 
-さらに多くの例については、Deepkit Type に含まれている [JSON シリアライザ](https://github.com/deepkit/deepkit-framework/blob/master/packages/type/src/serializer.ts#L1688) のコードを参照してください。
+さらに多くの例については、Deepkit Type に含まれている [JSON シリアライザ](https://github.com/marcj/d7/blob/master/packages/type/src/serializer.ts#L1688) のコードを参照してください。
 
 ## 既存のシリアライザの拡張
 

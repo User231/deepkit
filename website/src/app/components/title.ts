@@ -1,6 +1,6 @@
 import { Component, Injectable, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
-import { arrayRemoveItem } from '@deepkit/core';
+import { arrayRemoveItem } from '@d7/core';
 
 type Type = { type: string, value?: any };
 

@@ -1,7 +1,7 @@
-# API `@deepkit/topsort`
+# API `@d7/topsort`
 
 ```shell
-npm install @deepkit/topsort
+npm install @d7/topsort
 ```
 
-<api-docs package="@deepkit/topsort"></api-docs>
+<api-docs package="@d7/topsort"></api-docs>

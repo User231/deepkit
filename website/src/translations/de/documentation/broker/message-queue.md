@@ -9,7 +9,7 @@ Die Daten werden auf dem Server persistiert, sodass sie selbst bei einem Servera
 ## Verwendung
 
 ```typescript
-import { BrokerQueue, BrokerQueueChannel } from '@deepkit/broker';
+import { BrokerQueue, BrokerQueueChannel } from '@d7/broker';
 
 const queue = new BrokerQueue(adapter);
 

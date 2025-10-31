@@ -7,7 +7,7 @@
 HTTP 请求是作用域的经典示例。例如，会话、用户对象或其他与请求相关的提供者可以注册到该作用域。要创建一个作用域，只需选择任意作用域名称，然后在提供者中为其指定该作用域。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class UserSession {}
 

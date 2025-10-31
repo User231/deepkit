@@ -1,6 +1,6 @@
 # Custom Serializer
 
-기본적으로 `@deepkit/type`는 JSON serializer와 TypeScript 타입을 위한 type validation을 제공합니다. 이를 확장하여 serialization 기능을 추가/제거하거나 validation 방식(validator가 serializer와도 연결되어 있음)을 변경할 수 있습니다.
+기본적으로 `@d7/type`는 JSON serializer와 TypeScript 타입을 위한 type validation을 제공합니다. 이를 확장하여 serialization 기능을 추가/제거하거나 validation 방식(validator가 serializer와도 연결되어 있음)을 변경할 수 있습니다.
 
 ## New Serializer
 
@@ -11,7 +11,7 @@ serializer는 등록된 serializer templates와 함께 `Serializer` Class의 인
 다음 예시는 빈 serializer를 생성합니다.
 
 ```typescript
-import { EmptySerializer } from '@deepkit/type';
+import { EmptySerializer } from '@d7/type';
 
 class User {
     name: string = '';
@@ -68,7 +68,7 @@ console.log(serialize(user1, undefined, mySerializer));
 
 ## Examples
 
-더 많은 예시를 보려면 Deepkit Type에 포함된 [JSON Serializer들](https://github.com/deepkit/deepkit-framework/blob/master/packages/type/src/serializer.ts#L1688)의 코드를 살펴보세요.
+더 많은 예시를 보려면 Deepkit Type에 포함된 [JSON Serializer들](https://github.com/marcj/d7/blob/master/packages/type/src/serializer.ts#L1688)의 코드를 살펴보세요.
 
 ## Extending Existing Serializer
 

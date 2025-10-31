@@ -2,17 +2,17 @@
 
 此适配器允许你将 Google 存储用作文件系统。
 
-它是 `@deepkit/filesystem-google` 的一部分，需要单独安装。
+它是 `@d7/filesystem-google` 的一部分，需要单独安装。
 
 ```sh
-npm install @deepkit/filesystem-google
+npm install @d7/filesystem-google
 ```
 
 ## 用法
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemGoogleAdapter } from '@deepkit/filesystem-google';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemGoogleAdapter } from '@d7/filesystem-google';
 
 const adapter = new FilesystemGoogleAdapter({
     bucket: 'my-bucket',

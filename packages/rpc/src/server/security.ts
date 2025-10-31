@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@d7/core';
 import { RpcKernelBaseConnection } from './kernel.js';
 
 export class Session {

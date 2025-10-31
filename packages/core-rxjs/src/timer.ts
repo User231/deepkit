@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { Timer } from '@deepkit/core';
+import { Timer } from '@d7/core';
 import { Observer } from 'rxjs';
 import { watchClosed } from './utils.js';
 

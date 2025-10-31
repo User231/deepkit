@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { empty } from '@deepkit/core';
+import { empty } from '@d7/core';
 
 export type NumberFields<T> = { [K in keyof T]: T[K] extends number | bigint ? K : never }[keyof T]
 export type Expression<T> = { [P in keyof T & string]?: string; }

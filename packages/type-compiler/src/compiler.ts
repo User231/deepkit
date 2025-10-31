@@ -95,7 +95,7 @@ import {
     serializeEntityNameAsExpression,
 } from './reflection-ast.js';
 import { SourceFile } from './ts-types.js';
-import { MappedModifier, ReflectionOp, TypeNumberBrand } from '@deepkit/type-spec';
+import { MappedModifier, ReflectionOp, TypeNumberBrand } from '@d7/type-spec';
 import { Resolver } from './resolver.js';
 import { knownLibFilesForCompilerOptions } from '@typescript/vfs';
 import { debug, debug2 } from './debug.js';
@@ -2956,7 +2956,7 @@ const cache = new Cache;
 
 export const transformer: CustomTransformerFactory = function deepkitTransformer(context) {
     if (!loaded) {
-        debug('@deepkit/type transformer loaded\n');
+        debug('@d7/type transformer loaded\n');
         loaded = true;
     }
     cache.tick();

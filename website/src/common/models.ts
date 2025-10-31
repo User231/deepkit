@@ -1,4 +1,4 @@
-import { AutoIncrement, DatabaseField, entity, Index, PrimaryKey, Reference, UUID, uuid } from '@deepkit/type';
+import { AutoIncrement, DatabaseField, entity, Index, PrimaryKey, Reference, UUID, uuid } from '@d7/type';
 
 export interface Content {
     tag: string;

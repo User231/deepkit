@@ -7,7 +7,7 @@ Deepkit Broker Locks는 여러 프로세스나 머신 전반에서 원자적 loc
 ## 사용법
 
 ```typescript
-import { BrokerLock } from '@deepkit/broker';
+import { BrokerLock } from '@d7/broker';
 
 const lock = new BrokerLock(adapter);
 
@@ -45,8 +45,8 @@ try {
 자세한 내용은 Getting started 페이지를 참고하세요.
 
 ```typescript
-import { BrokerLock, BrokerLockItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerLock, BrokerLockItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // 이 Type을 공유 파일로 이동하세요
 type MyCriticalLock = BrokerLockItem;

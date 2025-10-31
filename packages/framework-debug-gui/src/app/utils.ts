@@ -1,5 +1,5 @@
 import { Subscription } from 'rxjs';
-import { isFunction } from '@deepkit/core';
+import { isFunction } from '@d7/core';
 
 export function trackByIndex(index: number) {
     return index;

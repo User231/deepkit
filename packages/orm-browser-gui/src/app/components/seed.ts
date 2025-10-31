@@ -1,5 +1,5 @@
-import { EntityPropertySeed, FakerTypes, findFaker } from '@deepkit/orm-browser-api';
-import { isReferenceType, ReflectionClass, ReflectionKind, Type } from '@deepkit/type';
+import { EntityPropertySeed, FakerTypes, findFaker } from '@d7/orm-browser-api';
+import { isReferenceType, ReflectionClass, ReflectionKind, Type } from '@d7/type';
 
 export function autoTypes(fakerTypes: FakerTypes, entity: ReflectionClass<any>, properties: { [name: string]: EntityPropertySeed }, visited: Set<ReflectionClass<any>> = new Set()) {
     const autoProperty = (type: Type, propertyName: string, seed: EntityPropertySeed) => {

@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { DatabaseModel, ForeignKey, Table, parseType, SchemaParser, Column } from '@deepkit/sql';
-import { arrayRemoveItem } from '@deepkit/core';
+import { DatabaseModel, ForeignKey, Table, parseType, SchemaParser, Column } from '@d7/sql';
+import { arrayRemoveItem } from '@d7/core';
 import { isJsonLike } from './sqlite-platform.js';
 
 export class SQLiteSchemaParser extends SchemaParser {

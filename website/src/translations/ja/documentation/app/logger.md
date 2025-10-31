@@ -20,8 +20,8 @@ Deepkit Logger は、情報のログ出力に使用できる主要な Logger ク
 Deepkit アプリケーションでロガーを使用するには、サービスやコントローラーに `Logger` をそのまま注入できます。
 
 ```typescript
-import { Logger } from '@deepkit/logger';
-import { App } from '@deepkit/app';
+import { Logger } from '@d7/logger';
+import { App } from '@d7/app';
 
 const app = new App();
 app.command('test', (logger: Logger) => {
@@ -47,7 +47,7 @@ logger.log(`Hi <green>${username}</green>`);
 トランスポーターは 1 つでも複数でも設定できます。Deepkit アプリケーションでは、`ConsoleTransport` トランスポーターが自動的に設定されます。追加のトランスポーターを設定するには、[セットアップ呼び出し](dependency-injection.md#di-setup-calls)を使用します:
 
 ```typescript
-import { Logger, LoggerTransport } from '@deepkit/logger';
+import { Logger, LoggerTransport } from '@d7/logger';
 
 export class MyTransport implements LoggerTransport {
     write(message: string, level: LoggerLevel, rawMessage: string) {
@@ -69,7 +69,7 @@ new App()
 すべてのトランスポーターを新しいセットに置き換えるには、`setTransport` を使用します:
 
 ```typescript
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 
 new App()
 .setup((module, config) => {
@@ -79,7 +79,7 @@ new App()
 ```
 
 ```typescript
-import { Logger, JSONTransport } from '@deepkit/logger';
+import { Logger, JSONTransport } from '@d7/logger';
 
 new App()
     .setup((module, config) => {
@@ -100,7 +100,7 @@ scopedLogger.log('Query', query);
 サービスにスコープ付きロガーを注入するために使用できる `ScopedLogger` 型もあります。
 
 ```typescript
-import { ScopedLogger } from '@deepkit/logger';
+import { ScopedLogger } from '@d7/logger';
 
 class MyService {
     constructor(protected logger: ScopedLogger) {}

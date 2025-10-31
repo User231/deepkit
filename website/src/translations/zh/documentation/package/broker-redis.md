@@ -1,7 +1,7 @@
-# API `@deepkit/broker-redis`
+# API `@d7/broker-redis`
 
 ```sh
-npm install @deepkit/broker-redis
+npm install @d7/broker-redis
 ```
 
 提供 Deepkit Broker 的基于 Redis 的实现。其底层使用 ioredis。
@@ -9,9 +9,9 @@ npm install @deepkit/broker-redis
 此适配器不实现 Deepkit Broker 的队列适配器功能。
 
 ```typescript
-import { BrokerKeyValue, BrokerBus } from '@deepkit/broker';
-import { BrokerRedisAdapter } from '@deepkit/broker-redis';
-import { ConsoleLogger } from '@deepkit/logger';
+import { BrokerKeyValue, BrokerBus } from '@d7/broker';
+import { BrokerRedisAdapter } from '@d7/broker-redis';
+import { ConsoleLogger } from '@d7/logger';
 
 const adapter = new RedisBrokerAdapter({
     preifx: 'myapp:',
@@ -26,4 +26,4 @@ const bus = new BrokerBus(adapter);
 // ...
 ```
 
-<api-docs package="@deepkit/broker-redis"></api-docs>
+<api-docs package="@d7/broker-redis"></api-docs>

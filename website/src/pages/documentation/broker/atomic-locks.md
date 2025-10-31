@@ -7,7 +7,7 @@ It's a simple way to ensure that only one process can execute a certain code blo
 ## Usage
 
 ```typescript
-import { BrokerLock } from '@deepkit/broker';
+import { BrokerLock } from '@d7/broker';
 
 const lock = new BrokerLock(adapter);
 
@@ -45,8 +45,8 @@ The class is automatically available in the dependency injection container if yo
 See the Getting started page for more information.
 
 ```typescript
-import { BrokerLock, BrokerLockItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerLock, BrokerLockItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // move this type to a shared file
 type MyCriticalLock = BrokerLockItem;

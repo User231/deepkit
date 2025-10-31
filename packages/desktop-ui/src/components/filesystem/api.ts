@@ -1,6 +1,6 @@
-import { ClientProgress, Progress } from '@deepkit/rpc';
+import { ClientProgress, Progress } from '@d7/rpc';
 import { computed, Injectable, signal } from '@angular/core';
-import { pathBasename } from '@deepkit/core';
+import { pathBasename } from '@d7/core';
 
 export interface FileQueueEntry {
     name: string;

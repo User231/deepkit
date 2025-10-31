@@ -1,4 +1,4 @@
-import { sleep } from '@deepkit/core';
+import { sleep } from '@d7/core';
 import { expect, test } from '@jest/globals';
 import { Zone } from '../src/zone.js';
 

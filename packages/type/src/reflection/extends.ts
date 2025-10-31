@@ -39,7 +39,7 @@ import {
     TypeTuple,
     TypeUnion,
 } from './type.js';
-import { isPrototypeOfBase } from '@deepkit/core';
+import { isPrototypeOfBase } from '@d7/core';
 import { typeInfer } from './processor.js';
 
 type AssignableType = Type | string | boolean | number | symbol | bigint | undefined | null;

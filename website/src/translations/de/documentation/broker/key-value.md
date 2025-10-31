@@ -9,7 +9,7 @@ Die Daten werden auf dem Server nicht persistent gespeichert, sondern nur im Spe
 ## Verwendung
 
 ```typescript
-import { BrokerKeyValue } from '@deepkit/broker';
+import { BrokerKeyValue } from '@d7/broker';
 
 const keyValue = new BrokerKeyValue(adapter, {
   ttl: '60s', // Time to Live für jeden Key. 0 bedeutet keine TTL (Standard).
@@ -61,8 +61,8 @@ Die Class ist im Dependency-Injection-Container automatisch verfügbar, wenn Sie
 Weitere Informationen finden Sie auf der Seite Erste Schritte.
 
 ```typescript
-import { BrokerKeyValue, BrokerKeyValueItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerKeyValue, BrokerKeyValueItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // Verschieben Sie diesen Type in eine gemeinsame Datei
 type MyKeyValueItem = BrokerKeyValueItem<User[]>;

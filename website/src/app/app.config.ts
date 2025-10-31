@@ -1,7 +1,7 @@
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { routes } from './app.routes';
-import { RpcClient, RpcHttpClientAdapter, RpcHttpHeaderNames } from '@deepkit/rpc';
+import { RpcClient, RpcHttpClientAdapter, RpcHttpHeaderNames } from '@d7/rpc';
 import { APIInterceptor, ControllerClient, RpcAngularHttpAdapter } from '@app/app/client';
 import { provideClientHydration, withHttpTransferCacheOptions } from '@angular/platform-browser';
 import { AppMetaStack } from '@app/app/components/title';

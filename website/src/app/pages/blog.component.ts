@@ -3,7 +3,7 @@ import { AppDescription, AppTitle } from '@app/app/components/title.js';
 import { HeaderLogoComponent, HeaderNavComponent } from '@app/app/components/header.component.js';
 import { ControllerClient } from '@app/app/client.js';
 import { derivedAsync } from 'ngxtension/derived-async';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { pendingTask } from '@d7/desktop-ui';
 import { ActivatedRoute, RouterLink, RouterOutlet } from '@angular/router';
 import { DatePipe, ViewportScroller } from '@angular/common';
 import { blogDateFormat, type BlogEntity, bodyToString, Content, parseBody } from '@app/common/models.js';

@@ -1,6 +1,6 @@
-import { LoggerInterface } from '@deepkit/logger';
+import { LoggerInterface } from '@d7/logger';
 import { SQLiteDatabase, User } from '../database.js';
-import { cli, Flag } from '@deepkit/app';
+import { cli, Flag } from '@d7/app';
 
 @cli.controller('users')
 export class UsersCommand {

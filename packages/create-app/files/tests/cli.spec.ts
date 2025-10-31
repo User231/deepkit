@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 import { Service } from '../src/app/service';
 import { HelloWorldControllerCli } from '../src/controller/hello-world.cli';
 

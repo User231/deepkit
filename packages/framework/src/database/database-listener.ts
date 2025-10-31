@@ -9,11 +9,11 @@
  */
 
 import { onServerMainBootstrap } from '../application-server.js';
-import { eventDispatcher } from '@deepkit/event';
-import { LoggerInterface } from '@deepkit/logger';
-import { DatabaseRegistry } from '@deepkit/orm';
-import { getClassName } from '@deepkit/core';
-import { onAppShutdown } from '@deepkit/app';
+import { eventDispatcher } from '@d7/event';
+import { LoggerInterface } from '@d7/logger';
+import { DatabaseRegistry } from '@d7/orm';
+import { getClassName } from '@d7/core';
+import { onAppShutdown } from '@d7/app';
 
 export class DatabaseListener {
     constructor(

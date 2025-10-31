@@ -27,7 +27,7 @@ class MyService {
 构造函数注入的替代方案是属性注入。这通常用于依赖是可选的，或构造函数已经过于臃肿的情况。实例创建后（因此构造函数已执行），这些属性会被自动赋值。
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class MyService {
     // 必需
@@ -56,7 +56,7 @@ app.get('/', (database: Database) => {
 若需要动态解析依赖，可以注入 `InjectorContext` 并使用它来获取依赖。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class MyService {
     constructor(protected context: InjectorContext) {

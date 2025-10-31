@@ -71,7 +71,7 @@ new App({
 プリミティブなプロバイダトークンは、依存関係として Inject 型で宣言する必要があります。
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class EmailService {
     constructor(public domain: Inject<string, 'domain'>) {}
@@ -81,7 +81,7 @@ class EmailService {
 inject エイリアスとプリミティブなプロバイダトークンの組み合わせは、実行時の型情報を含まないパッケージから依存関係を提供する場合にも使用できます。
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 import { Stripe } from 'stripe';
 
 export type StripeService = Inject<Stripe, '_stripe'>;
@@ -148,7 +148,7 @@ new App({
 クラスやプリミティブに加えて、抽象（インターフェース）も提供できます。これは `provide` 関数を介して行い、提供する値が型情報を含まない場合に特に有用です。
 
 ```typescript
-import { provide } from '@deepkit/injector';
+import { provide } from '@d7/injector';
 
 interface Connection {
     write(data: Uint16Array): void;
@@ -192,7 +192,7 @@ new App({
 
 ## 非同期プロバイダ
 
-`@deepkit/injector` の設計上、非同期の Dependency Injection コンテナにおける非同期プロバイダの使用は想定されていません。これは、プロバイダの要求も非同期である必要があり、アプリケーション全体を最上位レベルで非同期として動作させる必要があるためです。
+`@d7/injector` の設計上、非同期の Dependency Injection コンテナにおける非同期プロバイダの使用は想定されていません。これは、プロバイダの要求も非同期である必要があり、アプリケーション全体を最上位レベルで非同期として動作させる必要があるためです。
 
 何かを非同期に初期化する必要がある場合、その初期化はアプリケーションサーバーのブートストラップに移すべきです。そこではイベントを非同期にできます。あるいは、初期化を手動でトリガーすることもできます。
 

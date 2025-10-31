@@ -7,7 +7,7 @@ Es gibt jedoch verschiedene Anwendungsfälle, in denen ein Provider nur für kur
 Eine HTTP-Request ist ein klassisches Beispiel für einen Scope. Beispielsweise können Provider wie eine Session, ein User-Objekt oder andere request-bezogene Provider diesem Scope zugeordnet werden. Um einen Scope zu erstellen, wählen Sie einfach einen beliebigen Scope-Namen und geben Sie ihn anschließend bei den Providern an.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class UserSession {}
 

@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { ButtonComponent, CheckboxComponent, FormComponent, FormRowComponent, IconComponent, InputComponent, OptionDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, CheckboxComponent, FormComponent, FormRowComponent, IconComponent, InputComponent, OptionDirective, SelectBoxComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { ApiDocComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
 import { AppTitle } from '@app/app/components/title.js';

@@ -1,6 +1,6 @@
 import { BodyDecoder, rpcDecodeError, RpcMessage, RpcMessageRouteType } from '../protocol.js';
-import { cast, ReceiveType, resolveReceiveType } from '@deepkit/type';
-import { base64ToUint8Array } from '@deepkit/core';
+import { cast, ReceiveType, resolveReceiveType } from '@d7/type';
+import { base64ToUint8Array } from '@d7/core';
 import { RpcError } from '../model.js';
 
 export interface RpcHttpRequest {

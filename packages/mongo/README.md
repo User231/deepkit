@@ -1,1 +1,1 @@
-## Mongo adapter for @deepkit/orm
+## Mongo adapter for @d7/orm

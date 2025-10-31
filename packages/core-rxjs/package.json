@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/core-rxjs",
+  "name": "@d7/core-rxjs",
   "version": "1.0.19",
-  "description": "Deepkit core rxjs library",
+  "description": "D7 core rxjs library",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -17,18 +17,18 @@
   "publishConfig": {
     "access": "public"
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "scripts": {
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@deepkit/core": "^1.0.1",
+    "@d7/core": "^1.0.1",
     "rxjs": "*"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.19",
+    "@d7/core": "^1.0.19",
     "rxjs": "~7.8.0"
   },
   "jest": {

@@ -9,8 +9,8 @@
  */
 
 import { ApplicationServer } from '../application-server.js';
-import { AppModule, cli, Command, Flag, ServiceContainer } from '@deepkit/app';
-import { DefaultFormatter, Logger, LoggerInterface } from '@deepkit/logger';
+import { AppModule, cli, Command, Flag, ServiceContainer } from '@d7/app';
+import { DefaultFormatter, Logger, LoggerInterface } from '@d7/logger';
 import { FrameworkModule } from '../module.js';
 
 /**

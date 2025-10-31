@@ -8,7 +8,7 @@ Events are registered via `Database.listen` un an event token. Short-lived event
 be registered on sessions.
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 database.listen(Query.onFetch, async (event) => {
@@ -29,7 +29,7 @@ Each event has its own additional properties such as the type of entity, the que
 database session. You can override the query by setting a new query to `Event.query`.
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 

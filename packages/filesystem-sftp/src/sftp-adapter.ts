@@ -1,8 +1,8 @@
-import { FileType, FileVisibility, Reporter, resolveFilesystemPath, FilesystemAdapter, FilesystemFile } from '@deepkit/filesystem';
-import { pathDirectory, pathBasename } from '@deepkit/core';
+import { FileType, FileVisibility, Reporter, resolveFilesystemPath, FilesystemAdapter, FilesystemFile } from '@d7/filesystem';
+import { pathDirectory, pathBasename } from '@d7/core';
 import Client, { ConnectOptions, FileInfo } from 'ssh2-sftp-client';
 import { Readable } from 'stream';
-import { asyncOperation } from '@deepkit/core';
+import { asyncOperation } from '@d7/core';
 
 export interface FilesystemFtpOptions extends ConnectOptions {
     /**

@@ -340,7 +340,7 @@ const userCount: number = await database.query(User).count();
 Eine Query zu liften bedeutet, ihr neue Funktionalität hinzuzufügen. Dies wird üblicherweise entweder von Plugins oder in komplexen Architekturen verwendet, um größere Query-Klassen in mehrere bequeme, wiederverwendbare Klassen aufzuteilen.
 
 ```typescript
-import { FilterQuery, Query } from '@deepkit/orm';
+import { FilterQuery, Query } from '@d7/orm';
 
 class UserQuery<T extends {birthdate?: Date}> extends Query<T>  {
     hasBirthday() {

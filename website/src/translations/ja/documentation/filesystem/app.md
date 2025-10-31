@@ -3,8 +3,8 @@
 Deepkit Storage はスタンドアロンでも動作しますが、通常は依存性注入を用いて Deepkit アプリ内で使用したくなるでしょう。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 const app = new App({
     providers: [
@@ -30,8 +30,8 @@ app.run();
 同時に複数のファイルシステムを使用できます。このためには、`provideNamedFilesystem('name', ...)` で登録し、`NamedFilesystem<'name'>` で Filesystem インスタンスを受け取ります。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@d7/filesystem';
 
 type PrivateFilesystem = NamedFilesystem<'private'>;
 type PublicFilesystem = NamedFilesystem<'public'>;
@@ -62,8 +62,8 @@ app.run();
 そのためには、[設定のインジェクション](../app/configuration.md) を使用できます。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 class MyConfig {
     fsRoot: string = '/tmp';

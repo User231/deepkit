@@ -20,22 +20,22 @@ const value = JSON.parse('"2022-05-13T20:48:51.025Z"');
 
 Obwohl es verschiedene Workarounds gibt, um JSON.parse beizubringen, Date-Objekte zu deserialisieren, sind sie fehleranfällig und leistungsschwach. Um typsichere Serialisierung und Deserialisierung für diesen Fall und viele andere Types zu ermöglichen, ist ein Serialisierungsprozess notwendig.
 
-Es stehen vier Hauptfunktionen zur Verfügung: `serialize`, `cast`, `deserialize` und `validatedDeserialize`. Unter der Haube dieser Funktionen wird standardmäßig der global verfügbare JSON-Serializer aus `@deepkit/type` verwendet, es kann aber auch ein benutzerdefiniertes Serialisierungsziel verwendet werden.
+Es stehen vier Hauptfunktionen zur Verfügung: `serialize`, `cast`, `deserialize` und `validatedDeserialize`. Unter der Haube dieser Funktionen wird standardmäßig der global verfügbare JSON-Serializer aus `@d7/type` verwendet, es kann aber auch ein benutzerdefiniertes Serialisierungsziel verwendet werden.
 
-Deepkit Type unterstützt benutzerdefinierte Serialisierungsziele, bringt jedoch bereits ein leistungsstarkes JSON-Serialisierungsziel mit, das Daten als JSON-Objekte serialisiert und dann mittels JSON.stringify korrekt und sicher in JSON umgewandelt werden kann. Mit `@deepkit/bson` kann auch BSON als Serialisierungsziel verwendet werden. Wie man ein benutzerdefiniertes Serialisierungsziel erstellt (z. B. für einen Datenbanktreiber), erfahren Sie im Abschnitt Custom Serializer.
+Deepkit Type unterstützt benutzerdefinierte Serialisierungsziele, bringt jedoch bereits ein leistungsstarkes JSON-Serialisierungsziel mit, das Daten als JSON-Objekte serialisiert und dann mittels JSON.stringify korrekt und sicher in JSON umgewandelt werden kann. Mit `@d7/bson` kann auch BSON als Serialisierungsziel verwendet werden. Wie man ein benutzerdefiniertes Serialisierungsziel erstellt (z. B. für einen Datenbanktreiber), erfahren Sie im Abschnitt Custom Serializer.
 
 Beachten Sie, dass Serializer zwar auch Daten auf Kompatibilität validieren, diese Validierungen jedoch von der Validierung in [Validierung](validation.md) abweichen. Nur die Funktion `cast` ruft nach erfolgreicher Deserialisierung auch den vollständigen Validierungsprozess aus dem Kapitel [Validierung](validation.md) auf und wirft einen Fehler, wenn die Daten nicht gültig sind.
 
 Alternativ kann `validatedDeserialize` verwendet werden, um nach der Deserialisierung zu validieren. Eine weitere Alternative ist, die Funktionen `validate` oder `validates` manuell auf deserialisierte Daten aus der Funktion `deserialize` aufzurufen, siehe [Validierung](validation.md).
 
-Alle Funktionen aus Serialisierung und Validierung werfen bei Fehlern einen `ValidationError` aus `@deepkit/type`.
+Alle Funktionen aus Serialisierung und Validierung werfen bei Fehlern einen `ValidationError` aus `@d7/type`.
 
 ## Cast
 
 Die Funktion `cast` erwartet als erstes Type-Argument einen TypeScript Type und als zweites Argument die zu konvertierenden Daten. Die Daten werden in den angegebenen Type gecastet und bei Erfolg zurückgegeben. Wenn die Daten mit dem angegebenen Type nicht kompatibel sind und nicht automatisch konvertiert werden können, wird ein `ValidationError` geworfen.
 
 ```typescript
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 
 cast<string>(123); //'123'
 cast<number>('123'); //123
@@ -65,7 +65,7 @@ Die Funktion `deserialize` ist `cast` ähnlich, wirft jedoch keinen Fehler, wenn
 ## Serialisierung
 
 ```typescript
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;
@@ -93,7 +93,7 @@ Die Funktion `serialize` konvertiert die übergebenen Daten standardmäßig mit 
 Die Funktion `deserialize` konvertiert die übergebenen Daten standardmäßig mit dem JSON-Serializer in die entsprechenden angegebenen Types. Der JSON-Serializer erwartet ein JSON-Objekt, d. h.: string, number, boolean, object oder array. Dieses erhält man üblicherweise aus einem `JSON.parse`-Aufruf.
 
 ```typescript
-import { deserialize } from '@deepkit/type';
+import { deserialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;

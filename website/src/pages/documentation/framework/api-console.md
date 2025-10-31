@@ -7,7 +7,7 @@ web-based API explorer for your HTTP and RPC routes.
 
 
 ```bash
-npms install @deepkit/api-console-module
+npms install @d7/api-console-module
 ```
 
 

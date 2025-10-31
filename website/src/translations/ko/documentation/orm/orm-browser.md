@@ -9,8 +9,8 @@ Deepkit ORM Browser는 데이터베이스 스키마와 데이터를 탐색하기
 Deepkit ORM Browser는 Deepkit Framework의 일부이며 debug 모드가 활성화되면 함께 활성화됩니다.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Database } from '@deepkit/orm';
+import { App } from '@d7/app';
+import { Database } from '@d7/orm';
 
 class MyController {
     @http.GET('/')
@@ -35,12 +35,12 @@ new App({
 또는, Deepkit ORM Browser를 독립 패키지로 설치할 수 있습니다.
 
 ```bash
-npm install @deepkit/orm-browser
+npm install @d7/orm-browser
 ```
 
 ```typescript
 // database.ts
-import { Database } from '@deepkit/orm';
+import { Database } from '@d7/orm';
 
 class MainDatabase extends Database {
     constructor() {

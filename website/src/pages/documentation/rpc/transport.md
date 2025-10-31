@@ -10,8 +10,8 @@ TODO: Not implemented yet.
 
 ## WebSockets
 
-@deepkit/rpc-tcp `RpcWebSocketServer` and Browser WebSocket or Node `ws` package.
+@d7/rpc-tcp `RpcWebSocketServer` and Browser WebSocket or Node `ws` package.
 
 ## TCP
 
-@deepkit/rpc-tcp `RpcNetTcpServer` and `RpcNetTcpClientAdapter`
+@d7/rpc-tcp `RpcNetTcpServer` and `RpcNetTcpClientAdapter`

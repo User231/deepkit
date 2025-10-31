@@ -8,9 +8,9 @@ Angenommen, Sie haben eine Anwendung wie diese in einer `app.ts`-Datei:
 
 ```typescript
 #!/usr/bin/env ts-node-script
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class Config {
     title: string = 'DEV my Page';
@@ -81,8 +81,8 @@ Es wird empfohlen (und manchmal verlangt), Ihre Anwendung über HTTPS mit SSL zu
 |===
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // deine Config und HTTP-Controller hier
 
@@ -107,8 +107,8 @@ new App({
 In der lokalen Entwicklungsumgebung können Sie selbstsigniertes HTTPS mit der Option `framework.selfSigned` aktivieren.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // deine Config und HTTP-Controller hier
 

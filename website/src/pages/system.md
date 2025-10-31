@@ -26,7 +26,7 @@ This holistic framework is crafted to simplify the development of intricate soft
 In Deepkit, a user can describe types using regular TypeScript. Classes, interfaces, type aliases, generics, and more are all supported.
 
 ```typescript
-import { MinMax, Primary, AutoIncrement } from '@deepkit/type';
+import { MinMax, Primary, AutoIncrement } from '@d7/type';
 
 type Username = string & MinMax<3, 20> & Unique;
 
@@ -42,9 +42,9 @@ class User {
 A Deepkit app is written like that:
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry, http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry, http } from '@d7/http';
 
 class MyController {
     constructor(protected database: Database) {}
@@ -74,7 +74,7 @@ app.run();
 But the HTTP stuff is optional. You can also use Deepkit just as CLI framework, or just as ORM, or just as RPC framework.
 
 ```typescript
-import { App, Flag } from '@deepkit/app';
+import { App, Flag } from '@d7/app';
 
 const app = new App();
 
@@ -95,24 +95,24 @@ Additional validation type annotations can be added to the parameter to further 
 Services like the `Database` are automatically injected into the controller method using Dependency Injection.
 
 Deepkit consists of multiple packages. The most important ones are: 
-@deepkit/type (runtime types, type serialization, type validation, type reflection)
-@deepkit/type-compiler (runtime type compiler, which makes it possible to use types at runtime)
-@deepkit/core (utility functions)
-@deepkit/app (CLI application framework, start point of all deepkit apps. xllows to register modules, commands, providers, listeners, etc. Uses @deepkit/injector as base.)
-@deepkit/injector (dependency injection container)
-@deepkit/orm (ORM database abstraction)
-@deepkit/sql (base SQL adapter)
-@deepkit/mysql (ORM adapter for MySQL)
-@deepkit/postgres (ORM adapter for PostgreSQL)
-@deepkit/sqlite (ORM adapter for SQLite)
-@deepkit/mongo (ORM adapter for MongoDB)
-@deepkit/rpc (RPC framework)
-@deepkit/framework (HTTP framework, `FrameworkModule` needs to be imported to a @deepkit/app `new App`. Makes http/rpc available in an application server, registers command `server:start` to App).
-@deepkit/http (HTTP router, part of `FrameworkModule`, but `HttpModule` can also be manually imported to a @deepkit/app `new App`)
-@deepkit/bson (BSON serialization)
-@deepkit/event (event system)
-@deepkit/template (template engine based on JSX)
-@deepkit/orm-browser (browser based database administration tool)
+@d7/type (runtime types, type serialization, type validation, type reflection)
+@d7/type-compiler (runtime type compiler, which makes it possible to use types at runtime)
+@d7/core (utility functions)
+@d7/app (CLI application framework, start point of all d7 apps. xllows to register modules, commands, providers, listeners, etc. Uses @d7/injector as base.)
+@d7/injector (dependency injection container)
+@d7/orm (ORM database abstraction)
+@d7/sql (base SQL adapter)
+@d7/mysql (ORM adapter for MySQL)
+@d7/postgres (ORM adapter for PostgreSQL)
+@d7/sqlite (ORM adapter for SQLite)
+@d7/mongo (ORM adapter for MongoDB)
+@d7/rpc (RPC framework)
+@d7/framework (HTTP framework, `FrameworkModule` needs to be imported to a @d7/app `new App`. Makes http/rpc available in an application server, registers command `server:start` to App).
+@d7/http (HTTP router, part of `FrameworkModule`, but `HttpModule` can also be manually imported to a @d7/app `new App`)
+@d7/bson (BSON serialization)
+@d7/event (event system)
+@d7/template (template engine based on JSX)
+@d7/orm-browser (browser based database administration tool)
 
 
 The functionality of Deepkit HTTP, Deepkit ORM, Deepkit Type, Deepkit RPC, Deepkit App are mainly based on runtime types, which are just regular TypeScript types with optional additional type annotations for validation or other meta-data like for database fields.

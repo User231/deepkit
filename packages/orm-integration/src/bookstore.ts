@@ -11,11 +11,11 @@ import {
     ReflectionKind,
     UUID,
     uuid,
-} from '@deepkit/type';
+} from '@d7/type';
 import { User, UserGroup } from './bookstore/user.js';
 import { UserCredentials } from './bookstore/user-credentials.js';
-import { atomicChange, DatabaseSession, getInstanceStateFromItem, Query } from '@deepkit/orm';
-import { isArray } from '@deepkit/core';
+import { atomicChange, DatabaseSession, getInstanceStateFromItem, Query } from '@d7/orm';
+import { isArray } from '@d7/core';
 import { Group } from './bookstore/group.js';
 import { DatabaseFactory } from './test.js';
 

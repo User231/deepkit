@@ -341,7 +341,7 @@ const userCount: number = await database.query(User).count();
 Lifting a query means adding new functionality to it. This is usually used either by plugins or complex architectures to split larger query classes into several convenient, reusable classes.
 
 ```typescript
-import { FilterQuery, Query } from '@deepkit/orm';
+import { FilterQuery, Query } from '@d7/orm';
 
 class UserQuery<T extends {birthdate?: Date}> extends Query<T>  {
     hasBirthday() {

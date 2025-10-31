@@ -39,7 +39,7 @@ import { waitForInit } from '@app/app/utils';
                                 <a routerLink="/documentation/{{page.params.doc}}">Documentation</a>
                                 @if (page.params.api) {
                                     <a target="_blank"
-                                       href="https://api.framework.deepkit.io/modules/{{page.params.api}}.html">API</a>
+                                       href="https://api.framework.d7.io/modules/{{page.params.api}}.html">API</a>
                                 }
                             </nav>
                         </div>

@@ -20,8 +20,8 @@ Deepkit Logger 是一个独立的库，提供一个主要的 Logger 类用于记
 要在 Deepkit 应用中使用 logger，只需将 `Logger` 注入到你的服务或控制器中。
 
 ```typescript
-import { Logger } from '@deepkit/logger';
-import { App } from '@deepkit/app';
+import { Logger } from '@d7/logger';
+import { App } from '@d7/app';
 
 const app = new App();
 app.command('test', (logger: Logger) => {
@@ -47,7 +47,7 @@ logger.log(`Hi <green>${username}</green>`);
 你可以配置单个传输器或多个传输器。在 Deepkit 应用中，会自动配置 `ConsoleTransport` 传输器。要配置额外的传输器，可以使用[设置调用](dependency-injection.md#di-setup-calls)：
 
 ```typescript
-import { Logger, LoggerTransport } from '@deepkit/logger';
+import { Logger, LoggerTransport } from '@d7/logger';
 
 export class MyTransport implements LoggerTransport {
     write(message: string, level: LoggerLevel, rawMessage: string) {
@@ -69,7 +69,7 @@ new App()
 要用一组新的传输器替换所有传输器，请使用 `setTransport`：
 
 ```typescript
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 
 new App()
 .setup((module, config) => {
@@ -79,7 +79,7 @@ new App()
 ```
 
 ```typescript
-import { Logger, JSONTransport } from '@deepkit/logger';
+import { Logger, JSONTransport } from '@d7/logger';
 
 new App()
     .setup((module, config) => {
@@ -100,7 +100,7 @@ scopedLogger.log('Query', query);
 还提供了 `ScopedLogger` 类型，你可以将其注入到服务中来获取带作用域的 logger。
 
 ```typescript
-import { ScopedLogger } from '@deepkit/logger';
+import { ScopedLogger } from '@d7/logger';
 
 class MyService {
     constructor(protected logger: ScopedLogger) {}

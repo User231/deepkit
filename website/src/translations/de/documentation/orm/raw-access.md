@@ -4,10 +4,10 @@ Es ist oft notwendig, direkt auf die Datenbank zuzugreifen, z. B. um eine SQL-Qu
 Das kann über die `raw` Method der `Database` Class erfolgen.
 
 ```typescript
-import { PrimaryKey, AutoIncrement, @entity } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
-import { sql } from '@deepkit/sql';
-import { SqliteDatabaseAdapter } from '@deepkit/sqlite';
+import { PrimaryKey, AutoIncrement, @entity } from '@d7/type';
+import { Database } from '@d7/orm';
+import { sql } from '@d7/sql';
+import { SqliteDatabaseAdapter } from '@d7/sqlite';
 
 @entity.collection('users')
 class User {
@@ -30,7 +30,7 @@ Die SQL-Query wird mit dem `sql` Template-String-Tag aufgebaut. Dies ist ein spe
 Um einen dynamischen Identifier wie einen Spaltennamen zu übergeben, kann `identifier` verwendet werden:
 
 ```typescript
-import { identifier, sql } from '@deepkit/sql';
+import { identifier, sql } from '@d7/sql';
 
 let column = 'username';
 const rows = await database.raw<User>(sql`SELECT * FROM users WHERE ${identifier(column)} LIKE ${query}`).find();
@@ -66,7 +66,7 @@ Der MongoDB-Adapter funktioniert etwas anders, da er nicht auf SQL-Queries basie
 Ein Command kann eine Aggregation-Pipeline, eine find-Query oder ein Write-Command sein.
 
 ```typescript
-import { MongoDatabaseAdapter } from '@deepkit/mongo';
+import { MongoDatabaseAdapter } from '@d7/mongo';
 
 const database = new Database(MongoDatabaseAdapter('mongodb://localhost:27017/mydatabase'));
 

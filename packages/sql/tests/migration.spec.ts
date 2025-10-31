@@ -1,9 +1,9 @@
 import { expect, test } from '@jest/globals';
-import { AutoIncrement, DatabaseField, entity, Index, PrimaryKey, Reference, ReflectionClass, ReflectionKind, Unique } from '@deepkit/type';
+import { AutoIncrement, DatabaseField, entity, Index, PrimaryKey, Reference, ReflectionClass, ReflectionKind, Unique } from '@d7/type';
 import { DatabaseComparator, DatabaseModel, IndexModel, TableComparator } from '../src/schema/table.js';
 import { DefaultPlatform } from '../src/platform/default-platform.js';
 import { SchemaParser } from '../src/reverse/schema-parser.js';
-import { DatabaseEntityRegistry, MigrateOptions } from '@deepkit/orm';
+import { DatabaseEntityRegistry, MigrateOptions } from '@d7/orm';
 
 @(entity.name('user')
     .index(['deleted'], {unique: true})

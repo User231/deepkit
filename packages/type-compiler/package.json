@@ -1,5 +1,5 @@
 {
-  "name": "@deepkit/type-compiler",
+  "name": "@d7/type-compiler",
   "version": "1.0.19",
   "description": "Deepkit/type compiler/Typescript transformer",
   "type": "commonjs",
@@ -30,7 +30,7 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "install": "rm -rf node_modules/typescript && node ./deepkit-type-install.js || exit 0"
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "peerDependencies": {
@@ -41,7 +41,7 @@
     "@types/micromatch": "^4.0.2"
   },
   "dependencies": {
-    "@deepkit/type-spec": "^1.0.19",
+    "@d7/type-spec": "^1.0.19",
     "@marcj/ts-clone-node": "^2.0.0",
     "@rollup/pluginutils": "^5.1.0",
     "@typescript/vfs": "1.5.0",

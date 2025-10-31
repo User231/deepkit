@@ -168,7 +168,7 @@ export class LibraryEntryComponent {
 
           <div class="cta" style="padding-top: 10px;">
             <a href="https://discord.gg/U24mryk7Wq"><img alt="Discord" src="https://img.shields.io/discord/759513055117180999?style=square&label=Discord" /></a>
-            <a href="https://www.npmjs.com/package/@deepkit/type"><img alt="npm" src="https://img.shields.io/npm/v/@deepkit/type.svg?style=square" /></a>
+            <a href="https://www.npmjs.com/package/@d7/type"><img alt="npm" src="https://img.shields.io/npm/v/@d7/type.svg?style=square" /></a>
           </div>
           <div class="cta">
             <a class="button" routerLink="/{{translation.lang()}}/documentation/app">{{ texts.gettingStarted|translate }}</a>

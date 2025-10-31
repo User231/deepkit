@@ -1,4 +1,4 @@
-import { RpcControllerAccess, RpcKernelBaseConnection, RpcKernelSecurity, Session } from '@deepkit/rpc';
+import { RpcControllerAccess, RpcKernelBaseConnection, RpcKernelSecurity, Session } from '@d7/rpc';
 import { UserEntity } from '@app/server/database';
 import { UserAuthentication } from '@app/server/user-authentication';
 

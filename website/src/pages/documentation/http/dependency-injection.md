@@ -49,10 +49,10 @@ See [Dependency Injection](dependency-injection) to learn more.
 
 ## Scope
 
-All HTTP controllers and functional routes are managed within the `http` dependency injection scope. HTTP controllers are instantiated accordingly for each HTTP request. This also means that both can access providers registered for the `http` scope. So additionally `HttpRequest` and `HttpResponse` from `@deepkit/http` are usable as dependencies. If deepkit framework is used, `SessionHandler` from `@deepkit/framework` is also available.
+All HTTP controllers and functional routes are managed within the `http` dependency injection scope. HTTP controllers are instantiated accordingly for each HTTP request. This also means that both can access providers registered for the `http` scope. So additionally `HttpRequest` and `HttpResponse` from `@d7/http` are usable as dependencies. If d7 framework is used, `SessionHandler` from `@d7/framework` is also available.
 
 ```typescript
-import { HttpResponse } from '@deepkit/http';
+import { HttpResponse } from '@d7/http';
 
 router.get('/user/:id', (id: number, request: HttpRequest) => {
 });

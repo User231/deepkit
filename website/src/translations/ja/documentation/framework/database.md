@@ -11,8 +11,8 @@ Deepkit には、Deepkit ORM と呼ばれる強力なデータベース抽象化
 アプリケーション内で Deepkit ORM の `Database` オブジェクトを使用する最も簡単な方法は、それを継承したクラスを登録することです。
 
 ```typescript
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 export class SQLiteDatabase extends Database {
@@ -32,8 +32,8 @@ export class SQLiteDatabase extends Database {
 また `debug` も有効にします。これにより、アプリケーションのサーバー起動時にデバッガを開き、組み込みの ORM ブラウザでデータベースモデルを直接管理できます。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { SQLiteDatabase } from './database.ts';
 
 new App({
@@ -69,8 +69,8 @@ export class Controller {
 
 ```typescript
 //database.ts
-import { Database } from '@deepkit/orm';
-import { PostgresDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { PostgresDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 type DbConfig = Pick<AppConfig, 'databaseHost', 'databaseUser', 'databasePassword'>;
@@ -97,8 +97,8 @@ export class AppConfig {
 
 ```typescript
 //app.ts
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { MainDatabase } from './database.ts';
 import { AppConfig } from './config.ts';
 
@@ -163,7 +163,7 @@ ER（エンティティリレーションシップ）図が表示されます。
 ## さらに詳しく
 
 `SQLiteDatabase` の動作についてさらに知るには、[データベース](../orm.md) の章と、そのサブチャプター（データのクエリ、セッションを介したデータ操作、リレーションの定義など）を参照してください。
-なお、そこにある章はスタンドアロンライブラリ `@deepkit/orm` を対象としており、この章で説明した Deepkit フレームワークの部分のドキュメントは含まれていません。スタンドアロンライブラリでは、例えば `new SQLiteDatabase()` のようにデータベースクラスを手動でインスタンス化します。しかし Deepkit アプリでは、これは Dependency Injection コンテナによって自動的に行われます。
+なお、そこにある章はスタンドアロンライブラリ `@d7/orm` を対象としており、この章で説明した Deepkit フレームワークの部分のドキュメントは含まれていません。スタンドアロンライブラリでは、例えば `new SQLiteDatabase()` のようにデータベースクラスを手動でインスタンス化します。しかし Deepkit アプリでは、これは Dependency Injection コンテナによって自動的に行われます。
 
 ## マイグレーション
 

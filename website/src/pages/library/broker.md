@@ -1,6 +1,6 @@
 ---
 title: Deepkit Broker
-package: "@deepkit/broker"
+package: "@d7/broker"
 doc: broker
 api: broker
 category: broker
@@ -27,8 +27,8 @@ Typesafe key/value storage with automatic binary serialization and validation.
 The data is serialized using a very fast binary encoding and stored on the server using efficient ArrayBuffers.
 
 ```typescript
-import { BrokerClient } from '@deepkit/broker';
-import { t } from '@deepkit/type';
+import { BrokerClient } from '@d7/broker';
+import { t } from '@d7/type';
 
 const client = new BrokerClient();
 
@@ -47,7 +47,7 @@ await userLogins.delete();
 Atomic increment and decrement operations.
 
 ```typescript
-import { BrokerClient } from '@deepkit/broker';
+import { BrokerClient } from '@d7/broker';
 
 const client = new BrokerClient();
 
@@ -68,7 +68,7 @@ client.delete('logins/user1');
 Typesafe pub/sub pattern.
 
 ```typescript
-import { BrokerClient } from '@deepkit/broker';
+import { BrokerClient } from '@d7/broker';
 
 const client = new BrokerClient();
 
@@ -92,7 +92,7 @@ await channel1.publish({ value: 1345 });
 Atomic locks for distributed systems and critical region locking.
 
 ```typescript
-import { BrokerClient } from '@deepkit/broker';
+import { BrokerClient } from '@d7/broker';
 
 const client = new BrokerClient();
 

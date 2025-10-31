@@ -4,7 +4,7 @@ import { DirectClient } from '../src/client/client-direct.js';
 import { rpc } from '../src/decorators.js';
 import { RpcKernel } from '../src/server/kernel.js';
 import { ClientProgress } from '../src/progress.js';
-import { asyncOperation } from '@deepkit/core';
+import { asyncOperation } from '@d7/core';
 
 
 test('chunks', async () => {

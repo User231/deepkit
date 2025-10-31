@@ -15,7 +15,7 @@ Make sure to read the Getting started page to learn how to properly set up your 
 The cache abstraction in Deepkit Broker is very different to a simple key/value store. It works by defining a cache name and a builder function that is called automatically when the cache is empty or stale. This builder function is responsible to build the data that is then stored in the cache.
 
 ```typescript
-import { BrokerCache, BrokerCacheItem } from '@deepkit/broker';
+import { BrokerCache, BrokerCacheItem } from '@d7/broker';
 
 const cache = new BrokerCache(adapter);
 
@@ -50,8 +50,8 @@ The class is automatically available in the dependency injection container if yo
 See the Getting started page for more information.
 
 ```typescript
-import { BrokerCache, BrokerCacheItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerCache, BrokerCacheItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // it's a good to have these types defined in a common file so you can reuse them
 // and inject them into your services

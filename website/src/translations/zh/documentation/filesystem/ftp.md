@@ -2,17 +2,17 @@
 
 此适配器允许你将 FTP 服务器用作文件系统。
 
-它是 `@deepkit/filesystem-ftp` 的一部分，需要单独安装。
+它是 `@d7/filesystem-ftp` 的一部分，需要单独安装。
 
 ```sh
-npm install @deepkit/filesystem-ftp
+npm install @d7/filesystem-ftp
 ```
 
 ## 用法
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemFtpAdapter } from '@deepkit/filesystem-ftp';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemFtpAdapter } from '@d7/filesystem-ftp';
 
 const adapter = new FilesystemFtpAdapter({
     root: 'folder',

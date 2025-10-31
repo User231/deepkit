@@ -28,10 +28,10 @@ The HTTP module uses its own event listeners on these event tokens to implement 
 For example, suppose you want to catch the event when a controller is invoked. If a particular controller is to be invoked, we check if the user has access to it. If the user has access, we continue. But if not, we jump to the next workflow item `accessDenied`. There, the procedure of an access-denied is then automatically processed further.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HtmlResponse, http, httpAction, httpWorkflow } from '@deepkit/http';
-import { eventDispatcher } from '@deepkit/event';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HtmlResponse, http, httpAction, httpWorkflow } from '@d7/http';
+import { eventDispatcher } from '@d7/event';
 
 class MyWebsite {
     @http.GET('/')

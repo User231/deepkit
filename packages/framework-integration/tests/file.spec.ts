@@ -1,11 +1,11 @@
 // import { expect, test, beforeAll } from '@jest/globals';
-// import { EntityStorage, FS } from '@deepkit/fs';
+// import { EntityStorage, FS } from '@d7/fs';
 // import { appModuleForControllers, closeAllCreatedServers, createServerClientPair } from './util.js';
-// import { sleep } from '@deepkit/core';
+// import { sleep } from '@d7/core';
 // import { Buffer } from 'buffer';
-// import { arrayBufferTo } from '@deepkit/type';
+// import { arrayBufferTo } from '@d7/type';
 // import ws from 'ws';
-// import { rpc } from '@deepkit/rpc';
+// import { rpc } from '@d7/rpc';
 //
 // // @ts-ignore
 // global['WebSocket'] = ws;

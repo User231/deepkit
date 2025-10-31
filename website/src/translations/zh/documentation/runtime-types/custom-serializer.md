@@ -1,6 +1,6 @@
 # 自定义序列化器
 
-默认情况下，`@deepkit/type` 自带 JSON 序列化器以及对 TypeScript 类型的类型校验。你可以扩展它，添加或移除序列化功能，或改变校验的方式，因为校验同样与序列化器相关联。
+默认情况下，`@d7/type` 自带 JSON 序列化器以及对 TypeScript 类型的类型校验。你可以扩展它，添加或移除序列化功能，或改变校验的方式，因为校验同样与序列化器相关联。
 
 ## 新建序列化器
 
@@ -11,7 +11,7 @@
 下面的示例创建一个空的序列化器。
 
 ```typescript
-import { EmptySerializer } from '@deepkit/type';
+import { EmptySerializer } from '@d7/type';
 
 class User {
     name: string = '';
@@ -68,7 +68,7 @@ console.log(serialize(user1, undefined, mySerializer));
 
 ## 示例
 
-想查看更多示例，可以看看 Deepkit Type 中包含的[JSON 序列化器](https://github.com/deepkit/deepkit-framework/blob/master/packages/type/src/serializer.ts#L1688)的代码。
+想查看更多示例，可以看看 Deepkit Type 中包含的[JSON 序列化器](https://github.com/marcj/d7/blob/master/packages/type/src/serializer.ts#L1688)的代码。
 
 ## 扩展现有序列化器
 

@@ -1,1 +1,1 @@
-See https://deepkit.io/documentation/package/core
+See https://d7.io/documentation/package/core

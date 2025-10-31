@@ -2,13 +2,13 @@
 
 ## 外部类
 
-由于 TypeScript 默认不包含类型信息，从其他包导入的类型/类（未使用 @deepkit/type-compiler 的）将无法获得类型信息。
+由于 TypeScript 默认不包含类型信息，从其他包导入的类型/类（未使用 @d7/type-compiler 的）将无法获得类型信息。
 
 要为外部类注解类型，请使用 `annotateClass`，并确保该函数在应用程序的引导阶段执行，在导入的类被用于其他地方之前。
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 interface AnnotatedClass {
     id: number;
@@ -33,7 +33,7 @@ interface User {
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 class AnnotatedClass<T> {
     id!: T;

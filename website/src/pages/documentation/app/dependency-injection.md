@@ -6,8 +6,8 @@ command or controller and the Dependency Injection Container tries to resolve it
 See the chapter [Dependency Injection](../dependency-injection.md) for more information.
 
 ```typescript
-import { App, cli } from '@deepkit/app';
-import { Logger, ConsoleTransport } from '@deepkit/logger';
+import { App, cli } from '@d7/app';
+import { Logger, ConsoleTransport } from '@d7/logger';
 
 new App({
     providers: [{provide: Logger, useValue: new Logger([new ConsoleTransport])}],

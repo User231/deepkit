@@ -3,7 +3,7 @@
 默认情况下，所有 RPC 函数都可以从任意客户端调用，并且点对点通信功能已启用。要精确控制哪些客户端被允许执行哪些操作，可以重写 `RpcKernelSecurity` 类。
 
 ```typescript
-import { RpcKernelSecurity, Session, RpcControllerAccess } from '@deepkit/type';
+import { RpcKernelSecurity, Session, RpcControllerAccess } from '@d7/type';
 
 //包含默认实现
 class MyKernelSecurity extends RpcKernelSecurity {
@@ -38,9 +38,9 @@ const kernel = new RpcKernel([{provide: RpcKernelSecurity, useClass: MyKernelSec
 或者，对于 Deepkit 应用，可在应用中使用提供者覆盖 `RpcKernelSecurity` 类：
 
 ```typescript
-import { App } from '@deepkit/type';
-import { RpcKernelSecurity } from '@deepkit/rpc';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/type';
+import { RpcKernelSecurity } from '@d7/rpc';
+import { FrameworkModule } from '@d7/framework';
 
 new App({
     controllers: [MyRpcController],
@@ -67,7 +67,7 @@ const controller = client.controller<Controller>('/main');
 在这种情况下，`RpcKernelSecurity.authenticate` 会收到 token `123456789`，并可相应返回不同的会话。随后，返回的会话会传递给其他所有方法，例如 `hasControllerAccess`。
 
 ```typescript
-import { Session, RpcKernelSecurity } from '@deepkit/rpc';
+import { Session, RpcKernelSecurity } from '@d7/rpc';
 
 class UserSession extends Session {
 }

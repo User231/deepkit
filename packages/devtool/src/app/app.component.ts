@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnInit, signal } from '@angular/core';
-import { ButtonComponent, WindowComponent, WindowContentComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, WindowComponent, WindowContentComponent } from '@d7/desktop-ui';
 import { RouterOutlet } from '@angular/router';
 import { RpcCollector } from './collector';
 

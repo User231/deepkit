@@ -1,16 +1,16 @@
 import { OpenAI } from "openai";
 import { PageProcessor } from "@app/server/page-processor";
-import { Database } from "@deepkit/orm";
+import { Database } from "@d7/orm";
 import { CommunityMessage, CommunityMessageVote, projectMap } from "@app/common/models";
 import { AnyThreadChannel, ButtonStyle, ChannelType, Client, ComponentType, Message } from "discord.js";
-import { Logger } from "@deepkit/logger";
-import { asyncOperation } from "@deepkit/core";
+import { Logger } from "@d7/logger";
+import { asyncOperation } from "@d7/core";
 import { ReplaySubject, Subject } from "rxjs";
 import { eachValueFrom } from "rxjs-for-await";
 import { AppConfig } from "@app/server/config";
 import { Url } from "@app/server/url";
 import { readFile } from "fs/promises";
-import { findParentPath } from "@deepkit/app";
+import { findParentPath } from "@d7/app";
 import { join } from "path";
 
 export async function getSystem(additionalText: string): Promise<string> {
@@ -354,7 +354,7 @@ export class Questions {
             }],
             // embeds: [{
             //     title: 'Deepkit Documentation',
-            //     url: `https://deepkit.io/documentation/community-questions/${message.id}`,
+            //     url: `https://d7.io/documentation/community-questions/${message.id}`,
             // }]
         });
         answer.discordUrl = discordMessage.url;

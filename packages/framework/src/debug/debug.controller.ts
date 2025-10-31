@@ -26,24 +26,24 @@ import {
     RpcAction,
     RpcActionParameter,
     Workflow,
-} from '@deepkit/framework-debug-api';
-import { rpc, rpcClass } from '@deepkit/rpc';
-import { HttpRouter, parseRouteControllerAction } from '@deepkit/http';
-import { changeClass, ClassType, getClassName, isClass } from '@deepkit/core';
-import { EventDispatcher, isEventListenerContainerEntryService } from '@deepkit/event';
-import { DatabaseAdapter, DatabaseRegistry } from '@deepkit/orm';
+} from '@d7/framework-debug-api';
+import { rpc, rpcClass } from '@d7/rpc';
+import { HttpRouter, parseRouteControllerAction } from '@d7/http';
+import { changeClass, ClassType, getClassName, isClass } from '@d7/core';
+import { EventDispatcher, isEventListenerContainerEntryService } from '@d7/event';
+import { DatabaseAdapter, DatabaseRegistry } from '@d7/orm';
 import { existsSync, readFileSync, statSync, truncateSync } from 'fs';
 import { join } from 'path';
 import { FrameworkConfig } from '../module.config.js';
 import { FileStopwatchStore } from './stopwatch/store.js';
 import { Subject } from 'rxjs';
 import { unlink } from 'fs/promises';
-import { getScope, resolveToken, Token } from '@deepkit/injector';
-import { AppModule, ServiceContainer } from '@deepkit/app';
+import { getScope, resolveToken, Token } from '@d7/injector';
+import { AppModule, ServiceContainer } from '@d7/app';
 import { RpcControllers } from '../rpc.js';
-import { isType, ReflectionClass, serializeType, stringifyType } from '@deepkit/type';
+import { isType, ReflectionClass, serializeType, stringifyType } from '@d7/type';
 import { FilesystemRegistry } from '../filesystem.js';
-import { FrameCategory, FrameCategoryData, FrameType } from '@deepkit/stopwatch';
+import { FrameCategory, FrameCategoryData, FrameType } from '@d7/stopwatch';
 
 @rpc.controller(DebugControllerInterface)
 export class DebugController implements DebugControllerInterface {

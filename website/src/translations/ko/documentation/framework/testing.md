@@ -79,8 +79,8 @@ test('hello world', () => {
 Dependency Injection 장에서 이미 배웠듯이, Dependency Injection Container는 Deepkit의 핵심입니다. 이곳에서 모든 services가 빌드되고 실행됩니다. 애플리케이션은 services(providers), controllers, listeners, 그리고 imports를 정의합니다. 통합 테스트에서는 테스트 케이스에서 모든 services를 사용할 필요는 없고, 보통은 핵심 영역을 테스트할 수 있도록 애플리케이션의 축소판 버전을 사용하고자 합니다.
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
-import { http, HttpRequest } from '@deepkit/http';
+import { createTestingApp } from '@d7/framework';
+import { http, HttpRequest } from '@d7/http';
 
 test('http controller', async () => {
     class MyController {
@@ -102,7 +102,7 @@ test('http controller', async () => {
 ```
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 
 test('service', async () => {
     class MyService {
@@ -157,7 +157,7 @@ new App({
 그리고 전체 애플리케이션 서버를 부팅하지 않고 테스트합니다.
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 import { AppCoreModule, MyService } from './app-core.ts';
 
 test('service simple', async () => {

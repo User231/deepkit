@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@d7/core';
 import { App } from '../src/app.js';
 import { AppModule, createModuleClass } from '../src/module.js';
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 import { ControllerConfig } from '../src/service-container.js';
 
 test('controller instantiation', () => {

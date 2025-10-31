@@ -6,10 +6,10 @@ This example demonstrates how to overwrite the AccessDenied event and print your
 
 */
 
-import { App } from '@deepkit/app';
-import { eventDispatcher } from '@deepkit/event';
-import { HtmlResponse, http, HttpAccessDeniedError, httpWorkflow } from '@deepkit/http';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { eventDispatcher } from '@d7/event';
+import { HtmlResponse, http, HttpAccessDeniedError, httpWorkflow } from '@d7/http';
+import { FrameworkModule } from '@d7/framework';
 
 @http.controller()
 class ApiController {

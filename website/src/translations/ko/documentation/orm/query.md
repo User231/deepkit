@@ -339,7 +339,7 @@ const userCount: number = await database.query(User).count();
 쿼리를 Lift한다는 것은 새로운 기능을 추가한다는 의미입니다. 이는 보통 플러그인이나 복잡한 아키텍처에서 더 큰 쿼리 Class를 여러 개의 편리하고 재사용 가능한 Class로 분할하기 위해 사용됩니다.
 
 ```typescript
-import { FilterQuery, Query } from '@deepkit/orm';
+import { FilterQuery, Query } from '@d7/orm';
 
 class UserQuery<T extends {birthdate?: Date}> extends Query<T>  {
     hasBirthday() {

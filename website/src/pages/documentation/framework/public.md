@@ -14,8 +14,8 @@ To enable the provision of public files, set `publicDir` to a folder of your cho
 To change the `publicDir` option, you can change the first argument of `FrameworkModule`.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // your config and http controller here
 

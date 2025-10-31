@@ -1,4 +1,4 @@
-import { ReflectionClass, resolvePath, resolveProperty, Type, TypeClass, TypeObjectLiteral } from '@deepkit/type';
+import { ReflectionClass, resolvePath, resolveProperty, Type, TypeClass, TypeObjectLiteral } from '@d7/type';
 import { DefaultPlatform } from './platform/default-platform.js';
 
 export type SqlTypeCast = (placeholder: string) => string;

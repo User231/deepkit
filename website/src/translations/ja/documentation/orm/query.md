@@ -339,7 +339,7 @@ const userCount: number = await database.query(User).count();
 クエリのリフトとは、クエリに新しい機能を追加することを意味します。これは通常、プラグインや複雑なアーキテクチャで、大きなクエリ Class を複数の使いやすく再利用可能な Class に分割するために使用されます。
 
 ```typescript
-import { FilterQuery, Query } from '@deepkit/orm';
+import { FilterQuery, Query } from '@d7/orm';
 
 class UserQuery<T extends {birthdate?: Date}> extends Query<T>  {
     hasBirthday() {

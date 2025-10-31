@@ -1,7 +1,7 @@
-# API `@deepkit/app`
+# API `@d7/app`
 
 ```shell
-npm install @deepkit/app
+npm install @d7/app
 ```
 
 提供命令行界面解析器、服务容器与依赖注入、事件分发器、应用模块系统，以及配置加载器。
@@ -11,4 +11,4 @@ npm install @deepkit/app
 
 更多信息请参阅[Deepkit 应用文档](../app.md)。
 
-<api-docs package="@deepkit/app"></api-docs>
+<api-docs package="@d7/app"></api-docs>

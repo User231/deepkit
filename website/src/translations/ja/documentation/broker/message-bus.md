@@ -11,7 +11,7 @@ Deepkit メッセージバスは、アプリケーションの異なる部分間
 ## 使用方法
 
 ```typescript
-import { BrokerBus } from '@deepkit/broker';
+import { BrokerBus } from '@d7/broker';
 
 const bus = new BrokerBus(adapter);
 
@@ -49,8 +49,8 @@ await channel.publish({ type: 'user-created', id: 1 });
 このアプローチにより、業務コードをブローカーサーバーから適切に分離でき、ブローカーサーバーのないテスト環境でも同じコードを使用できます。
 
 ```typescript
-import { BrokerBus, BrokerBusChannel, provideBusSubject } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerBus, BrokerBusChannel, provideBusSubject } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 import { Subject } from 'rxjs';
 
 // この型は共有ファイルに移動してください
@@ -102,8 +102,8 @@ const app = new App({
 メッセージが送信されたことの確認が必要で、各ケースでエラー処理を行いたい場合は、`BrokerBusChannel` 型を使用できます。`subscribe` と `publish` の各 Method は Promise を返します。
 
 ```typescript
-import { BrokerBus, BrokerBusChannel, provideBusChannel } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerBus, BrokerBusChannel, provideBusChannel } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // この型は共有ファイルに移動してください
 type MyChannel = BrokerBusChannel<{

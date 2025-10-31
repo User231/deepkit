@@ -3,7 +3,7 @@
 By default, all RPC functions can be called from any client, and the peer-to-peer communication feature is enabled. To precisely control which client is allowed to do what, you can override the `RpcKernelSecurity` class.
 
 ```typescript
-import { RpcKernelSecurity, Session, RpcControllerAccess } from '@deepkit/type';
+import { RpcKernelSecurity, Session, RpcControllerAccess } from '@d7/type';
 
 //contains default implementations
 class MyKernelSecurity extends RpcKernelSecurity {
@@ -38,9 +38,9 @@ const kernel = new RpcKernel([{provide: RpcKernelSecurity, useClass: MyKernelSec
 Or, in the case of a Deepkit app, override the `RpcKernelSecurity` class with a provider in the app:
 
 ```typescript
-import { App } from '@deepkit/type';
-import { RpcKernelSecurity } from '@deepkit/rpc';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/type';
+import { RpcKernelSecurity } from '@d7/rpc';
+import { FrameworkModule } from '@d7/framework';
 
 new App({
     controllers: [MyRpcController],
@@ -68,7 +68,7 @@ const controller = client.controller<Controller>('/main');
 In this case, `RpcKernelSecurity.authenticate` receives the token `123456789` and can return a different session accordingly. The returned session is then passed to all other methods like `hasControllerAccess`.
 
 ```typescript
-import { Session, RpcKernelSecurity } from '@deepkit/rpc';
+import { Session, RpcKernelSecurity } from '@d7/rpc';
 
 class UserSession extends Session {
 }

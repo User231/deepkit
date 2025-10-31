@@ -1,7 +1,7 @@
 title: Get all union member as primitive values
 
 ```typescript
-import { valuesOf } from '@deepkit/type';
+import { valuesOf } from '@d7/type';
 
 type Groups = 'admin' | 'user' | 'guest';
 
@@ -13,7 +13,7 @@ const groups = valuesOf<Groups>(); // ['admin', 'user', 'guest']
 title: Iterate over class properties
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 class User {
     id: number = 0;
@@ -32,7 +32,7 @@ for (const property of properties) {
 title: Convert plain object to class instance
 
 ```typescript
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 
 class User {
     firstName: string = '';
@@ -53,7 +53,7 @@ console.log(user instanceof User); //true
 title: Validate username and email
 
 ```typescript
-import { Email, MaxLength, MinLength, Pattern, validate } from '@deepkit/type';
+import { Email, MaxLength, MinLength, Pattern, validate } from '@d7/type';
 
 type Username = string & MinLength<3> & MaxLength<20> & Pattern<'^[a-zA-Z0-9]+$'>;
 

@@ -27,7 +27,7 @@ class MyService {
 An alternative to constructor injection is property injection. This is usually used when the dependency is optional or the constructor is otherwise too full. The properties are automatically assigned once the instance is created (and thus the constructor is executed).
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class MyService {
     //required
@@ -56,7 +56,7 @@ app.get('/', (database: Database) => {
 In case you want to resolve dependencies dynamically, you can inject `InjectorContext` and use it to retrieve dependencies.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class MyService {
     constructor(protected context: InjectorContext) {

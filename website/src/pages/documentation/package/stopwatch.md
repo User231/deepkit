@@ -1,7 +1,7 @@
-# API `@deepkit/stopwatch`
+# API `@d7/stopwatch`
 
 ```shell
-npm install @deepkit/stopwatch
+npm install @d7/stopwatch
 ```
 
-<api-docs package="@deepkit/stopwatch"></api-docs>
+<api-docs package="@d7/stopwatch"></api-docs>

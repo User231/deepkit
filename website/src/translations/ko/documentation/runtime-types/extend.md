@@ -7,7 +7,7 @@
 이 예제는 `Point` class를 튜플 `[number, number]`로 serialize/deserialize하는 방법을 보여줍니다.
 
 ```typescript
-import { serializer, SerializationError } from '@deepkit/type';
+import { serializer, SerializationError } from '@d7/type';
 
 class Point {
   constructor(public x: number, public y: number) {
@@ -51,6 +51,6 @@ const json = serialize<Point>(point);
 expect(json).toEqual([1, 2]);
 ```
 
-이는 `cast`, `deserialize`, `serialize`와 같은 일반 `@deepkit/type` Function에만 동작합니다.
+이는 `cast`, `deserialize`, `serialize`와 같은 일반 `@d7/type` Function에만 동작합니다.
 
 이는 database layer로 전달되지 않습니다. database layer는 migration과 serialization을 위해 Entity class에 정의된 type을 사용하기 때문입니다(예: BSON serialization).

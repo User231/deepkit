@@ -1,10 +1,10 @@
-import { RpcClient, RpcHttpInterface, RpcHttpResponseInterface } from '@deepkit/rpc';
+import { RpcClient, RpcHttpInterface, RpcHttpResponseInterface } from '@d7/rpc';
 import type { MainController } from '@app/server/controller/main.controller';
 import { Inject, Injectable, Optional } from '@angular/core';
 import { BenchmarkControllerInterface } from '@app/common/benchmark';
 import { HttpClient, HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
 import { firstValueFrom, Observable } from 'rxjs';
-import { injectPatchedPendingTasks } from '@deepkit/desktop-ui';
+import { injectPatchedPendingTasks } from '@d7/desktop-ui';
 
 @Injectable()
 export class ControllerClient {

@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/angular-ssr",
+  "name": "@d7/angular-ssr",
   "version": "1.0.19",
-  "description": "Deepkit + angular SSR",
+  "description": "D7 + angular SSR",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -17,7 +17,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "scripts": {
@@ -25,13 +25,13 @@
   },
   "peerDependencies": {
     "@angular/ssr": "^20.0.3",
-    "@deepkit/app": "^1.0.1",
-    "@deepkit/http": "^1.0.1"
+    "@d7/app": "^1.0.1",
+    "@d7/http": "^1.0.1"
   },
   "devDependencies": {
     "@angular/ssr": "^20.0.3",
-    "@deepkit/app": "^1.0.19",
-    "@deepkit/http": "^1.0.19"
+    "@d7/app": "^1.0.19",
+    "@d7/http": "^1.0.19"
   },
   "jest": {
     "transform": {

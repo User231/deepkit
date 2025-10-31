@@ -36,8 +36,8 @@ After doing so you can use this service in controllers, other services, or event
 
 
 ```typescript
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from '@d7/http';
 
 const app = new App({
     providers: [UserManager],

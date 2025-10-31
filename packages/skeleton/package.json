@@ -1,5 +1,5 @@
 {
-  "name": "@deepkit/skeletion",
+  "name": "@d7/skeletion",
   "version": "1.0.1-alpha.13",
   "description": "This is an skeleton package, which can be copied and adjusted for new packages in this repository. See README.",
   "private": true,
@@ -14,7 +14,7 @@
       "default": "./dist/esm/index.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -24,10 +24,10 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@deepkit/core": "^1.0.1"
+    "@d7/core": "^1.0.1"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.1"
+    "@d7/core": "^1.0.1"
   },
   "jest": {
     "transform": {

@@ -10,7 +10,7 @@
 
 import { RpcKernel } from '../server/kernel.js';
 import { ClientTransportAdapter, RpcClient } from './client.js';
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 import { TransportClientConnection } from '../transport.js';
 
 export class DirectClient extends RpcClient {

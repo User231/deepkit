@@ -1,5 +1,5 @@
 {
-  "name": "@deepkit/orm-browser-api",
+  "name": "@d7/orm-browser-api",
   "version": "1.0.19",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -16,21 +16,21 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "license": "MIT",
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "sideEffects": false,
   "publishConfig": {
     "access": "public"
   },
   "peerDependencies": {
-    "@deepkit/rpc": "^1.0.1",
-    "@deepkit/stopwatch": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@d7/rpc": "^1.0.1",
+    "@d7/stopwatch": "^1.0.1",
+    "@d7/type": "^1.0.1"
   },
   "devDependencies": {
-    "@deepkit/rpc": "^1.0.19",
-    "@deepkit/stopwatch": "^1.0.19",
-    "@deepkit/type": "^1.0.19"
+    "@d7/rpc": "^1.0.19",
+    "@d7/stopwatch": "^1.0.19",
+    "@d7/type": "^1.0.19"
   },
   "jest": {
     "testEnvironment": "node",

@@ -1,8 +1,8 @@
 title: User Entity with Password Hashing
 
 ```typescript
-import {entity, AutoIncrement, PrimaryKey, cast} from "@deepkit/type";
-import {Database} from '@deepkit/orm';
+import {entity, AutoIncrement, PrimaryKey, cast} from "@d7/type";
+import {Database} from '@d7/orm';
 import * as bcrypt from 'bcrypt';
 
 @entity.collection('users')
@@ -26,8 +26,8 @@ async function addUser(data: Partial<User>, database: Database) {
 title: Handle unique constraint violation
 
 ```typescript
-import {entity, PrimaryKey, Database, Unique} from "@deepkit/type";
-import {Database, UniqueConstraintFailure} from '@deepkit/orm';
+import {entity, PrimaryKey, Database, Unique} from "@d7/type";
+import {Database, UniqueConstraintFailure} from '@d7/orm';
 
 @entity.collection('users')
 class User {

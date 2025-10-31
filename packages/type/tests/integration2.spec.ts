@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@d7/core';
 import { expect, test } from '@jest/globals';
 import { entity, t } from '../src/decorator.js';
 import { propertiesOf, reflect, ReflectionClass, ReflectionFunction, ReflectionMethod, typeOf, valuesOf } from '../src/reflection/reflection.js';
@@ -50,7 +50,7 @@ import {
     TypeTuple,
     Unique,
 } from '../src/reflection/type.js';
-import { TypeNumberBrand } from '@deepkit/type-spec';
+import { TypeNumberBrand } from '@d7/type-spec';
 import { validate, ValidatorError } from '../src/validator.js';
 import { expectEqualType } from './utils.js';
 import { MyAlias } from './types.js';
@@ -1647,7 +1647,7 @@ test('set constructor parameter manually', () => {
         expect(reflection.getMethods().length).toBe(1);
         expect(reflection.getProperties().length).toBe(1);
         expect(reflection.getMethod('constructor')!.getParameters().length).toBe(1);
-        //if this fails, ClassType can probably not be resolved, which means @deepkit/core wasn't built correctly
+        //if this fails, ClassType can probably not be resolved, which means @d7/core wasn't built correctly
         expect(reflection.getMethod('constructor')!.getParameter('response')!.getType().kind).toBe(ReflectionKind.class);
         expect(reflection.getMethods()[0].getName()).toBe('constructor');
         const responseType = reflection.getProperty('response')!.getType();

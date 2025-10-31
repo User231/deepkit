@@ -1,4 +1,4 @@
-import { bufferConcat } from '@deepkit/core';
+import { bufferConcat } from '@d7/core';
 import { BSONError } from './model.js';
 
 function readUint32LE(buffer: Uint8Array, offset: number = 0): number {

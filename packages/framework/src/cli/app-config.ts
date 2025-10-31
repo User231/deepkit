@@ -8,10 +8,10 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { cli, Command } from '@deepkit/app';
+import { cli, Command } from '@d7/app';
 import { DebugController } from '../debug/debug.controller.js';
-import { ConfigOption } from "@deepkit/framework-debug-api";
-import { ReflectionClass } from "@deepkit/type";
+import { ConfigOption } from "@d7/framework-debug-api";
+import { ReflectionClass } from "@d7/type";
 import { createTable } from 'nice-table';
 import { inspect } from 'util';
 

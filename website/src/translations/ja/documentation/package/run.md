@@ -1,7 +1,7 @@
-# API `@deepkit/run`
+# API `@d7/run`
 
 ```sh
-npm install @deepkit/run
+npm install @d7/run
 ```
 
 ビルドステップを必要とせずに TypeScript コードを実行する簡単な方法。
@@ -9,13 +9,13 @@ npm install @deepkit/run
 このツールは主に Deepkit 独自のテストスイートでの使用を想定していますが、ご自身のプロジェクトでも使用できます。
 
 ```typescript
-import { typeOf } from '@deepkit/type';
+import { typeOf } from '@d7/type';
 
 console.log(typeOf<string>());
 ```
 
 ```sh
-node --import @deepkit/run test.ts 
+node --import @d7/run test.ts 
 ```
 
-<api-docs package="@deepkit/run"></api-docs>
+<api-docs package="@d7/run"></api-docs>

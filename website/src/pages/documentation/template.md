@@ -2,7 +2,7 @@
 
 The template engine allows to write typesafe, fast and secure HTML templates. It is based on JSX and is ready to use as soon as you use the `.tsx` file extension and adjust the `tsconfig.json` accordingly.
 
-The important thing is: it is not compatible with React. As soon as React is to be used, `@deepkit/template` is incompatible. Deepkit's template engine is only intended for SSR (server-side rendering).
+The important thing is: it is not compatible with React. As soon as React is to be used, `@d7/template` is incompatible. Deepkit's template engine is only intended for SSR (server-side rendering).
 
 ## Installation
 
@@ -17,7 +17,7 @@ In your tsconfig you have to adjust following settings: `jsx` and `jsxImportSour
     "moduleResolution": "node",
 
     "jsx": "react-jsx",
-    "jsxImportSource": "@deepkit/template"
+    "jsxImportSource": "@d7/template"
   }
 }
 ```
@@ -25,9 +25,9 @@ In your tsconfig you have to adjust following settings: `jsx` and `jsxImportSour
 Now you can use JSX directly in your controller.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 @http.controller('my-base-url/')
 class MyPage {
@@ -148,7 +148,7 @@ For class components the first constructor arguments are reserved. `props` can b
 The template engine has automatically cleaned up all the variables used, so you can safely use user input directly in the template. To render dynamic HTML, you can use the html function.
 
 ```typescript
-import { html } from '@deepkit/template';
+import { html } from '@d7/template';
 function helloWorld() {
     const yes = "<b>yes!</b>";
     return <div style="color: red">Hello World. {html(yes)}</div>;

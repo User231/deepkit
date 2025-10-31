@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { MemoryDatabaseAdapter } from '../src/memory-db.js';
 import { Database } from '../src/database.js';
-import { deserialize, entity, PrimaryKey, t, validate, ValidatorError } from '@deepkit/type';
+import { deserialize, entity, PrimaryKey, t, validate, ValidatorError } from '@d7/type';
 
 test('memory-db', async () => {
     function MinLength(minLength: number) {

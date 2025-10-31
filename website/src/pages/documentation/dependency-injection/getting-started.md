@@ -2,10 +2,10 @@
 
 Since Dependency Injection in Deepkit is based on Runtime Types, it is necessary to have Runtime Types already installed correctly. See [Runtime Type](../runtime-types/getting-started.md).
 
-If this is done successfully, `@deepkit/injector` can be installed or the Deepkit framework which already uses the library under the hood.
+If this is done successfully, `@d7/injector` can be installed or the D7 framework which already uses the library under the hood.
 
 ```sh
-	npm install @deepkit/injector
+	npm install @d7/injector
 ```
 
 Once the library is installed, the API of it can be used directly.
@@ -19,14 +19,14 @@ To use Dependency Injection now, there are three ways.
 * Module API
 * App API (Deepkit Framework)
 
-If `@deepkit/injector` is to be used without the Deepkit Framework, the first two variants are recommended.
+If `@d7/injector` is to be used without the D7 Framework, the first two variants are recommended.
 
 ### Injector API
 
 The Injector API has already been introduced in the [introduction to Dependency Injection](../dependency-injection). It is characterized by a very simple usage by means of a single class `InjectorContext` that creates a single DI container and is particularly suitable for simpler applications without modules.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 const injector = InjectorContext.forProviders([
     UserRepository,
@@ -42,10 +42,10 @@ The `injector` object in this case is the dependency injection container. The fu
 
 A more complex API is the `InjectorModule` class, which allows to store the providers in different modules to create multiple encapsulated DI containers per module. Also this allows using configuration classes per module, which makes it easier to provide configuration values automatically validated to the providers. Modules can import themselves among themselves, providers export, in order to build up a hierarchy and nicely separated architecture.
 
-This API should be used if the application is more complex and the Deepkit Framework is not used.
+This API should be used if the application is more complex and the D7 Framework is not used.
 
 ```typescript
-import { InjectorModule, InjectorContext } from '@deepkit/injector';
+import { InjectorModule, InjectorContext } from '@d7/injector';
 
 const lowLevelModule = new InjectorModule([HttpClient])
      .addExport(HttpClient);
@@ -76,14 +76,14 @@ const lowLevelModule = new InjectorModule([HttpClient])
 
 ### App API
 
-Once the Deepkit framework is used, modules are defined with the `@deepkit/app` API. This is based on the Module API, so the capabilities from there are also available. In addition, it is possible to work with powerful hooks and define configuration loaders to map even more dynamic architectures.
+Once the D7 framework is used, modules are defined with the `@d7/app` API. This is based on the Module API, so the capabilities from there are also available. In addition, it is possible to work with powerful hooks and define configuration loaders to map even more dynamic architectures.
 
 The [Framework Modules](../app/modules.md) chapter describes this in more detail.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry, HttpBody } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry, HttpBody } from '@d7/http';
 
 interface User {
     username: string;

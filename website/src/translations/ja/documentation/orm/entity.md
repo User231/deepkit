@@ -1,14 +1,14 @@
 # エンティティ
 
 エンティティは Class かオブジェクトリテラル（Interface）のいずれかであり、必ず主キーを持ちます。
-エンティティには、`@deepkit/type` の型アノテーションを用いて必要な情報が付与されます。例えば、主キー、各フィールド、その検証制約などを定義します。これらのフィールドはデータベース構造（通常はテーブルまたはコレクション）を反映します。
+エンティティには、`@d7/type` の型アノテーションを用いて必要な情報が付与されます。例えば、主キー、各フィールド、その検証制約などを定義します。これらのフィールドはデータベース構造（通常はテーブルまたはコレクション）を反映します。
 
 `Mapped<'name'>` のような特別な型アノテーションにより、フィールド名をデータベース内の別名にマッピングすることもできます。
 
 ## Class
 
 ```typescript
-import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 @entity.name('user')
 class User {
@@ -35,7 +35,7 @@ console.log('all users', allUsers);
 ## Interface
 
 ```typescript
-import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -80,7 +80,7 @@ MongoDB では MongoId または ObjectID がよく使われます。
 number の場合は `AutoIncrement` を使用できます。
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -94,7 +94,7 @@ interface User {
 オートインクリメントフィールドは自動カウンタであり、主キーにのみ適用できます。データベースは ID が一度しか使用されないことを自動的に保証します。
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement;
@@ -106,7 +106,7 @@ interface User {
 UUID（v4）型であるべきフィールドには UUID デコレータを付与します。実行時の型は `string` で、データベース内では多くの場合バイナリです。新しい UUID v4 を作成するには `uuid()` 関数を使用します。
 
 ```typescript
-import { uuid, UUID, PrimaryKey } from '@deepkit/type';
+import { uuid, UUID, PrimaryKey } from '@d7/type';
 
 class User {
     id: UUID & PrimaryKey = uuid();
@@ -120,7 +120,7 @@ MongoDB で ObjectID 型であるべきフィールドには `MongoId` デコレ
 MongoID フィールドは挿入時に自動的に新しい値が割り当てられます。フィールド名として `_id` を使用する必要はありません。任意の名前にできます。
 
 ```typescript
-import { PrimaryKey, MongoId } from '@deepkit/type';
+import { PrimaryKey, MongoId } from '@d7/type';
 
 class User {
     id: MongoId & PrimaryKey = '';
@@ -135,7 +135,7 @@ Optional なフィールドは、TypeScript の型として `title?: string` ま
 次の例では、modified フィールドは Optional であるため実行時には undefined になり得ますが、データベースでは常に NULL として表現されます。
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -146,7 +146,7 @@ class User {
 この例は nullable な型がどのように機能するかを示しています。データベースと JavaScript の実行時の両方で NULL が使用されます。これは `modified?: Date` よりも冗長であり、一般的には使用されません。
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -174,7 +174,7 @@ class User {
 `DatabaseField` を使用すると、フィールドを任意のデータベース型にマッピングできます。型は有効な SQL 文でなければならず、そのままマイグレーションシステムに渡されます。
 
 ```typescript
-import { DatabaseField } from '@deepkit/type';
+import { DatabaseField } from '@d7/type';
 
 interface User {
     title: string & DatabaseField<{type: 'VARCHAR(244)'}>;
@@ -186,7 +186,7 @@ interface User {
 ### SQLite
 
 ```typescript
-import { SQLite } from '@deepkit/type';
+import { SQLite } from '@d7/type';
 
 interface User {
     title: string & SQLite<{type: 'text'}>;
@@ -196,7 +196,7 @@ interface User {
 ### MySQL
 
 ```typescript
-import { MySQL } from '@deepkit/type';
+import { MySQL } from '@d7/type';
 
 interface User {
     title: string & MySQL<{type: 'text'}>;
@@ -206,7 +206,7 @@ interface User {
 ### Postgres
 
 ```typescript
-import { Postgres } from '@deepkit/type';
+import { Postgres } from '@d7/type';
 
 interface User {
     title: string & Postgres<{type: 'text'}>;

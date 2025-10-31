@@ -7,12 +7,12 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { ClassType, getClassName, isArray, isClass } from '@deepkit/core';
+import { ClassType, getClassName, isArray, isClass } from '@d7/core';
 import './optimize-tsx';
-import { injectedFunction, Injector, Resolver } from '@deepkit/injector';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
+import { injectedFunction, Injector, Resolver } from '@d7/injector';
+import { FrameCategory, Stopwatch } from '@d7/stopwatch';
 import { escapeAttribute, escapeHtml, safeString } from './utils.js';
-import { ReflectionClass, Type } from '@deepkit/type';
+import { ReflectionClass, Type } from '@d7/type';
 
 export type Attributes<T = any> = {
     [P in keyof T]: T[P];

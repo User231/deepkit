@@ -1,5 +1,5 @@
 import { Database } from '../database.js';
-import { ClassType, getClassName } from '@deepkit/core';
+import { ClassType, getClassName } from '@d7/core';
 
 export interface DatabasePlugin {
     onRegister(database: Database<any>): void;

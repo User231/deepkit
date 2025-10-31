@@ -1,10 +1,10 @@
-user: How does the Deepkit template engine differ from other template engines?
+user: How does the D7 template engine differ from other template engines?
 assistant: The Deepkit template engine allows you to write typesafe, fast, and secure HTML templates. It is based on JSX and is specifically designed for server-side rendering (SSR). Unlike other template engines, Deepkit's template engine is not compatible with React.
 
 ##-------------------------------------------------##
 
-user: Can I use the Deepkit template engine with React?
-assistant: No, the Deepkit template engine is not compatible with React, Preact, or any other JSX based engine. If you want to use React, you cannot use `@deepkit/template`.
+user: Can I use the D7 template engine with React?
+assistant: No, the D7 template engine is not compatible with React, Preact, or any other JSX based engine. If you want to use React, you cannot use `@d7/template`.
 Deepkit Template is designed to be used in the backend only.
 
 ##-------------------------------------------------##
@@ -14,13 +14,13 @@ assistant: Server-side rendering (SSR) is the process of rendering HTML on the s
 
 ##-------------------------------------------------##
 
-user: How do I install and configure the Deepkit template engine in my TypeScript project?
-assistant: To install and configure the Deepkit template engine in your TypeScript project, you need to adjust the `tsconfig.json` file. In the `compilerOptions`, set the `jsx` value to `"react-jsx"` and the `jsxImportSource` value to `"@deepkit/template"`. You also need to make sure you have `"experimentalDecorators": true` and `"emitDecoratorMetadata": true` enabled. Then you can use JSX directly in your controller.
+user: How do I install and configure the D7 template engine in my TypeScript project?
+assistant: To install and configure the D7 template engine in your TypeScript project, you need to adjust the `tsconfig.json` file. In the `compilerOptions`, set the `jsx` value to `"react-jsx"` and the `jsxImportSource` value to `"@d7/template"`. You also need to make sure you have `"experimentalDecorators": true` and `"emitDecoratorMetadata": true` enabled. Then you can use JSX directly in your controller.
 
 ##-------------------------------------------------##
 
 user: Can I use JSX directly in my Deepkit controller?
-assistant: Yes, after installing and configuring the Deepkit template engine, you can use JSX directly in your Deepkit controller. You can write JSX code that represents your HTML templates and return them from your route methods. The template engine will automatically set the HTTP content type to `text/html; charset=utf-8` when you return a JSX template.
+assistant: Yes, after installing and configuring the D7 template engine, you can use JSX directly in your Deepkit controller. You can write JSX code that represents your HTML templates and return them from your route methods. The template engine will automatically set the HTTP content type to `text/html; charset=utf-8` when you return a JSX template.
 
 ##-------------------------------------------------##
 
@@ -146,7 +146,7 @@ assistant:
 
 ##-------------------------------------------------##
 
-user: How does the Deepkit template engine handle dynamic HTML and user input safety?
+user: How does the D7 template engine handle dynamic HTML and user input safety?
 assistant: 
 
 ##-------------------------------------------------##
@@ -156,7 +156,7 @@ assistant:
 
 ##-------------------------------------------------##
 
-user: How does the Deepkit template engine optimize the generated JSX code?
+user: How does the D7 template engine optimize the generated JSX code?
 assistant: 
 
 ##-------------------------------------------------##
@@ -181,12 +181,12 @@ assistant:
 
 ##-------------------------------------------------##
 
-user: What other modules or dependencies are required to use the Deepkit template engine?
+user: What other modules or dependencies are required to use the D7 template engine?
 assistant: 
 
 ##-------------------------------------------------##
 
-user: Is the Deepkit template engine compatible with different versions of TypeScript?
+user: Is the D7 template engine compatible with different versions of TypeScript?
 assistant: 
 
 ##-------------------------------------------------##
@@ -236,7 +236,7 @@ assistant:
 
 ##-------------------------------------------------##
 
-user: Is the Deepkit template engine compatible with different rendering engines or frameworks?
+user: Is the D7 template engine compatible with different rendering engines or frameworks?
 assistant: 
 
 ##-------------------------------------------------##

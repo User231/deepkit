@@ -7,7 +7,7 @@ Es ist eine einfache Möglichkeit sicherzustellen, dass jeweils nur ein Prozess 
 ## Verwendung
 
 ```typescript
-import { BrokerLock } from '@deepkit/broker';
+import { BrokerLock } from '@d7/broker';
 
 const lock = new BrokerLock(adapter);
 
@@ -45,8 +45,8 @@ Die Class ist im Dependency-Injection-Container automatisch verfügbar, wenn du 
 Siehe die Seite Erste Schritte für weitere Informationen.
 
 ```typescript
-import { BrokerLock, BrokerLockItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerLock, BrokerLockItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // Verschiebe diesen Type in eine gemeinsame Datei
 type MyCriticalLock = BrokerLockItem;

@@ -1,5 +1,5 @@
-import { HtmlResponse, http, HttpBodyValidation, HttpQuery, HttpResponse, Redirect, UploadedFile } from '@deepkit/http';
-import { LoggerInterface } from '@deepkit/logger';
+import { HtmlResponse, http, HttpBodyValidation, HttpQuery, HttpResponse, Redirect, UploadedFile } from '@d7/http';
+import { LoggerInterface } from '@d7/logger';
 import { readFile } from 'fs/promises';
 import { SQLiteDatabase, User } from '../database.js';
 import { UserList } from '../views/user-list.js';

@@ -1,5 +1,5 @@
 // @app/client.ts
-import {DeepkitClient} from '@deepkit/rpc';
+import {DeepkitClient} from '@d7/rpc';
 import type {MyController} from '@app/server/controller';
 
 const client = new DeepkitClient('localhost');

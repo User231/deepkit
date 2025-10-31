@@ -10,9 +10,9 @@
 
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { ControllerClient } from '../../client';
-import { Route, Workflow } from '@deepkit/framework-debug-api';
+import { Route, Workflow } from '@d7/framework-debug-api';
 import { WorkflowComponent } from '../../components/workflow.component';
-import { InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 
 @Component({

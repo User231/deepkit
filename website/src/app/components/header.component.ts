@@ -2,7 +2,7 @@ import { Component, inject, input, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { SearchComponent } from '@app/app/components/search.component';
-import { DropdownComponent, OpenDropdownDirective } from '@deepkit/desktop-ui';
+import { DropdownComponent, OpenDropdownDirective } from '@d7/desktop-ui';
 import { TranslatePipe, Translation } from '@app/app/components/translation';
 import { texts } from '@app/common/docs';
 

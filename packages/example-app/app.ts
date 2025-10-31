@@ -1,14 +1,14 @@
 #!/usr/bin/env ts-node-script
-import { createCrudRoutes, FrameworkModule, onServerMainBootstrapDone } from '@deepkit/framework';
+import { createCrudRoutes, FrameworkModule, onServerMainBootstrapDone } from '@d7/framework';
 import { Author, Book, SQLiteDatabase, User } from './src/database.js';
 import { MainController } from './src/controller/main.http.js';
 import { UsersCommand } from './src/controller/users.cli.js';
 import { Config } from './src/config.js';
-import { JSONTransport, Logger, LoggerInterface } from '@deepkit/logger';
-import { App } from '@deepkit/app';
+import { JSONTransport, Logger, LoggerInterface } from '@d7/logger';
+import { App } from '@d7/app';
 import { RpcController } from './src/controller/rpc.controller.js';
-import { ApiConsoleModule } from '@deepkit/api-console-module';
-import { OrmBrowserModule } from '@deepkit/orm-browser';
+import { ApiConsoleModule } from '@d7/api-console-module';
+import { OrmBrowserModule } from '@d7/orm-browser';
 // import { OpenAPIModule } from 'deepkit-openapi';
 
 const bookStoreCrud = createCrudRoutes([Author, Book]);

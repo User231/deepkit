@@ -8,9 +8,9 @@
 
 ```typescript
 #!/usr/bin/env ts-node-script
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class Config {
     title: string = 'DEV my Page';
@@ -81,8 +81,8 @@ dist
 |===
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // 여기에서 config와 HTTP controller를 정의합니다
 
@@ -107,8 +107,8 @@ new App({
 로컬 개발 환경에서는 `framework.selfSigned` 옵션으로 self-signed HTTPS를 활성화할 수 있습니다.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 
 // 여기에서 config와 HTTP controller를 정의합니다
 

@@ -7,14 +7,14 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { ClassType, CompilerContext, getClassName, isArray, isClass, urlJoin } from '@deepkit/core';
-import { entity, ReflectionClass, ReflectionFunction, ReflectionKind, ReflectionParameter, SerializationOptions, serializer, Serializer, Type, ValidationError } from '@deepkit/type';
+import { ClassType, CompilerContext, getClassName, isArray, isClass, urlJoin } from '@d7/core';
+import { entity, ReflectionClass, ReflectionFunction, ReflectionKind, ReflectionParameter, SerializationOptions, serializer, Serializer, Type, ValidationError } from '@d7/type';
 import { getActions, HttpAction, httpClass, HttpController, HttpDecorator } from './decorator.js';
 import { HttpRequest, HttpRequestPositionedParameters, HttpRequestQuery, HttpRequestResolvedParameters } from './model.js';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
-import { Logger, LoggerInterface } from '@deepkit/logger';
+import { InjectorContext, InjectorModule } from '@d7/injector';
+import { Logger, LoggerInterface } from '@d7/logger';
 import { HttpControllers } from './controllers.js';
-import { MiddlewareRegistry, MiddlewareRegistryEntry } from '@deepkit/app';
+import { MiddlewareRegistry, MiddlewareRegistryEntry } from '@d7/app';
 import { HttpMiddlewareConfig, HttpMiddlewareFn } from './middleware.js';
 
 //@ts-ignore
@@ -34,7 +34,7 @@ interface ResolvedController {
 
 export const UploadedFileSymbol = Symbol('UploadedFile');
 
-@entity.name('@deepkit/UploadedFile')
+@entity.name('@d7/UploadedFile')
 export class UploadedFile {
     /**
      * Validator to ensure the file was provided by the framework, and not the user spoofing it.

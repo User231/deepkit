@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/injector",
+  "name": "@d7/injector",
   "version": "1.0.19",
-  "description": "Deepkit Dependency Injection",
+  "description": "D7 Dependency Injection",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -13,7 +13,7 @@
       "default": "./dist/esm/index.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -23,13 +23,13 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@d7/core": "^1.0.1",
+    "@d7/type": "^1.0.1"
   },
   "devDependencies": {
-    "@deepkit/bench": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@d7/bench": "^1.0.19",
+    "@d7/core": "^1.0.19",
+    "@d7/type": "^1.0.19",
     "benchmark": "^2.1.4"
   },
   "jest": {

@@ -1,12 +1,12 @@
 # Dependency Injection
 
-Controller classes are managed by the Dependency Injection Container from `@deepkit/injector`. When using the Deepkit Framework, these controllers automatically have access to the providers of the modules that provide the controller.
+Controller classes are managed by the Dependency Injection Container from `@d7/injector`. When using the D7 Framework, these controllers automatically have access to the providers of the modules that provide the controller.
 
-In the Deepkit Framework, controllers are instantiated in the Dependency Injection Scope `rpc`, allowing all controllers to automatically access various providers from this scope. These additional providers are `HttpRequest` (optional), `RpcInjectorContext`, `SessionState`, `RpcKernelConnection`, and `ConnectionWriter`.
+In the D7 Framework, controllers are instantiated in the Dependency Injection Scope `rpc`, allowing all controllers to automatically access various providers from this scope. These additional providers are `HttpRequest` (optional), `RpcInjectorContext`, `SessionState`, `RpcKernelConnection`, and `ConnectionWriter`.
 
 ```typescript
-import { RpcKernel, rpc } from '@deepkit/rpc';
-import { App } from '@deepkit/app';
+import { RpcKernel, rpc } from '@d7/rpc';
+import { App } from '@d7/app';
 import { Database, User } from './database';
 
 @rpc.controller('/main')
@@ -26,11 +26,11 @@ new App({
 }).run();
 ```
 
-However, when an `RpcKernel` is manually instantiated, a DI Container can also be passed. The RPC Controller will then be instantiated through this DI Container. This is useful if you want to use `@deepkit/rpc` in a non-Deepkit Framework environment, like Express.js.
+However, when an `RpcKernel` is manually instantiated, a DI Container can also be passed. The RPC Controller will then be instantiated through this DI Container. This is useful if you want to use `@d7/rpc` in a non-Deepkit Framework environment, like Express.js.
 
 ```typescript
-import { RpcKernel, rpc } from '@deepkit/rpc';
-import { InjectorContext } from '@deepkit/injector';
+import { RpcKernel, rpc } from '@d7/rpc';
+import { InjectorContext } from '@d7/injector';
 import { Database, User } from './database';
 
 @rpc.controller('/main')

@@ -20,14 +20,14 @@ Sie bietet:
 Ein Befehl in Deepkit hat vollen Zugriff auf den DI-Container und kann dadurch auf alle Provider und Konfigurationsoptionen zugreifen. Die Argumente und Optionen der CLI-Befehle werden über die
 Parameterdeklaration mittels TypeScript-Typen gesteuert und automatisch serialisiert und validiert.
 
-[Deepkit Framework](./framework.md) mit `@deepkit/framework` erweitert dies um einen Anwendungsserver für HTTP/RPC, einen Debugger/Profiler und vieles mehr.
+[Deepkit Framework](./framework.md) mit `@d7/framework` erweitert dies um einen Anwendungsserver für HTTP/RPC, einen Debugger/Profiler und vieles mehr.
 
 ## Einfache Installation
 
 Am einfachsten ist der Einstieg mit NPM init, um ein neues Deepkit-Projekt zu erstellen.
 
 ```shell
-npm init @deepkit/app@latest my-deepkit-app
+npm init @d7/app@latest my-deepkit-app
 ````
 
 Dadurch wird ein neuer Ordner `my-deepkit-app` mit allen Abhängigkeiten und einer grundlegenden `app.ts`-Datei erstellt.
@@ -47,7 +47,7 @@ Deepkit App basiert auf [Deepkit Runtime Types](./runtime-types.md), daher insta
 mkdir my-project && cd my-project
 
 npm install typescript ts-node 
-npm install @deepkit/app @deepkit/type @deepkit/type-compiler
+npm install @d7/app @d7/type @d7/type-compiler
 ```
 
 Als Nächstes stellen wir sicher, dass Deepkits Type-Compiler in das installierte TypeScript-Paket unter `node_modules/typescript` installiert wird, indem wir den folgenden Befehl ausführen:
@@ -99,8 +99,8 @@ Dies ist erforderlich, um den Dependency-Injection-Container und andere Funktion
 ```
 
 ```typescript title=app.ts
-import { App } from '@deepkit/app';
-import { Logger } from '@deepkit/logger';
+import { App } from '@d7/app';
+import { Logger } from '@d7/logger';
 
 const app = new App();
 

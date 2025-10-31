@@ -53,9 +53,9 @@ import {
     validationAnnotation,
     widenLiteral,
 } from './type.js';
-import { MappedModifier, ReflectionOp } from '@deepkit/type-spec';
+import { MappedModifier, ReflectionOp } from '@d7/type-spec';
 import { isExtendable } from './extends.js';
-import { ClassType, isArray, isClass, isFunction, stringifyValueWithType } from '@deepkit/core';
+import { ClassType, isArray, isClass, isFunction, stringifyValueWithType } from '@d7/core';
 import { isWithDeferredDecorators } from '../decorator.js';
 import { ReflectionClass, TData } from './reflection.js';
 import { state } from './state.js';
@@ -367,7 +367,7 @@ export class Processor {
                     parameters: [], return: { kind: ReflectionKind.any },
                 };
             }
-            throw new Error(`No valid runtime type for ${stringifyValueWithType(object)} given. Is @deepkit/type-compiler correctly installed? Execute deepkit-type-install to check`);
+            throw new Error(`No valid runtime type for ${stringifyValueWithType(object)} given. Is @d7/type-compiler correctly installed? Execute deepkit-type-install to check`);
         }
 
         for (let i = 0; i < inputs.length; i++) {

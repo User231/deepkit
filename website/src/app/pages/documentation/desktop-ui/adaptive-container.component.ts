@@ -1,9 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { ApiDocComponent, CodeFrameComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import { FormsModule } from '@angular/forms';
 import { AppTitle } from '@app/app/components/title.js';
-import { AdaptiveContainerComponent, ButtonComponent, CheckboxComponent, OpenDropdownDirective, RadioButtonComponent, RadioGroupComponent, SplitterComponent } from '@deepkit/desktop-ui';
+import { AdaptiveContainerComponent, ButtonComponent, CheckboxComponent, OpenDropdownDirective, RadioButtonComponent, RadioGroupComponent, SplitterComponent } from '@d7/desktop-ui';
 
 @Component({
     selector: 'app-desktop-ui-button',

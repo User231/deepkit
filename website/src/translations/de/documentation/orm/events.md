@@ -7,7 +7,7 @@ Events werden über `Database.listen` mit einem Event-Token registriert. Kurzleb
 an Sessions registriert werden.
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 database.listen(Query.onFetch, async (event) => {
@@ -27,7 +27,7 @@ Query-Events werden ausgelöst, wenn eine Query über `Database.query()` oder `S
 Jedes Event hat eigene zusätzliche Properties, wie z. B. den Entity-Typ, die Query selbst und die Datenbank-Session. Sie können die Query überschreiben, indem Sie eine neue Query auf `Event.query` setzen.
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 

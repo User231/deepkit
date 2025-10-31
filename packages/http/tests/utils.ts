@@ -1,8 +1,8 @@
-import { ClassType, isArray, isClass, isFunction } from '@deepkit/core';
-import { ProviderWithScope } from '@deepkit/injector';
+import { ClassType, isArray, isClass, isFunction } from '@d7/core';
+import { ProviderWithScope } from '@d7/injector';
 import { HttpKernel } from '../src/kernel.js';
-import { App, AppModule, MiddlewareFactory } from '@deepkit/app';
-import { EventListener } from '@deepkit/event';
+import { App, AppModule, MiddlewareFactory } from '@d7/app';
+import { EventListener } from '@d7/event';
 import { HttpModule } from '../src/module.js';
 import { HttpRouterRegistry } from '../src/router.js';
 import { HttpConfig } from '../src/module.config.js';

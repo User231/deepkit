@@ -28,7 +28,7 @@ Familiarize yourself with the necessary constraints and data types. Properly def
 
 The basic function of the validator is to check a value for its type. For example, whether a value is a string. This is not about what the string contains, but only about its type. There are many types in Typescript: string, number, boolean, bigint, objects, classes, interface, generics, mapped types, and many more. Due to Typescript’s powerful type system, a large variety of different types are available.
 
-In JavaScript itself, primitive types can be parsed with the `typeof` operator. For more complex types like interfaces, mapped types, or generic set/map this is not so easy anymore and a validator library like `@deepkit/type` becomes necessary. Deepkit is the only solution that allows to validate all TypesScript types directly without any workarounds.
+In JavaScript itself, primitive types can be parsed with the `typeof` operator. For more complex types like interfaces, mapped types, or generic set/map this is not so easy anymore and a validator library like `@d7/type` becomes necessary. Deepkit is the only solution that allows to validate all TypesScript types directly without any workarounds.
 
 
 
@@ -39,7 +39,7 @@ The function `validate` returns an array of found errors and on success an empty
 All three functions are used in roughly the same way. The type is specified or referenced as the first type argument and the data is passed as the first function argument.
 
 ```typescript
-import { validate, is, assert } from '@deepkit/type';
+import { validate, is, assert } from '@d7/type';
 
 const errors = validate<string>('abc'); //[]
 const errors = validate<string>(123); //[{code: 'type', message: 'Not a string'}]
@@ -58,7 +58,7 @@ function doSomething(value: any) {
 If you work with more complex types like classes or interfaces, the array can also contain several entries.
 
 ```typescript
-import { validate } from '@deepkit/type';
+import { validate } from '@d7/type';
 
 interface User {
     id: number;
@@ -79,7 +79,7 @@ validate<User>({});
 The validator also supports deep recursive types. Paths are then separated with a dot.
 
 ```typescript
-import { validate } from '@deepkit/type';
+import { validate } from '@d7/type';
 
 interface User {
     id: number;
@@ -155,7 +155,7 @@ if (isUser(data)) {
 Writing a separate function for each type guard, especially for more complex types, and then adapting it every time a type changes is extremely tedious, error-prone, and not efficient. Therefore, Deepkit provides the function `is`, which automatically provides a Type-Guard for any TypeScript type. This then also automatically takes into account special features such as the above-mentioned problem with NaN. The function `is` does the same as `validate`, but instead of an array of errors it simply returns a boolean.
 
 ```typescript
-import { is } from '@deepkit/type';
+import { is } from '@d7/type';
 
 is<string>('abc'); //true
 is<string>(123); //false
@@ -181,7 +181,7 @@ function addUser(data: any): void {
 Alternatively, a TypeScript type assertion can be used. The `assert` function automatically throws an error if the given data does not validate correctly to a type. The special signature of the function, which distinguishes TypeScript type assertions, helps TypeScript to automatically narrow the passed variable.
 
 ```typescript
-import { assert } from '@deepkit/type';
+import { assert } from '@d7/type';
 
 function addUser(data: any): void {
     assert<User>(data); //throws on invalidate data
@@ -218,7 +218,7 @@ interface ValidationErrorItem {
 The function receives as first type argument any TypeScript type and as first argument the data to validate.
 
 ```typescript
-import { validate } from '@deepkit/type';
+import { validate } from '@d7/type';
 
 validate<string>('Hello'); //[]
 validate<string>(123); //[{code: 'type', message: 'Not a string', path: ''}]
@@ -230,7 +230,7 @@ validate<number>('Hello'); //[{code: 'type', message: 'Not a number', path: ''}]
 Complex types such as interfaces, classes, or generics can also be used.
 
 ```typescript
-import { validate } from '@deepkit/type';
+import { validate } from '@d7/type';
 
 interface User {
     id: number;
@@ -251,7 +251,7 @@ In addition to checking the types, other arbitrary constraints can be added to a
 A restriction can be, for example, that a string must have a certain minimum or maximum length. These restrictions are added to the actual types via [Type Annotations](./types.md). There is a whole variety of annotations that can be used. Own annotations can be defined and used at will in case of extended needs.
 
 ```typescript
-import { MinLength } from '@deepkit/type';
+import { MinLength } from '@d7/type';
 
 type Username = string & MinLength<3>;
 ```
@@ -259,7 +259,7 @@ type Username = string & MinLength<3>;
 With `&` any number of type annotations can be added to the actual type. The result, here `username`, can then be used in all validation functions but also in other types.
 
 ```typescript
-import { is } from '@deepkit/type';
+import { is } from '@d7/type';
 
 is<Username>('ab'); //false, because minimum length is 3
 is<Username>('Joe'); //true
@@ -276,7 +276,7 @@ is<User>({id: 1, username: 'Joe'}); //true
 The function `validate` gives useful error messages coming from the constraints.
 
 ```typescript
-import { validate } from '@deepkit/type';
+import { validate } from '@d7/type';
 
 const errors = validate<Username>('xb');
 //[{ code: 'minLength', message: `Min length is 3` }]
@@ -316,7 +316,7 @@ is<ID>(1001); //true
 Validation using a custom validator function. See next section Custom Validator for more information.
 
 ```typescript
-import { ValidatorError, Validate } from '@deepkit/type';
+import { ValidatorError, Validate } from '@d7/type';
 
 function startsWith(v: string) {
     return (value: any) => {
@@ -333,7 +333,7 @@ type T = string & Validate<typeof startsWith, 'abc'>;
 Defines a regular expression as validation pattern. Usually used for E-Mail validation or more complex content validation.
 
 ```typescript
-import { Pattern } from '@deepkit/type';
+import { Pattern } from '@d7/type';
 
 const myRegExp = /[a-zA-Z]+/;
 type T = string & Pattern<typeof myRegExp>
@@ -344,7 +344,7 @@ type T = string & Pattern<typeof myRegExp>
 Validation for alpha characters (a-Z).
 
 ```typescript
-import { Alpha } from '@deepkit/type';
+import { Alpha } from '@d7/type';
 
 type T = string & Alpha;
 ```
@@ -355,7 +355,7 @@ type T = string & Alpha;
 Validation for alpha and numeric characters.
 
 ```typescript
-import { Alphanumeric } from '@deepkit/type';
+import { Alphanumeric } from '@d7/type';
 
 type T = string & Alphanumeric;
 ```
@@ -366,7 +366,7 @@ type T = string & Alphanumeric;
 Validation for ASCII characters.
 
 ```typescript
-import { Ascii } from '@deepkit/type';
+import { Ascii } from '@d7/type';
 
 type T = string & Ascii;
 ```
@@ -377,7 +377,7 @@ type T = string & Ascii;
 Validation for string represents a decimal number, such as 0.1, .3, 1.1, 1.00003, 4.0, etc.
 
 ```typescript
-import { Decimal } from '@deepkit/type';
+import { Decimal } from '@d7/type';
 
 type T = string & Decimal<1, 2>;
 ```
@@ -388,7 +388,7 @@ type T = string & Decimal<1, 2>;
 Validation of numbers that are a multiple of given number.
 
 ```typescript
-import { MultipleOf } from '@deepkit/type';
+import { MultipleOf } from '@d7/type';
 
 type T = number & MultipleOf<3>;
 ```
@@ -399,7 +399,7 @@ type T = number & MultipleOf<3>;
 Validation for min/max length for arrays or strings.
 
 ```typescript
-import { MinLength, MaxLength, MinMax } from '@deepkit/type';
+import { MinLength, MaxLength, MinMax } from '@d7/type';
 
 type T = any[] & MinLength<1>;
 
@@ -413,7 +413,7 @@ type T = string & MinMax<3, 16>;
 Validation for an array item or sub string being included/excluded
 
 ```typescript
-import { Includes, Excludes } from '@deepkit/type';
+import { Includes, Excludes } from '@d7/type';
 
 type T = any[] & Includes<'abc'>;
 type T = string & Excludes<' '>;
@@ -424,7 +424,7 @@ type T = string & Excludes<' '>;
 Validation for a value being minimum or maximum given number. Same as `>=` and `<=`.
 
 ```typescript
-import { Minimum, Maximum, MinMax } from '@deepkit/type';
+import { Minimum, Maximum, MinMax } from '@d7/type';
 
 type T = number & Minimum<10>;
 type T = number & Minimum<10> & Maximum<1000>;
@@ -437,7 +437,7 @@ type T = number & MinMax<10, 1000>;
 Same as minimum/maximum but excludes the value itself. Same as `>` and `<`.
 
 ```typescript
-import { ExclusiveMinimum, ExclusiveMaximum } from '@deepkit/type';
+import { ExclusiveMinimum, ExclusiveMaximum } from '@d7/type';
 
 type T = number & ExclusiveMinimum<10>;
 type T = number & ExclusiveMinimum<10> & ExclusiveMaximum<1000>;
@@ -449,7 +449,7 @@ type T = number & ExclusiveMinimum<10> & ExclusiveMaximum<1000>;
 Validation for a value being positive or negative.
 
 ```typescript
-import { Positive, Negative } from '@deepkit/type';
+import { Positive, Negative } from '@d7/type';
 
 type T = number & Positive;
 type T = number & Negative;
@@ -461,7 +461,7 @@ type T = number & Negative;
 Validation for a date value compared to now (new Date)..
 
 ```typescript
-import { BeforeNow, AfterNow } from '@deepkit/type';
+import { BeforeNow, AfterNow } from '@d7/type';
 
 type T = Date & BeforeNow;
 type T = Date & AfterNow;
@@ -472,7 +472,7 @@ type T = Date & AfterNow;
 Simple regexp validation of emails via `/^\S+@\S+$/`. Is automatically a `string`, so no need to do `string & Email`.
 
 ```typescript
-import { Email } from '@deepkit/type';
+import { Email } from '@d7/type';
 
 type T = Email;
 ```
@@ -483,7 +483,7 @@ Ensures that the number is an integer in the correct range. Is automatically a `
 
 ```typescript
 import { integer, uint8, uint16, uint32, 
-    int8, int16, int32 } from '@deepkit/type';
+    int8, int16, int32 } from '@d7/type';
 
 type T = integer;
 type T = uint8;
@@ -502,7 +502,7 @@ If the built-in validators are not sufficient, custom validation functions can b
 
 ```typescript
 import { ValidatorError, Validate, Type, validates, validate }
-  from '@deepkit/type';
+  from '@d7/type';
 
 function titleValidation(value: string, type: Type) {
     value = value.trim();
@@ -530,7 +530,7 @@ In the Validator function the type object is available which can be used to get 
 
 ```typescript
 import { ValidatorError, Validate, Type, is, validate }
-  from '@deepkit/type';
+  from '@d7/type';
 
 function startsWith(value: any, type: Type, chars: string) {
     const valid = 'string' === typeof value && value.startsWith(chars);

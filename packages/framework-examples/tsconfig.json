@@ -13,7 +13,7 @@
     "baseUrl": ".",
     "outDir": "./dist",
     "jsx": "react-jsx",
-    "jsxImportSource": "@deepkit/framework",
+    "jsxImportSource": "@d7/framework",
     "types": [],
     "skipLibCheck": true
   },

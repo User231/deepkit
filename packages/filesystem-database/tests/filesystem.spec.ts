@@ -1,7 +1,7 @@
 import { test } from '@jest/globals';
-import { setAdapterFactory } from '@deepkit/filesystem/test';
+import { setAdapterFactory } from '@d7/filesystem/test';
 import { FilesystemDatabaseAdapter } from '../src/database-adapter.js';
-import { Database, MemoryDatabaseAdapter } from '@deepkit/orm';
+import { Database, MemoryDatabaseAdapter } from '@d7/orm';
 
 setAdapterFactory(async () => {
     const database = new Database(new MemoryDatabaseAdapter());

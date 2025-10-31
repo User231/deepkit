@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/bun",
+  "name": "@d7/bun",
   "version": "1.0.19",
-  "description": "Deepkit Bun Plugin for Deepkit Runtime Types support",
+  "description": "D7 Bun Plugin for Deepkit Runtime Types support",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -13,7 +13,7 @@
       "default": "./dist/esm/index.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -24,11 +24,11 @@
     "install": "rm -rf node_modules/typescript || exit 0"
   },
   "peerDependencies": {
-    "@deepkit/type-compiler": "^1.0.1",
+    "@d7/type-compiler": "^1.0.1",
     "typescript": "*"
   },
   "devDependencies": {
-    "@deepkit/type-compiler": "^1.0.19",
+    "@d7/type-compiler": "^1.0.19",
     "bun-types": "^1.2.2"
   },
   "jest": {

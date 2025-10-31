@@ -9,7 +9,7 @@
  */
 
 import { BehaviorSubject, isObservable, Observable, Observer, Subject, Subscriber, Subscription, TeardownLogic } from 'rxjs';
-import { arrayRemoveItem, asyncOperation, createStack, isFunction, mergePromiseStack, mergeStack } from '@deepkit/core';
+import { arrayRemoveItem, asyncOperation, createStack, isFunction, mergePromiseStack, mergeStack } from '@d7/core';
 import { first, skip } from 'rxjs/operators';
 import { ProgressTracker } from './progress.js';
 

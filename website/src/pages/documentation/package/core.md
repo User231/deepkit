@@ -1,7 +1,7 @@
-# API `@deepkit/core`
+# API `@d7/core`
 
 ```shell
-npm install @deepkit/core
+npm install @d7/core
 ```
 
-<api-docs package="@deepkit/core"></api-docs>
+<api-docs package="@d7/core"></api-docs>

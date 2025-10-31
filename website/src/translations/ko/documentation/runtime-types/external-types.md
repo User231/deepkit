@@ -2,13 +2,13 @@
 
 ## 외부 Class
 
-TypeScript는 기본적으로 Type 정보를 포함하지 않으므로, 다른 패키지에서 import된 Type/Class(@deepkit/type-compiler를 사용하지 않은 경우)는 런타임에 사용할 수 있는 Type 정보가 제공되지 않습니다.
+TypeScript는 기본적으로 Type 정보를 포함하지 않으므로, 다른 패키지에서 import된 Type/Class(@d7/type-compiler를 사용하지 않은 경우)는 런타임에 사용할 수 있는 Type 정보가 제공되지 않습니다.
 
 외부 Class에 대한 Type을 annotate하려면 `annotateClass`를 사용하고, import된 Class가 다른 곳에서 사용되기 전에 이 Function이 애플리케이션의 bootstrap 단계에서 실행되도록 하세요.
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 interface AnnotatedClass {
     id: number;
@@ -33,7 +33,7 @@ interface User {
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 class AnnotatedClass<T> {
     id!: T;

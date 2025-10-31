@@ -1,16 +1,16 @@
-# API `@deepkit/sqlite`
+# API `@d7/sqlite`
 
 ```shell
-npm install @deepkit/sqlite
+npm install @d7/sqlite
 ```
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import { Database } from '@deepkit/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
+import { Database } from '@d7/orm';
 
 const adapter = new SQLiteDatabaseAdapter(':memory');
 
 const database = new Database(adapter);
 ```
 
-<api-docs package="@deepkit/sqlite"></api-docs>
+<api-docs package="@d7/sqlite"></api-docs>

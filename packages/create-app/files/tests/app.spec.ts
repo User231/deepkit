@@ -1,7 +1,7 @@
 import { test, expect } from '@jest/globals';
 import { Service } from '../src/app/service';
-import { Logger, MemoryLoggerTransport } from '@deepkit/logger';
-import { createTestingApp } from '@deepkit/framework';
+import { Logger, MemoryLoggerTransport } from '@d7/logger';
+import { createTestingApp } from '@d7/framework';
 
 test('first test', () => {
     expect(1 + 1).toBe(2);

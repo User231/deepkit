@@ -1,9 +1,9 @@
 import { Page } from '@app/common/models';
 
 import frontMatterParser from 'gray-matter';
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 import type { Client } from 'discord.js';
-import { asyncOperation } from '@deepkit/core';
+import { asyncOperation } from '@d7/core';
 
 function renderText(node: any): any {
     if (typeof node === 'string') return node;

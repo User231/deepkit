@@ -1,4 +1,4 @@
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { RpcWebSocketClient } from '@d7/rpc';
 import type { Controller } from './server';
 
 async function main() {

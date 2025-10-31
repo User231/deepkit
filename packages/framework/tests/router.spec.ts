@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { http, HttpKernel, HttpRegExp, HttpRequest, JSONResponse, RouteParameterResolverContext } from '@deepkit/http';
+import { http, HttpKernel, HttpRegExp, HttpRequest, JSONResponse, RouteParameterResolverContext } from '@d7/http';
 import { FrameworkModule } from '../src/module.js';
 import { createTestingApp } from '../src/testing.js';
 

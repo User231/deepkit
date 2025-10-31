@@ -4,17 +4,17 @@ Deepkit Filesystem ist eine Filesystem-Abstraktion für lokale und entfernte Fil
 
 Unterstützte Filesystems standardmäßig:
 
-- Lokales Filesystem (im Paket `@deepkit/filesystem`)
-- Memory (im Paket `@deepkit/filesystem`)
-- FTP (im Paket `@deepkit/filesystem-ftp`)
-- SFTP (im Paket `@deepkit/filesystem-sftp`)
-- AWS S3 (im Paket `@deepkit/filesystem-aws-s3`)
-- Google Cloud Filesystem (im Paket `@deepkit/filesystem-google`)
+- Lokales Filesystem (im Paket `@d7/filesystem`)
+- Memory (im Paket `@d7/filesystem`)
+- FTP (im Paket `@d7/filesystem-ftp`)
+- SFTP (im Paket `@d7/filesystem-sftp`)
+- AWS S3 (im Paket `@d7/filesystem-aws-s3`)
+- Google Cloud Filesystem (im Paket `@d7/filesystem-google`)
 
 ## Installation
 
 ```bash
-npm install @deepkit/filesystem
+npm install @d7/filesystem
 ```
 
 Hinweis: Wenn du NPM nicht verwendest, stelle sicher, dass Peer-Abhängigkeiten korrekt installiert sind.
@@ -22,7 +22,7 @@ Hinweis: Wenn du NPM nicht verwendest, stelle sicher, dass Peer-Abhängigkeiten 
 ## Verwendung
 
 ```typescript
-import { Filesystem, FilesystemLocalAdapter } from '@deepkit/filesystem';
+import { Filesystem, FilesystemLocalAdapter } from '@d7/filesystem';
 
 const adapter = new FilesystemLocalAdapter('/path/to/my/files');
 const filesystem = new Filesystem(adapter);

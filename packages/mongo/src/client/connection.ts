@@ -8,22 +8,22 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { arrayRemoveItem, asyncOperation, formatError } from '@deepkit/core';
+import { arrayRemoveItem, asyncOperation, formatError } from '@d7/core';
 import { Host } from './host.js';
 import { createConnection, Socket } from 'net';
 import { connect as createTLSConnection, TLSSocket } from 'tls';
 import { Command, TransactionalMessage } from './command/command.js';
-import { stringifyType, Type, uuid } from '@deepkit/type';
-import { BSONBinarySerializer, BsonStreamReader, getBSONSerializer, getBSONSizer, Writer } from '@deepkit/bson';
+import { stringifyType, Type, uuid } from '@d7/type';
+import { BSONBinarySerializer, BsonStreamReader, getBSONSerializer, getBSONSizer, Writer } from '@d7/bson';
 import { HandshakeCommand } from './command/handshake.js';
 import { detectTopology, MongoClientConfig, updateKnownHosts, updateStaleness } from './config.js';
 import { MongoConnectionError, MongoError } from './error.js';
-import { DatabaseTransaction } from '@deepkit/orm';
+import { DatabaseTransaction } from '@d7/orm';
 import { CommitTransactionCommand } from './command/commitTransaction.js';
 import { AbortTransactionCommand } from './command/abortTransaction.js';
-import { DataEvent, EventDispatcher, EventTokenSync } from '@deepkit/event';
+import { DataEvent, EventDispatcher, EventTokenSync } from '@d7/event';
 import { IsMasterCommand } from './command/ismaster.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 import { CommandOptions, ConnectionOptions } from './options.js';
 
 export enum MongoConnectionStatus {

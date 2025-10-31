@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BSONBinarySerializer, ValueWithBSONSerializer } from '@deepkit/bson';
+import { BSONBinarySerializer, ValueWithBSONSerializer } from '@d7/bson';
 import {
     ContainerAccessor,
     EmptySerializer,
@@ -21,7 +21,7 @@ import {
     ReflectionKind,
     TemplateState,
     Type
-} from '@deepkit/type';
+} from '@d7/type';
 
 /**
  * Serializer class from BSONBinarySerializer with a few adjustments to make sure
@@ -141,7 +141,7 @@ export const mongoSerializer = new MongoAnySerializer();
 //     }
 // });
 //
-// //this is necessary since we use in FindCommand `filter: t.any`, so uuid and objectId need to be a wrapper type so that @deepkit/bson serializes correctly
+// //this is necessary since we use in FindCommand `filter: t.any`, so uuid and objectId need to be a wrapper type so that @d7/bson serializes correctly
 // mongoSerializer.fromClass.register('uuid', (property: PropertySchema, state: CompilerState) => {
 //     state.setContext({ UUID });
 //     state.addSetter(`new UUID(${state.accessor})`);

@@ -6,7 +6,7 @@ Type 정보 자체를 직접 다루기 위해서는 두 가지 기본 방식이 
 `typeOf` Function은 Interface, object literal, class, function, type alias를 포함한 모든 타입에서 작동합니다. 이 Function은 타입에 대한 모든 정보를 담고 있는 type object를 반환합니다. generics를 포함해 어떤 타입이든 type argument로 전달할 수 있습니다.
 
 ```typescript
-import { typeOf } from '@deepkit/type';
+import { typeOf } from '@d7/type';
 
 typeOf<string>(); //{kind: 5}
 typeOf<number>(); //{kind: 6}
@@ -24,7 +24,7 @@ function test(id: number): string {}
 typeOf<typeof test>(); //{kind: 12, parameters: [...], return: {kind: 5}}
 ```
 
-type object는 해당 type object의 타입을 나타내는 `kind` Property를 포함하는 단순한 object literal입니다. `kind` Property는 숫자이며 `ReflectionKind` enum에서 그 의미를 얻습니다. `ReflectionKind`는 `@deepkit/type` 패키지에 다음과 같이 정의되어 있습니다:
+type object는 해당 type object의 타입을 나타내는 `kind` Property를 포함하는 단순한 object literal입니다. `kind` Property는 숫자이며 `ReflectionKind` enum에서 그 의미를 얻습니다. `ReflectionKind`는 `@d7/type` 패키지에 다음과 같이 정의되어 있습니다:
 
 ```typescript
 enum ReflectionKind {
@@ -179,9 +179,9 @@ typeOf<User>();
 ```
 
 Reflection.propertySignature의 타입이 Reflection.property로, Reflection.methodSignature가 Reflection.method로 변경되었음을 주의하세요. class의 Property와 Method에는 추가 속성들이 있으므로 이 정보도 조회할 수 있습니다. 후자에는 `visibility`, `abstract`, `default`가 추가로 포함됩니다.
-class의 type object에는 super-class의 Property와 Method가 아니라 해당 class 자신만의 Property와 Method만 포함됩니다. 이는 Interface/object literal의 type object가 모든 부모의 property signature와 method signature를 `types`에 해석해 포함하는 것과는 반대입니다. super-class의 Property와 Method를 해석하려면 ReflectionClass와 그 `ReflectionClass.getProperties()`(다음 섹션 참조) 또는 `@deepkit/type`의 `resolveTypeMembers()`를 사용할 수 있습니다.
+class의 type object에는 super-class의 Property와 Method가 아니라 해당 class 자신만의 Property와 Method만 포함됩니다. 이는 Interface/object literal의 type object가 모든 부모의 property signature와 method signature를 `types`에 해석해 포함하는 것과는 반대입니다. super-class의 Property와 Method를 해석하려면 ReflectionClass와 그 `ReflectionClass.getProperties()`(다음 섹션 참조) 또는 `@d7/type`의 `resolveTypeMembers()`를 사용할 수 있습니다.
 
-type object는 정말 다양합니다. 예를 들어 literal, template literal, promise, enum, union, array, tuple 등 많은 것들이 있습니다. 어떤 것이 존재하며 어떤 정보가 제공되는지 알아보려면 `@deepkit/type`에서 `Type`을 import하는 것을 권장합니다. 이것은 TypeAny, TypeUnknonwn, TypeVoid, TypeString, TypeNumber, TypeObjectLiteral, TypeArray, TypeClass 등 모든 가능한 subtype을 포함한 `union`입니다. 거기에서 정확한 구조를 확인할 수 있습니다.
+type object는 정말 다양합니다. 예를 들어 literal, template literal, promise, enum, union, array, tuple 등 많은 것들이 있습니다. 어떤 것이 존재하며 어떤 정보가 제공되는지 알아보려면 `@d7/type`에서 `Type`을 import하는 것을 권장합니다. 이것은 TypeAny, TypeUnknonwn, TypeVoid, TypeString, TypeNumber, TypeObjectLiteral, TypeArray, TypeClass 등 모든 가능한 subtype을 포함한 `union`입니다. 거기에서 정확한 구조를 확인할 수 있습니다.
 
 ## Type 캐시
 
@@ -245,7 +245,7 @@ typeOf<ID>();
 `typeOf<>()` Function 외에도 Type objects에 대한 OOP 대안을 제공하는 다양한 reflection classes가 있습니다. 이 reflection classes는 class, Interface/object literal, function 및 그들의 직접적인 하위 타입들(Properties, Methods, Parameters)에 대해서만 사용할 수 있습니다. 더 깊은 타입은 다시 Type objects로 읽어야 합니다.
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 interface User {
     id: number;
@@ -281,7 +281,7 @@ function validate<T>(data: any, type?: ReceiveType<T>): void;
 첫 번째 type argument `T`에 대한 reference를 가진 `ReceiveType`은 type compiler에게 각 `validate` 호출 시 해당 타입을 두 번째 위치에 넣어야 함을 신호합니다(왜냐하면 `type`이 두 번째로 선언되어 있기 때문입니다). 그런 다음 런타임에 정보를 읽어내기 위해 `resolveReceiveType` Function을 사용합니다.
 
 ```typescript
-import { resolveReceiveType, ReceiveType } from '@deepkit/type';
+import { resolveReceiveType, ReceiveType } from '@d7/type';
 
 function validate<T>(data: any, type?: ReceiveType<T>): void {
     type = resolveReceiveType(type);

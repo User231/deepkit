@@ -1,5 +1,5 @@
-import { ControllerSymbol } from '@deepkit/rpc';
-import { AutoIncrement, entity, Index, PrimaryKey } from '@deepkit/type';
+import { ControllerSymbol } from '@d7/rpc';
+import { AutoIncrement, entity, Index, PrimaryKey } from '@d7/type';
 
 @entity.name('benchmarkEntry')
 export class BenchmarkEntry {

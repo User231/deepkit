@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { adapterFactory, setAdapterFactory } from '@deepkit/filesystem/test';
+import { adapterFactory, setAdapterFactory } from '@d7/filesystem/test';
 import { FilesystemAwsS3Adapter } from '../src/s3-adapter.js';
 import { DeleteObjectsCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
-import { Filesystem } from '@deepkit/filesystem';
+import { Filesystem } from '@d7/filesystem';
 
 setAdapterFactory(async () => {
     const folder = 'test-folder-dont-delete';

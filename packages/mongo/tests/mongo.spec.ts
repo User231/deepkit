@@ -15,12 +15,12 @@ import {
     Unique,
     UUID,
     uuid,
-} from '@deepkit/type';
-import { Database, getInstanceStateFromItem, UniqueConstraintFailure } from '@deepkit/orm';
+} from '@d7/type';
+import { Database, getInstanceStateFromItem, UniqueConstraintFailure } from '@d7/orm';
 import { SimpleModel, SuperSimple } from './entities.js';
 import { createDatabase } from './utils.js';
 import { MongoDatabaseAdapter } from '../src/adapter.js';
-import { MemoryLogger } from '@deepkit/logger';
+import { MemoryLogger } from '@d7/logger';
 
 Error.stackTraceLimit = 100;
 jest.setTimeout(10000);

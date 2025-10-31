@@ -1,8 +1,8 @@
-# API `@deepkit/http`
+# API `@d7/http`
 
 ```shell
-npm install @deepkit/http
+npm install @d7/http
 ```
 
 
-<api-docs package="@deepkit/http"></api-docs>
+<api-docs package="@d7/http"></api-docs>

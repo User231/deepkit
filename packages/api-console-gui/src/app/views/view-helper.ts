@@ -1,4 +1,4 @@
-import { ApiAction, ApiRoute } from '@deepkit/api-console-api';
+import { ApiAction, ApiRoute } from '@d7/api-console-api';
 
 
 export function filterAndSortActions(actions: ApiAction[], options: {filterPath: string, groupBy: string, filterCategory: string, filterGroup: string}) {

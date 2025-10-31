@@ -9,7 +9,7 @@ Deepkit Broker Key-Value Class는 broker server와 동작하는 간단한 key/va
 ## 사용법
 
 ```typescript
-import { BrokerKeyValue } from '@deepkit/broker';
+import { BrokerKeyValue } from '@d7/broker';
 
 const keyValue = new BrokerKeyValue(adapter, {
   ttl: '60s', // 각 key의 time-to-live. 0은 ttl 없음(기본값).
@@ -62,8 +62,8 @@ await activeUsers.remove();
 자세한 내용은 Getting Started 페이지를 참조하세요.
 
 ```typescript
-import { BrokerKeyValue, BrokerKeyValueItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerKeyValue, BrokerKeyValueItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // 이 Type을 공유 파일로 이동하세요
 type MyKeyValueItem = BrokerKeyValueItem<User[]>;

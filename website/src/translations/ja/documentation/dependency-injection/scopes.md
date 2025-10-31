@@ -7,7 +7,7 @@
 HTTP リクエストはスコープの典型的な例です。たとえば、セッション、ユーザーオブジェクト、その他のリクエスト関連のプロバイダーなどをこのスコープに登録できます。スコープを作成するには、任意のスコープ名を選び、プロバイダーにそのスコープを指定します。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class UserSession {}
 

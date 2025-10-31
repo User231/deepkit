@@ -5,7 +5,7 @@
 事件通过 `Database.listen` 在某个事件令牌上注册。也可以在会话上注册短生命周期的事件监听器。
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 database.listen(Query.onFetch, async (event) => {
@@ -25,7 +25,7 @@ session.eventDispatcher.listen(Query.onFetch, async (event) => {
 每个事件都有其附加属性，例如实体类型、查询本身以及数据库会话。你可以通过给 `Event.query` 赋予新的查询来覆盖原始查询。
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 

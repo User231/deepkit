@@ -1,7 +1,7 @@
-# API `@deepkit/rpc`
+# API `@d7/rpc`
 
 ```shell
-npm install @deepkit/rpc
+npm install @d7/rpc
 ```
 
-<api-docs package="@deepkit/rpc"></api-docs>
+<api-docs package="@d7/rpc"></api-docs>

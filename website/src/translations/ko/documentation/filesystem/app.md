@@ -3,8 +3,8 @@
 Deepkit Storage는 단독으로도 동작하지만, 보통은 Dependency Injection을 사용하여 Deepkit App에서 이를 사용하고자 할 것입니다.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 const app = new App({
     providers: [
@@ -30,8 +30,8 @@ app.run();
 여러 Filesystem을 동시에 사용할 수 있습니다. 이를 위해 `provideNamedFilesystem('name', ...)`로 등록하고, `NamedFilesystem<'name'>`로 Filesystem 인스턴스를 주입받습니다.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@d7/filesystem';
 
 type PrivateFilesystem = NamedFilesystem<'private'>;
 type PublicFilesystem = NamedFilesystem<'public'>;
@@ -62,8 +62,8 @@ app.run();
 이를 위해 [Configuration Injection](../app/configuration.md)을 사용할 수 있습니다.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 class MyConfig {
     fsRoot: string = '/tmp';

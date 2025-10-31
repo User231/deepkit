@@ -4,14 +4,14 @@ Deepkit Message Bus is a message bus system (Pub/Sub, distributed event system) 
 
 It can be used in microservices, monoliths, or any other kind of application. Perfectly suited for event-driven architectures.  
 
-It is different to the Deepkit Event system, which is used for in-process events. The Broker Bus is used for events that need to be sent to other processes or servers. Broker Bus is also perfectly suited when you want to communicate between several workers that were automatically started by FrameworkModule, e.g. `new FrameworkModule({workers: 4})`.
+It is different to the D7 Event system, which is used for in-process events. The Broker Bus is used for events that need to be sent to other processes or servers. Broker Bus is also perfectly suited when you want to communicate between several workers that were automatically started by FrameworkModule, e.g. `new FrameworkModule({workers: 4})`.
 
 The system is designed to be type-safe and automatically serializes and deserializes messages (using BSON). If you add [validation](../runtime-types/validation.md) to your message types, it will also validate the messages before sending and after receiving them. This ensures that the messages are always in the correct format and contain the expected data.
 
 ## Usage
 
 ```typescript
-import { BrokerBus } from '@deepkit/broker';
+import { BrokerBus } from '@d7/broker';
 
 const bus = new BrokerBus(adapter);
 
@@ -49,8 +49,8 @@ Override BrokerBus' `BusBrokerErrorHandler` to handle failures in publishing or 
 This approach nicely decouples your business code with the broker server and allows you to use the same code in a test environment without a broker server.
 
 ```typescript
-import { BrokerBus, BrokerBusChannel, provideBusSubject } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerBus, BrokerBusChannel, provideBusSubject } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 import { Subject } from 'rxjs';
 
 // move this type to a shared file
@@ -102,8 +102,8 @@ const app = new App({
 If you need confirmation of the message being sent and want to handle errors in each case, you can use the `BrokerBusChannel` type. It's `subscribe` and `publish` methods return a promise.
 
 ```typescript
-import { BrokerBus, BrokerBusChannel, provideBusChannel } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerBus, BrokerBusChannel, provideBusChannel } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // move this type to a shared file
 type MyChannel = BrokerBusChannel<{

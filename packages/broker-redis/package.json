@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/broker-redis",
+  "name": "@d7/broker-redis",
   "version": "1.0.19",
-  "description": "Deepkit Broker Redis adapter",
+  "description": "D7 Broker Redis adapter",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -13,7 +13,7 @@
       "default": "./dist/esm/index.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -23,11 +23,11 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "dependencies": {
-    "@deepkit/broker": "^1.0.19",
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@d7/broker": "^1.0.19",
+    "@d7/bson": "^1.0.19",
+    "@d7/core": "^1.0.19",
+    "@d7/logger": "^1.0.19",
+    "@d7/type": "^1.0.19",
     "ioredis": "^5.6.1"
   },
   "jest": {

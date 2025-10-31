@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { AutoIncrement, deserialize, PrimaryKey, serialize } from '@deepkit/type';
+import { AutoIncrement, deserialize, PrimaryKey, serialize } from '@d7/type';
 import { sqlSerializer } from '../src/serializer/sql-serializer.js';
 
 test('array', () => {

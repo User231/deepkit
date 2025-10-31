@@ -79,8 +79,8 @@ test('hello world', () => {
 依存性注入の章で学んだとおり、依存性注入コンテナは Deepkit の中核です。ここで全てのサービスが構築・実行されます。アプリケーションでは、サービス（プロバイダー）、コントローラー、リスナー、インポートを定義します。統合テストでは、テストケースで全てのサービスを利用可能にする必要は必ずしもなく、通常は重要な箇所をテストできる簡素化したアプリケーションのバージョンを用意したくなります。
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
-import { http, HttpRequest } from '@deepkit/http';
+import { createTestingApp } from '@d7/framework';
+import { http, HttpRequest } from '@d7/http';
 
 test('http controller', async () => {
     class MyController {
@@ -102,7 +102,7 @@ test('http controller', async () => {
 ```
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 
 test('service', async () => {
     class MyService {
@@ -157,7 +157,7 @@ new App({
 そして、アプリケーションサーバー全体を起動せずにテストします。
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 import { AppCoreModule, MyService } from './app-core.ts';
 
 test('service simple', async () => {

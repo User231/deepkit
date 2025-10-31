@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import { ApiDocComponent, CodeFrameComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
-import { ButtonComponent, DynamicOptionDirective, OptionDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, DynamicOptionDirective, OptionDirective, SelectBoxComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { AppTitle } from '@app/app/components/title.js';
 

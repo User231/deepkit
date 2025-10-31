@@ -7,7 +7,7 @@ Deepkit ORM で継承を実装する方法はいくつかあります。
 その一つはクラス継承を用いる方法で、`extends` を使ったシンプルなクラスを利用します。
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 class BaseModel {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -56,7 +56,7 @@ CREATE TABLE customer (
 単一テーブル継承は、複数のエンティティを1つのテーブルに格納する方法です。各モデルごとに別々のテーブルを持つ代わりに、単一のテーブルを使用し、各レコードの種類を判別するために追加の列（しばしば type などと名付けられます）を利用します。これは、同じプロパティを共有するエンティティが多い場合に有用です。
 
 ```typescript
-import { PrimaryKey, AutoIncrement, entity } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, entity } from '@d7/type';
 
 @entity.collection('persons')
 abstract class Person {

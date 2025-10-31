@@ -1,13 +1,13 @@
-import { http, HttpQuery, HttpResponse } from '@deepkit/http';
+import { http, HttpQuery, HttpResponse } from '@d7/http';
 import { FilesystemRegistry } from '../filesystem.js';
-import { Filesystem } from '@deepkit/filesystem';
+import { Filesystem } from '@d7/filesystem';
 import mime from 'mime-types';
 import { Jimp } from 'jimp';
 
 //@ts-ignore
 import * as imageSize from 'probe-image-size';
-import { Logger } from '@deepkit/logger';
-import { formatError } from '@deepkit/core';
+import { Logger } from '@d7/logger';
+import { formatError } from '@d7/core';
 
 function send(response: HttpResponse, data: Uint8Array, name: string, mimeType?: string, lastModified?: Date) {
     response.setHeader('Cache-Control', 'max-age=31536000');

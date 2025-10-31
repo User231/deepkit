@@ -2,12 +2,12 @@
 
 Der lokale Dateisystem-Adapter ist eine der am häufigsten verwendeten Optionen und bietet Zugriff auf das Dateisystem, auf dem die Anwendung läuft.
 
-Er ist Teil von `@deepkit/filesystem` und verwendet die `fs/promises`-API von Node unter der Haube, sodass keine zusätzliche Installation erforderlich ist.
+Er ist Teil von `@d7/filesystem` und verwendet die `fs/promises`-API von Node unter der Haube, sodass keine zusätzliche Installation erforderlich ist.
 
 ## Verwendung
 
 ```typescript
-import { FilesystemLocalAdapter, Filesystem } from '@deepkit/filesystem';
+import { FilesystemLocalAdapter, Filesystem } from '@d7/filesystem';
 
 const adapter = new FilesystemLocalAdapter({ root: '/path/to/files' });
 const filesystem = new Filesystem(adapter);

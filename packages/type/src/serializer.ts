@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, CompilerContext, CustomError, getObjectKeysSize, hasProperty, isArray, isFunction, isInteger, isIterable, isNumeric, isObject, isObjectLiteral, iterableSize, stringifyValueWithType, toFastProperties } from '@deepkit/core';
+import { ClassType, CompilerContext, CustomError, getObjectKeysSize, hasProperty, isArray, isFunction, isInteger, isIterable, isNumeric, isObject, isObjectLiteral, iterableSize, stringifyValueWithType, toFastProperties } from '@d7/core';
 import {
     AnnotationDefinition,
     assertType,
@@ -57,7 +57,7 @@ import {
     TypeUnion,
     validationAnnotation,
 } from './reflection/type.js';
-import { TypeNumberBrand } from '@deepkit/type-spec';
+import { TypeNumberBrand } from '@d7/type-spec';
 import { hasCircularReference, ReflectionClass, ReflectionProperty } from './reflection/reflection.js';
 import { extendTemplateLiteral, isExtendable } from './reflection/extends.js';
 import { resolveRuntimeType } from './reflection/processor.js';

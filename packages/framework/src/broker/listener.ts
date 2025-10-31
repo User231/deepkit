@@ -8,13 +8,13 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { eventDispatcher } from '@deepkit/event';
+import { eventDispatcher } from '@d7/event';
 import { onServerMainBootstrap, onServerMainShutdown } from '../application-server.js';
 import { BrokerServer } from './broker.js';
-import { LoggerInterface } from '@deepkit/logger';
+import { LoggerInterface } from '@d7/logger';
 import { BrokerConfig } from '../module.config.js';
-import { BrokerDeepkitAdapter } from '@deepkit/broker';
-import { StopwatchStore } from '@deepkit/stopwatch';
+import { BrokerDeepkitAdapter } from '@d7/broker';
+import { StopwatchStore } from '@d7/stopwatch';
 
 export class BrokerListener {
     constructor(

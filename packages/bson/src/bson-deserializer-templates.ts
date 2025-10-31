@@ -37,7 +37,7 @@ import {
     TypeTuple,
     TypeUnion,
     uuidAnnotation,
-} from '@deepkit/type';
+} from '@d7/type';
 import { seekElementSize } from './continuation.js';
 import { BSONType, digitByteSize, isSerializable } from './utils.js';
 import { BaseParser } from './bson-parser.js';

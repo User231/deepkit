@@ -3,7 +3,7 @@ import { TransportClientConnection } from '../transport.js';
 import { RpcMessageDefinition } from '../protocol.js';
 import { RpcError, RpcTypes } from '../model.js';
 import { HttpRpcMessage } from '../server/http.js';
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 declare const location: { protocol: string, host: string, origin: string };
 

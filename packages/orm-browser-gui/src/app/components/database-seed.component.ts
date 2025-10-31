@@ -1,11 +1,11 @@
 import { ChangeDetectorRef, Component, Input, OnChanges } from '@angular/core';
-import { DatabaseInfo, EntityPropertySeed, FakerTypes, SeedDatabase } from '@deepkit/orm-browser-api';
+import { DatabaseInfo, EntityPropertySeed, FakerTypes, SeedDatabase } from '@d7/orm-browser-api';
 import { trackBySchema } from '../utils';
 import { ControllerClient } from '../client';
 import { BrowserState } from '../browser-state';
-import { ButtonComponent, CheckboxComponent, DuiDialog, InputComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, CheckboxComponent, DuiDialog, InputComponent } from '@d7/desktop-ui';
 import { FakerTypeDialogComponent } from './dialog/faker-type-dialog.component';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 import { FormsModule } from '@angular/forms';
 import { DatabaseSeedPropertiesComponent } from './database-seed-properties.component';
 

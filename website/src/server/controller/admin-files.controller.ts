@@ -1,8 +1,8 @@
-import { rpc } from '@deepkit/rpc';
-import type { FilesystemApi, FilesystemApiFile } from '@deepkit/desktop-ui';
-import { Filesystem, FilesystemFile } from '@deepkit/filesystem';
+import { rpc } from '@d7/rpc';
+import type { FilesystemApi, FilesystemApiFile } from '@d7/desktop-ui';
+import { Filesystem, FilesystemFile } from '@d7/filesystem';
 import mime from 'mime-types';
-import { pathDirectory, pathJoin } from '@deepkit/core';
+import { pathDirectory, pathJoin } from '@d7/core';
 import { Jimp } from 'jimp';
 
 function mapFile(file: FilesystemFile): FilesystemApiFile {

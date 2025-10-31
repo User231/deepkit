@@ -1,7 +1,7 @@
-import { FilesystemAdapter, FilesystemFile, FileVisibility, Reporter, resolveFilesystemPath } from '@deepkit/filesystem';
-import { pathDirectory, pathNormalize } from '@deepkit/core';
+import { FilesystemAdapter, FilesystemFile, FileVisibility, Reporter, resolveFilesystemPath } from '@d7/filesystem';
+import { pathDirectory, pathNormalize } from '@d7/core';
 import { Bucket, File, Storage, StorageOptions } from '@google-cloud/storage';
-import { fixAsyncOperation } from '@deepkit/core';
+import { fixAsyncOperation } from '@d7/core';
 
 export interface FilesystemGoogleOptions extends StorageOptions {
     bucket: string;

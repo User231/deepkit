@@ -2,13 +2,13 @@
 
 ## External Classes
 
-Since TypeScript does not include type information per default, imported types/classes from other packages (that did not use @deepkit/type-compiler) will not have type information available.
+Since TypeScript does not include type information per default, imported types/classes from other packages (that did not use @d7/type-compiler) will not have type information available.
 
 To annotate types for an external class, use `annotateClass` and make sure this function is executed in the bootstrap phase of your application before the imported class is used somewhere else.
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 interface AnnotatedClass {
     id: number;
@@ -33,7 +33,7 @@ To following shows how to annotate generic classes:
 
 ```typescript
 import { MyExternalClass } from 'external-package';
-import { annotateClass } from '@deepkit/type';
+import { annotateClass } from '@d7/type';
 
 class AnnotatedClass<T> {
     id!: T;

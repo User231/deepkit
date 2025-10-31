@@ -2,13 +2,13 @@
 
 Since CLI programs in Deepkit are based on Runtime Types, it is necessary to have Runtime Types already installed correctly. See [Runtime Type Installation](../runtime-types/getting-started.md).
 
-If this is done successfully, `@deepkit/app` can be installed or the Deepkit framework which already uses the library under the hood.
+If this is done successfully, `@d7/app` can be installed or the D7 framework which already uses the library under the hood.
 
 ```sh
-npm install @deepkit/app
+npm install @d7/app
 ```
 
-Note that @deepkit/app is partially based on TypeScript decorators and this feature should be enabled accordingly with `experimentalDecorators`.
+Note that @d7/app is partially based on TypeScript decorators and this feature should be enabled accordingly with `experimentalDecorators`.
 If you use functions as controllers only, you do not need TypeScript decorators.
 
 _File: tsconfig.json_
@@ -35,7 +35,7 @@ This is a simple class that has an `execute` method and or a simple function.
 Functional controller:
 
 ```typescript
-import { App, cli, Flag } from '@deepkit/app';
+import { App, cli, Flag } from '@d7/app';
 
 //functional controller
 new App({
@@ -52,7 +52,7 @@ Class controllers:
 
 ```typescript
 #!/usr/bin/env ts-node-script
-import { App, cli, Flag } from '@deepkit/app';
+import { App, cli, Flag } from '@d7/app';
 
 //class controller
 @cli.controller('test', {

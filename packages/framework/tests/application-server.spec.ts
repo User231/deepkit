@@ -1,14 +1,14 @@
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 import { afterEach, describe, expect, it, jest, test } from '@jest/globals';
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 import { createTestingApp } from '../src/testing.js';
 import { ApplicationServer } from '../src/application-server.js';
-import { ConsoleTransport, Logger, MemoryLoggerTransport } from '@deepkit/logger';
+import { ConsoleTransport, Logger, MemoryLoggerTransport } from '@d7/logger';
 import { FrameworkModule } from '../src/module.js';
 import { RpcServer, RpcServerInterface, WebWorker } from '../src/worker.js';
-import { http, HttpRequest } from '@deepkit/http';
-import { App } from '@deepkit/app';
-import { sleep } from '@deepkit/core';
+import { http, HttpRequest } from '@d7/http';
+import { App } from '@d7/app';
+import { sleep } from '@d7/core';
 
 jest.mock('ws', () => {
     const on = jest.fn();

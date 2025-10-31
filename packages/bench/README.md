@@ -2,7 +2,7 @@
 
 ```typescript
 // benchmarks/test.ts
-import { benchmark, run } from '@deepkit/bench';
+import { benchmark, run } from '@d7/bench';
 
 let i = 0;
 
@@ -14,5 +14,5 @@ void run();
 ```
 
 ```sh
-node --import @deepkit/run benchmarks/test.ts 
+node --import @d7/run benchmarks/test.ts 
 ```

@@ -1,9 +1,9 @@
-# API `@deepkit/type-compiler`
+# API `@d7/type-compiler`
 
 ```shell
-npm install @deepkit/type-compiler
+npm install @d7/type-compiler
 ```
 
 TypeScript 转换器，用于在运行时提供运行时类型信息。
 
-<api-docs package="@deepkit/type-compiler"></api-docs>
+<api-docs package="@d7/type-compiler"></api-docs>

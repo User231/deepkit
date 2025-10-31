@@ -8,9 +8,9 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { toFastProperties } from '@deepkit/core';
+import { toFastProperties } from '@d7/core';
 import { BaseResponse, CollationMessage, Command, HintMessage, ReadPreferenceMessage, TransactionalMessage, WriteConcernMessage } from './command.js';
-import { getTypeJitContainer, InlineRuntimeType, isType, ReflectionClass, Type, typeOf } from '@deepkit/type';
+import { getTypeJitContainer, InlineRuntimeType, isType, ReflectionClass, Type, typeOf } from '@d7/type';
 import { MongoError } from '../error.js';
 import { GetMoreMessage } from './getMore.js';
 import { MongoClientConfig } from '../config.js';

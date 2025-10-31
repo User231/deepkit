@@ -3,9 +3,9 @@
 Eine Session ist so etwas wie eine Unit of Work. Sie verfolgt alles, was Sie tun, und zeichnet die Änderungen automatisch auf, sobald `commit()` aufgerufen wird. Sie ist der bevorzugte Weg, Änderungen in der Datenbank auszuführen, da sie Statements so bündelt, dass die Ausführung sehr schnell ist. Eine Session ist sehr leichtgewichtig und kann beispielsweise leicht in einem Request-Response-Lifecycle erstellt werden.
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { Database } from '@d7/orm';
 
 async function main() {
 

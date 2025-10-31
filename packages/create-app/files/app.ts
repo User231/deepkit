@@ -1,6 +1,6 @@
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { JSONTransport, Logger } from '@deepkit/logger';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { JSONTransport, Logger } from '@d7/logger';
 
 import { HelloWorldControllerCli } from './src/controller/hello-world.cli';
 import { HelloWorldControllerHttp } from './src/controller/hello-world.http';

@@ -7,7 +7,7 @@ You can extend the serialization of a type by defining either write your own `Se
 This example shows how to serialize and deserialize a class `Point` to a tuple `[number, number]`.
 
 ```typescript
-import { serializer, SerializationError } from '@deepkit/type';
+import { serializer, SerializationError } from '@d7/type';
 
 class Point {
   constructor(public x: number, public y: number) {
@@ -51,6 +51,6 @@ const json = serialize<Point>(point);
 expect(json).toEqual([1, 2]);
 ```
 
-Please note that this is only working for the regular `@deepkit/type` functions like `cast`, `deserialize`, and `serialize`.
+Please note that this is only working for the regular `@d7/type` functions like `cast`, `deserialize`, and `serialize`.
 
 This won't be transferred to the database layer, since the database layer uses the types as defined in the Entity class for migration and serialization (e.g. BSON serialization).

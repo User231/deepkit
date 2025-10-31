@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import { ApiDocComponent, CodeFrameComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
-import { DragDirective, DuiDragEvent, PositionChangeDirective, SplitterComponent } from '@deepkit/desktop-ui';
+import { DragDirective, DuiDragEvent, PositionChangeDirective, SplitterComponent } from '@d7/desktop-ui';
 import { AppTitle } from '@app/app/components/title.js';
 
 @Component({

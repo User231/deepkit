@@ -1,6 +1,6 @@
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { Database } from '@deepkit/orm';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { Database } from '@d7/orm';
 import { OrmBrowserModule } from './src/module.js';
 
 export * from './src/module.js';

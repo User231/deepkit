@@ -1,12 +1,12 @@
 import { ApplicationRef, Component, ComponentRef, effect, EventEmitter, inject, Injector, input, inputBinding, model, OnDestroy, Output, twoWayBinding, viewChild, ViewContainerRef } from '@angular/core';
-import { CheckboxComponent, DropdownComponent, DropdownContainerDirective, IconComponent, OpenDropdownDirective, unsubscribe } from '@deepkit/desktop-ui';
-import { hasDefaultValue, isOptional, ReflectionKind, Type } from '@deepkit/type';
+import { CheckboxComponent, DropdownComponent, DropdownContainerDirective, IconComponent, OpenDropdownDirective, unsubscribe } from '@d7/desktop-ui';
+import { hasDefaultValue, isOptional, ReflectionKind, Type } from '@d7/type';
 import { Subscription } from 'rxjs';
 import type { DataStructure } from '../../store';
 import { TypeDecoration, typeToTSJSONInterface } from '../../utils';
 import { InputRegistry } from './registry';
 import { FormsModule } from '@angular/forms';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 
 @Component({
     selector: 'api-console-input',

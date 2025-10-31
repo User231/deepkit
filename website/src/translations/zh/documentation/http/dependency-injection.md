@@ -49,10 +49,10 @@ class UserController {
 
 ## 作用域
 
-所有 HTTP 控制器和函数式路由都在 `http` 依赖注入作用域中进行管理。HTTP 控制器会为每个 HTTP 请求相应实例化。这也意味着两者都可以访问注册在 `http` 作用域中的提供者。因此，来自 `@deepkit/http` 的 `HttpRequest` 和 `HttpResponse` 也可以作为依赖使用。如果使用 deepkit 框架，来自 `@deepkit/framework` 的 `SessionHandler` 也可用。
+所有 HTTP 控制器和函数式路由都在 `http` 依赖注入作用域中进行管理。HTTP 控制器会为每个 HTTP 请求相应实例化。这也意味着两者都可以访问注册在 `http` 作用域中的提供者。因此，来自 `@d7/http` 的 `HttpRequest` 和 `HttpResponse` 也可以作为依赖使用。如果使用 d7 框架，来自 `@d7/framework` 的 `SessionHandler` 也可用。
 
 ```typescript
-import { HttpResponse } from '@deepkit/http';
+import { HttpResponse } from '@d7/http';
 
 router.get('/user/:id', (id: number, request: HttpRequest) => {
 });

@@ -1,14 +1,14 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ControllerClient } from '../../client';
-import { decodeFrameData, decodeFrames } from '@deepkit/framework-debug-api';
+import { decodeFrameData, decodeFrames } from '@d7/framework-debug-api';
 import { Application, Container, Graphics, InteractionEvent, Rectangle, Text, TextStyle } from 'pixi.js';
-import { FrameCategory, FrameEnd, FrameStart } from '@deepkit/stopwatch';
+import { FrameCategory, FrameEnd, FrameStart } from '@d7/stopwatch';
 import { ChangeFeed, Crunch, formatTime, FrameItem, FrameParser, getFrameX, ViewState } from './frame';
 import { CrunchContainer, FrameContainer } from './frame-container';
 import { Subject } from 'rxjs';
-import { ClientProgress } from '@deepkit/rpc';
+import { ClientProgress } from '@d7/rpc';
 import { DatePipe, DecimalPipe, JsonPipe } from '@angular/common';
-import { ButtonComponent, ButtonGroupComponent, DragDirective, DuiDragEvent, WindowToolbarComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, ButtonGroupComponent, DragDirective, DuiDragEvent, WindowToolbarComponent } from '@d7/desktop-ui';
 
 interface FrameData {
     cid: number;

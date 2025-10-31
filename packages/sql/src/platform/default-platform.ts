@@ -19,13 +19,13 @@ import {
     TableDiff,
 } from '../schema/table.js';
 import sqlstring from 'sqlstring';
-import { ClassType, isArray, isObject } from '@deepkit/core';
+import { ClassType, isArray, isObject } from '@d7/core';
 import { sqlSerializer } from '../serializer/sql-serializer.js';
 import { parseType, SchemaParser } from '../reverse/schema-parser.js';
 import { SQLFilterBuilder } from '../sql-filter-builder.js';
 import { Sql } from '../sql-builder.js';
-import { binaryTypes, databaseAnnotation, isCustomTypeClass, isDateType, isIntegerType, ReflectionClass, ReflectionKind, ReflectionProperty, Serializer, Type } from '@deepkit/type';
-import { DatabaseEntityRegistry, MigrateOptions } from '@deepkit/orm';
+import { binaryTypes, databaseAnnotation, isCustomTypeClass, isDateType, isIntegerType, ReflectionClass, ReflectionKind, ReflectionProperty, Serializer, Type } from '@d7/type';
+import { DatabaseEntityRegistry, MigrateOptions } from '@d7/orm';
 import { splitDotPath } from '../sql-adapter.js';
 import { PreparedAdapter } from '../prepare.js';
 

@@ -2,17 +2,17 @@
 
 This adapter allows you to use an sFTP (SSH) server as filesystem.
 
-It is part of `@deepkit/filesystem-sftp` which needs to be installed separately.
+It is part of `@d7/filesystem-sftp` which needs to be installed separately.
 
 ```sh
-npm install @deepkit/filesystem-sftp
+npm install @d7/filesystem-sftp
 ```
 
 ## Usage
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemSftpAdapter } from '@deepkit/filesystem-sftp';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemSftpAdapter } from '@d7/filesystem-sftp';
 
 const adapter = new FilesystemSftpAdapter({
     root: 'folder',

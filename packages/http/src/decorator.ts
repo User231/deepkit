@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, isClass, urlJoin } from '@deepkit/core';
+import { ClassType, isClass, urlJoin } from '@d7/core';
 import {
     ClassDecoratorResult,
     createClassDecoratorContext,
@@ -26,7 +26,7 @@ import {
     Serializer,
     Type,
     UnionToIntersection
-} from '@deepkit/type';
+} from '@d7/type';
 import { RouteParameterResolver } from './router.js';
 import { httpMiddleware, HttpMiddleware, HttpMiddlewareConfig, HttpMiddlewareFn } from './middleware.js';
 

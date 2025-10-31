@@ -22,7 +22,7 @@ import {
     TypeTuple,
     TypeTupleMember,
 } from './reflection/type.js';
-import { getClassName, getParentClass } from '@deepkit/core';
+import { getClassName, getParentClass } from '@d7/core';
 import { reflect, ReflectionClass, typeOf } from './reflection/reflection.js';
 import { typeSettings } from './core.js';
 import { regExpFromString } from './utils.js';

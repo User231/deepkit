@@ -16,8 +16,8 @@ import {
 } from '../src/protocol.js';
 import { RpcKernel } from '../src/server/kernel.js';
 import { RpcTypes } from '../src/model.js';
-import { Writer } from '@deepkit/bson';
-import { typeOf } from '@deepkit/type';
+import { Writer } from '@d7/bson';
+import { typeOf } from '@d7/type';
 import { RpcBinaryWriter, TransportBinaryMessageChunkWriter, TransportOptions } from '../src/transport.js';
 import { Progress } from '../src/progress.js';
 import { RpcKernelSecurity } from '../src/server/security.js';

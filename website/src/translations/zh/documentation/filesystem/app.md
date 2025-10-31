@@ -3,8 +3,8 @@
 虽然 Deepkit Storage 可以独立运行，但你可能希望在 Deepkit App 中通过依赖注入来使用它。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 const app = new App({
     providers: [
@@ -31,8 +31,8 @@ app.run();
 `NamedFilesystem<'name'>` 获取 Filesystem 实例。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@d7/filesystem';
 
 type PrivateFilesystem = NamedFilesystem<'private'>;
 type PublicFilesystem = NamedFilesystem<'public'>;
@@ -63,8 +63,8 @@ app.run();
 为此，你可以使用[配置注入](../app/configuration.md)。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 class MyConfig {
     fsRoot: string = '/tmp';

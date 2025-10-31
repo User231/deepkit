@@ -1,10 +1,10 @@
-import { cli, findParentPath } from '@deepkit/app';
-import { Logger } from '@deepkit/logger';
+import { cli, findParentPath } from '@d7/app';
+import { Logger } from '@d7/logger';
 import { copySync, existsSync } from 'fs-extra';
 import { basename, join } from 'path';
 import { readFileSync, writeFileSync } from 'fs';
 import { spawn } from 'child_process';
-import { getCurrentDirName } from '@deepkit/core';
+import { getCurrentDirName } from '@d7/core';
 
 const dirname = getCurrentDirName();
 

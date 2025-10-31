@@ -20,16 +20,16 @@ import {
     TabsComponent,
     unsubscribe,
     WindowToolbarComponent,
-} from '@deepkit/desktop-ui';
-import { deserialize, getPrimaryKeyHashGenerator, isBackReferenceType, isNullable, isPrimaryKeyType, ReflectionClass, TypeProperty, TypePropertySignature, validate } from '@deepkit/type';
+} from '@d7/desktop-ui';
+import { deserialize, getPrimaryKeyHashGenerator, isBackReferenceType, isNullable, isPrimaryKeyType, ReflectionClass, TypeProperty, TypePropertySignature, validate } from '@d7/type';
 import { Subscription } from 'rxjs';
 import { BrowserEntityState, BrowserQuery, BrowserState, ValidationErrors } from '../browser-state';
-import { DatabaseInfo } from '@deepkit/orm-browser-api';
-import { getInstanceStateFromItem } from '@deepkit/orm';
+import { DatabaseInfo } from '@d7/orm-browser-api';
+import { getInstanceStateFromItem } from '@d7/orm';
 import { ControllerClient } from '../client';
-import { arrayRemoveItem, isArray } from '@deepkit/core';
+import { arrayRemoveItem, isArray } from '@d7/core';
 import { showTypeString } from '../utils';
-import { ClientProgress } from '@deepkit/rpc';
+import { ClientProgress } from '@d7/rpc';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { JsonCellComponent } from '../components/cell/json-cell.component';

@@ -15,7 +15,7 @@ export const reflectionModes = ['default', 'explicit', 'never'] as const;
 export type Mode = (typeof reflectionModes)[number];
 export type RawMode = Mode | '' | boolean | string | string[] | undefined;
 
-// don't use from @deepkit/core since we don't want to have a dependency to @deepkit/core
+// don't use from @d7/core since we don't want to have a dependency to @d7/core
 export function isObject(obj: any): obj is { [key: string]: any } {
     if (!obj) {
         return false;

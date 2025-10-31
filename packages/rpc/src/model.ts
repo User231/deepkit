@@ -8,9 +8,9 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { bufferConcat, ClassType, CustomError, isObject } from '@deepkit/core';
-import { tearDown } from '@deepkit/core-rxjs';
-import { arrayBufferTo, entity } from '@deepkit/type';
+import { bufferConcat, ClassType, CustomError, isObject } from '@d7/core';
+import { tearDown } from '@d7/core-rxjs';
+import { arrayBufferTo, entity } from '@d7/type';
 import { BehaviorSubject, Observable, Subject, TeardownLogic } from 'rxjs';
 import { skip } from 'rxjs/operators';
 

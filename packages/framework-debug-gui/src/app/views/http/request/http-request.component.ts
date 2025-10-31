@@ -11,10 +11,10 @@
 import { ChangeDetectorRef, Component } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ControllerClient } from '../../../client';
-import { EntitySubject } from '@deepkit/rpc';
-import { DebugRequest, Workflow } from '@deepkit/framework-debug-api';
+import { EntitySubject } from '@d7/rpc';
+import { DebugRequest, Workflow } from '@d7/framework-debug-api';
 import { AsyncPipe, DatePipe } from '@angular/common';
-import { ButtonGroupComponent, TabButtonComponent } from '@deepkit/desktop-ui';
+import { ButtonGroupComponent, TabButtonComponent } from '@d7/desktop-ui';
 import { WorkflowCardComponent, WorkflowComponent } from '../../../components/workflow.component';
 
 @Component({

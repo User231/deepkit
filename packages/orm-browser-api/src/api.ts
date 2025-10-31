@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ControllerSymbol } from '@deepkit/rpc';
-import { ChangesInterface, deserializeType, entity, ReflectionClass } from '@deepkit/type';
+import { ControllerSymbol } from '@d7/rpc';
+import { ChangesInterface, deserializeType, entity, ReflectionClass } from '@d7/type';
 import { FakerTypes } from './faker.js';
 
 export type DatabaseCommit = {

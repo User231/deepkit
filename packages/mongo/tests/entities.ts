@@ -1,4 +1,4 @@
-import { Embedded, entity, Excluded, Index, MongoId, PrimaryKey, UUID, uuid } from '@deepkit/type';
+import { Embedded, entity, Excluded, Index, MongoId, PrimaryKey, UUID, uuid } from '@d7/type';
 
 export class JobTaskQueue {
     position: number = 0;

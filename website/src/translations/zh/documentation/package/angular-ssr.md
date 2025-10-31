@@ -1,7 +1,7 @@
-# API `@deepkit/angular-ssr`
+# API `@d7/angular-ssr`
 
 ```shell
-npm install @deepkit/angular-ssr
+npm install @d7/angular-ssr
 ```
 
 
@@ -10,9 +10,9 @@ npm install @deepkit/angular-ssr
 在 `src/server/app.ts`：
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { AngularModule, RequestHandler } from '@deepkit/angular-ssr';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { AngularModule, RequestHandler } from '@d7/angular-ssr';
 
 const app = new App({
   controllers: [
@@ -125,4 +125,4 @@ export const config = mergeApplicationConfig(appConfig, serverConfig);
 ```
 
 
-<api-docs package="@deepkit/angular-ssr"></api-docs>
+<api-docs package="@d7/angular-ssr"></api-docs>

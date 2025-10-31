@@ -1,21 +1,21 @@
 # Erste Schritte
 
-Um Deepkit RPC zu verwenden, muss `@deepkit/type` korrekt installiert sein, da es auf Runtime Types basiert. Siehe [Installation von Runtime Types](../runtime-types.md).
+Um Deepkit RPC zu verwenden, muss `@d7/type` korrekt installiert sein, da es auf Runtime Types basiert. Siehe [Installation von Runtime Types](../runtime-types.md).
 
-Sobald dies erfolgreich erledigt ist, kann `@deepkit/rpc` oder das Deepkit Framework, das die Bibliothek bereits unter der Haube verwendet, installiert werden.
+Sobald dies erfolgreich erledigt ist, kann `@d7/rpc` oder das Deepkit Framework, das die Bibliothek bereits unter der Haube verwendet, installiert werden.
 
 ```sh
-npm install @deepkit/rpc
+npm install @d7/rpc
 ```
 
-Beachte, dass Controller Classes in `@deepkit/rpc` auf TypeScript Decorators basieren und dieses Feature mit experimentalDecorators aktiviert sein muss.
+Beachte, dass Controller Classes in `@d7/rpc` auf TypeScript Decorators basieren und dieses Feature mit experimentalDecorators aktiviert sein muss.
 
-Das Package `@deepkit/rpc` muss sowohl auf dem Server als auch auf dem Client installiert sein, wenn sie jeweils eine eigene package.json haben.
+Das Package `@d7/rpc` muss sowohl auf dem Server als auch auf dem Client installiert sein, wenn sie jeweils eine eigene package.json haben.
 
-Um über TCP mit dem Server zu kommunizieren, muss das Package `@deepkit/rpc-tcp` auf Client und Server installiert sein.
+Um über TCP mit dem Server zu kommunizieren, muss das Package `@d7/rpc-tcp` auf Client und Server installiert sein.
 
 ```sh
-npm install @deepkit/rpc-tcp
+npm install @d7/rpc-tcp
 ```
 
 Für die WebSocket-Kommunikation wird das Package ebenfalls auf dem Server benötigt. Der Client im Browser verwendet hingegen WebSocket aus dem offiziellen Standard.
@@ -28,13 +28,13 @@ npm install ws
 
 ## Verwendung
 
-Nachfolgend ein vollständig funktionsfähiges Beispiel basierend auf WebSockets und der Low-Level API von @deepkit/rpc. Bei Verwendung des Deepkit Frameworks werden Controller über App-Module bereitgestellt, und ein RpcKernel wird nicht manuell instanziiert.
+Nachfolgend ein vollständig funktionsfähiges Beispiel basierend auf WebSockets und der Low-Level API von @d7/rpc. Bei Verwendung des Deepkit Frameworks werden Controller über App-Module bereitgestellt, und ein RpcKernel wird nicht manuell instanziiert.
 
 _Datei: server.ts_
 
 ```typescript
-import { rpc, RpcKernel } from '@deepkit/rpc';
-import { RpcWebSocketServer } from '@deepkit/rpc-tcp';
+import { rpc, RpcKernel } from '@d7/rpc';
+import { RpcWebSocketServer } from '@d7/rpc-tcp';
 
 @rpc.controller('/main')
 export class Controller {
@@ -58,7 +58,7 @@ console.log('Server started at ws://127.0.0.1:8081');
 _Datei: client.ts_
 
 ```typescript
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { RpcWebSocketClient } from '@d7/rpc';
 import type { Controller } from './server';
 
 async function main() {
@@ -81,7 +81,7 @@ Der Begriff "Procedure" in Remote Procedure Call wird häufig auch als "Action" 
 
 
 ```typescript
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 
 @rpc.controller('/main');
 class Controller {
@@ -124,7 +124,7 @@ Wenn der Client Daten von einem Function-Call erhält, wurden diese zuerst auf d
 Um eine Class zu registrieren, verwende den Decorator `@entity.name('id')`.
 
 ```typescript
-import { entity } from '@deepkit/type';
+import { entity } from '@d7/type';
 
 @entity.name('user')
 class User {

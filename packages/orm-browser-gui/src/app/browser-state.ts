@@ -1,10 +1,10 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import { arrayRemoveItem, empty, isObject } from '@deepkit/core';
-import { DatabaseCommit, DatabaseInfo, EntityPropertySeed, EntitySeed, FakerTypes, findFaker } from '@deepkit/orm-browser-api';
-import { Changes, changeSetSymbol, getChangeDetector, getConverterForSnapshot, isBackReferenceType, ReflectionClass, TypeProperty, TypePropertySignature, ValidatorError } from '@deepkit/type';
+import { arrayRemoveItem, empty, isObject } from '@d7/core';
+import { DatabaseCommit, DatabaseInfo, EntityPropertySeed, EntitySeed, FakerTypes, findFaker } from '@d7/orm-browser-api';
+import { Changes, changeSetSymbol, getChangeDetector, getConverterForSnapshot, isBackReferenceType, ReflectionClass, TypeProperty, TypePropertySignature, ValidatorError } from '@d7/type';
 import { ControllerClient } from './client';
-import { Progress } from '@deepkit/rpc';
-import { getInstanceStateFromItem } from '@deepkit/orm';
+import { Progress } from '@d7/rpc';
+import { getInstanceStateFromItem } from '@d7/orm';
 
 export type ChangesStore = { [pkHash: string]: { pk: { [name: string]: any }, changes: Changes<any> } };
 export type ValidationErrors = { [fieldName: string]: ValidatorError };

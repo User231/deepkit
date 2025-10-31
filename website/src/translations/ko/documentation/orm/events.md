@@ -8,7 +8,7 @@
 등록할 수 있습니다.
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 database.listen(Query.onFetch, async (event) => {
@@ -29,7 +29,7 @@ Query 이벤트는 `Database.query()` 또는 `Session.query()`를 통해 query�
 `Event.query`에 새로운 query를 설정하여 query를 override할 수 있습니다.
 
 ```typescript
-import { Query, Database } from '@deepkit/orm';
+import { Query, Database } from '@d7/orm';
 
 const database = new Database(...);
 

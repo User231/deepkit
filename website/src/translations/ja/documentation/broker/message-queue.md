@@ -9,7 +9,7 @@ Deepkit Message Queue は、メッセージをキューサーバーに送信し�
 ## 使い方
 
 ```typescript
-import { BrokerQueue, BrokerQueueChannel } from '@deepkit/broker';
+import { BrokerQueue, BrokerQueueChannel } from '@d7/broker';
 
 const queue = new BrokerQueue(adapter);
 

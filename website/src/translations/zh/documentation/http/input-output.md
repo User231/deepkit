@@ -41,20 +41,20 @@ $ curl http://localhost:8080/user/23
 还可以对类型应用额外的验证约束。
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 router.get('/user/:id', (id: number & Positive) => {
     return `${id} ${typeof id}`;
 });
 ```
 
-可以应用来自 `@deepkit/type` 的所有验证类型。更多内容参见 [HTTP 验证](#validation)。
+可以应用来自 `@d7/type` 的所有验证类型。更多内容参见 [HTTP 验证](#validation)。
 
 路径参数在 URL 匹配中默认使用 `[^]+` 作为正则表达式。可以如下自定义该正则表达式：
 
 ```typescript
-import { HttpRegExp } from '@deepkit/http';
-import { Positive } from '@deepkit/type';
+import { HttpRegExp } from '@d7/http';
+import { Positive } from '@d7/type';
 
 router.get('/user/:id', (id: HttpRegExp<number & Positive, '[0-9]+'>) => {
     return `${id} ${typeof id}`;
@@ -68,7 +68,7 @@ router.get('/user/:id', (id: HttpRegExp<number & Positive, '[0-9]+'>) => {
 查询参数是 URL 中 `?` 字符之后的值，可以通过 `HttpQuery<T>` 类型读取。参数名对应查询参数的名称。
 
 ```typescript
-import { HttpQuery } from '@deepkit/http';
+import { HttpQuery } from '@d7/http';
 
 router.get('/', (text: HttpQuery<number>) => {
     return `Hello ${text}`;
@@ -83,8 +83,8 @@ Hello galaxy
 查询参数同样会被自动反序列化并验证。
 
 ```typescript
-import { HttpQuery } from '@deepkit/http';
-import { MinLength } from '@deepkit/type';
+import { HttpQuery } from '@d7/http';
+import { MinLength } from '@d7/type';
 
 router.get('/', (text: HttpQuery<string> & MinLength<3>) => {
     return 'Hello ' + text;
@@ -98,7 +98,7 @@ $ curl http://localhost:8080/\?text\=ga
 error
 ```
 
-可以应用来自 `@deepkit/type` 的所有验证类型。更多内容参见 [HTTP 验证](#validation)。
+可以应用来自 `@d7/type` 的所有验证类型。更多内容参见 [HTTP 验证](#validation)。
 
 警告：参数值不会被转义/净化。将其直接作为字符串返回为 HTML 会造成安全漏洞（XSS）。务必不要信任外部输入，并在必要时对数据进行过滤/净化/转换。
 
@@ -107,7 +107,7 @@ error
 当查询参数数量较多时会很快变得混乱。为此可以使用一个模型（类或接口）来汇总所有可能的查询参数，从而恢复整洁。
 
 ```typescript
-import { HttpQueries } from '@deepkit/http';
+import { HttpQueries } from '@d7/http';
 
 class HelloWorldQuery {
     text!: string;
@@ -125,14 +125,14 @@ $ curl http://localhost:8080/\?text\=galaxy&page=1
 Hello galaxy at page 1
 ```
 
-指定模型中的属性可以包含 `@deepkit/type` 支持的所有 TypeScript 类型和验证类型。参见章节 [序列化](../runtime-types/serialization.md) 与 [验证](../runtime-types/validation.md)。
+指定模型中的属性可以包含 `@d7/type` 支持的所有 TypeScript 类型和验证类型。参见章节 [序列化](../runtime-types/serialization.md) 与 [验证](../runtime-types/validation.md)。
 
 ### 请求体
 
 对于允许 HTTP 请求体的 HTTP 方法，也可以指定一个请求体模型。HTTP 请求的内容类型必须是 `application/x-www-form-urlencoded`、`multipart/form-data` 或 `application/json`，这样 Deepkit 才能自动将其转换为 JavaScript 对象。
 
 ```typescript
-import { HttpBody } from '@deepkit/type';
+import { HttpBody } from '@d7/type';
 
 class HelloWorldBody {
     text!: string;
@@ -152,7 +152,7 @@ router.post('/', (body: HttpBody<HelloWorldBody>) => {
 要手动接管请求体模型的验证，可以使用特殊类型 `HttpBodyValidation<T>`。它允许接收无效的请求体数据，并且可以对错误信息做出非常具体的响应。
 
 ```typescript
-import { HttpBodyValidation } from '@deepkit/type';
+import { HttpBodyValidation } from '@d7/type';
 
 class HelloWorldBody {
     text!: string;
@@ -171,14 +171,14 @@ router.post('/', (body: HttpBodyValidation<HelloWorldBody>) => {
 
 一旦 `valid()` 返回 `false`，指定模型中的值可能处于错误状态。这意味着验证失败。如果不使用 `HttpBodyValidation` 且收到不正确的 HTTP 请求，请求将会被直接中止，函数中的代码将永远不会被执行。只有在需要在同一路由中手动处理关于请求体的错误消息时，才使用 `HttpBodyValidation`。
 
-指定模型中的属性可以包含 `@deepkit/type` 支持的所有 TypeScript 类型和验证类型。参见章节 [序列化](../runtime-types/serialization.md) 与 [验证](../runtime-types/validation.md)。
+指定模型中的属性可以包含 `@d7/type` 支持的所有 TypeScript 类型和验证类型。参见章节 [序列化](../runtime-types/serialization.md) 与 [验证](../runtime-types/validation.md)。
 
 ### 文件上传
 
 可以在请求体模型上使用特殊的属性类型来允许客户端上传文件。可以使用任意数量的 `UploadedFile`。
 
 ```typescript
-import { UploadedFile, HttpBody } from '@deepkit/http';
+import { UploadedFile, HttpBody } from '@d7/http';
 import { readFileSync } from 'fs';
 
 class HelloWordBody {
@@ -211,13 +211,13 @@ $ curl http://localhost:8080/ -X POST -H "Content-Type: multipart/form-data" -F 
 
 ## 验证
 
-HTTP 服务器中的验证是必备功能，因为几乎总是在与不可信数据打交道。数据被验证的地方越多，服务器就越稳定。HTTP 路由中的验证可以通过类型和验证约束方便地使用，并由 `@deepkit/type` 的高度优化的验证器进行检查，因此在这方面没有性能问题。因此强烈建议使用这些验证能力。宁可多一次，也不要少一次。
+HTTP 服务器中的验证是必备功能，因为几乎总是在与不可信数据打交道。数据被验证的地方越多，服务器就越稳定。HTTP 路由中的验证可以通过类型和验证约束方便地使用，并由 `@d7/type` 的高度优化的验证器进行检查，因此在这方面没有性能问题。因此强烈建议使用这些验证能力。宁可多一次，也不要少一次。
 
-所有输入，如路径参数、查询参数和请求体参数，都会自动根据指定的 TypeScript 类型进行验证。如果通过 `@deepkit/type` 的类型指定了额外的约束，这些也会被检查。
+所有输入，如路径参数、查询参数和请求体参数，都会自动根据指定的 TypeScript 类型进行验证。如果通过 `@d7/type` 的类型指定了额外的约束，这些也会被检查。
 
 ```typescript
-import { HttpQuery, HttpQueries, HttpBody } from '@deepkit/http';
-import { MinLength } from '@deepkit/type';
+import { HttpQuery, HttpQueries, HttpBody } from '@d7/http';
+import { MinLength } from '@d7/type';
 
 router.get('/:text', (text: string & MinLength<3>) => {
     return 'Hello ' + text;
@@ -275,7 +275,7 @@ router.get('/', (): ResultType => {
 发送 HTML 有两种方式。可以使用 `HtmlResponse` 对象，或者使用带 JSX 的模板引擎。
 
 ```typescript
-import { HtmlResponse } from '@deepkit/http';
+import { HtmlResponse } from '@d7/http';
 
 router.get('/', () => {
     // 将以 Content-Type: text/html 发送
@@ -298,7 +298,7 @@ router.get('/', () => {
 除了 HTML 和 JSON，还可以以特定的内容类型发送文本或二进制数据。这通过 `Response` 对象完成。
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
     return new Response('<title>Hello World</title>', 'text/xml');
@@ -310,7 +310,7 @@ router.get('/', () => {
 通过抛出各种 HTTP 错误，可以立即中断 HTTP 请求的处理，并输出对应错误的 HTTP 状态码。
 
 ```typescript
-import { HttpNotFoundError } from '@deepkit/http';
+import { HttpNotFoundError } from '@d7/http';
 
 router.get('/user/:id', async (id: number, database: Database) => {
     const user = await database.query(User).filter({ id }).findOneOrUndefined();
@@ -348,7 +348,7 @@ export class HttpMyError extends createHttpError(412, 'My Error Message') {
 控制器动作中抛出的错误由 HTTP 工作流事件 `onControllerError` 处理。默认实现是返回包含错误消息和状态码的 JSON 响应。可以通过监听该事件并返回不同的响应来自定义此行为。
 
 ```typescript
-import { httpWorkflow } from '@deepkit/http';
+import { httpWorkflow } from '@d7/http';
 
 new App()
     .listen(httpWorkflow.onControllerError, (event) => {
@@ -369,7 +369,7 @@ new App()
 要修改 HTTP 响应的头部，可以在 `Response`、`JSONResponse` 和 `HTMLResponse` 对象上调用附加方法。
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
     return new Response('Access Denied', 'text/plain')
@@ -383,7 +383,7 @@ router.get('/', () => {
 要返回 301 或 302 重定向作为响应，可以使用 `Redirect.toRoute` 或 `Redirect.toUrl`。
 
 ```typescript
-import { Redirect } from '@deepkit/http';
+import { Redirect } from '@d7/http';
 
 router.get({ path: '/', name: 'homepage' }, () => {
     return <b>Hello
@@ -424,9 +424,9 @@ router.post('/user', (user: HttpBody<User>) => {
 Router 支持一种解析复杂参数类型的方式。例如，对于像 `/user/:id` 这样的路由，可以使用解析器在路由之外将该 `id` 解析为一个 `user` 对象。这进一步解耦了 HTTP 抽象与路由代码，并进一步简化了测试和模块化。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http, RouteParameterResolverContext, RouteParameterResolver } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http, RouteParameterResolverContext, RouteParameterResolver } from '@d7/http';
 
 class UserResolver implements RouteParameterResolver {
     constructor(protected database: Database) {

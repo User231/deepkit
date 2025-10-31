@@ -1,8 +1,8 @@
 # Deepkit Google Storage Storage adapter
 
 ```typescript
-import { Storage } from '@deepkit/filesystem';
-import { StorageGoogleAdapter } from '@deepkit/filesystem-google';
+import { Storage } from '@d7/filesystem';
+import { StorageGoogleAdapter } from '@d7/filesystem-google';
 
 const storage = new Storage(new StorageGoogleAdapter({
     bucket: 'my-bucket',

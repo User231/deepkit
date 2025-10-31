@@ -20,22 +20,22 @@ const value = JSON.parse('"2022-05-13T20:48:51.025Z"');
 
 JSON.parse に Date オブジェクトのデシリアライズを学習させるさまざまな回避策はありますが、エラーが起きやすく、性能もよくありません。このケースや他の多くの型に対して型安全なシリアライズ／デシリアライズを可能にするには、シリアライズ処理が必要です。
 
-利用可能な主要な関数は 4 つあります: `serialize`、`cast`、`deserialize`、`validatedDeserialize`。これらの関数の内部では、デフォルトで `@deepkit/type` のグローバルに利用可能な JSON シリアライザが使用されますが、カスタムのシリアライズターゲットも使用できます。
+利用可能な主要な関数は 4 つあります: `serialize`、`cast`、`deserialize`、`validatedDeserialize`。これらの関数の内部では、デフォルトで `@d7/type` のグローバルに利用可能な JSON シリアライザが使用されますが、カスタムのシリアライズターゲットも使用できます。
 
-Deepkit Type はユーザー定義のシリアライズターゲットをサポートしていますが、すでに強力な JSON シリアライズターゲットが付属しており、データを JSON オブジェクトとしてシリアライズし、その後 `JSON.stringify` を用いて正しく安全に JSON に変換できます。`@deepkit/bson` を使えば、BSON もシリアライズターゲットとして使用できます。カスタムのシリアライズターゲット（例えばデータベースドライバ向け）を作成する方法は、カスタムシリアライザのセクションで学べます。
+Deepkit Type はユーザー定義のシリアライズターゲットをサポートしていますが、すでに強力な JSON シリアライズターゲットが付属しており、データを JSON オブジェクトとしてシリアライズし、その後 `JSON.stringify` を用いて正しく安全に JSON に変換できます。`@d7/bson` を使えば、BSON もシリアライズターゲットとして使用できます。カスタムのシリアライズターゲット（例えばデータベースドライバ向け）を作成する方法は、カスタムシリアライザのセクションで学べます。
 
 なお、シリアライザも互換性のためにデータを検証しますが、これらの検証は [検証](validation.md) にある検証とは異なります。`cast` 関数だけは、デシリアライズが成功した後に [検証](validation.md) 章にある完全な検証プロセスも呼び出し、データが不正な場合はエラーをスローします。
 
 代替として、デシリアライズ後の検証に `validatedDeserialize` を使用することもできます。別の方法としては、`deserialize` 関数でデシリアライズしたデータに対して `validate` または `validates` 関数を手動で呼び出すこともできます。詳しくは [検証](validation.md) を参照してください。
 
-シリアライズと検証のすべての関数は、エラー時に `@deepkit/type` の `ValidationError` をスローします。
+シリアライズと検証のすべての関数は、エラー時に `@d7/type` の `ValidationError` をスローします。
 
 ## キャスト
 
 `cast` 関数は、最初の型引数として TypeScript の型を、2 番目の引数としてキャストするデータを受け取ります。データは指定された型にキャストされ、成功すればそのデータが返されます。データが指定された型と互換性がなく自動的に変換できない場合は、`ValidationError` がスローされます。
 
 ```typescript
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 
 cast<string>(123); //'123'
 cast<number>('123'); //123
@@ -65,7 +65,7 @@ const myModel = cast<MyModel>({
 ## シリアライズ
 
 ```typescript
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;
@@ -93,7 +93,7 @@ const json = JSON.stringify(jsonObject);
 `deserialize` 関数は、渡されたデータをデフォルトで JSON シリアライザにより、指定された型に対応するものへと変換します。JSON シリアライザは JSON オブジェクト、すなわち string、number、boolean、object、または array を想定します。これは通常 `JSON.parse` の呼び出しによって得られます。
 
 ```typescript
-import { deserialize } from '@deepkit/type';
+import { deserialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;

@@ -13,9 +13,9 @@ import { CommandOptions, ConnectionOptions } from './options.js';
 import { parse as parseUrl } from 'url';
 import { parse as parseQueryString } from 'querystring';
 import { MongoError } from './error.js';
-import { arrayRemoveItem, singleStack } from '@deepkit/core';
+import { arrayRemoveItem, singleStack } from '@d7/core';
 import { resolveSrvHosts } from './dns.js';
-import { cast, ReflectionClass } from '@deepkit/type';
+import { cast, ReflectionClass } from '@d7/type';
 import { ReadPreferenceMessage, TransactionalMessage, WriteConcernMessage } from './command/command.js';
 import type { MongoDatabaseTransaction } from './connection.js';
 

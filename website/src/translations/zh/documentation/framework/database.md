@@ -11,8 +11,8 @@ Deepkit 具有自己强大的数据库抽象库，称为 Deepkit ORM。它是一
 在应用中使用 Deepkit ORM 的 `Database` 对象的最简单方式，是注册一个从其派生的类。
 
 ```typescript
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 export class SQLiteDatabase extends Database {
@@ -32,8 +32,8 @@ export class SQLiteDatabase extends Database {
 我们还启用 `debug`，这样在应用服务器启动时可以打开调试器，并在内置的 ORM 浏览器中直接管理你的数据库模型。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { SQLiteDatabase } from './database.ts';
 
 new App({
@@ -69,8 +69,8 @@ export class Controller {
 
 ```typescript
 //database.ts
-import { Database } from '@deepkit/orm';
-import { PostgresDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { PostgresDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 type DbConfig = Pick<AppConfig, 'databaseHost', 'databaseUser', 'databasePassword'>;
@@ -97,8 +97,8 @@ export class AppConfig {
 
 ```typescript
 //app.ts
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { MainDatabase } from './database.ts';
 import { AppConfig } from './config.ts';
 
@@ -163,7 +163,7 @@ $ ts-node app.ts server:start
 ## 进一步了解
 
 要进一步了解 `SQLiteDatabase` 的工作方式，请阅读[数据库](../orm.md)一章及其子章节，例如查询数据、通过会话操作数据、定义关系等。
-请注意，那些章节针对的是独立库 `@deepkit/orm`，并不包含本章上文所述的 Deepkit 框架部分的文档。在独立库中，你需要手动实例化数据库类，例如通过 `new SQLiteDatabase()`。然而，在你的 Deepkit 应用中，这由依赖注入容器自动完成。
+请注意，那些章节针对的是独立库 `@d7/orm`，并不包含本章上文所述的 Deepkit 框架部分的文档。在独立库中，你需要手动实例化数据库类，例如通过 `new SQLiteDatabase()`。然而，在你的 Deepkit 应用中，这由依赖注入容器自动完成。
 
 ## 迁移
 

@@ -6,7 +6,7 @@ If you mark a parameter optional, it is not required to be passed. If you have a
 Depending on the type (string, number, union, etc) the passed value is automatically deserialized and validated.
 
 ```typescript
-import { cli } from '@deepkit/app';
+import { cli } from '@d7/app';
 
 //functional
 new App().command('test', (name: string) => {
@@ -56,7 +56,7 @@ and the Dependency Injection Container tries to resolve it. See the chapter [Dep
 Flags are another way to pass values to your command. Mostly these are optional, but they don't have to be. Parameters decorated with the `Flag` type can be passed via `--name value` or `--name=value`.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //functional
 new App().command('test', (id: number & Flag) => {
@@ -95,7 +95,7 @@ id 23
 Flags have the advantage that they can also be used as a valueless flag, for example to activate a certain behavior. As soon as a parameter is marked as an optional Boolean, this behavior is activated.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //functional
 new App().command('test', (remove: boolean & Flag = false) => {
@@ -123,7 +123,7 @@ delete? true
 To pass multiple values to the same flag, a flag can be marked as an array.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //functional
 new App().command('test', (id: number[] & Flag = []) => {
@@ -154,7 +154,7 @@ ids: [12, 23]
 To allow a flag to be passed as a single character as well, `Flag<{char: 'x'}>` can be used.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //functional
 new App().command('test', (output: string & Flag<{char: 'o'}>) => {
@@ -258,10 +258,10 @@ $ ts-node app.ts test 123
 id 123 number
 ```
 
-Additional constraints can be defined with the type annotations from `@deepkit/type`.
+Additional constraints can be defined with the type annotations from `@d7/type`.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 //functional
 new App().command('test', (id: number & Positive) => {
     console.log('id', id, typeof id);
@@ -289,7 +289,7 @@ This additional validation, which is very easy to do, makes the command much mor
 To describe a flag or argument, use `@description` comment decorator.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 class TestCommand {
     async execute(

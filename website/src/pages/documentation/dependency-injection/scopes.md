@@ -7,7 +7,7 @@ However, there are various use cases where a provider should only be instantiate
 An HTTP request is a classic example of a scope. For example, providers such as a session, a user object, or other request-related providers can be registered to this scope. To create a scope, simply choose an arbitrary scope name and then specify it with the providers.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class UserSession {}
 
@@ -51,4 +51,4 @@ httpServer.on('request', (req, res) => {
 });
 ```
 
-Applications using the Deepkit framework have by default an `http`, an `rpc`, and a `cli` scope. See respectively the chapter [CLI](../cli.md), [HTTP](../http.md), or [RPC](../rpc.md).
+Applications using the D7 framework have by default an `http`, an `rpc`, and a `cli` scope. See respectively the chapter [CLI](../cli.md), [HTTP](../http.md), or [RPC](../rpc.md).

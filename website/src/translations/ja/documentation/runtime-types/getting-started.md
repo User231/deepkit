@@ -5,13 +5,13 @@ Deepkit のランタイム型システムをインストールするには、Dee
 ## インストール 
 
 ```sh
-npm install --save @deepkit/type
-npm install --save-dev @deepkit/type-compiler typescript ts-node
+npm install --save @d7/type
+npm install --save-dev @d7/type-compiler typescript ts-node
 ```
 
 ランタイム型情報はデフォルトでは生成されません。有効化するには、`tsconfig.json` ファイルで `"reflection": true` を設定する必要があります。
 
-デコレーターを使用する場合は、`tsconfig.json` で `"experimentalDecorators": true` を有効にする必要があります。これは `@deepkit/type` を使うために厳密には必須ではありませんが、他の Deepkit ライブラリや Deepkit Framework の特定の機能では必要です。
+デコレーターを使用する場合は、`tsconfig.json` で `"experimentalDecorators": true` を有効にする必要があります。これは `@d7/type` を使うために厳密には必須ではありませんが、他の Deepkit ライブラリや Deepkit Framework の特定の機能では必要です。
 
 _ファイル: tsconfig.json_
 
@@ -32,7 +32,7 @@ _ファイル: tsconfig.json_
 _ファイル: app.ts_
 
 ```typescript
-import { cast, MinLength, ReflectionClass } from '@deepkit/type';
+import { cast, MinLength, ReflectionClass } from '@d7/type';
 
 interface User {
     username: string & MinLength<3>;
@@ -61,7 +61,7 @@ console.log(reflection.getProperty('username').type);
 
 ## 型コンパイラ
 
-TypeScript 自体は、`tsconfig.json` を通じて型コンパイラを構成することを許可していません。そのため、TypeScript Compiler API を直接使用するか、_ts-loader_ を備えた Webpack のようなビルドシステムを使う必要があります。Deepkit の利用者がこの不便さを回避できるよう、`@deepkit/type-compiler` をインストールすると、Deepkit の型コンパイラは自動的に `node_modules/typescript` に自身をインストールします（これは NPM のインストールフックによって行われます）。
+TypeScript 自体は、`tsconfig.json` を通じて型コンパイラを構成することを許可していません。そのため、TypeScript Compiler API を直接使用するか、_ts-loader_ を備えた Webpack のようなビルドシステムを使う必要があります。Deepkit の利用者がこの不便さを回避できるよう、`@d7/type-compiler` をインストールすると、Deepkit の型コンパイラは自動的に `node_modules/typescript` に自身をインストールします（これは NPM のインストールフックによって行われます）。
 これにより、ローカルにインストールされた TypeScript（`node_modules/typescript` 内のもの）にアクセスするすべてのビルドツールで、型コンパイラが自動的に有効になります。これによって、_tsc_、Angular、webpack、_ts-node_ などのツールが、Deepkit の型コンパイラと自動的に連携して動作します。
 
 型コンパイラが自動的に正しくインストールされなかった場合（たとえば NPM のインストールフックが無効化されている場合）、次のコマンドで手動インストールできます:
@@ -79,7 +79,7 @@ webpack ビルドで型コンパイラを使用したい場合は、`ts-loader` 
 _ファイル: webpack.config.js_
 
 ```javascript
-const typeCompiler = require('@deepkit/type-compiler');
+const typeCompiler = require('@d7/type-compiler');
 
 module.exports = {
   entry: './app.ts',
@@ -90,7 +90,7 @@ module.exports = {
           use: {
             loader: 'ts-loader',
             options: {
-              // これは @deepkit/type の型コンパイラを有効にします
+              // これは @d7/type の型コンパイラを有効にします
               getCustomTransformers: (program, getProgram) => ({
                 before: [typeCompiler.transformer],
                 afterDeclarations: [typeCompiler.declarationTransformer],

@@ -8,14 +8,14 @@ bun init
 
 `bunfig.toml`:
 ```toml
-preload = ["@deepkit/bun"]
+preload = ["@d7/bun"]
 
 [install]
 peer = true
 ```
 
 ```sh
-bun install @deepkit/type @deepkit/type-compiler @deepkit/core @deepkit/bun typescript
+bun install @d7/type @d7/type-compiler @d7/core @d7/bun typescript
 ```
 
 `tsconfig.json`:
@@ -31,5 +31,5 @@ To use the [bun test runner](https://bun.sh/docs/cli/test) instead of Jest add t
 
 ```toml
 [test]
-preload = ["@deepkit/bun"]
+preload = ["@d7/bun"]
 ```

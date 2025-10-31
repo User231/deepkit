@@ -71,7 +71,7 @@ new App({
 primitive Provider 토큰은 의존성으로서 Inject Type으로 선언해야 합니다.
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class EmailService {
     constructor(public domain: Inject<string, 'domain'>) {}
@@ -81,7 +81,7 @@ class EmailService {
 inject 별칭과 primitive Provider 토큰의 조합은 런타임 타입 정보가 없는 패키지에서 의존성을 제공하는 데에도 사용할 수 있습니다.
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 import { Stripe } from 'stripe';
 
 export type StripeService = Inject<Stripe, '_stripe'>;
@@ -148,7 +148,7 @@ new App({
 클래스와 primitive 외에도, 추상화(Interface)도 제공할 수 있습니다. 이는 `provide` 함수를 통해 이루어지며, 제공할 값에 타입 정보가 없는 경우 특히 유용합니다.
 
 ```typescript
-import { provide } from '@deepkit/injector';
+import { provide } from '@d7/injector';
 
 interface Connection {
     write(data: Uint16Array): void;
@@ -192,7 +192,7 @@ new App({
 
 ## Asynchronous Providers
 
-`@deepkit/injector`의 설계는 비동기 Dependency Injection 컨테이너와 함께 비동기 Provider를 사용하는 것을 배제합니다. 이는 Provider 요청 또한 비동기여야 하며, 그 결과 애플리케이션 전체가 최상위에서 비동기로 동작해야 하기 때문입니다.
+`@d7/injector`의 설계는 비동기 Dependency Injection 컨테이너와 함께 비동기 Provider를 사용하는 것을 배제합니다. 이는 Provider 요청 또한 비동기여야 하며, 그 결과 애플리케이션 전체가 최상위에서 비동기로 동작해야 하기 때문입니다.
 
 무언가를 비동기로 초기화해야 한다면, 애플리케이션 서버 bootstrap으로 이 초기화를 이동해야 합니다. 거기서는 이벤트가 비동기일 수 있습니다. 또는 초기화를 수동으로 트리거할 수도 있습니다.
 

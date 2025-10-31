@@ -1,6 +1,6 @@
 # BSON
 
-`@deepkit/bson` is a high-performance TS implementation of a parser and serializer for BSON,
+`@d7/bson` is a high-performance TS implementation of a parser and serializer for BSON,
  the MongoDB Binary JSON format. It's the fastest JS BSON parser, even faster than native JSON.parse/stringify.
  
 Deepkit has reimplemented it because it's a high-performance framework and both the official JS (js-bson) and C++ (bson-ext) packages are too slow. 
@@ -33,8 +33,8 @@ This makes the official BSON parser 5x slower than native JSON.parse. deepkit/ty
 "deepkit/bson JIT" means a parser/serializer based on a schema like so:
 
 ```typescript
-import {t} from '@deepkit/type';
-import {getBSONDecoder} from '@deepkit/bson';
+import {t} from '@d7/type';
+import {getBSONDecoder} from '@d7/bson';
 
 interface Model {
     username: string;
@@ -51,7 +51,7 @@ const document = decoder(bson);
 whereas "deepkit/type generic" means schema-less:
 
 ```typescript
-import {parseObject, ParserV2, ParserV3} from '@deepkit/bson';
+import {parseObject, ParserV2, ParserV3} from '@d7/bson';
 const bson = new Buffer([]);
 
 const object1 = parseObject(new ParserV2(bson));

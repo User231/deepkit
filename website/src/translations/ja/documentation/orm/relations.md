@@ -9,10 +9,10 @@
 参照を保持するエンティティは、通常 `owning side`、または参照を `owns` している側と呼ばれます。次のコードは `User` と `Post` の間の 1対多のリレーションを示します。これは、1人の `User` が複数の `Post` を持てることを意味します。`post` エンティティは `post->user` リレーションを持ちます。データベースには `Post."author"` フィールドが作成され、そこに `User` の主キーが格納されます。
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { entity, PrimaryKey, AutoIncrement, 
-    Reference } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+    Reference } from '@d7/type';
+import { Database } from '@d7/orm';
 
 @entity.collection('users')
 class User {

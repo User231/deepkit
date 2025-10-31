@@ -28,5 +28,5 @@ export * from './src/type-guards.js';
 export * from './src/path.js';
 
 // export * does not work for some reason
-// we get: packages/framework/src/debug/media.controller.ts:14:25 - error TS2305: Module '"@deepkit/core"' has no exported member 'pathJoin'.
+// we get: packages/framework/src/debug/media.controller.ts:14:25 - error TS2305: Module '"@d7/core"' has no exported member 'pathJoin'.
 // exporting it explicitly works.

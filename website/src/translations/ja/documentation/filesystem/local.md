@@ -2,12 +2,12 @@
 
 ローカルファイルシステムアダプターは最も一般的なファイルシステムの一つで、アプリケーションが実行されているシステム上のファイルシステムへのアクセスを提供します。
 
-これは `@deepkit/filesystem` の一部で、内部的に Node の `fs/promises` API を使用するため、追加のインストールは不要です。
+これは `@d7/filesystem` の一部で、内部的に Node の `fs/promises` API を使用するため、追加のインストールは不要です。
 
 ## 使い方
 
 ```typescript
-import { FilesystemLocalAdapter, Filesystem } from '@deepkit/filesystem';
+import { FilesystemLocalAdapter, Filesystem } from '@d7/filesystem';
 
 const adapter = new FilesystemLocalAdapter({ root: '/path/to/files' });
 const filesystem = new Filesystem(adapter);

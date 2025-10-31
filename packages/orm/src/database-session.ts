@@ -11,18 +11,18 @@
 import type { DatabaseAdapter, DatabasePersistence, DatabasePersistenceChangeSet } from './database-adapter.js';
 import { DatabaseEntityRegistry } from './database-adapter.js';
 import { DatabaseValidationError, OrmEntity } from './type.js';
-import { AbstractClassType, ClassType, CustomError, forwardTypeArguments } from '@deepkit/core';
-import { getPrimaryKeyExtractor, getTypeJitContainer, isReferenceInstance, markAsHydrated, PrimaryKeyFields, ReceiveType, ReflectionClass, ReflectionKind, stringifyType, Type, typeSettings, UnpopulatedCheck, validate } from '@deepkit/type';
-import { GroupArraySort } from '@deepkit/topsort';
+import { AbstractClassType, ClassType, CustomError, forwardTypeArguments } from '@d7/core';
+import { getPrimaryKeyExtractor, getTypeJitContainer, isReferenceInstance, markAsHydrated, PrimaryKeyFields, ReceiveType, ReflectionClass, ReflectionKind, stringifyType, Type, typeSettings, UnpopulatedCheck, validate } from '@d7/type';
+import { GroupArraySort } from '@d7/topsort';
 import { getClassState, getInstanceState, getNormalizedPrimaryKey, IdentityMap } from './identity-map.js';
 import { getClassSchemaInstancePairs } from './utils.js';
 import { HydratorFn } from './formatter.js';
 import { getReference } from './reference.js';
 import { DatabaseErrorInsertEvent, DatabaseErrorUpdateEvent, onDatabaseError, UnitOfWorkCommitEvent, UnitOfWorkEvent, UnitOfWorkUpdateEvent } from './event.js';
-import { Stopwatch } from '@deepkit/stopwatch';
-import { EventDispatcher, EventToken } from '@deepkit/event';
+import { Stopwatch } from '@d7/stopwatch';
+import { EventDispatcher, EventToken } from '@d7/event';
 import { DatabasePluginRegistry } from './plugin/plugin.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 
 function resolveReferenceToEntity(type: Type, entityRegistry: DatabaseEntityRegistry): ReflectionClass<any> {
     if (type.kind === ReflectionKind.class) {

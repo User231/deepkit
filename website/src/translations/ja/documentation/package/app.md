@@ -1,7 +1,7 @@
-# API `@deepkit/app`
+# API `@d7/app`
 
 ```shell
-npm install @deepkit/app
+npm install @d7/app
 ```
 
 コマンドラインインターフェイス (CLI) パーサー、service container と dependency injection、event dispatcher、app module system、configuration loader を提供します。
@@ -11,4 +11,4 @@ CLI controller、HTTP controller や route、RPC controller（[framework module]
 
 詳しくは [Deepkit App ドキュメント](../app.md) を参照してください。
 
-<api-docs package="@deepkit/app"></api-docs>
+<api-docs package="@d7/app"></api-docs>

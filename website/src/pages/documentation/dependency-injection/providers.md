@@ -71,7 +71,7 @@ new App({
 Primitive provider tokens must be declared with the Inject type as a dependency.
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class EmailService {
     constructor(public domain: Inject<string, 'domain'>) {}
@@ -81,7 +81,7 @@ class EmailService {
 The combination of an inject alias and primitive provider tokens can also be used to provide dependencies from packages that do not contain runtime type information.
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 import { Stripe } from 'stripe';
 
 export type StripeService = Inject<Stripe, '_stripe'>;
@@ -148,7 +148,7 @@ new App({
 In addition to classes and primitives, abstractions (interfaces) can also be provided. This is done via the function `provide` and is particularly useful if the value to be provided does not contain any type information.
 
 ```typescript
-import { provide } from '@deepkit/injector';
+import { provide } from '@d7/injector';
 
 interface Connection {
     write(data: Uint16Array): void;
@@ -192,7 +192,7 @@ new App({
 
 ## Asynchronous Providers
 
-The design of `@deepkit/injector` precludes the use of asynchronous providers with an asynchronous Dependency Injection container. This is because requesting providers would also need to be asynchronous, necessitating the entire application to operate at the highest level asynchronously.
+The design of `@d7/injector` precludes the use of asynchronous providers with an asynchronous Dependency Injection container. This is because requesting providers would also need to be asynchronous, necessitating the entire application to operate at the highest level asynchronously.
 
 To initialize something asynchronously, this initialization should be moved to the application server bootstrap,  because there the events can be asynchronous. Alternatively, an initialization can be triggered manually.
 

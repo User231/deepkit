@@ -4,9 +4,9 @@ Type annotation은 런타임에서 읽혀 다양한 Function의 동작을 변경
 
 `MaxLength`, `Maximum`, `Positive`와 같은 Validator 제약을 어떤 type에도 추가할 수 있습니다. 특정 값을 serializer가 어떻게 serialize/deserialzie 할지 알려주는 것도 가능합니다. 또한 완전히 커스텀한 type annotation을 만들고 이를 런타임에 읽어, 런타임에서 type system을 매우 개별적으로 사용할 수도 있습니다.
 
-Deepkit은 `@deepkit/type`에서 바로 사용할 수 있는 다양한 type annotation을 제공합니다. 이들은 여러 라이브러리에서 오지 않도록 설계되어, Deepkit RPC나 Deepkit Database 같은 특정 라이브러리에 code를 직접 묶지 않게 합니다. 이는 예를 들어 데이터베이스 type annotation을 사용하더라도, frontend에서도 Type의 재사용을 더 쉽게 해줍니다.
+Deepkit은 `@d7/type`에서 바로 사용할 수 있는 다양한 type annotation을 제공합니다. 이들은 여러 라이브러리에서 오지 않도록 설계되어, Deepkit RPC나 Deepkit Database 같은 특정 라이브러리에 code를 직접 묶지 않게 합니다. 이는 예를 들어 데이터베이스 type annotation을 사용하더라도, frontend에서도 Type의 재사용을 더 쉽게 해줍니다.
 
-다음은 기존 type annotation의 목록입니다. `@deepkit/type`와 `@deepkit/bson`의 validator와 serializer, 그리고 `@deepkit/orm`의 Deepkit Database는 이 정보를 서로 다르게 사용합니다. 더 알아보려면 해당 장을 참고하세요.
+다음은 기존 type annotation의 목록입니다. `@d7/type`와 `@d7/bson`의 validator와 serializer, 그리고 `@d7/orm`의 Deepkit Database는 이 정보를 서로 다르게 사용합니다. 더 알아보려면 해당 장을 참고하세요.
 
 ## Integer/Float
 
@@ -26,7 +26,7 @@ Deepkit은 `@deepkit/type`에서 바로 사용할 수 있는 다양한 type anno
 | float64 | number와 같지만 데이터베이스 문맥에서 다른 의미를 가질 수 있음.                                                                                                                                                       |
 
 ```typescript
-import { integer } from '@deepkit/type';
+import { integer } from '@d7/type';
 
 interface User {
     id: integer;
@@ -37,7 +37,7 @@ interface User {
 이는 예를 들어 validation에서는 float를 사용할 수 없고, serializer가 자동으로 float를 integer로 변환한다는 것을 의미합니다.
 
 ```typescript
-import { is, integer } from '@deepkit/type';
+import { is, integer } from '@d7/type';
 
 is<integer>(12); //true
 is<integer>(12.5); //false
@@ -46,7 +46,7 @@ is<integer>(12.5); //false
 하위 타입들도 동일하게 사용할 수 있으며, 특정 숫자 범위만 허용해야 할 때 유용합니다.
 
 ```typescript
-import { is, int8 } from '@deepkit/type';
+import { is, int8 } from '@d7/type';
 
 is<int8>(-5); //true
 is<int8>(5); //true
@@ -55,7 +55,7 @@ is<int8>(2500); //false
 ```
 
 ```typescript
-import { is, float, float32, float64 } from '@deepkit/type';
+import { is, float, float32, float64 } from '@d7/type';
 is<float>(12.5); //true
 is<float32>(12.5); //true
 is<float64>(12.5); //true
@@ -66,7 +66,7 @@ is<float64>(12.5); //true
 UUID v4는 일반적으로 데이터베이스에서는 binary로, JSON에서는 string으로 저장됩니다.
 
 ```typescript
-import { is, UUID } from '@deepkit/type';
+import { is, UUID } from '@d7/type';
 
 is<UUID>('f897399a-9f23-49ac-827d-c16f8e4810a0'); //true
 is<UUID>('asd'); //false
@@ -77,7 +77,7 @@ is<UUID>('asd'); //false
 이 필드를 MongoDB의 ObjectId로 표시합니다. string으로 해석되며, MongoDB에는 binary로 저장됩니다.
 
 ```typescript
-import { MongoId, serialize, is } from '@deepkit/type';
+import { MongoId, serialize, is } from '@d7/type';
 
 serialize<MongoId>('507f1f77bcf86cd799439011'); //507f1f77bcf86cd799439011
 is<MongoId>('507f1f77bcf86cd799439011'); //true
@@ -95,7 +95,7 @@ class User {
 `BinaryBigInt`는 bigint와 같지만, 데이터베이스에서는 무제한 크기의 unsigned binary(대부분의 데이터베이스의 8바이트 대신)로, JSON에서는 string으로 serialize됩니다. 음수 값은 양수로 변환됩니다(`abs(x)`).
 
 ```typescript
-import { BinaryBigInt } from '@deepkit/type';
+import { BinaryBigInt } from '@d7/type';
 
 interface User {
     id: BinaryBigInt;
@@ -114,7 +114,7 @@ Deepkit ORM은 BinaryBigInt를 binary field로 저장합니다.
 `SignedBinaryBigInt`는 `BinaryBigInt`와 같지만 음수 값도 저장할 수 있습니다. Deepkit ORM은 `SignedBinaryBigInt`를 binary로 저장합니다. 이 binary에는 추가적인 선행 부호 byte가 있으며 uint로 표현됩니다: 음수는 255, 0은 0, 양수는 1.
 
 ```typescript
-import { SignedBinaryBigInt } from '@deepkit/type';
+import { SignedBinaryBigInt } from '@d7/type';
 
 interface User {
     id: SignedBinaryBigInt;
@@ -126,7 +126,7 @@ interface User {
 serialization에서 property의 이름을 변경합니다.
 
 ```typescript
-import { serialize, deserialize, MapName } from '@deepkit/type';
+import { serialize, deserialize, MapName } from '@d7/type';
 
 interface User {
     firstName: string & MapName<'first_name'>;
@@ -141,7 +141,7 @@ deserialize<User>({ first_name: 'Peter' }) // {firstName: 'Peter'}
 Property를 그룹으로 묶을 수 있습니다. 예를 들어 serialization 시 특정 그룹을 제외할 수 있습니다. 자세한 내용은 Serialization 장을 참고하세요.
 
 ```typescript
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 interface Model {
     username: string;
@@ -159,7 +159,7 @@ serialize<Model>(
 각 property는 Reflection API를 통해 읽을 수 있는 추가 meta-data를 가질 수 있습니다. 자세한 내용은 [런타임 타입 리플렉션](runtime-types.md#runtime-types-reflection)을 참고하세요.
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 interface Model {
     username: string;
@@ -175,7 +175,7 @@ reflection.getProperty('title').getData()['key']; //value;
 각 property는 특정 target에 대해 serialization 과정에서 제외될 수 있습니다.
 
 ```typescript
-import { serialize, deserialize, Excluded } from '@deepkit/type';
+import { serialize, deserialize, Excluded } from '@d7/type';
 
 interface Auth {
     title: string;
@@ -197,7 +197,7 @@ json.password; //serialize의 serializer가 `json`이므로 다시 undefined
 필드를 embedded type으로 표시합니다.
 
 ```typescript
-import { PrimaryKey, Embedded, serialize, deserialize } from '@deepkit/type';
+import { PrimaryKey, Embedded, serialize, deserialize } from '@d7/type';
 
 interface Address {
     street: string;
@@ -295,7 +295,7 @@ serialize<User>(user);
 interface에 entity 정보를 annotate합니다. 데이터베이스 문맥에서만 사용됩니다.
 
 ```typescript
-import { Entity, PrimaryKey } from '@deepkit/type';
+import { Entity, PrimaryKey } from '@d7/type';
 
 interface User extends Entity<{ name: 'user', collection: 'users'> {
     id: number & PrimaryKey;
@@ -308,7 +308,7 @@ interface User extends Entity<{ name: 'user', collection: 'users'> {
 필드를 primary key로 표시합니다. 데이터베이스 문맥에서만 사용됩니다.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -321,7 +321,7 @@ interface User {
 보통 `PrimaryKey`와 함께 사용됩니다.
 
 ```typescript
-import { AutoIncrement } from '@deepkit/type';
+import { AutoIncrement } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement;
@@ -333,7 +333,7 @@ interface User {
 필드를 reference(foreign key)로 표시합니다. 데이터베이스 문맥에서만 사용됩니다.
 
 ```typescript
-import { Reference } from '@deepkit/type';
+import { Reference } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -373,7 +373,7 @@ interface Group {
 필드를 index로 표시합니다. 데이터베이스 문맥에서만 사용됩니다.
 
 ```typescript
-import { Index } from '@deepkit/type';
+import { Index } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -386,7 +386,7 @@ interface User {
 필드를 unique로 표시합니다. 데이터베이스 문맥에서만 사용됩니다.
 
 ```typescript
-import { Unique } from '@deepkit/type';
+import { Unique } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -399,7 +399,7 @@ interface User {
 `DatabaseField`를 사용하면 실제 데이터베이스 컬럼 type, 기본값 등 데이터베이스 특정 옵션을 정의할 수 있습니다.
 
 ```typescript
-import { DatabaseField } from '@deepkit/type';
+import { DatabaseField } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -418,7 +418,7 @@ TODO
 런타임 type을 inline합니다. 고급 케이스에서만 사용됩니다.
 
 ```typescript
-import { InlineRuntimeType, ReflectionKind, Type } from '@deepkit/type';
+import { InlineRuntimeType, ReflectionKind, Type } from '@d7/type';
 
 const type: Type = { kind: ReflectionKind.string };
 
@@ -438,7 +438,7 @@ TypeScript에서 type `Query`는 `{ field: any }`이지만, 런타임에서는 `
 property의 모든 annotation을 초기화합니다. 고급 케이스에서만 사용됩니다.
 
 ```typescript
-import { ResetAnnotation } from '@deepkit/type';
+import { ResetAnnotation } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -473,7 +473,7 @@ type Title = string & MyAnnotation & AnnotationOption<{ title: 'Hello' }>;
 type annotation은 `typeOf<T>()`와 `typeAnnotation`의 type object를 통해 읽을 수 있습니다:
 
 ```typescript
-import { typeOf, typeAnnotation } from '@deepkit/type';
+import { typeOf, typeAnnotation } from '@d7/type';
 
 const type = typeOf<Username>();
 const annotation = typeAnnotation.getForName(type, 'myAnnotation'); //[]
@@ -483,7 +483,7 @@ const annotation = typeAnnotation.getForName(type, 'myAnnotation'); //[]
 `MapName`, `Group`, `Data` 등 이미 제공되는 type annotation은 각각의 annotation object를 가지고 있습니다:
 
 ```typescript
-import { typeOf, Group, groupAnnotation } from '@deepkit/type';
+import { typeOf, Group, groupAnnotation } from '@d7/type';
 
 type Username = string & Group<'a'> & Group<'b'>;
 

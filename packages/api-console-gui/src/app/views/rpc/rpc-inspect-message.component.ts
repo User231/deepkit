@@ -1,6 +1,6 @@
-import { RpcClientEventIncomingMessage, RpcClientEventOutgoingMessage, RpcTypes } from '@deepkit/rpc';
+import { RpcClientEventIncomingMessage, RpcClientEventOutgoingMessage, RpcTypes } from '@d7/rpc';
 import { Component, computed, input } from '@angular/core';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import { inspect } from '../../utils';
 import { DatePipe } from '@angular/common';
 

@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog, InputComponent } from '@deepkit/desktop-ui';
-import { deserialize, ReflectionKind, Type } from '@deepkit/type';
+import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog, InputComponent } from '@d7/desktop-ui';
+import { deserialize, ReflectionKind, Type } from '@d7/type';
 import { FormsModule } from '@angular/forms';
 
 @Component({

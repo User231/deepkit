@@ -1,4 +1,4 @@
-import { benchmark, run } from '@deepkit/bench';
+import { benchmark, run } from '@d7/bench';
 
 // ASCII binary parsing example
 const binaryString = Buffer.from('Hello World', 'utf8');

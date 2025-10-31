@@ -3,9 +3,9 @@
 セッションはユニット・オブ・ワークのようなものです。あなたが行うすべてを追跡し、`commit()` が呼び出されるたびに変更を自動的に記録します。ステートメントを束ねて非常に高速にするため、データベースの変更を実行する推奨の方法です。セッションは非常に軽量で、たとえばリクエスト/レスポンスのライフサイクル内で簡単に作成できます。
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { Database } from '@d7/orm';
 
 async function main() {
 

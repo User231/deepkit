@@ -22,7 +22,7 @@ import {
     typeOf,
     TypePropertySignature,
     UUID,
-} from '@deepkit/type';
+} from '@d7/type';
 import { expect, test } from '@jest/globals';
 import { deserializeBSON } from '../src/bson-deserializer.js';
 import { deserializeBSONWithoutOptimiser } from '../src/bson-parser.js';

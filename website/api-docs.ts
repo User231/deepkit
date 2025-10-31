@@ -4,7 +4,7 @@ import { join } from 'path';
 import * as ts from 'typescript';
 import { SyntaxKind } from 'typescript';
 import glob from 'tiny-glob';
-import { getCurrentDirName } from '@deepkit/core';
+import { getCurrentDirName } from '@d7/core';
 
 const dirname = getCurrentDirName();
 
@@ -482,7 +482,7 @@ async function main() {
     type PackageExports = Record<string, string[]>;
 
     const pkgEntryMap: PackageExports = {};
-    // e.g. `@deepkit/app` => `../packages/app/dist/cjs/index.d.ts`
+    // e.g. `@d7/app` => `../packages/app/dist/cjs/index.d.ts`
     const typeScriptMapping: Record<string, string> = {};
 
     for (const dir of packageDirs) {

@@ -2,9 +2,9 @@ user: How do I process HTTP requests using Deepkit?
 assistant: To process HTTP requests using Deepkit, you can define routes either using the functional API or controller classes. In the functional API, you can use the `HttpRouterRegistry` to define routes and their corresponding handlers. Here's an example:
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry, HttpBody } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry, HttpBody } from '@d7/http';
 
 const app = new App({
     imports: [new FrameworkModule()]
@@ -28,7 +28,7 @@ In the above example, we define two routes: a GET route `/user/:id` that takes a
 As an alternative to the functional API, you can also use controller classes to define routes. Here's an example:
 
 ```typescript
-import { http } from '@deepkit/http';
+import { http } from '@d7/http';
 
 class UserController {
     constructor(private database: Database) {}
@@ -63,7 +63,7 @@ user: Can Deepkit automatically deserialize and validate input from HTTP request
 assistant: Yes, Deepkit can automatically deserialize and validate input from HTTP requests based on the defined types. This helps ensure that the input is correctly converted and validated before being processed.
 
 ```typescript
-import { MaxLength, MinLength } from '@deepkit/type';
+import { MaxLength, MinLength } from '@d7/type';
 
 interface User {
     username: string & MinLength<3> & MaxLength<20>;
@@ -100,7 +100,7 @@ app.run();
 user: Can I use controller classes to define http routes?
 assistant: Yes, controller classes can be used to define http routes. The routes are defined as methods decorated with the appropriate HTTP verb decorators, such as `@http.GET` or `@http.POST`. For example:
 ```typescript
-import { http, HttpRouterRegistry } from '@deepkit/http';
+import { http, HttpRouterRegistry } from '@d7/http';
 
 class UserController {
     constructor(private database: Database) {}
@@ -192,7 +192,7 @@ user: How can I access and manipulate headers?
 assistant: , you can access and manipulate headers using the `request.headers` property. The `request.headers` object provides access to the HTTP headers sent by the client in the request. You can read and modify individual headers using dot notation or bracket notation. For example:
 
 ```typescript
-import { HttpRequest } from '@deepkit/http';
+import { HttpRequest } from '@d7/http';
 
 router.get('/', (request: HttpRequest) => {
     const userAgent = request.headers['user-agent'];
@@ -206,7 +206,7 @@ user: Can I stream data?
 assistant: You can stream data using the `response.sendStream()` method. This method allows you to send a readable stream as the response body. You can create a readable stream using Node.js' `stream` module or any other library that provides readable streams. Here's an example:
 
 ```typescript
-import { HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpRequest, HttpResponse } from '@d7/http';
 import { createReadStream } from 'fs';
 
 router.get('/image', (request: HttpRequest, response: HttpResponse) => {
@@ -218,10 +218,10 @@ router.get('/image', (request: HttpRequest, response: HttpResponse) => {
 ##-------------------------------------------------##
 
 user: How can I validate input data?
-assistant: You can validate input data using runtime types and validation constraints from the `@deepkit/type` module. By specifying the types of parameters in your route handler or controller action, Deepkit automatically deserializes and validates the input data based on the defined types. You can also apply additional validation constraints using the validation type annotations provided by `@deepkit/type`. Here's an example:
+assistant: You can validate input data using runtime types and validation constraints from the `@d7/type` module. By specifying the types of parameters in your route handler or controller action, Deepkit automatically deserializes and validates the input data based on the defined types. You can also apply additional validation constraints using the validation type annotations provided by `@d7/type`. Here's an example:
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 router.get('/user/:id', (id: number & Positive) => {
     // id is guaranteed to be a positive number
@@ -234,7 +234,7 @@ user: How can I handle file uploads?
 assistant: You can handle file uploads using the `UploadedFile` type and the `HttpBody` type. The `UploadedFile` type represents an uploaded file and provides information about the file, such as its size, name, type, and path. The `HttpBody` type allows you to receive and validate the uploaded file as part of the request body. Here's an example:
 
 ```typescript
-import { HttpBody, UploadedFile } from '@deepkit/http';
+import { HttpBody, UploadedFile } from '@d7/http';
 
 class FileUpload {
     file!: UploadedFile;
@@ -286,7 +286,7 @@ assistant: To return HTML responses, you can use the `HtmlResponse` class or sim
 Using the `HtmlResponse` class:
 
 ```typescript
-import { HtmlResponse } from '@deepkit/http';
+import { HtmlResponse } from '@d7/http';
 
 router.get('/', () => {
   return new HtmlResponse('<h1>Hello World</h1>');
@@ -301,7 +301,7 @@ assistant: Yes, you can customize the content type of the responses. You can do 
 Here's an example:
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
   const content = '<h1>Hello World</h1>';
@@ -319,7 +319,7 @@ assistant: You can handle different types of HTTP errors by throwing specific er
 Here's an example:
 
 ```typescript
-import { HttpNotFoundError } from '@deepkit/http';
+import { HttpNotFoundError } from '@d7/http';
 
 router.get('/user/:id', async (id: number, database: Database) => {
   const user = await database.query(User).filter({ id }).findOneOrUndefined();
@@ -345,7 +345,7 @@ assistant: To add additional headers to the HTTP responses, you can use the `hea
 Here's an example:
 
 ```typescript
-import { Response } from '@deepkit/http';
+import { Response } from '@d7/http';
 
 router.get('/', () => {
   const content = 'Hello World';
@@ -370,7 +370,7 @@ assistant: To perform redirects in Deepkit HTTP, you can use the `Redirect` clas
 For example, to perform a redirect to a specific route, you can use `Redirect.toRoute` along with the route name:
 
 ```typescript
-import { Redirect } from '@deepkit/http';
+import { Redirect } from '@d7/http';
 
 router.get({path: '/new-route', name: 'newRoute'}, () => {
   return 'Hello there';
@@ -384,7 +384,7 @@ router.get('/old-route', () => {
 Alternatively, you can also perform a redirect to a specific URL using `Redirect.toUrl`:
 
 ```typescript
-import { Redirect } from '@deepkit/http';
+import { Redirect } from '@d7/http';
 
 router.get('/old-route', () => {
   return Redirect.toUrl('/new-url');
@@ -410,7 +410,7 @@ To apply middleware to specific controllers or routes, you can use the `httpMidd
 For example, to apply a middleware to specific controllers, you can use the `forControllers()` method:
 
 ```typescript
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 // ...
 
@@ -426,7 +426,7 @@ new App({
 Alternatively, you can apply middleware to specific routes using the `forRoutes()` method:
 
 ```typescript
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 // ...
 
@@ -451,7 +451,7 @@ Here's an example of using the `compression` middleware:
 
 ```typescript
 import * as compression from 'compression';
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 // ...
 
@@ -474,7 +474,7 @@ assistant: To set a timeout for a middleware, you can use the `timeout()` method
 Here's an example of setting a timeout of 5 seconds for a middleware:
 
 ```typescript
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 // ...
 
@@ -497,7 +497,7 @@ assistant: Yes, Deepkit can handle complex parameter types in the routes. You ca
 Here is an example of how to use a resolver to resolve a complex parameter type:
 
 ```typescript
-import { RouteParameterResolverContext, RouteParameterResolver } from '@deepkit/http';
+import { RouteParameterResolverContext, RouteParameterResolver } from '@d7/http';
 
 class MyResolver implements RouteParameterResolver {
   async resolve(context: RouteParameterResolverContext) {
@@ -524,7 +524,7 @@ assistant: To use a resolver to resolve complex parameter types in routes, you c
 Here is an example of how to use a resolver to resolve a complex parameter type in a route:
 
 ```typescript
-import { RouteParameterResolver, RouteParameterResolverContext, http } from '@deepkit/http';
+import { RouteParameterResolver, RouteParameterResolverContext, http } from '@d7/http';
 
 class MyResolver implements RouteParameterResolver {
   async resolve(context: RouteParameterResolverContext) {
@@ -546,19 +546,19 @@ In this example, the `MyResolver` class implements the `RouteParameterResolver` 
 ##-------------------------------------------------##
 
 user: Can Deepkit handle different types of content encodings, such as compression?
-assistant: Yes, Deepkit can handle different types of content encodings, such as compression. The `@deepkit/http` module provides support for all middleware from the Express/Connect framework, including compression middleware.
+assistant: Yes, Deepkit can handle different types of content encodings, such as compression. The `@d7/http` module provides support for all middleware from the Express/Connect framework, including compression middleware.
 
 ##-------------------------------------------------##
 
 user: How can I handle different types of content encodings, such as compression?
-assistant: To handle different types of content encodings, such as compression, you can use the compression middleware provided by the `@deepkit/http` module.
+assistant: To handle different types of content encodings, such as compression, you can use the compression middleware provided by the `@d7/http` module.
 
 Here is an example of how to use the compression middleware:
 
 ```typescript
 import * as express from 'express';
 import { Server } from 'http';
-import { HttpRequest, HttpResponse, httpMiddleware } from '@deepkit/http';
+import { HttpRequest, HttpResponse, httpMiddleware } from '@d7/http';
 
 const app = express();
 app.use(httpMiddleware.for(compression()));
@@ -578,14 +578,14 @@ In this example, the compression middleware is added to the express app using `a
 ##-------------------------------------------------##
 
 user: Can Deepkit handle session management and authentication?
-assistant: Yes, Deepkit can handle session management and authentication. Deepkit provides support for sessions through the `@deepkit/session` module, which includes features such as session storage, session encryption, and session middleware.
+assistant: Yes, Deepkit can handle session management and authentication. Deepkit provides support for sessions through the `@d7/session` module, which includes features such as session storage, session encryption, and session middleware.
 
 Here is an example of how to use the session module in Deepkit:
 
 ```typescript
-import { App } from '@deepkit/app';
-import { http } from '@deepkit/http';
-import { sessionModule } from '@deepkit/session';
+import { App } from '@d7/app';
+import { http } from '@d7/http';
+import { sessionModule } from '@d7/session';
 
 @http.middleware(sessionModule.middleware())
 class MyController {
@@ -601,7 +601,7 @@ app.run();
 
 In this example, the session middleware is added to the `MyController` class using the `@http.middleware` decorator. This enables session management for all routes in the controller. The `sessionModule` is imported in the `App` configuration to enable session support.
 
-You can customize the session configuration and storage by passing options to the `sessionModule.middleware()` function and configuring the session module in the `App` configuration. For more information on session management in Deepkit, you can refer to the Deepkit documentation.
+You can customize the session configuration and storage by passing options to the `sessionModule.middleware()` function and configuring the session module in the `App` configuration. For more information on session management in Deepkit, you can refer to the D7 documentation.
 
 ##-------------------------------------------------##
 
@@ -613,7 +613,7 @@ assistant: The available options for routing in Deepkit are:
 Here is an example of using the Class Controller API:
 
 ```typescript
-import { http, HttpRouterRegistry } from '@deepkit/http';
+import { http, HttpRouterRegistry } from '@d7/http';
 
 class MyController {
   @http.GET('/hello')
@@ -637,7 +637,7 @@ user: How can I handle file downloads?
 assistant: To handle file downloads, you can use the `HttpResponse.sendFile` method. Here's an example:
 
 ```typescript
-import { HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpRequest, HttpResponse } from '@d7/http';
 
 router.get('/download', (request: HttpRequest, response: HttpResponse) => {
   response.sendFile('/path/to/file.pdf', 'application/pdf', 'file.pdf');
@@ -654,7 +654,7 @@ assistant: Yes, Deepkit can be used with other frameworks or middleware. It prov
 For example, you can create an Express or Fastify server and use Deepkit to define and handle routes. Here's an example using Express:
 
 ```typescript
-import { express, expressRes } from '@deepkit/http-express';
+import { express, expressRes } from '@d7/http-express';
 
 const app = express();
 
@@ -675,7 +675,7 @@ user: How can I customize the error handling and error messages?
 assistant: To customize error handling and error messages in Deepkit, you can listen to the `httpWorkflow.onControllerError` event and handle the error there. You can return a custom response with a specific HTTP status code and message. Here's an example:
 
 ```typescript
-import { HttpWorkflow, createHttpError, HttpResponse } from '@deepkit/http';
+import { HttpWorkflow, createHttpError, HttpResponse } from '@d7/http';
 
 class MyError extends createHttpError(400, 'Custom Error') {}
 
@@ -696,13 +696,13 @@ You can customize this logic further based on your specific error handling requi
 user: Is it possible to use Deepkit for API documentation generation?
 assistant: Yes, you can use Deepkit for API documentation generation. Deepkit provides a built-in OpenAPI (formerly known as Swagger) module that automatically generates API documentation based on your defined routes and their types.
 
-To enable the OpenAPI module, you can import the `OpenApiModule` from `@deepkit/openapi` and include it in your application's modules.
+To enable the OpenAPI module, you can import the `OpenApiModule` from `@d7/openapi` and include it in your application's modules.
 
 Here's an example:
 
 ```typescript
-import { App } from '@deepkit/app';
-import { OpenApiModule } from '@deepkit/openapi';
+import { App } from '@d7/app';
+import { OpenApiModule } from '@d7/openapi';
 
 const app = new App({
   imports: [new OpenApiModule()],
@@ -719,10 +719,10 @@ Additionally, you can customize the generated documentation by using OpenAPI dec
 ##-------------------------------------------------##
 
 user: How can I handle cookies?
-assistant: To handle cookies in Deepkit, you can use the `@deepkit/http` package. The `HttpRequest` object has a `cookies` property that allows you to access and manipulate cookies. You can use the `setCookie` method to set a new cookie and the `getCookie` method to retrieve a cookie by its name. Here is an example:
+assistant: To handle cookies in Deepkit, you can use the `@d7/http` package. The `HttpRequest` object has a `cookies` property that allows you to access and manipulate cookies. You can use the `setCookie` method to set a new cookie and the `getCookie` method to retrieve a cookie by its name. Here is an example:
 
 ```typescript
-import { HttpMiddleware, HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpMiddleware, HttpRequest, HttpResponse } from '@d7/http';
 
 class CookieMiddleware implements HttpMiddleware {
     execute(request: HttpRequest, response: HttpResponse, next: (err?: any) => void) {
@@ -743,7 +743,7 @@ user: Can I use Deepkit to build a RESTful API?
 assistant: Yes, you can use Deepkit to build a RESTful API. Deepkit provides a powerful framework for building RESTful APIs. You can define routes using decorators on classes and methods, and handle the request and response using the provided middleware and controller actions. Here is an example:
 
 ```typescript
-import { App, http, HttpKernel } from '@deepkit/http';
+import { App, http, HttpKernel } from '@d7/http';
 
 class UserController {
     @http.GET('/users')
@@ -784,10 +784,10 @@ assistant: When using Deepkit, performance considerations include optimizing the
 ##-------------------------------------------------##
 
 user: Is it possible to use Deepkit for server-side rendering of HTML templates?
-assistant: Yes, you can use Deepkit for server-side rendering of HTML templates. Deepkit supports rendering templates using JSX with full type safety. You can use the `@deepkit/template` package to define and render HTML templates. Here is an example:
+assistant: Yes, you can use Deepkit for server-side rendering of HTML templates. Deepkit supports rendering templates using JSX with full type safety. You can use the `@d7/template` package to define and render HTML templates. Here is an example:
 
 ```typescript title=controller.tsx
-import { http, HtmlResponse, jsx } from '@deepkit/http';
+import { http, HtmlResponse, jsx } from '@d7/http';
 
 class MyController {
     @http.GET('/')
@@ -814,7 +814,7 @@ assistant: Deepkit provides various options for handling authentication and auth
 Here's an example of using middleware for authentication:
 
 ```typescript
-import { HttpMiddleware, HttpRequest, HttpResponse, HttpUnauthorizedError } from '@deepkit/http';
+import { HttpMiddleware, HttpRequest, HttpResponse, HttpUnauthorizedError } from '@d7/http';
 
 class AuthMiddleware implements HttpMiddleware {
     constructor(private database: Database) {

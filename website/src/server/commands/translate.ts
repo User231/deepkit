@@ -1,10 +1,10 @@
 import { OpenAI } from 'openai';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@d7/logger';
 import path from 'path';
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { getCurrentDirName } from '@deepkit/core';
+import { getCurrentDirName } from '@d7/core';
 import { docs, libraries, texts } from '@app/common/docs';
-import { findParentPath } from '@deepkit/app';
+import { findParentPath } from '@d7/app';
 
 const translationsDir = findParentPath('src/translations', getCurrentDirName()) || '';
 

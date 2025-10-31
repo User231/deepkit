@@ -12,7 +12,7 @@ import { TableOfContentService } from '@app/app/components/table-of-content.comp
 import { MoreLanguagesComponent } from '@app/app/components/more-languages.component.js';
 import { Translation } from '@app/app/components/translation.js';
 import { derivedAsync } from 'ngxtension/derived-async';
-import { pendingTask } from '@deepkit/desktop-ui';
+import { pendingTask } from '@d7/desktop-ui';
 import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({

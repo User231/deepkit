@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { HttpConfig } from '@deepkit/http';
+import { HttpConfig } from '@d7/http';
 
 const isWindows = 'undefined' !== typeof process ? process.platform === 'win32' : false;
 

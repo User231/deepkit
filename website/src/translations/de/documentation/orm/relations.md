@@ -9,10 +9,10 @@ Eine Relation wird mit dem `Reference` Decorator annotiert. Üblicherweise hat e
 Die Entity, die eine Referenz speichert, wird üblicherweise als die `owning side` bzw. diejenige bezeichnet, die die Referenz `owns`. Der folgende Code zeigt zwei Entities mit einer Eins-zu-Viele-Beziehung zwischen `User` und `Post`. Das bedeutet, dass ein `User` mehrere `Post` haben kann. Die `post`-Entity hat die Relation `post->user`. In der Datenbank selbst gibt es nun ein Feld `Post. "author"`, das den Primary Key von `User` enthält.
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { entity, PrimaryKey, AutoIncrement, 
-    Reference } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+    Reference } from '@d7/type';
+import { Database } from '@d7/orm';
 
 @entity.collection('users')
 class User {

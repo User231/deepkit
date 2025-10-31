@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
-import { ButtonComponent, ButtonGroupComponent, InputComponent, WindowComponent, WindowContentComponent, WindowFrameComponent, WindowHeaderComponent, WindowToolbarComponent } from '@deepkit/desktop-ui';
+import { CodeHighlightComponent } from '@d7/ui-library';
+import { ButtonComponent, ButtonGroupComponent, InputComponent, WindowComponent, WindowContentComponent, WindowFrameComponent, WindowHeaderComponent, WindowToolbarComponent } from '@d7/desktop-ui';
 import { AppTitle } from '@app/app/components/title.js';
 
 @Component({
@@ -20,7 +20,7 @@ import { AppTitle } from '@app/app/components/title.js';
         angular project.
       </p>
 
-      <code-highlight lang="bash" code="npm install @deepkit/desktop-ui @angular/cdk" />
+      <code-highlight lang="bash" code="npm install @d7/desktop-ui @angular/cdk" />
 
       <h2>Start using the library</h2>
 

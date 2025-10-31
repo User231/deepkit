@@ -8,17 +8,17 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, ClassType, CustomError, getClassName, getClassTypeFromInstance, isArray, isClassInstance, isObject } from '@deepkit/core';
+import { asyncOperation, ClassType, CustomError, getClassName, getClassTypeFromInstance, isArray, isClassInstance, isObject } from '@d7/core';
 import { OutgoingHttpHeaders, ServerResponse } from 'http';
-import { BaseEvent, eventDispatcher } from '@deepkit/event';
+import { BaseEvent, eventDispatcher } from '@d7/event';
 import { HttpRequest, HttpRequestPositionedParameters, HttpResponse } from './model.js';
-import { Injector, InjectorContext, Setter } from '@deepkit/injector';
-import { LoggerInterface } from '@deepkit/logger';
+import { Injector, InjectorContext, Setter } from '@d7/injector';
+import { LoggerInterface } from '@d7/logger';
 import { HttpRouter, RouteConfig, RouteParameterResolverForInjector } from './router.js';
-import { createWorkflow, WorkflowEvent } from '@deepkit/workflow';
-import type { ElementStruct, render } from '@deepkit/template';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
-import { getSerializeFunction, hasTypeInformation, ReflectionKind, resolveReceiveType, SerializationError, serialize, serializer, Type, typeSettings, UnpopulatedCheck, ValidationError } from '@deepkit/type';
+import { createWorkflow, WorkflowEvent } from '@d7/workflow';
+import type { ElementStruct, render } from '@d7/template';
+import { FrameCategory, Stopwatch } from '@d7/stopwatch';
+import { getSerializeFunction, hasTypeInformation, ReflectionKind, resolveReceiveType, SerializationError, serialize, serializer, Type, typeSettings, UnpopulatedCheck, ValidationError } from '@d7/type';
 import stream from 'stream';
 
 export function isElementStruct(v: any): v is ElementStruct {
@@ -29,7 +29,7 @@ let templateRender: typeof render;
 
 function getTemplateRender(): typeof render {
     if (!templateRender) {
-        const template = require('@deepkit/template');
+        const template = require('@d7/template');
         templateRender = template.render;
     }
 

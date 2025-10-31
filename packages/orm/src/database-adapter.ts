@@ -17,13 +17,13 @@ import {
     getClassTypeFromInstance,
     isClass,
     stringifyValueWithType,
-} from '@deepkit/core';
-import { is, isSameType, ItemChanges, PrimaryKeyFields, ReceiveType, ReflectionClass, ReflectionKind, stringifyType, Type } from '@deepkit/type';
+} from '@d7/core';
+import { is, isSameType, ItemChanges, PrimaryKeyFields, ReceiveType, ReflectionClass, ReflectionKind, stringifyType, Type } from '@d7/type';
 import { Query } from './query.js';
 import { DatabaseSession, DatabaseTransaction } from './database-session.js';
-import { EventDispatcher } from '@deepkit/event';
-import { Logger } from '@deepkit/logger';
-import { Stopwatch } from '@deepkit/stopwatch';
+import { EventDispatcher } from '@d7/event';
+import { Logger } from '@d7/logger';
+import { Stopwatch } from '@d7/stopwatch';
 
 export abstract class DatabaseAdapterQueryFactory {
     abstract createQuery<T extends OrmEntity>(type?: ReceiveType<T> | ClassType<T> | AbstractClassType<T> | ReflectionClass<T>): Query<T>;

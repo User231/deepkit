@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/orm-browser-example",
+  "name": "@d7/orm-browser-example",
   "version": "1.0.1-alpha.14",
-  "description": "Deepkit ORM Data Browser example",
+  "description": "D7 ORM Data Browser example",
   "type": "commonjs",
   "private": true,
   "main": "./dist/cjs/main.js",
@@ -9,17 +9,17 @@
   "publishConfig": {
     "access": "public"
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "dependencies": {
-    "@deepkit/mongo": "^1.0.1",
-    "@deepkit/orm-browser": "^1.0.1",
-    "@deepkit/mysql": "^1.0.1",
-    "@deepkit/orm": "^1.0.1",
-    "@deepkit/postgres": "^1.0.1",
-    "@deepkit/sqlite": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@d7/mongo": "^1.0.1",
+    "@d7/orm-browser": "^1.0.1",
+    "@d7/mysql": "^1.0.1",
+    "@d7/orm": "^1.0.1",
+    "@d7/postgres": "^1.0.1",
+    "@d7/sqlite": "^1.0.1",
+    "@d7/type": "^1.0.1"
   },
   "devDependencies": {
     "reflect-metadata": "^0.1.13"

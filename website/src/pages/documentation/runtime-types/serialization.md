@@ -20,22 +20,22 @@ const value = JSON.parse('"2022-05-13T20:48:51.025Z"');
 
 Although there are various workarounds to teach JSON.parse to deserialize Date objects, they are error-prone and poorly performing. To enable typesafe serialization and deserialization for this case and many other types, a serialization process is necessary.
 
-There are four main functions available: `serialize`, `cast`, `deserialize` and `validatedDeserialize`. Under the hood of these functions, the globally available JSON serializer from `@deepkit/type` is used by default, but a custom serialization target can also be used.
+There are four main functions available: `serialize`, `cast`, `deserialize` and `validatedDeserialize`. Under the hood of these functions, the globally available JSON serializer from `@d7/type` is used by default, but a custom serialization target can also be used.
 
-Deepkit Type supports user-defined serialization targets, but already comes with a powerful JSON serialization target that serializes data as JSON objects and then can be correctly and safely converted as JSON using JSON.stringify. With `@deepkit/bson`, BSON can also be used as a serialization target. How to create a custom serialization target (for example for a database driver) can be learned in the Custom Serializer section.
+Deepkit Type supports user-defined serialization targets, but already comes with a powerful JSON serialization target that serializes data as JSON objects and then can be correctly and safely converted as JSON using JSON.stringify. With `@d7/bson`, BSON can also be used as a serialization target. How to create a custom serialization target (for example for a database driver) can be learned in the Custom Serializer section.
 
 Note that although serializers also validate data for compatibility, these validations are different from the validation in [Validation](validation.md). Only the `cast` function also calls the full validation process from the [Validation](validation.md) chapter after successful deserialization, and throws an error if the data is not valid.
 
 Alternatively, `validatedDeserialize` can be used to validate after deserialization. Another alternative is to manually call the `validate` or `validates` functions on deserialized data from the `deserialize` function, see [Validation](validation.md).
 
-All functions from serialization and validation throw a `ValidationError` from `@deepkit/type` on errors.
+All functions from serialization and validation throw a `ValidationError` from `@d7/type` on errors.
 
 ## Cast
 
 The `cast` function expects as first type argument a TypeScript type, and as second argument the data to cast. The data is casted to the given type, and if successful, the data is returned. If the data is not compatible with the given type and can not be converted automatically, a `ValidationError` is thrown.
 
 ```typescript
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 
 cast<string>(123); //'123'
 cast<number>('123'); //123
@@ -65,7 +65,7 @@ The `deserialize` function is similar to `cast`, but does not throw an error if 
 ## Serialization
 
 ```typescript
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;
@@ -94,7 +94,7 @@ The function `serialize` converts the passed data by default with the JSON seria
 The function `deserialize` converts the passed data per default with the JSON serializer into the corresponding specified types. The JSON serializer expects a JSON object, i.e.: string, number, boolean, object, or array. This is usually obtained from a `JSON.parse` call.
 
 ```typescript
-import { deserialize } from '@deepkit/type';
+import { deserialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;

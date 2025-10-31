@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { cli, Command, Flag, ServiceContainer } from '@deepkit/app';
+import { cli, Command, Flag, ServiceContainer } from '@d7/app';
 
 /**
  * @description Prints debugging information about dependency injection.

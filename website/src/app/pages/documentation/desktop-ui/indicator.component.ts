@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { IndicatorComponent, SliderComponent } from '@deepkit/desktop-ui';
+import { IndicatorComponent, SliderComponent } from '@d7/desktop-ui';
 import { ApiDocComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
 import { FormsModule } from '@angular/forms';
 import { AppTitle } from '@app/app/components/title.js';

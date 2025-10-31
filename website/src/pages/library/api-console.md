@@ -1,6 +1,6 @@
 ---
 title: Deepkit API Console
-package: "@deepkit/api-console"
+package: "@d7/api-console"
 doc: framework/api-console
 ---
 

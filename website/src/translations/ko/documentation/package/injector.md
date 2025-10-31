@@ -1,7 +1,7 @@
-# API `@deepkit/injector`
+# API `@d7/injector`
 
 ```shell
-npm install @deepkit/injector
+npm install @d7/injector
 ```
 
-<api-docs package="@deepkit/injector"></api-docs>
+<api-docs package="@d7/injector"></api-docs>

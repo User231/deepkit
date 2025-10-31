@@ -1,6 +1,6 @@
 # Benutzerdefinierter Serializer
 
-Standardmäßig enthält `@deepkit/type` einen JSON-Serializer und Typvalidierung für TypeScript-Typen. Sie können dies erweitern und die Serialisierungsfunktionalität hinzufügen oder entfernen oder ändern, wie die Validierung durchgeführt wird, da die Validierung ebenfalls mit dem Serializer verknüpft ist.
+Standardmäßig enthält `@d7/type` einen JSON-Serializer und Typvalidierung für TypeScript-Typen. Sie können dies erweitern und die Serialisierungsfunktionalität hinzufügen oder entfernen oder ändern, wie die Validierung durchgeführt wird, da die Validierung ebenfalls mit dem Serializer verknüpft ist.
 
 ## Neuer Serializer
 
@@ -11,7 +11,7 @@ Nur während der Ausführung der Compiler-Template-Funktion haben (oder sollten)
 Das folgende Beispiel erstellt einen leeren Serializer.
 
 ```typescript
-import { EmptySerializer } from '@deepkit/type';
+import { EmptySerializer } from '@d7/type';
 
 class User {
     name: string = '';
@@ -68,7 +68,7 @@ Unser neuer Serializer konvertiert das Datum im Serialisierungsprozess nun korre
 
 ## Beispiele
 
-Viele weitere Beispiele finden Sie im Code der in Deepkit Type enthaltenen [JSON-Serializer](https://github.com/deepkit/deepkit-framework/blob/master/packages/type/src/serializer.ts#L1688).
+Viele weitere Beispiele finden Sie im Code der in Deepkit Type enthaltenen [JSON-Serializer](https://github.com/marcj/d7/blob/master/packages/type/src/serializer.ts#L1688).
 
 ## Vorhandenen Serializer erweitern
 

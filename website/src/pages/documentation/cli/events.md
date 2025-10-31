@@ -10,7 +10,7 @@ There are several events that are emitted when a CLI command is executed. These 
 Event listeners can be registered either via the `App` instance as callbacks:
 
 ```typescript
-import { App, onAppExecute } from "@deepkit/app";
+import { App, onAppExecute } from "@d7/app";
 
 const app = new App();
 
@@ -28,8 +28,8 @@ app.run();
 Or as event listener classes:
 
 ```typescript
-import { App, onAppExecute } from "@deepkit/app";
-import { eventDispatcher } from "@deepkit/event";
+import { App, onAppExecute } from "@d7/app";
+import { eventDispatcher } from "@d7/event";
 
 class Listener {
     @eventDispatcher.listen(onAppExecute)

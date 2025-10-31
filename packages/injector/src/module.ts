@@ -1,5 +1,5 @@
 import { NormalizedProvider, ProviderWithScope, TagProvider, Token } from './provider.js';
-import { arrayRemoveItem, ClassType, getClassName, isClass, isPlainObject, isPrototypeOfBase } from '@deepkit/core';
+import { arrayRemoveItem, ClassType, getClassName, isClass, isPlainObject, isPrototypeOfBase } from '@d7/core';
 import { BuildContext, getContainerToken, Injector, resolveToken } from './injector.js';
 import {
     hasTypeInformation,
@@ -14,7 +14,7 @@ import {
     typeInfer,
     TypeObjectLiteral,
     visit,
-} from '@deepkit/type';
+} from '@d7/type';
 import { nominalCompatibility } from './types.js';
 
 export interface ConfigureProviderOptions {

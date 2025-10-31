@@ -10,8 +10,8 @@ TODO: 아직 구현되지 않았습니다.
 
 ## WebSockets
 
-@deepkit/rpc-tcp `RpcWebSocketServer` 및 브라우저 WebSocket 또는 Node `ws` 패키지.
+@d7/rpc-tcp `RpcWebSocketServer` 및 브라우저 WebSocket 또는 Node `ws` 패키지.
 
 ## TCP
 
-@deepkit/rpc-tcp `RpcNetTcpServer` 와 `RpcNetTcpClientAdapter`
+@d7/rpc-tcp `RpcNetTcpServer` 와 `RpcNetTcpClientAdapter`

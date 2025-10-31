@@ -13,7 +13,7 @@
     "esModuleInterop": true,
     "outDir": "./dist",
     "jsx": "react-jsx",
-    "jsxImportSource": "@deepkit/template"
+    "jsxImportSource": "@d7/template"
   },
   "ts-node": {
     "experimentalResolver": true

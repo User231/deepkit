@@ -1,8 +1,8 @@
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { ControllerClient } from '../../client';
-import { DebugRequest } from '@deepkit/framework-debug-api';
+import { DebugRequest } from '@d7/framework-debug-api';
 import { Router } from '@angular/router';
-import { InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 

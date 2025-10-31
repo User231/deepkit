@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, computed, ContentChildren, forwardRef, inject, Injectable, input, Input, QueryList, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
-import { ButtonGroupComponent, InputComponent, pendingTask, TabButtonComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { CodeHighlightComponent } from '@d7/ui-library';
+import { ButtonGroupComponent, InputComponent, pendingTask, TabButtonComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@d7/desktop-ui';
 import { derivedAsync } from 'ngxtension/derived-async';
 import { MarkdownParser } from '@app/common/markdown.js';
 import { ContentRenderComponent } from '@app/app/components/content-render.component.js';
@@ -377,7 +377,7 @@ export function typeToString(type?: ApiDocType, d: number = 0): string {
     return '';
 }
 
-const docs = import('@deepkit/desktop-ui/docs.json');
+const docs = import('@d7/desktop-ui/docs.json');
 
 @Injectable({ providedIn: 'root' })
 export class ApiDocProvider {

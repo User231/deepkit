@@ -1,7 +1,7 @@
-# API `@deepkit/type`
+# API `@d7/type`
 
 ```shell
-npm install @deepkit/type
+npm install @d7/type
 ```
 
-<api-docs package="@deepkit/type"></api-docs>
+<api-docs package="@d7/type"></api-docs>

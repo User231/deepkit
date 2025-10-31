@@ -1,4 +1,4 @@
-import { Logger, MemoryLoggerTransport, ScopedLogger } from '@deepkit/logger';
+import { Logger, MemoryLoggerTransport, ScopedLogger } from '@d7/logger';
 import { expect, test } from '@jest/globals';
 import { App } from '../src/app.js';
 

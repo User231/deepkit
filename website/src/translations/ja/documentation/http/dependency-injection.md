@@ -49,10 +49,10 @@ class UserController {
 
 ## スコープ
 
-すべてのHTTPコントローラと関数ルートは、`http` 依存性注入スコープ内で管理されます。HTTPコントローラは各HTTPリクエストごとにインスタンス化されます。これは、両者が `http` スコープに登録されたプロバイダにアクセスできることも意味します。さらに、`@deepkit/http` の `HttpRequest` と `HttpResponse` を依存関係として利用できます。deepkit フレームワークを使用している場合は、`@deepkit/framework` の `SessionHandler` も利用可能です。
+すべてのHTTPコントローラと関数ルートは、`http` 依存性注入スコープ内で管理されます。HTTPコントローラは各HTTPリクエストごとにインスタンス化されます。これは、両者が `http` スコープに登録されたプロバイダにアクセスできることも意味します。さらに、`@d7/http` の `HttpRequest` と `HttpResponse` を依存関係として利用できます。deepkit フレームワークを使用している場合は、`@d7/framework` の `SessionHandler` も利用可能です。
 
 ```typescript
-import { HttpResponse } from '@deepkit/http';
+import { HttpResponse } from '@d7/http';
 
 router.get('/user/:id', (id: number, request: HttpRequest) => {
 });

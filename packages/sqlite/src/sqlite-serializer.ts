@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { SqlSerializer, isDirectPropertyOfEntity } from '@deepkit/sql';
-import { ReflectionKind } from '@deepkit/type';
+import { SqlSerializer, isDirectPropertyOfEntity } from '@d7/sql';
+import { ReflectionKind } from '@d7/type';
 
 class SQLiteSerializer extends SqlSerializer {
     name = 'sqlite';

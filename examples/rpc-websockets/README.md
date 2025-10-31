@@ -1,13 +1,13 @@
 # Deepkit RPC WebSockets Example
 
-This example shows how to use the Deepkit RPC over WebSockets.
+This example shows how to use the D7 RPC over WebSockets.
 
 ## How to run
 
 First install dependencies
 
 ```
-# postinstall script automatically installs deepkit type compiler
+# postinstall script automatically installs d7 type compiler
 npm install
 ```
 

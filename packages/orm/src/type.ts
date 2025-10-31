@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { Changes, PrimaryKeyFields, PrimaryKeyType, ReflectionClass, ValidationErrorItem } from '@deepkit/type';
-import { CustomError } from '@deepkit/core';
+import { Changes, PrimaryKeyFields, PrimaryKeyType, ReflectionClass, ValidationErrorItem } from '@d7/type';
+import { CustomError } from '@d7/core';
 import { DatabasePersistenceChangeSet } from './database-adapter.js';
 import { DatabaseQueryModel } from './query.js';
 

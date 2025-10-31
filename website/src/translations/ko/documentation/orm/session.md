@@ -3,9 +3,9 @@
 세션은 일종의 Unit Of Work와 같습니다. `commit()`이 호출될 때마다 당신이 하는 모든 작업을 추적하고 변경 사항을 자동으로 기록합니다. 세션은 여러 쿼리를 묶어 매우 빠르게 처리하기 때문에 데이터베이스에 변경을 수행하는 데 선호되는 방식입니다. 세션은 매우 가벼워서 예를 들어 request-response 라이프사이클에서 쉽게 생성할 수 있습니다.
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { Database } from '@d7/orm';
 
 async function main() {
 

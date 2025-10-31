@@ -79,8 +79,8 @@ test('hello world', () => {
 正如你在依赖注入章节中已经了解到的那样，依赖注入容器是 Deepkit 的核心。所有服务都在这里构建并运行。你的应用定义了服务（providers）、控制器、监听器和 imports。对于集成测试，你不一定希望在一个测试用例中拥有所有服务，但通常希望有一个精简版的应用来测试关键区域。
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
-import { http, HttpRequest } from '@deepkit/http';
+import { createTestingApp } from '@d7/framework';
+import { http, HttpRequest } from '@d7/http';
 
 test('http controller', async () => {
     class MyController {
@@ -102,7 +102,7 @@ test('http controller', async () => {
 ```
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 
 test('service', async () => {
     class MyService {
@@ -157,7 +157,7 @@ new App({
 并且在不启动整个应用服务器的情况下测试它。
 
 ```typescript
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@d7/framework';
 import { AppCoreModule, MyService } from './app-core.ts';
 
 test('service simple', async () => {

@@ -9,9 +9,9 @@
  */
 
 import { Injectable } from '@angular/core';
-import { RpcWebSocketClient } from '@deepkit/rpc';
-import { BrowserControllerInterface, DatabaseInfo } from '@deepkit/orm-browser-api';
-import { asyncOperation } from '@deepkit/core';
+import { RpcWebSocketClient } from '@d7/rpc';
+import { BrowserControllerInterface, DatabaseInfo } from '@d7/orm-browser-api';
+import { asyncOperation } from '@d7/core';
 
 @Injectable({ providedIn: 'root' })
 export class ControllerClient {

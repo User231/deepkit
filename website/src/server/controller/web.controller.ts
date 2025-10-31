@@ -1,5 +1,5 @@
-import { http, HttpQuery } from "@deepkit/http";
-import { Logger } from "@deepkit/logger";
+import { http, HttpQuery } from "@d7/http";
+import { Logger } from "@d7/logger";
 import { OpenAI } from "openai";
 import { PageProcessor } from "@app/server/page-processor";
 

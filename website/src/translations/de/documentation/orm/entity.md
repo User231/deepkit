@@ -1,14 +1,14 @@
 # Entity
 
 Eine Entity ist entweder eine Class oder ein Object Literal (Interface) und hat immer einen Primary Key.
-Die Entity wird mit allen notwendigen Informationen über Type Annotations aus `@deepkit/type` versehen. Zum Beispiel wird ein Primary Key definiert sowie verschiedene Felder und deren Validierungs-Constraints. Diese Felder spiegeln die Datenbankstruktur wider, in der Regel eine Tabelle oder eine Collection.
+Die Entity wird mit allen notwendigen Informationen über Type Annotations aus `@d7/type` versehen. Zum Beispiel wird ein Primary Key definiert sowie verschiedene Felder und deren Validierungs-Constraints. Diese Felder spiegeln die Datenbankstruktur wider, in der Regel eine Tabelle oder eine Collection.
 
 Durch spezielle Type Annotations wie `Mapped<'name'>` kann ein Feldname auch auf einen anderen Namen in der Datenbank gemappt werden.
 
 ## Class
 
 ```typescript
-import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 @entity.name('user')
 class User {
@@ -35,7 +35,7 @@ console.log('all users', allUsers);
 ## Interface
 
 ```typescript
-import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -80,7 +80,7 @@ Für MongoDB wird oft die MongoId oder ObjectID genutzt.
 Für Zahlen kann `AutoIncrement` verwendet werden.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -94,7 +94,7 @@ Felder, die beim Insert automatisch inkrementiert werden sollen, werden mit dem 
 Ein Auto-Increment-Feld ist ein automatischer Zähler und kann nur auf einen Primary Key angewendet werden. Die Datenbank stellt automatisch sicher, dass eine ID nur einmal verwendet wird.
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement;
@@ -106,7 +106,7 @@ interface User {
 Felder, die vom Type UUID (v4) sein sollen, werden mit dem Decorator UUID annotiert. Der Runtime Type ist `string` und in der Datenbank selbst meist binär. Verwende die Function `uuid()`, um eine neue UUID v4 zu erzeugen.
 
 ```typescript
-import { uuid, UUID, PrimaryKey } from '@deepkit/type';
+import { uuid, UUID, PrimaryKey } from '@d7/type';
 
 class User {
     id: UUID & PrimaryKey = uuid();
@@ -120,7 +120,7 @@ Felder, die in MongoDB vom Type ObjectID sein sollen, werden mit dem Decorator `
 MongoID-Felder erhalten beim Insert automatisch einen neuen Wert. Es ist nicht zwingend erforderlich, den Feldnamen `_id` zu verwenden. Er kann beliebig sein.
 
 ```typescript
-import { PrimaryKey, MongoId } from '@deepkit/type';
+import { PrimaryKey, MongoId } from '@d7/type';
 
 class User {
     id: MongoId & PrimaryKey = '';
@@ -135,7 +135,7 @@ Beide Varianten führen dazu, dass der Datenbanktyp bei allen SQL Adaptern `NULL
 Im folgenden Beispiel ist das Feld modified optional und kann zur Runtime daher undefined sein, obwohl es in der Datenbank immer als NULL dargestellt wird.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -146,7 +146,7 @@ class User {
 Dieses Beispiel zeigt, wie der Nullable Type funktioniert. NULL wird sowohl in der Datenbank als auch in der JavaScript-Runtime verwendet. Das ist ausführlicher als `modified?: Date` und wird nicht häufig genutzt.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -174,7 +174,7 @@ class User {
 Mit `DatabaseField` ist es möglich, ein Feld auf jeden beliebigen Datenbanktyp zu mappen. Der Type muss ein gültiges SQL-Statement sein, das unverändert an das Migrationssystem weitergegeben wird.
 
 ```typescript
-import { DatabaseField } from '@deepkit/type';
+import { DatabaseField } from '@d7/type';
 
 interface User {
     title: string & DatabaseField<{type: 'VARCHAR(244)'}>;
@@ -186,7 +186,7 @@ Um ein Feld für eine spezifische Datenbank zu mappen, können entweder `SQLite`
 ### SQLite
 
 ```typescript
-import { SQLite } from '@deepkit/type';
+import { SQLite } from '@d7/type';
 
 interface User {
     title: string & SQLite<{type: 'text'}>;
@@ -196,7 +196,7 @@ interface User {
 ### MySQL
 
 ```typescript
-import { MySQL } from '@deepkit/type';
+import { MySQL } from '@d7/type';
 
 interface User {
     title: string & MySQL<{type: 'text'}>;
@@ -206,7 +206,7 @@ interface User {
 ### Postgres
 
 ```typescript
-import { Postgres } from '@deepkit/type';
+import { Postgres } from '@d7/type';
 
 interface User {
     title: string & Postgres<{type: 'text'}>;

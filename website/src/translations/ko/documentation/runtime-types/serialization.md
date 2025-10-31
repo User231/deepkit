@@ -20,22 +20,22 @@ const value = JSON.parse('"2022-05-13T20:48:51.025Z"');
 
 JSON.parse에 Date 객체의 역직렬화를 가르치는 다양한 우회 방법이 있지만, 오류가 발생하기 쉽고 성능이 좋지 않습니다. 이 경우 및 많은 다른 타입에 대해 타입 안전한 직렬화와 역직렬화를 가능하게 하려면 별도의 직렬화 과정이 필요합니다.
 
-네 가지 주요 Function이 제공됩니다: `serialize`, `cast`, `deserialize`, `validatedDeserialize`. 이러한 Function의 내부에서는 기본적으로 `@deepkit/type`의 전역 JSON serializer가 사용되지만, 사용자 정의 직렬화 대상도 사용할 수 있습니다.
+네 가지 주요 Function이 제공됩니다: `serialize`, `cast`, `deserialize`, `validatedDeserialize`. 이러한 Function의 내부에서는 기본적으로 `@d7/type`의 전역 JSON serializer가 사용되지만, 사용자 정의 직렬화 대상도 사용할 수 있습니다.
 
-Deepkit Type은 사용자 정의 직렬화 대상을 지원하며, 이미 강력한 JSON 직렬화 대상을 제공하여 데이터를 JSON 객체로 직렬화하고 `JSON.stringify`를 사용해 JSON으로 올바르고 안전하게 변환할 수 있습니다. `@deepkit/bson`을 사용하면 BSON도 직렬화 대상으로 사용할 수 있습니다. 사용자 정의 직렬화 대상(예: 데이터베이스 드라이버용)을 만드는 방법은 Custom Serializer 섹션에서 배울 수 있습니다.
+Deepkit Type은 사용자 정의 직렬화 대상을 지원하며, 이미 강력한 JSON 직렬화 대상을 제공하여 데이터를 JSON 객체로 직렬화하고 `JSON.stringify`를 사용해 JSON으로 올바르고 안전하게 변환할 수 있습니다. `@d7/bson`을 사용하면 BSON도 직렬화 대상으로 사용할 수 있습니다. 사용자 정의 직렬화 대상(예: 데이터베이스 드라이버용)을 만드는 방법은 Custom Serializer 섹션에서 배울 수 있습니다.
 
 serializer도 호환성 검증을 수행하지만, 이러한 검증은 [검증](validation.md)의 검증과는 다릅니다. 오직 `cast` Function만이 역직렬화가 성공한 후 [검증](validation.md) 챕터의 전체 검증 프로세스를 호출하며, 데이터가 유효하지 않으면 Error를 던집니다.
 
 대안으로, 역직렬화 후 검증을 수행하기 위해 `validatedDeserialize`를 사용할 수 있습니다. 또 다른 대안으로는 `deserialize` Function으로 역직렬화한 데이터에 `validate` 또는 `validates` Function을 수동으로 호출하는 방법이 있습니다. 자세한 내용은 [검증](validation.md)을 참고하세요.
 
-직렬화와 검증의 모든 Function은 오류 시 `@deepkit/type`의 `ValidationError`를 던집니다.
+직렬화와 검증의 모든 Function은 오류 시 `@d7/type`의 `ValidationError`를 던집니다.
 
 ## Cast
 
 `cast` Function은 첫 타입 인수로 TypeScript 타입을, 두 번째 인수로 변환할 데이터를 받습니다. 데이터는 주어진 타입으로 캐스팅되며, 성공 시 그 데이터가 반환됩니다. 데이터가 주어진 타입과 호환되지 않고 자동 변환할 수 없으면 `ValidationError`가 던져집니다.
 
 ```typescript
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 
 cast<string>(123); //'123'
 cast<number>('123'); //123
@@ -65,7 +65,7 @@ const myModel = cast<MyModel>({
 ## 직렬화
 
 ```typescript
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;
@@ -93,7 +93,7 @@ const json = JSON.stringify(jsonObject);
 `deserialize` Function은 기본적으로 JSON serializer를 사용해 전달된 데이터를 지정된 타입으로 변환합니다. JSON serializer는 JSON 객체, 즉 string, number, boolean, object, 또는 array를 입력으로 기대합니다. 이는 보통 `JSON.parse` 호출에서 얻습니다.
 
 ```typescript
-import { deserialize } from '@deepkit/type';
+import { deserialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;

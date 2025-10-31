@@ -4,10 +4,10 @@ It's often necessary to access the database directly, for example to run a SQL q
 This can be done using the `raw` method on the `Database` class.
 
 ```typescript
-import { PrimaryKey, AutoIncrement, @entity } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
-import { sql } from '@deepkit/sql';
-import { SqliteDatabaseAdapter } from '@deepkit/sqlite';
+import { PrimaryKey, AutoIncrement, @entity } from '@d7/type';
+import { Database } from '@d7/orm';
+import { sql } from '@d7/sql';
+import { SqliteDatabaseAdapter } from '@d7/sqlite';
 
 @entity.collection('users')
 class User {
@@ -30,7 +30,7 @@ The SQL query is built using the `sql` template string tag. This is a special te
 To pass a dynamic identifier like a column name, `identifier` can be used:
 
 ```typescript
-import { identifier, sql } from '@deepkit/sql';
+import { identifier, sql } from '@d7/sql';
 
 let column = 'username';
 const rows = await database.raw<User>(sql`SELECT * FROM users WHERE ${identifier(column)} LIKE ${query}`).find();
@@ -66,7 +66,7 @@ MongoDB adapter works a bit different since it's not based on SQL queries but on
 A command could be an aggregation pipeline, a find query, or a write command.
 
 ```typescript
-import { MongoDatabaseAdapter } from '@deepkit/mongo';
+import { MongoDatabaseAdapter } from '@d7/mongo';
 
 const database = new Database(MongoDatabaseAdapter('mongodb://localhost:27017/mydatabase'));
 

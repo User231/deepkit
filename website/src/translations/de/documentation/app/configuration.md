@@ -8,8 +8,8 @@ Eine Konfiguration kann definiert werden, indem eine Class mit Properties defini
 ## Beispiel
 
 ```typescript
-import { MinLength } from '@deepkit/type';
-import { App } from '@deepkit/app';
+import { MinLength } from '@d7/type';
+import { App } from '@d7/app';
 
 class Config {
     pageTitle: string & MinLength<2> = 'Cool site';
@@ -130,7 +130,7 @@ Das funktioniert für alle Module gleich. Für die Konfigurationsoption Ihrer An
 ## Konfigurationsklasse
 
 ```typescript
-import { MinLength } from '@deepkit/type';
+import { MinLength } from '@d7/type';
 
 export class Config {
     title!: string & MinLength<2>; //dadurch wird es erforderlich und muss angegeben werden
@@ -141,7 +141,7 @@ export class Config {
 ```
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 import { Config } from './module.config.ts';
 
 export class MyModule extends createModuleClass({

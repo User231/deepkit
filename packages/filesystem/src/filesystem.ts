@@ -1,4 +1,4 @@
-import { asyncOperation, Inject, isFunction, pathBasename, pathExtension, pathJoin, pathNormalize } from '@deepkit/core';
+import { asyncOperation, Inject, isFunction, pathBasename, pathExtension, pathJoin, pathNormalize } from '@d7/core';
 import { readFile } from 'fs/promises';
 
 export type FileType = 'file' | 'directory';
@@ -762,8 +762,8 @@ export type NamedFilesystem<Name extends string> = Filesystem & Inject<`app.file
  *
  * @example
  * ```typescript
- * import { provideNamedFilesystem, NamedFilesystem, FilesystemLocalAdapter } from '@deepkit/filesystem';
- * import { AppModule } from '@deepkit/app';
+ * import { provideNamedFilesystem, NamedFilesystem, FilesystemLocalAdapter } from '@d7/filesystem';
+ * import { AppModule } from '@d7/app';
  *
  * new App({
  *     providers: [provideNamedFilesystem('local2', new FilesystemLocalAdapter({root: 'public'}))]
@@ -797,8 +797,8 @@ export function provideNamedFilesystem(name: string, adapter: FilesystemAdapter 
  *
  * @example
  * ```typescript
- * import { provideFilesystem, Filesystem, FilesystemLocalAdapter } from '@deepkit/filesystem';
- * import { AppModule } from '@deepkit/app';
+ * import { provideFilesystem, Filesystem, FilesystemLocalAdapter } from '@d7/filesystem';
+ * import { AppModule } from '@d7/app';
  *
  * new App({
  *     providers: [provideFilesystem(new FilesystemLocalAdapter({root: 'public'}))]

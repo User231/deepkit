@@ -8,10 +8,10 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, getClassName } from '@deepkit/core';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
+import { ClassType, getClassName } from '@d7/core';
+import { InjectorContext, InjectorModule } from '@d7/injector';
 import { Database } from './database.js';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 /**
  * Class to register a new database and resolve a schema/type to a database.

@@ -5,8 +5,8 @@ Das Soft-Delete-Plugin ermöglicht es, Datenbankeinträge verborgen zu halten, o
 Um das Plugin zu verwenden, müssen Sie die SoftDelete Class instanziieren und sie für jede Entity aktivieren.
 
 ```typescript
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { SoftDelete } from '@deepkit/orm';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { SoftDelete } from '@d7/orm';
 
 @entity.name('user')
 class User {
@@ -42,7 +42,7 @@ Um Datensätze soft zu löschen, verwenden Sie die üblichen Methoden: `deleteOn
 Gelöschte Datensätze können mit einer "lifted query" über `SoftDeleteQuery` wiederhergestellt werden. Sie bietet `restoreOne` und `restoreMany`.
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreOne();
 await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreMany();
@@ -51,7 +51,7 @@ await database.query(User).lift(SoftDeleteQuery).filter({ id: 1 }).restoreMany()
 Die Session unterstützt ebenfalls das Wiederherstellen von Elementen.
 
 ```typescript
-import { SoftDeleteSession } from '@deepkit/orm';
+import { SoftDeleteSession } from '@d7/orm';
 
 const session = database.createSession();
 const user1 = session.query(User).findOne();
@@ -65,7 +65,7 @@ await session.commit();
 Um Datensätze hart zu löschen, verwenden Sie eine "lifted query" über SoftDeleteQuery. Dies stellt im Wesentlichen das normale Verhalten wieder her, bei dem kein Soft-Delete-Plugin verwendet wird.
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 // den Datensatz wirklich aus der Datenbank löschen
 await database.query(User).lift(SoftDeleteQuery).hardDeleteOne();
@@ -81,7 +81,7 @@ await database.query(User).lift(SoftDeleteQuery).withSoftDeleted().deleteMany();
 Mit einer "lifted" Query über `SoftDeleteQuery` können Sie auch gelöschte Datensätze einbeziehen.
 
 ```typescript
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 // alle finden, soft gelöscht und nicht gelöscht
 await database.query(User).lift(SoftDeleteQuery).withSoftDeleted().find();
@@ -95,7 +95,7 @@ await database.query(s).lift(SoftDeleteQuery).isSoftDeleted().count()
 `deletedBy` kann über Abfragen und Sessions gesetzt werden.
 
 ```typescript
-import { SoftDeleteSession } from '@deepkit/orm';
+import { SoftDeleteSession } from '@d7/orm';
 
 const session = database.createSession();
 const user1 = session.query(User).findOne();
@@ -104,7 +104,7 @@ session.from(SoftDeleteSession).setDeletedBy('Peter');
 session.remove(user1);
 
 await session.commit();
-import { SoftDeleteQuery } from '@deepkit/orm';
+import { SoftDeleteQuery } from '@d7/orm';
 
 database.query(User).lift(SoftDeleteQuery)
 .deletedBy('Peter')

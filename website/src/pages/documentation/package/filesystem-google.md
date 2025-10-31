@@ -1,8 +1,8 @@
-# API `@deepkit/filesystem-google`
+# API `@d7/filesystem-google`
 
 ```shell
-npm install @deepkit/filesystem-google
+npm install @d7/filesystem-google
 ```
 
 
-<api-docs package="@deepkit/filesystem-google"></api-docs>
+<api-docs package="@d7/filesystem-google"></api-docs>

@@ -7,7 +7,7 @@ Deepkit ORM에서 상속을 구현하는 방법은 여러 가지가 있습니다
 한 가지 방법은 `extends`를 사용하는 간단한 클래스들을 통한 클래스 상속을 이용하는 것입니다.
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 class BaseModel {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -56,7 +56,7 @@ CREATE TABLE customer (
 단일 테이블 상속(Single Table Inheritance)은 여러 엔티티를 하나의 테이블에 저장하는 방식입니다. 각 모델마다 별도의 테이블을 두는 대신 단일 테이블을 사용하고, 각 레코드의 타입을 판별하기 위해 추가 컬럼(보통 type과 같은 이름)을 사용합니다. 동일한 프로퍼티를 공유하는 엔티티가 많을 때 유용합니다.
 
 ```typescript
-import { PrimaryKey, AutoIncrement, entity } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, entity } from '@d7/type';
 
 @entity.collection('persons')
 abstract class Person {

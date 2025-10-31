@@ -1,5 +1,5 @@
-import { isArray, isObject } from '@deepkit/core';
-import { Database, DatabaseAdapter, MigrateOptions } from '@deepkit/orm';
+import { isArray, isObject } from '@d7/core';
+import { Database, DatabaseAdapter, MigrateOptions } from '@d7/orm';
 import {
     BrowserControllerInterface,
     DatabaseCommit,
@@ -11,12 +11,12 @@ import {
     getType,
     QueryResult,
     SeedDatabase,
-} from '@deepkit/orm-browser-api';
-import { rpc } from '@deepkit/rpc';
-import { SQLDatabaseAdapter } from '@deepkit/sql';
-import { Logger, LoggerLevel, MemoryLoggerTransport } from '@deepkit/logger';
+} from '@d7/orm-browser-api';
+import { rpc } from '@d7/rpc';
+import { SQLDatabaseAdapter } from '@d7/sql';
+import { Logger, LoggerLevel, MemoryLoggerTransport } from '@d7/logger';
 import { performance } from 'perf_hooks';
-import { http, HttpQuery } from '@deepkit/http';
+import { http, HttpQuery } from '@d7/http';
 import {
     cast,
     getPartialSerializeFunction,
@@ -26,7 +26,7 @@ import {
     resolveClassType,
     serializer,
     Type,
-} from '@deepkit/type';
+} from '@d7/type';
 
 @rpc.controller(BrowserControllerInterface)
 export class OrmBrowserController implements BrowserControllerInterface {

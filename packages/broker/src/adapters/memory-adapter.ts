@@ -1,6 +1,6 @@
 import { BrokerDeepkitAdapter } from './deepkit-adapter.js';
 import { BrokerKernel } from '../kernel.js';
-import { RpcDirectClientAdapter } from '@deepkit/rpc';
+import { RpcDirectClientAdapter } from '@d7/rpc';
 
 /**
  * This adapter is only for testing purposes. It uses the in-memory broker kernel (server)

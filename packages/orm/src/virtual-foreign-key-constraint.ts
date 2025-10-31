@@ -10,7 +10,7 @@
 
 import type { QueryDatabaseDeleteEvent, QueryDatabasePatchEvent, UnitOfWorkEvent, UnitOfWorkUpdateEvent } from './event.js';
 import type { Database } from './database.js';
-import { ReflectionClass, ReflectionProperty } from '@deepkit/type';
+import { ReflectionClass, ReflectionProperty } from '@d7/type';
 
 type IncomingReference = { classSchema: ReflectionClass<any>, property: ReflectionProperty };
 

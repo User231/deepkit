@@ -3,12 +3,12 @@
 For the memory filesystem, the filesystem is stored in memory. This means that the filesystem is not persistent and will be lost when the application is exited.
 This is useful especially for testing purposes.
 
-It is part of `@deepkit/filesystem`, so not additional installation is required.
+It is part of `@d7/filesystem`, so not additional installation is required.
 
 ## Usage
 
 ```typescript
-import { FilesystemMemoryAdapter, Filesystem } from '@deepkit/filesystem';
+import { FilesystemMemoryAdapter, Filesystem } from '@d7/filesystem';
 
 const adapter = new FilesystemMemoryAdapter();
 const filesystem = new Filesystem(adapter);

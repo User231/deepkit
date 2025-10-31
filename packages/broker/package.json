@@ -1,5 +1,5 @@
 {
-  "name": "@deepkit/broker",
+  "name": "@d7/broker",
   "version": "1.0.19",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -17,7 +17,7 @@
       "default": "./dist/esm/tests/broker.spec.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -31,22 +31,22 @@
     "js-xxhash": "3.0.1"
   },
   "peerDependencies": {
-    "@deepkit/bson": "^1.0.1",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/event": "^1.0.1",
-    "@deepkit/injector": "^1.0.1",
-    "@deepkit/rpc": "^1.0.1",
-    "@deepkit/type": "^1.0.1",
+    "@d7/bson": "^1.0.1",
+    "@d7/core": "^1.0.1",
+    "@d7/event": "^1.0.1",
+    "@d7/injector": "^1.0.1",
+    "@d7/rpc": "^1.0.1",
+    "@d7/type": "^1.0.1",
     "rxjs": "*"
   },
   "devDependencies": {
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/core-rxjs": "^1.0.19",
-    "@deepkit/event": "^1.0.19",
-    "@deepkit/injector": "^1.0.19",
-    "@deepkit/rpc": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@d7/bson": "^1.0.19",
+    "@d7/core": "^1.0.19",
+    "@d7/core-rxjs": "^1.0.19",
+    "@d7/event": "^1.0.19",
+    "@d7/injector": "^1.0.19",
+    "@d7/rpc": "^1.0.19",
+    "@d7/type": "^1.0.19",
     "rxjs": "*"
   },
   "jest": {

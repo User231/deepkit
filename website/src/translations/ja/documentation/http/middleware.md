@@ -5,7 +5,7 @@ HTTP ミドルウェアは、HTTP events の代替として request/response サ
 ミドルウェアは、依存性注入コンテナによってインスタンス化される Class か、単純な Function のいずれかです。
 
 ```typescript
-import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@d7/http';
 
 class MyMiddleware implements HttpMiddleware {
     async execute(request: HttpRequest, response: HttpResponse, next: (err?: any) => void) {
@@ -35,7 +35,7 @@ new App({
 httpMiddleware.for(MyMiddleware) を使用すると、ミドルウェアは全ての Route に対してグローバルに登録されます。
 
 ```typescript
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 new App({
     providers: [MyMiddleware],

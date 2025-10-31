@@ -56,7 +56,7 @@ for (const [name, config] of Object.entries(packageConfigs)) {
     ])).filter(v => {
         const [, depName] = v.split('/');
         if (!filter(depName)) return false;
-        return v.startsWith('@deepkit/') && !fs.existsSync(`packages/${depName}/angular.json`);
+        return v.startsWith('@d7/') && !fs.existsSync(`packages/${depName}/angular.json`);
     });
 
     const path = `packages/${name}`;
@@ -118,7 +118,7 @@ fs.writeFileSync('tsconfig.esm.json', JSON.stringify(rootTsConfigESM, undefined,
 //             if (path.startsWith('../')) {
 //                 path = path.substr(path.indexOf('/') + 1);
 //                 path = path.substr(0, path.lastIndexOf('/'));
-//                 tsReferences.add('@deepkit/' + path);
+//                 tsReferences.add('@d7/' + path);
 //             }
 //         }
 //     } else {
@@ -135,7 +135,7 @@ fs.writeFileSync('tsconfig.esm.json', JSON.stringify(rootTsConfigESM, undefined,
 // // console.log('   -> deps', deps);
 //
 // for (const dep of deps) {
-//     if (dep.startsWith('@deepkit/')) {
+//     if (dep.startsWith('@d7/')) {
 //         if (!tsReferences.has(dep)) {
 //             console.log(`  ERR: ${dep} as dependency, but not in tsconfig.json references.`);
 //         }

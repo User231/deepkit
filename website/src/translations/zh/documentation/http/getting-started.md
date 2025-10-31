@@ -2,13 +2,13 @@
 
 由于 Deepkit HTTP 基于运行时类型，因此需要先正确安装运行时类型。参见 [运行时类型安装](../runtime-types/getting-started.md)。
 
-如果这一步成功完成，则可以安装 `@deepkit/app`，或者使用已经在底层集成该库的 Deepkit 框架。
+如果这一步成功完成，则可以安装 `@d7/app`，或者使用已经在底层集成该库的 Deepkit 框架。
 
 ```sh
-npm install @deepkit/http
+npm install @d7/http
 ```
 
-请注意，用于控制器 API 的 `@deepkit/http` 基于 TypeScript 注解，一旦使用控制器 API，就必须通过 `experimentalDecorators` 启用此特性。
+请注意，用于控制器 API 的 `@d7/http` 基于 TypeScript 注解，一旦使用控制器 API，就必须通过 `experimentalDecorators` 启用此特性。
 如果你不使用类，则无需启用该特性。
 
 _文件：tsconfig.json_
@@ -32,9 +32,9 @@ _文件：tsconfig.json_
 函数式 API 基于函数，可通过路由注册表进行注册；该注册表可以从应用的 DI 容器获取。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry } from '@d7/http';
 
 const app = new App({
     imports: [new FrameworkModule]
@@ -52,9 +52,9 @@ app.run();
 在使用模块时，函数式路由也可以由模块动态提供。
 
 ```typescript
-import { App, createModuleClass } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App, createModuleClass } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry } from '@d7/http';
 
 class MyModule extends createModuleClass({}) {
   override process() {
@@ -78,9 +78,9 @@ const app = new App({
 控制器 API 基于类，可通过 App API 的 `controllers` 选项进行注册。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class MyPage {
     @http.GET('/')
@@ -98,9 +98,9 @@ new App({
 在使用模块时，控制器也可以由模块提供。
 
 ```typescript
-import { App, createModuleClass } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App, createModuleClass } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class MyPage {
   @http.GET('/')
@@ -152,7 +152,7 @@ class MyModule extends createModuleClass({
 
 ```typescript
 import { Server } from 'http';
-import { HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpRequest, HttpResponse } from '@d7/http';
 
 const app = new App({
     controllers: [MyPage],
@@ -200,7 +200,7 @@ class UserController {
 对于所有具有名称的路由，可以通过 `Router.resolveUrl()` 获取其 URL。
 
 ```typescript
-import { HttpRouter } from '@deepkit/http';
+import { HttpRouter } from '@d7/http';
 const router = app.get(HttpRouter);
 router.resolveUrl('userDetail', {id: 2}); //=> '/user/2'
 ```

@@ -1,12 +1,12 @@
 # 依存性注入
 
-Controller クラスは `@deepkit/injector` の依存性注入コンテナによって管理されます。Deepkit Framework を使用する場合、これらのコントローラは、そのコントローラを提供するモジュールのプロバイダーに自動的にアクセスできます。
+Controller クラスは `@d7/injector` の依存性注入コンテナによって管理されます。Deepkit Framework を使用する場合、これらのコントローラは、そのコントローラを提供するモジュールのプロバイダーに自動的にアクセスできます。
 
 Deepkit Framework では、コントローラは依存性注入スコープ `rpc` でインスタンス化され、すべてのコントローラはこのスコープのさまざまなプロバイダーに自動的にアクセスできます。これらの追加のプロバイダーは `HttpRequest`（任意）、`RpcInjectorContext`、`SessionState`、`RpcKernelConnection`、`ConnectionWriter` です。
 
 ```typescript
-import { RpcKernel, rpc } from '@deepkit/rpc';
-import { App } from '@deepkit/app';
+import { RpcKernel, rpc } from '@d7/rpc';
+import { App } from '@d7/app';
 import { Database, User } from './database';
 
 @rpc.controller('/main')
@@ -26,11 +26,11 @@ new App({
 }).run();
 ```
 
-ただし、`RpcKernel` を手動でインスタンス化する場合、DI コンテナを渡すこともできます。すると RPC コントローラはこの DI コンテナを通じてインスタンス化されます。これは、Express.js のような Deepkit Framework 以外の環境で `@deepkit/rpc` を使用したい場合に有用です。
+ただし、`RpcKernel` を手動でインスタンス化する場合、DI コンテナを渡すこともできます。すると RPC コントローラはこの DI コンテナを通じてインスタンス化されます。これは、Express.js のような Deepkit Framework 以外の環境で `@d7/rpc` を使用したい場合に有用です。
 
 ```typescript
-import { RpcKernel, rpc } from '@deepkit/rpc';
-import { InjectorContext } from '@deepkit/injector';
+import { RpcKernel, rpc } from '@d7/rpc';
+import { InjectorContext } from '@d7/injector';
 import { Database, User } from './database';
 
 @rpc.controller('/main')

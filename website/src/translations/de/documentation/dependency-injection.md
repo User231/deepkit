@@ -90,10 +90,10 @@ Ein offensichtlicher Nachteil zeigt sich jedoch direkt: Muss ich wirklich alle D
 
 Für komplexere Anwendungen ist es jedoch nicht nötig, alle Dependencies selbst zu verwalten, denn genau dafür ist ein sogenannter Dependency Injection Container da. Dieser erstellt nicht nur alle Objekte automatisch, sondern „injiziert“ die Dependencies ebenfalls automatisch, sodass ein manueller „new“-Aufruf nicht mehr notwendig ist. Es gibt verschiedene Arten der Injection, wie Constructor Injection, Method Injection oder Property Injection. So lassen sich auch komplizierte Architekturen mit vielen Dependencies leicht verwalten.
 
-Einen Dependency Injection Container bringt Deepkit in `@deepkit/injector` mit oder bereits fertig integriert über App-Module im Deepkit Framework. Der obige Code sähe unter Verwendung einer Low-Level-API aus dem `@deepkit/injector`-Package so aus:
+Einen Dependency Injection Container bringt Deepkit in `@d7/injector` mit oder bereits fertig integriert über App-Module im Deepkit Framework. Der obige Code sähe unter Verwendung einer Low-Level-API aus dem `@d7/injector`-Package so aus:
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 const injector = InjectorContext.forProviders(
     [UserRepository, HttpClient]
@@ -163,7 +163,7 @@ Dies nennt man das Dependency Inversion Principle. UserRepository hat nun keine 
 Das Zusammenführen der beiden Implementationen (UserRepository mit einer HTTP-Library) kann nun über den DI-Container erfolgen.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 import { HttpClient } from './http-client';
 import { UserRepository } from './user-repository';
 
@@ -182,7 +182,7 @@ Sobald HttpClient seine API verändert (zum Beispiel die `get`-Methode entfernt)
 Alternativ kann das HttpClientInterface direkt mit einer konkreten Implementation bereitgestellt werden.
 
 ```typescript
-import { InjectorContext, provide } from '@deepkit/injector';
+import { InjectorContext, provide } from '@d7/injector';
 import { HttpClient } from './http-client';
 import { UserRepository, HttpClientInterface } from './user-repository';
 

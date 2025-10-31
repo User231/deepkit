@@ -1,7 +1,7 @@
 import { type BunPlugin } from 'bun';
 import * as ts from 'typescript';
 import { cwd } from 'process';
-import { declarationTransformer, transformer } from '@deepkit/type-compiler';
+import { declarationTransformer, transformer } from '@d7/type-compiler';
 
 export interface Options {
     include?: string;

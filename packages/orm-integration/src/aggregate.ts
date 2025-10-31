@@ -1,5 +1,5 @@
 import { DatabaseFactory } from './test.js';
-import { cast, entity, PrimaryKey } from '@deepkit/type';
+import { cast, entity, PrimaryKey } from '@d7/type';
 import { expect } from '@jest/globals';
 
 export const aggregateTest = {

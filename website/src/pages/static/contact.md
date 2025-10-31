@@ -11,7 +11,7 @@ Im Feriendorf 14
 Deepkit is a registered trademark in USA and European Union.
 
 ```text
-Mail: info@deepkit.io
+Mail: info@d7.io
 Registergericht: Amtsgericht Freiburg
 Registernummer: HRB 728635
 ```

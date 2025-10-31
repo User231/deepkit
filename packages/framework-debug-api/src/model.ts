@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { pathBasename, pathExtension, pathNormalize } from '@deepkit/core';
-import { entity } from '@deepkit/type';
+import { pathBasename, pathExtension, pathNormalize } from '@d7/core';
+import { entity } from '@d7/type';
 
 @entity.name('deepkit/debugger/request')
 export class DebugRequest {

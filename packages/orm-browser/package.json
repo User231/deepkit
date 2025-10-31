@@ -1,5 +1,5 @@
 {
-  "name": "@deepkit/orm-browser",
+  "name": "@d7/orm-browser",
   "version": "1.0.19",
   "description": "ORM Browser",
   "type": "commonjs",
@@ -13,7 +13,7 @@
       "default": "./dist/esm/index.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -23,33 +23,33 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@deepkit/app": "^1.0.1",
-    "@deepkit/broker": "^1.0.1",
-    "@deepkit/bson": "^1.0.1",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/framework": "^1.0.1",
-    "@deepkit/http": "^1.0.1",
-    "@deepkit/injector": "^1.0.1",
-    "@deepkit/logger": "^1.0.1",
-    "@deepkit/orm": "^1.0.1",
-    "@deepkit/rpc": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@d7/app": "^1.0.1",
+    "@d7/broker": "^1.0.1",
+    "@d7/bson": "^1.0.1",
+    "@d7/core": "^1.0.1",
+    "@d7/framework": "^1.0.1",
+    "@d7/http": "^1.0.1",
+    "@d7/injector": "^1.0.1",
+    "@d7/logger": "^1.0.1",
+    "@d7/orm": "^1.0.1",
+    "@d7/rpc": "^1.0.1",
+    "@d7/type": "^1.0.1"
   },
   "dependencies": {
-    "@deepkit/orm-browser-gui": "^1.0.19"
+    "@d7/orm-browser-gui": "^1.0.19"
   },
   "devDependencies": {
-    "@deepkit/app": "^1.0.19",
-    "@deepkit/broker": "^1.0.19",
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/framework": "^1.0.19",
-    "@deepkit/http": "^1.0.19",
-    "@deepkit/injector": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/orm": "^1.0.19",
-    "@deepkit/rpc": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@d7/app": "^1.0.19",
+    "@d7/broker": "^1.0.19",
+    "@d7/bson": "^1.0.19",
+    "@d7/core": "^1.0.19",
+    "@d7/framework": "^1.0.19",
+    "@d7/http": "^1.0.19",
+    "@d7/injector": "^1.0.19",
+    "@d7/logger": "^1.0.19",
+    "@d7/orm": "^1.0.19",
+    "@d7/rpc": "^1.0.19",
+    "@d7/type": "^1.0.19",
     "@types/node": "^22.13.1",
     "rxjs": "~7.8.0"
   },

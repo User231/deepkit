@@ -9,7 +9,7 @@ The data is not persisted on the server, but only kept in memory. If the server 
 ## Usage
 
 ```typescript
-import { BrokerKeyValue } from '@deepkit/broker';
+import { BrokerKeyValue } from '@d7/broker';
 
 const keyValue = new BrokerKeyValue(adapter, {
   ttl: '60s', // time to live for each key. 0 means no ttl (default).
@@ -62,8 +62,8 @@ The class is automatically available in the dependency injection container if yo
 See the Getting started page for more information.
 
 ```typescript
-import { BrokerKeyValue, BrokerKeyValueItem } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerKeyValue, BrokerKeyValueItem } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // move this type to a shared file
 type MyKeyValueItem = BrokerKeyValueItem<User[]>;

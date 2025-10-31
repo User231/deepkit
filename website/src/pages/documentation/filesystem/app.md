@@ -3,8 +3,8 @@
 Although Deepkit Storage works standalone, you probably want to use it in your Deepkit App using Dependency Injection.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 const app = new App({
     providers: [
@@ -31,8 +31,8 @@ You can use multiple filesystems at the same time. To do so you register them wi
 `NamedFilesystem<'name'>`.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { NamedFilesystem, FilesystemLocalAdapter, provideNamedFilesystem } from '@d7/filesystem';
 
 type PrivateFilesystem = NamedFilesystem<'private'>;
 type PublicFilesystem = NamedFilesystem<'public'>;
@@ -64,8 +64,8 @@ or credentials for the AWS S3 or Google Storage adapter.
 To do so, you can use [Configuration Injection](../app/configuration.md).
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@deepkit/filesystem';
+import { App } from '@d7/app';
+import { Filesystem, FilesystemLocalAdapter, provideFilesystem } from '@d7/filesystem';
 
 class MyConfig {
     fsRoot: string = '/tmp';

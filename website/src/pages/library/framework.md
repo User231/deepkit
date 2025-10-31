@@ -1,6 +1,6 @@
 ---
 title: Deepkit Framework
-package: "@deepkit/framework"
+package: "@d7/framework"
 doc: framework/getting-started
 api: framework
 category: framework

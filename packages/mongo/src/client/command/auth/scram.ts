@@ -15,7 +15,7 @@ import { BaseResponse, Command } from '../command.js';
 import { MongoError } from '../../error.js';
 // @ts-ignore
 import saslprep from 'saslprep-patch';
-import { base64ToUint8Array } from '@deepkit/core';
+import { base64ToUint8Array } from '@d7/core';
 
 interface SaslStartCommand {
     saslStart: 1;

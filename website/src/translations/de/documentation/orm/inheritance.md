@@ -7,7 +7,7 @@ Es gibt mehrere Möglichkeiten, Vererbung in Deepkit ORM zu implementieren.
 Eine Möglichkeit ist die Verwendung von Klassenvererbung, die einfache Klassen mit `extends` verwendet.
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 class BaseModel {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -56,7 +56,7 @@ CREATE TABLE customer (
 Single Table Inheritance ist eine Möglichkeit, mehrere Entities in einer Tabelle zu speichern. Anstatt separate Tabellen für jedes Model zu haben, wird eine einzelne Tabelle verwendet, und eine zusätzliche Spalte (oft type oder ähnlich genannt) wird genutzt, um den Typ jedes Datensatzes zu bestimmen. Das ist nützlich, wenn Sie viele Entities haben, die dieselben Properties teilen.
 
 ```typescript
-import { PrimaryKey, AutoIncrement, entity } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, entity } from '@d7/type';
 
 @entity.collection('persons')
 abstract class Person {

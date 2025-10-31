@@ -8,7 +8,7 @@ Deepkit 高度模块化，允许你将应用拆分为多个实用的模块。每
 模块可以定义为类模块或函数式模块。
 
 ```typescript title=类模块
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({
   //与 new App({}) 的选项相同
@@ -18,7 +18,7 @@ export class MyModule extends createModuleClass({
 ```
 
 ```typescript title=函数式模块
-import { AppModule } from '@deepkit/app';
+import { AppModule } from '@d7/app';
 
 export function myModule(options: {} = {}) {
     return (module: AppModule) => {
@@ -47,14 +47,14 @@ new App({
 
 ## 控制器
 
-模块可以定义由其他模块处理的控制器。举例来说，如果你添加了使用 `@deepkit/http` 包中的装饰器的控制器，其 `HttpModule` 将会拾取这些控制器并在其路由器中注册找到的路由。一个控制器可能包含多个这样的装饰器。如何处理这些控制器取决于为你提供这些装饰器的模块作者。
+模块可以定义由其他模块处理的控制器。举例来说，如果你添加了使用 `@d7/http` 包中的装饰器的控制器，其 `HttpModule` 将会拾取这些控制器并在其路由器中注册找到的路由。一个控制器可能包含多个这样的装饰器。如何处理这些控制器取决于为你提供这些装饰器的模块作者。
 
 在 Deepkit 中，有三个处理此类控制器的包：HTTP、RPC 和 CLI。参阅它们各自的章节以了解更多。下面是一个 HTTP 控制器示例：
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
-import { http } from '@deepkit/http';
-import { injectable } from '@deepkit/injector';
+import { createModuleClass } from '@d7/app';
+import { http } from '@d7/http';
+import { injectable } from '@d7/injector';
 
 class MyHttpController {
   @http.GET('/hello)
@@ -82,9 +82,9 @@ new App({
 要了解提供者如何工作，请参阅[依赖注入](../dependency-injection.md)一章。
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
-import { http } from '@deepkit/http';
-import { injectable } from '@deepkit/injector';
+import { createModuleClass } from '@d7/app';
+import { http } from '@d7/http';
+import { injectable } from '@d7/injector';
 
 export class HelloWorldService {
   helloWorld() {
@@ -129,7 +129,7 @@ new App({
 为了让提供者在导入方模块中可用，你可以将提供者的令牌包含在 `exports` 中。这实际上是将提供者上移一级到父模块（导入者）的依赖注入容器中。
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({
   exports: [HelloWorldService],
@@ -146,7 +146,7 @@ export function myModule(options: {} = {}) {
 如果你有其他提供者，如 `FactoryProvider`、`UseClassProvider` 等，你仍然只应在导出中使用类类型。
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({
   controllers: [MyHttpController]
@@ -161,8 +161,8 @@ export class MyModule extends createModuleClass({
 现在我们可以导入该模块并在我们的应用代码中使用其导出的服务。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { cli, Command } from '@deepkit/app';
+import { App } from '@d7/app';
+import { cli, Command } from '@d7/app';
 import { HelloWorldService, MyModule } from './my-module';
 
 @cli.controller('test')
@@ -200,7 +200,7 @@ export class Config {
 ```
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 import { Config } from './module.config.ts';
 
 export class MyModule extends createModuleClass({
@@ -315,7 +315,7 @@ new App({
 在常规模块中，这不可行，因为对象定义中的模块实例将变成全局的，这通常不是你想要的。相反，可以在模块自身中通过 `imports` 属性实例化模块，这样每个导入的模块都会针对你的模块的每个新实例创建一个实例。
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({}) {
   imports = [new OtherModule()];
@@ -331,7 +331,7 @@ export function myModule() {
 你还可以使用 `process` 钩子，基于配置动态导入模块。
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({}) {
   process() {
@@ -379,9 +379,9 @@ export function myModule(option: { xEnabled?: boolean } = {}) {
 要使用钩子，你可以在模块类中注册 `process`、`processProvider`、`postProcess` 方法。
 
 ```typescript
-import { createModuleClass, AppModule } from '@deepkit/app';
-import { isClass } from '@deepkit/core';
-import { ProviderWithScope, Token } from '@deepkit/injector';
+import { createModuleClass, AppModule } from '@d7/app';
+import { isClass } from '@d7/core';
+import { ProviderWithScope, Token } from '@d7/injector';
 
 export class MyModule extends createModuleClass({}) {
   imports = [new FrameworkModule()];
@@ -494,7 +494,7 @@ const myController = app.get(Router).getController(MyController);
 如果你构建的是能被许多模块使用的库，你应避免使用 `root`，因为它可能与其他库的提供者令牌发生冲突。比如，如果该库模块导入了定义某个服务的 `foo` 模块，并且你按需重新配置了一些服务，而用户的应用也导入了相同的 `foo` 模块，那么用户将会接收到你重新配置过的服务。不过对于许多更简单的用例，这也许是可以接受的。
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({}) {
   root = true;

@@ -5,8 +5,8 @@
 詳しくは [依存性注入](../dependency-injection.md) の章を参照してください。
 
 ```typescript
-import { App, cli } from '@deepkit/app';
-import { Logger, ConsoleTransport } from '@deepkit/logger';
+import { App, cli } from '@d7/app';
+import { Logger, ConsoleTransport } from '@d7/logger';
 
 new App({
     providers: [{provide: Logger, useValue: new Logger([new ConsoleTransport])}],

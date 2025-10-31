@@ -36,7 +36,7 @@ import {
 import { TemplatePortal } from '@angular/cdk/portal';
 import { ConnectedPosition, Overlay, OverlayConfig, OverlayRef, PositionStrategy } from '@angular/cdk/overlay';
 import { focusWatcher } from '../../core/utils';
-import { isArray } from '@deepkit/core';
+import { isArray } from '@d7/core';
 import { ActiveComponent } from './button.component';
 import { NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../icon/icon.component';

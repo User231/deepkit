@@ -3,9 +3,9 @@
 会话类似于一个工作单元。它会跟踪你所做的一切，并在调用 `commit()` 时自动记录更改。它是执行数据库更改的首选方式，因为它以一种非常快速的方式将语句打包。会话非常轻量，例如，可以在请求-响应生命周期中轻松创建。
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { Database } from '@d7/orm';
 
 async function main() {
 

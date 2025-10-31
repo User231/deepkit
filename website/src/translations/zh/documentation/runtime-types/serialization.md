@@ -20,22 +20,22 @@ const value = JSON.parse('"2022-05-13T20:48:51.025Z"');
 
 尽管有各种变通方法可以让 JSON.parse 反序列化 Date 对象，但它们容易出错且性能较差。为了在此场景以及许多其他类型上实现类型安全的序列化和反序列化，就需要一个序列化过程。
 
-可用的主要函数有四个：`serialize`、`cast`、`deserialize` 和 `validatedDeserialize`。在这些函数的底层，默认使用的是来自 `@deepkit/type` 的全局可用 JSON 序列化器，但也可以使用自定义的序列化目标。
+可用的主要函数有四个：`serialize`、`cast`、`deserialize` 和 `validatedDeserialize`。在这些函数的底层，默认使用的是来自 `@d7/type` 的全局可用 JSON 序列化器，但也可以使用自定义的序列化目标。
 
-Deepkit Type 支持用户自定义序列化目标，但已经内置了一个强大的 JSON 序列化目标，能够将数据序列化为 JSON 对象，并可通过 JSON.stringify 正确且安全地转换为 JSON。配合 `@deepkit/bson`，还可以使用 BSON 作为序列化目标。如何创建自定义的序列化目标（例如用于数据库驱动），可在“自定义序列化器”章节中学习。
+Deepkit Type 支持用户自定义序列化目标，但已经内置了一个强大的 JSON 序列化目标，能够将数据序列化为 JSON 对象，并可通过 JSON.stringify 正确且安全地转换为 JSON。配合 `@d7/bson`，还可以使用 BSON 作为序列化目标。如何创建自定义的序列化目标（例如用于数据库驱动），可在“自定义序列化器”章节中学习。
 
 请注意，虽然序列化器也会对数据的兼容性进行校验，但这些校验与[验证](validation.md)中的验证不同。只有 `cast` 函数在成功反序列化后还会调用[验证](validation.md)章节中的完整验证流程，并在数据无效时抛出错误。
 
 或者，也可以使用 `validatedDeserialize` 在反序列化后进行验证。另一个选择是对来自 `deserialize` 函数的反序列化数据手动调用 `validate` 或 `validates` 函数，详见[验证](validation.md)。
 
-序列化与验证中的所有函数在出错时都会抛出来自 `@deepkit/type` 的 `ValidationError`。
+序列化与验证中的所有函数在出错时都会抛出来自 `@d7/type` 的 `ValidationError`。
 
 ## Cast
 
 `cast` 函数的第一个类型参数是一个 TypeScript 类型，第二个参数是要转换的数据。数据会被转换为给定类型，若成功则返回该数据。如果数据与给定类型不兼容且无法自动转换，则会抛出 `ValidationError`。
 
 ```typescript
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 
 cast<string>(123); //'123'
 cast<number>('123'); //123
@@ -65,7 +65,7 @@ const myModel = cast<MyModel>({
 ## 序列化
 
 ```typescript
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;
@@ -93,7 +93,7 @@ const json = JSON.stringify(jsonObject);
 `deserialize` 函数默认使用 JSON 序列化器将传入数据转换为相应的指定类型。JSON 序列化器期望的是一个 JSON 对象，即：string、number、boolean、object 或 array。这通常来自一次 `JSON.parse` 调用。
 
 ```typescript
-import { deserialize } from '@deepkit/type';
+import { deserialize } from '@d7/type';
 
 class MyModel {
     id: number = 0;

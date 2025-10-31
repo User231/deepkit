@@ -1,12 +1,12 @@
-import { InjectorContext, Setter } from '@deepkit/injector';
+import { InjectorContext, Setter } from '@d7/injector';
 import { HttpRouter } from './router.js';
-import { EventDispatcher } from '@deepkit/event';
-import { LoggerInterface } from '@deepkit/logger';
+import { EventDispatcher } from '@d7/event';
+import { LoggerInterface } from '@d7/logger';
 import { HttpRequest, HttpResponse, incomingMessageToHttpRequest, MemoryHttpResponse, RequestBuilder, serverResponseToHttpResponse } from './model.js';
 import { HttpError, HttpRequestEvent, HttpResultFormatter, httpWorkflow, JSONResponse } from './http.js';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
+import { FrameCategory, Stopwatch } from '@d7/stopwatch';
 import { unlink } from 'fs';
-import { ValidationError } from '@deepkit/type';
+import { ValidationError } from '@d7/type';
 import { IncomingMessage, ServerResponse } from 'http';
 
 interface HttpKernelHandleOptions {

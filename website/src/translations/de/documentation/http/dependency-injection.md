@@ -49,10 +49,10 @@ Siehe [Dependency Injection](dependency-injection), um mehr zu erfahren.
 
 ## Scope
 
-Alle HTTP-Controller und funktionalen Routen werden innerhalb des `http` Dependency Injection-Scope verwaltet. HTTP-Controller werden entsprechend für jede HTTP-Anfrage instanziiert. Das bedeutet auch, dass beide auf Provider zugreifen können, die für den `http` Scope registriert sind. Zusätzlich sind `HttpRequest` und `HttpResponse` aus `@deepkit/http` als Dependencies nutzbar. Wenn das deepkit framework verwendet wird, ist auch `SessionHandler` aus `@deepkit/framework` verfügbar.
+Alle HTTP-Controller und funktionalen Routen werden innerhalb des `http` Dependency Injection-Scope verwaltet. HTTP-Controller werden entsprechend für jede HTTP-Anfrage instanziiert. Das bedeutet auch, dass beide auf Provider zugreifen können, die für den `http` Scope registriert sind. Zusätzlich sind `HttpRequest` und `HttpResponse` aus `@d7/http` als Dependencies nutzbar. Wenn das d7 framework verwendet wird, ist auch `SessionHandler` aus `@d7/framework` verfügbar.
 
 ```typescript
-import { HttpResponse } from '@deepkit/http';
+import { HttpResponse } from '@d7/http';
 
 router.get('/user/:id', (id: number, request: HttpRequest) => {
 });

@@ -8,7 +8,7 @@ Sie können dieses Kapitel überspringen, wenn Sie nicht planen, Ihre Anwendung 
 Ein Modul kann entweder als Klassenmodul oder als Funktionsmodul definiert werden.
 
 ```typescript title=Klassenmodul
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({
   //gleiche Optionen wie new App({})
@@ -18,7 +18,7 @@ export class MyModule extends createModuleClass({
 ```
 
 ```typescript title=Funktionsmodul
-import { AppModule } from '@deepkit/app';
+import { AppModule } from '@d7/app';
 
 export function myModule(options: {} = {}) {
     return (module: AppModule) => {
@@ -47,14 +47,14 @@ Fügen Sie HTTP/RPC/CLI-Controller, Services, eine Konfiguration, Event-Listener
 
 ## Controller
 
-Module können Controller definieren, die von anderen Modulen verarbeitet werden. Wenn Sie beispielsweise einen Controller mit Decorators aus dem Paket `@deepkit/http` hinzufügen, wird dessen `HttpModule` dies erkennen und die gefundenen Routen in seinem Router registrieren. Ein einzelner Controller kann mehrere solcher Decorators enthalten. Es liegt beim Autor des Moduls, der Ihnen diese Decorators zur Verfügung stellt, wie er die Controller verarbeitet.
+Module können Controller definieren, die von anderen Modulen verarbeitet werden. Wenn Sie beispielsweise einen Controller mit Decorators aus dem Paket `@d7/http` hinzufügen, wird dessen `HttpModule` dies erkennen und die gefundenen Routen in seinem Router registrieren. Ein einzelner Controller kann mehrere solcher Decorators enthalten. Es liegt beim Autor des Moduls, der Ihnen diese Decorators zur Verfügung stellt, wie er die Controller verarbeitet.
 
 In Deepkit gibt es drei Pakete, die solche Controller verarbeiten: HTTP, RPC und CLI. Siehe deren jeweilige Kapitel, um mehr zu erfahren. Unten ist ein Beispiel für einen HTTP-Controller:
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
-import { http } from '@deepkit/http';
-import { injectable } from '@deepkit/injector';
+import { createModuleClass } from '@d7/app';
+import { http } from '@d7/http';
+import { injectable } from '@d7/injector';
 
 class MyHttpController {
   @http.GET('/hello)
@@ -82,9 +82,9 @@ Wenn Sie in Ihrer Anwendung einen Provider im Abschnitt `providers` definieren, 
 Um mehr darüber zu erfahren, wie Provider funktionieren, lesen Sie das Kapitel [Abhängigkeitsinjektion](../dependency-injection.md).
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
-import { http } from '@deepkit/http';
-import { injectable } from '@deepkit/injector';
+import { createModuleClass } from '@d7/app';
+import { http } from '@d7/http';
+import { injectable } from '@d7/injector';
 
 export class HelloWorldService {
   helloWorld() {
@@ -129,7 +129,7 @@ Wenn ein Benutzer dieses Modul importiert, hat er keinen Zugriff auf `HelloWorld
 Um Provider im Modul des Importeurs verfügbar zu machen, können Sie das Token des Providers in `exports` aufnehmen. Dies verschiebt den Provider im Wesentlichen eine Ebene nach oben in den Dependency-Injection-Container des übergeordneten Moduls – des Importeurs.
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({
   exports: [HelloWorldService],
@@ -146,7 +146,7 @@ export function myModule(options: {} = {}) {
 Wenn Sie andere Provider wie `FactoryProvider`, `UseClassProvider` usw. haben, sollten Sie in den Exports trotzdem nur den Class Type verwenden.
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({
   controllers: [MyHttpController]
@@ -161,8 +161,8 @@ export class MyModule extends createModuleClass({
 Wir können dieses Modul nun importieren und seinen exportierten Service in unserem Anwendungscode verwenden.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { cli, Command } from '@deepkit/app';
+import { App } from '@d7/app';
+import { cli, Command } from '@d7/app';
 import { HelloWorldService, MyModule } from './my-module';
 
 @cli.controller('test')
@@ -200,7 +200,7 @@ export class Config {
 ```
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 import { Config } from './module.config.ts';
 
 export class MyModule extends createModuleClass({
@@ -316,7 +316,7 @@ new App({
 In regulären Modulen ist das nicht möglich, da das Modul in der Objekdefinitionsobjekt-Instanz global werden würde, was normalerweise nicht erwünscht ist. Stattdessen können Module innerhalb des Moduls selbst über die Eigenschaft `imports` instanziiert werden, sodass Instanzen jedes importierten Moduls für jede neue Instanz Ihres Moduls erstellt werden.
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({}) {
   imports = [new OtherModule()];
@@ -332,7 +332,7 @@ export function myModule() {
 Sie können Module auch dynamisch basierend auf der Konfiguration mit dem Hook `process` importieren.
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({}) {
   process() {
@@ -380,9 +380,9 @@ Der gesamte Prozess des Ladens des Service-Containers ist wie folgt:
 Um Hooks zu verwenden, können Sie die Methoden `process`, `processProvider`, `postProcess` in Ihrer Modulkasse registrieren.
 
 ```typescript
-import { createModuleClass, AppModule } from '@deepkit/app';
-import { isClass } from '@deepkit/core';
-import { ProviderWithScope, Token } from '@deepkit/injector';
+import { createModuleClass, AppModule } from '@d7/app';
+import { isClass } from '@d7/core';
+import { ProviderWithScope, Token } from '@d7/injector';
 
 export class MyModule extends createModuleClass({}) {
   imports = [new FrameworkModule()];
@@ -497,7 +497,7 @@ Die Eigenschaft `root` ermöglicht es Ihnen, den Dependency-Injection-Container 
 Wenn Sie eine Bibliothek erstellen, die von vielen Modulen verwendet werden kann, sollten Sie `root` vermeiden, da es mit Provider-Tokens aus anderen Bibliotheken kollidieren könnte. Wenn diese Bibliotheksmodul beispielsweise ein `foo`-Modul importiert, das einen Service definiert, und Sie einige Services nach Ihren Bedürfnissen rekonfigurieren, und die Anwendung des Benutzers dasselbe `foo`-Modul importiert, erhält der Benutzer Ihre rekonfigurierten Services. Für viele einfachere Anwendungsfälle mag das jedoch in Ordnung sein.
 
 ```typescript
-import { createModuleClass } from '@deepkit/app';
+import { createModuleClass } from '@d7/app';
 
 export class MyModule extends createModuleClass({}) {
   root = true;

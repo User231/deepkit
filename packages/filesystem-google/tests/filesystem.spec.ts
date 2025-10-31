@@ -1,6 +1,6 @@
 import { test } from '@jest/globals';
-import { Filesystem } from '@deepkit/filesystem';
-import { adapterFactory, setAdapterFactory } from '@deepkit/filesystem/test';
+import { Filesystem } from '@d7/filesystem';
+import { adapterFactory, setAdapterFactory } from '@d7/filesystem/test';
 import { FilesystemGoogleAdapter } from '../src/google-adapter.js';
 import { homedir } from 'os';
 import { writeFileSync } from 'fs';

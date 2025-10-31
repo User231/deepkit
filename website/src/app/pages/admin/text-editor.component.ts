@@ -12,7 +12,7 @@ import {
     ngValueAccessor,
     OpenDropdownHoverDirective,
     ValueAccessorBase,
-} from '@deepkit/desktop-ui';
+} from '@d7/desktop-ui';
 import { DocumentType, Editor, NodeType } from '@tiptap/core';
 import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';

@@ -1,4 +1,4 @@
-import { BrowserText } from '@deepkit/desktop-ui';
+import { BrowserText } from '@d7/desktop-ui';
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import { Crunch, defaultColors, formatTime, frameColors, FrameItem, getCrunchXCanvas, getFrameWidth, getFrameXCanvas, ViewState } from './frame';
 

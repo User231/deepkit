@@ -1,5 +1,5 @@
 # Run
 
 ```sh
-node --import @deepkit/run app.ts
+node --import @d7/run app.ts
 ```

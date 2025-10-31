@@ -7,7 +7,7 @@
 HTTP request는 scope의 대표적인 예입니다. 예를 들어 session, user 객체 또는 기타 request 관련 provider를 이 scope에 등록할 수 있습니다. scope를 생성하려면 임의의 scope 이름을 선택한 다음 provider에 이를 지정하면 됩니다.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class UserSession {}
 

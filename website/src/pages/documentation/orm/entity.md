@@ -1,14 +1,14 @@
 # Entity
 
 An entity is either a class or an object literal (interface) and always has a primary key.
-The entity is decorated with all necessary information using type annotations from `@deepkit/type`. For example, a primary key is defined as well as various fields and their validation constraints. These fields reflect the database structure, usually a table or a collection.
+The entity is decorated with all necessary information using type annotations from `@d7/type`. For example, a primary key is defined as well as various fields and their validation constraints. These fields reflect the database structure, usually a table or a collection.
 
 Through special type annotations like `Mapped<'name'>` a field name can also be mapped to another name in the database.
 
 ## Class
 
 ```typescript
-import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { entity, PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 @entity.name('user')
 class User {
@@ -35,7 +35,7 @@ console.log('all users', allUsers);
 ## Interface
 
 ```typescript
-import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement, Unique, MinLength, MaxLength } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement = 0;
@@ -80,7 +80,7 @@ For MongoDB the MongoId or ObjectID is often used.
 For numbers `AutoIncrement` can be used.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -94,7 +94,7 @@ Fields that should be automatically incremented during insertion are annotated w
 An auto-increment field is an automatic counter and can only be applied to a primary key. The database automatically ensures that an ID is used only once.
 
 ```typescript
-import { PrimaryKey, AutoIncrement } from '@deepkit/type';
+import { PrimaryKey, AutoIncrement } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement;
@@ -106,7 +106,7 @@ interface User {
 Fields that should be of type UUID (v4) are annotated with the decorator UUID. The runtime type is `string` and mostly binary in the database itself. Use the `uuid()` function to create a new UUID v4.
 
 ```typescript
-import { uuid, UUID, PrimaryKey } from '@deepkit/type';
+import { uuid, UUID, PrimaryKey } from '@d7/type';
 
 class User {
     id: UUID & PrimaryKey = uuid();
@@ -120,7 +120,7 @@ Fields that should be of type ObjectID in MongoDB are annotated with the decorat
 MongoID fields automatically get a new value when inserted. It is not mandatory to use the field name `_id`. It can have any name.
 
 ```typescript
-import { PrimaryKey, MongoId } from '@deepkit/type';
+import { PrimaryKey, MongoId } from '@d7/type';
 
 class User {
     id: MongoId & PrimaryKey = '';
@@ -135,7 +135,7 @@ Both variants result in the database type being `NULLABLE` for all SQL adapters.
 In the following example, the changed field is optional and can therefore be undefined at runtime, although it is always represented as NULL in the database.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -146,7 +146,7 @@ class User {
 This example shows how the nullable type works. NULL is used both in the database and in the javascript runtime. This is more verbose than `modified?: Date` and is not commonly used.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 class User {
     id: number & PrimaryKey = 0;
@@ -174,7 +174,7 @@ class User {
 With `DatabaseField` it is possible to map a field to any database type. The type must be a valid SQL statement that is passed unchanged to the migration system.
 
 ```typescript
-import { DatabaseField } from '@deepkit/type';
+import { DatabaseField } from '@d7/type';
 
 interface User {
     title: string & DatabaseField<{type: 'VARCHAR(244)'}>;
@@ -186,7 +186,7 @@ To map a field for a specific database, either `SQLite`, `MySQL`, or `Postgres` 
 ### SQLite
 
 ```typescript
-import { SQLite } from '@deepkit/type';
+import { SQLite } from '@d7/type';
 
 interface User {
     title: string & SQLite<{type: 'text'}>;
@@ -196,7 +196,7 @@ interface User {
 ### MySQL
 
 ```typescript
-import { MySQL } from '@deepkit/type';
+import { MySQL } from '@d7/type';
 
 interface User {
     title: string & MySQL<{type: 'text'}>;
@@ -206,7 +206,7 @@ interface User {
 ### Postgres
 
 ```typescript
-import { Postgres } from '@deepkit/type';
+import { Postgres } from '@d7/type';
 
 interface User {
     title: string & Postgres<{type: 'text'}>;

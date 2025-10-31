@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { CompilerContext, createBuffer, hasProperty, isArray, isIterable, isObject, toFastProperties } from '@deepkit/core';
+import { CompilerContext, createBuffer, hasProperty, isArray, isIterable, isObject, toFastProperties } from '@d7/core';
 import {
     binaryBigIntAnnotation,
     BinaryBigIntType,
@@ -65,7 +65,7 @@ import {
     unpopulatedSymbol,
     UUID,
     uuidAnnotation,
-} from '@deepkit/type';
+} from '@d7/type';
 import {
     bsonTypeGuardArray,
     bsonTypeGuardForBsonTypes,

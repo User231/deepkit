@@ -1,6 +1,6 @@
 {
   "name": "root",
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "private": true,
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@commitlint/config-conventional": "^18.4.3",
     "@commitlint/config-lerna-scopes": "^18.4.4",
-    "@deepkit/core": "^1.0.1",
+    "@d7/core": "^1.0.1",
     "@jest/globals": "^29.2.1",
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@types/node": "^22.13.1",

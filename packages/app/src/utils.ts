@@ -1,4 +1,4 @@
-import { getCurrentFileName } from '@deepkit/core';
+import { getCurrentFileName } from '@d7/core';
 import { existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 

@@ -26,9 +26,9 @@ import {
     typeSettings,
     UnpopulatedCheck,
     unpopulatedSymbol,
-} from '@deepkit/type';
+} from '@d7/type';
 import { DatabaseQueryModel } from './query.js';
-import { capitalize, ClassType } from '@deepkit/core';
+import { capitalize, ClassType } from '@d7/core';
 import { ClassState, getClassState, getInstanceState, IdentityMap, PKHash } from './identity-map.js';
 import { getReference } from './reference.js';
 import { OrmEntity } from './type.js';

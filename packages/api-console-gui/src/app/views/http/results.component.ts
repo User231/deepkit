@@ -1,11 +1,11 @@
 import { ChangeDetectorRef, Component, EventEmitter, Output, signal } from '@angular/core';
 import { ControllerClient } from '../../client';
 import { Request, Store } from '../../store';
-import { ButtonComponent, ButtonGroupComponent, DuiDialog, IconComponent, TabButtonComponent, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, ButtonGroupComponent, DuiDialog, IconComponent, TabButtonComponent, TableColumnDirective, TableComponent } from '@d7/desktop-ui';
 import { Router } from '@angular/router';
-import { ApiRoute } from '@deepkit/api-console-api';
+import { ApiRoute } from '@d7/api-console-api';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { CodeHighlightComponent, ToggleBoxComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent, ToggleBoxComponent } from '@d7/ui-library';
 
 @Component({
     selector: 'api-console-http-routes',
@@ -168,8 +168,8 @@ export class HttpRequestsComponent {
         this.store.set(state => {
             const removed = state.requests.splice(index, 1);
             for (const r of removed) {
-                localStorage.removeItem('@deepkit/api-console/request/result/' + r.bodyStoreId);
-                localStorage.removeItem('@deepkit/api-console/request/json/' + r.bodyStoreId);
+                localStorage.removeItem('@d7/api-console/request/result/' + r.bodyStoreId);
+                localStorage.removeItem('@d7/api-console/request/json/' + r.bodyStoreId);
             }
         });
 

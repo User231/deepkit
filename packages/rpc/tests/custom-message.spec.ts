@@ -2,14 +2,14 @@ import { expect, test } from '@jest/globals';
 import { RpcKernel, RpcKernelConnection } from '../src/server/kernel.js';
 import { createRpcMessage, RpcMessage } from '../src/protocol.js';
 import { DirectClient } from '../src/client/client-direct.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@d7/core';
 
 test('back controller', async () => {
     /**
      * @see RpcTypes
      */
     enum MyTypes {
-        //the first 100 are reserved in @deepkit/rpc RpcTypes
+        //the first 100 are reserved in @d7/rpc RpcTypes
         Ack,
         Error,
 

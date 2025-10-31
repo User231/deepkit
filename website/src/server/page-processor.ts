@@ -2,8 +2,8 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { magicSeparator, Page } from '@app/common/models';
 import { MarkdownParser } from '@app/common/markdown';
-import { getCurrentDirName } from '@deepkit/core';
-import { findParentPath } from '@deepkit/app';
+import { getCurrentDirName } from '@d7/core';
+import { findParentPath } from '@d7/app';
 
 const pagesDir = findParentPath('src/pages', getCurrentDirName()) || '';
 

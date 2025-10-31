@@ -2,17 +2,17 @@
 
 This adapter allows you to use Google Storage as filesystem.
 
-It is part of `@deepkit/filesystem-google` which needs to be installed separately.
+It is part of `@d7/filesystem-google` which needs to be installed separately.
 
 ```sh
-npm install @deepkit/filesystem-google
+npm install @d7/filesystem-google
 ```
 
 ## Usage
 
 ```typescript
-import { Filesystem } from '@deepkit/filesystem';
-import { FilesystemGoogleAdapter } from '@deepkit/filesystem-google';
+import { Filesystem } from '@d7/filesystem';
+import { FilesystemGoogleAdapter } from '@d7/filesystem-google';
 
 const adapter = new FilesystemGoogleAdapter({
     bucket: 'my-bucket',

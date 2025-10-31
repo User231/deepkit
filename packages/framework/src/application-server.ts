@@ -8,17 +8,17 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, getClassName, urlJoin } from '@deepkit/core';
-import { RpcClient, RpcKernel } from '@deepkit/rpc';
+import { asyncOperation, getClassName, urlJoin } from '@d7/core';
+import { RpcClient, RpcKernel } from '@d7/rpc';
 import cluster from 'cluster';
-import { HttpRouter } from '@deepkit/http';
-import { BaseEvent, EventDispatcher, eventDispatcher, EventToken } from '@deepkit/event';
-import { InjectorContext } from '@deepkit/injector';
+import { HttpRouter } from '@d7/http';
+import { BaseEvent, EventDispatcher, eventDispatcher, EventToken } from '@d7/event';
+import { InjectorContext } from '@d7/injector';
 import { FrameworkConfig } from './module.config.js';
-import { LoggerInterface } from '@deepkit/logger';
+import { LoggerInterface } from '@d7/logger';
 import { createRpcConnection, WebWorker, WebWorkerFactory } from './worker.js';
 import { RpcControllers } from './rpc.js';
-import '@deepkit/type';
+import '@d7/type';
 
 export class ServerBootstrapEvent extends BaseEvent {
 }

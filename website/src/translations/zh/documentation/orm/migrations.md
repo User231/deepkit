@@ -11,7 +11,7 @@
 - `migration:up` - 执行待执行的迁移文件。
 - `migration:down` - 执行回滚迁移，撤销已执行的旧迁移
 
-当你在应用中引入 `FrameworkModule` 时，这些命令可用；或者通过 `@deepkit/sql` 提供的 `deepkit-sql` 命令行工具使用。
+当你在应用中引入 `FrameworkModule` 时，这些命令可用；或者通过 `@d7/sql` 提供的 `deepkit-sql` 命令行工具使用。
 
 `FrameworkModule` 的[迁移集成](../framework/database.md#migration)会自动读取你的数据库（你需要将它们定义为 provider），而使用 `deepkit-sql` 时，你需要指定导出数据库的 TypeScript 文件。后者在不使用 Deepkit Framework、单独使用 Deepkit ORM 时很有用。
 
@@ -19,8 +19,8 @@
 
 ```typescript
 //database.ts
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 export class SQLiteDatabase extends Database {

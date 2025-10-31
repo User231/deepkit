@@ -1,5 +1,5 @@
-import { FilesystemAdapter, FilesystemFile, FileType, FileVisibility, Reporter, resolveFilesystemPath } from '@deepkit/filesystem';
-import { pathDirectory, pathBasename } from '@deepkit/core';
+import { FilesystemAdapter, FilesystemFile, FileType, FileVisibility, Reporter, resolveFilesystemPath } from '@d7/filesystem';
+import { pathDirectory, pathBasename } from '@d7/core';
 import { Client, FileInfo, UnixPermissions } from 'basic-ftp';
 import type { ConnectionOptions as TLSConnectionOptions } from 'tls';
 import { Readable, Writable } from 'stream';

@@ -18,7 +18,7 @@ Das Deepkit Framework und seine zugehörigen Libraries bieten eine Reihe von Eve
 Wenn du eine Deepkit App verwendest, ist das Event-System bereits enthalten und einsatzbereit.
 
 ```typescript
-import { App, onAppExecute } from '@deepkit/app';
+import { App, onAppExecute } from '@d7/app';
 
 const app = new App();
 
@@ -32,8 +32,8 @@ app.run();
 Events können entweder über die `listen()`-Methode oder über eine Class mit dem `@eventDispatcher.listen` Decorator registriert werden:
 
 ```typescript
-import { App, onAppExecute } from '@deepkit/app';
-import { eventDispatcher } from '@deepkit/event';
+import { App, onAppExecute } from '@d7/app';
+import { eventDispatcher } from '@d7/event';
 
 class MyListener {
     @eventDispatcher.listen(onAppExecute)
@@ -58,7 +58,7 @@ Im Kern von Deepkits Event-System stehen Event Tokens. Dabei handelt es sich um 
 Wenn ein Event über ein Event Token initiiert wird, gilt der Eigentümer dieses Tokens effektiv als Quelle des Events. Das Token bestimmt die mit dem Event verknüpften Daten und legt fest, ob asynchrone Event Listener verwendet werden können.
 
 ```typescript
-import { EventToken } from '@deepkit/event';
+import { EventToken } from '@d7/event';
 
 const MyEvent = new EventToken('my-event');
 
@@ -77,10 +77,10 @@ app.command('test', async (dispatcher: EventDispatcher) => {
 
 ### Benutzerdefinierte Event-Daten erstellen:
 
-Mit `DataEventToken` aus @deepkit/event:
+Mit `DataEventToken` aus @d7/event:
 
 ```typescript
-import { DataEventToken } from '@deepkit/event';
+import { DataEventToken } from '@d7/event';
 
 class User {
 }
@@ -118,10 +118,10 @@ app.listen(MyEvent, (event, logger: Logger) => {
 
 Beachte, dass das erste Argument das Event selbst sein muss. Dieses Argument kann nicht weggelassen werden.
 
-Wenn du `@deepkit/app` verwendest, kannst du auch app.listen() verwenden, um einen funktionalen Listener zu registrieren.
+Wenn du `@d7/app` verwendest, kannst du auch app.listen() verwenden, um einen funktionalen Listener zu registrieren.
 
 ```typescript
-import { App } from '@deepkit/app';
+import { App } from '@d7/app';
 
 new App()
     .listen(MyEvent, (event) => {
@@ -135,7 +135,7 @@ new App()
 Class Listener sind Classes mit Decorators. Sie bieten eine strukturierte Möglichkeit, auf Events zu lauschen.
 
 ```typescript
-import { App } from '@deepkit/app';
+import { App } from '@d7/app';
 
 class MyListener {
     @eventDispatcher.listen(UserAdded)
@@ -158,8 +158,8 @@ Das Event-System von Deepkit verfügt über einen leistungsfähigen Dependency-I
 Beispielsweise wird bei einem funktionalen Listener die passende Logger-Instanz automatisch bereitgestellt, wenn du ein Argument wie `logger: Logger` hinzufügst und die Function aufgerufen wird.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { Logger } from '@deepkit/logger';
+import { App } from '@d7/app';
+import { Logger } from '@d7/logger';
 
 new App()
     .listen(MyEvent, (event, logger: Logger) => {
@@ -192,8 +192,8 @@ Das Deepkit Framework selbst stellt mehrere Events des Application Servers berei
 _Funktionaler Listener_
 
 ```typescript
-import { onServerMainBootstrap } from '@deepkit/framework';
-import { onAppExecute } from '@deepkit/app';
+import { onServerMainBootstrap } from '@d7/framework';
+import { onAppExecute } from '@d7/app';
 
 new App({
     imports: [new FrameworkModule]
@@ -225,10 +225,10 @@ new App({
 
 ## Low-Level-API
 
-Unten ein Beispiel der Low-Level-API aus @deepkit/event. Wenn du die Deepkit App verwendest, werden Event Listener nicht direkt über den EventDispatcher registriert, sondern über Modules. Du kannst die Low-Level-API aber dennoch verwenden, wenn du möchtest.
+Unten ein Beispiel der Low-Level-API aus @d7/event. Wenn du die Deepkit App verwendest, werden Event Listener nicht direkt über den EventDispatcher registriert, sondern über Modules. Du kannst die Low-Level-API aber dennoch verwenden, wenn du möchtest.
 
 ```typescript
-import { EventDispatcher, EventToken } from '@deepkit/event';
+import { EventDispatcher, EventToken } from '@d7/event';
 
 // Das erste Argument kann ein Injector-Kontext sein, um Dependencies für Dependency Injection aufzulösen
 const dispatcher = new EventDispatcher();
@@ -243,6 +243,6 @@ dispatcher.dispatch(MyEvent);
 
 ### Installation
 
-Das Event-System ist in @deepkit/app enthalten. Wenn du es standalone verwenden möchtest, kannst du es manuell installieren:
+Das Event-System ist in @d7/app enthalten. Wenn du es standalone verwenden möchtest, kannst du es manuell installieren:
 
 Siehe [Event](../event.md) für Installationsanweisungen.

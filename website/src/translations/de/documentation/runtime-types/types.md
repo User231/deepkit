@@ -4,9 +4,9 @@ Typannotationen sind normale TypeScript-Types, die Metainformationen enthalten, 
 
 Validator-Constraints wie `MaxLength`, `Maximum` oder `Positive` können ebenfalls zu jedem Type hinzugefügt werden. Es ist außerdem möglich, dem Serializer mitzuteilen, wie ein bestimmter Wert serialisiert oder deserialisiert werden soll. Darüber hinaus ist es möglich, vollständig eigene Typannotationen zu erstellen und diese zur Laufzeit auszulesen, um das Type-System zur Laufzeit sehr individuell zu nutzen.
 
-Deepkit bringt einen ganzen Satz an Typannotationen mit, die alle direkt aus `@deepkit/type` genutzt werden können. Sie sind so konzipiert, dass sie nicht aus mehreren Libraries stammen, um Code nicht direkt an eine bestimmte Library wie Deepkit RPC oder Deepkit Database zu binden. Dadurch lassen sich Types leichter wiederverwenden, sogar im Frontend, auch wenn zum Beispiel Datenbank-Typannotationen verwendet werden.
+Deepkit bringt einen ganzen Satz an Typannotationen mit, die alle direkt aus `@d7/type` genutzt werden können. Sie sind so konzipiert, dass sie nicht aus mehreren Libraries stammen, um Code nicht direkt an eine bestimmte Library wie Deepkit RPC oder Deepkit Database zu binden. Dadurch lassen sich Types leichter wiederverwenden, sogar im Frontend, auch wenn zum Beispiel Datenbank-Typannotationen verwendet werden.
 
-Im Folgenden befindet sich eine Liste vorhandener Typannotationen. Der Validator und Serializer von `@deepkit/type` und `@deepkit/bson` sowie die Deepkit Database von `@deepkit/orm` nutzen diese Informationen jeweils unterschiedlich. Siehe die entsprechenden Kapitel, um mehr darüber zu erfahren.
+Im Folgenden befindet sich eine Liste vorhandener Typannotationen. Der Validator und Serializer von `@d7/type` und `@d7/bson` sowie die Deepkit Database von `@d7/orm` nutzen diese Informationen jeweils unterschiedlich. Siehe die entsprechenden Kapitel, um mehr darüber zu erfahren.
 
 ## Integer/Float
 
@@ -26,7 +26,7 @@ Integer und Floats sind als Basis als `number` definiert und haben mehrere Unter
 | float64 | Entspricht number, kann im Datenbankkontext jedoch eine andere Bedeutung haben.                                                                                                                                        |
 
 ```typescript
-import { integer } from '@deepkit/type';
+import { integer } from '@d7/type';
 
 interface User {
     id: integer;
@@ -37,7 +37,7 @@ Hier ist die `id` des Users zur Laufzeit eine number, wird aber in Validierung u
 Das bedeutet, dass beispielsweise in der Validierung keine Floats erlaubt sind und der Serializer Floats automatisch in Integer umwandelt.
 
 ```typescript
-import { is, integer } from '@deepkit/type';
+import { is, integer } from '@d7/type';
 
 is<integer>(12); //true
 is<integer>(12.5); //false
@@ -46,7 +46,7 @@ is<integer>(12.5); //false
 Die Subtypes können auf die gleiche Weise verwendet werden und sind nützlich, wenn ein bestimmter Zahlenbereich erlaubt werden soll.
 
 ```typescript
-import { is, int8 } from '@deepkit/type';
+import { is, int8 } from '@d7/type';
 
 is<int8>(-5); //true
 is<int8>(5); //true
@@ -55,7 +55,7 @@ is<int8>(2500); //false
 ```
 
 ```typescript
-import { is, float, float32, float64 } from '@deepkit/type';
+import { is, float, float32, float64 } from '@d7/type';
 is<float>(12.5); //true
 is<float32>(12.5); //true
 is<float64>(12.5); //true
@@ -66,7 +66,7 @@ is<float64>(12.5); //true
 UUID v4 wird in der Datenbank üblicherweise als Binary und in JSON als string gespeichert.
 
 ```typescript
-import { is, UUID } from '@deepkit/type';
+import { is, UUID } from '@d7/type';
 
 is<UUID>('f897399a-9f23-49ac-827d-c16f8e4810a0'); //true
 is<UUID>('asd'); //false
@@ -77,7 +77,7 @@ is<UUID>('asd'); //false
 Markiert dieses Feld als ObjectId für MongoDB. Wird als string aufgelöst. Wird in MongoDB als Binary gespeichert.
 
 ```typescript
-import { MongoId, serialize, is } from '@deepkit/type';
+import { MongoId, serialize, is } from '@d7/type';
 
 serialize<MongoId>('507f1f77bcf86cd799439011'); //507f1f77bcf86cd799439011
 is<MongoId>('507f1f77bcf86cd799439011'); //true
@@ -95,7 +95,7 @@ Standardmäßig serialisiert der normale bigint Type als number in JSON (und als
 `BinaryBigInt` ist dasselbe wie bigint, serialisiert in Datenbanken jedoch als unsigniertes Binary mit unbegrenzter Größe (anstatt 8 Bytes in den meisten Datenbanken) und in JSON als string. Negative Werte werden in positive umgewandelt (`abs(x)`).
 
 ```typescript
-import { BinaryBigInt } from '@deepkit/type';
+import { BinaryBigInt } from '@d7/type';
 
 interface User {
     id: BinaryBigInt;
@@ -114,7 +114,7 @@ Deepkit ORM speichert BinaryBigInt als Binärfeld.
 `SignedBinaryBigInt` ist dasselbe wie `BinaryBigInt`, kann jedoch auch negative Werte speichern. Deepkit ORM speichert `SignedBinaryBigInt` als Binary. Das Binary hat ein zusätzliches führendes Vorzeichen-Byte und wird als uint dargestellt: 255 für negativ, 0 für null oder 1 für positiv.
 
 ```typescript
-import { SignedBinaryBigInt } from '@deepkit/type';
+import { SignedBinaryBigInt } from '@d7/type';
 
 interface User {
     id: SignedBinaryBigInt;
@@ -126,7 +126,7 @@ interface User {
 Um den Namen einer Property in der Serialisierung zu ändern.
 
 ```typescript
-import { serialize, deserialize, MapName } from '@deepkit/type';
+import { serialize, deserialize, MapName } from '@d7/type';
 
 interface User {
     firstName: string & MapName<'first_name'>;
@@ -141,7 +141,7 @@ deserialize<User>({ first_name: 'Peter' }) // {firstName: 'Peter'}
 Properties können gruppiert werden. Bei der Serialisierung kann man zum Beispiel eine Group von der Serialisierung ausschließen. Siehe das Kapitel Serialisierung für weitere Informationen.
 
 ```typescript
-import { serialize } from '@deepkit/type';
+import { serialize } from '@d7/type';
 
 interface Model {
     username: string;
@@ -159,7 +159,7 @@ serialize<Model>(
 Jede Property kann zusätzliche Metadaten hinzufügen, die über die Reflection API ausgelesen werden können. Siehe [Laufzeit-Typen-Reflexion](runtime-types.md#runtime-types-reflection) für weitere Informationen.
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 interface Model {
     username: string;
@@ -175,7 +175,7 @@ reflection.getProperty('title').getData()['key']; //value;
 Jede Property kann für ein bestimmtes Ziel vom Serialisierungsprozess ausgeschlossen werden.
 
 ```typescript
-import { serialize, deserialize, Excluded } from '@deepkit/type';
+import { serialize, deserialize, Excluded } from '@d7/type';
 
 interface Auth {
     title: string;
@@ -197,7 +197,7 @@ json.password; //wieder undefined, da der Serializer von serialize `json` heißt
 Markiert das Feld als Embedded Type.
 
 ```typescript
-import { PrimaryKey, Embedded, serialize, deserialize } from '@deepkit/type';
+import { PrimaryKey, Embedded, serialize, deserialize } from '@d7/type';
 
 interface Address {
     street: string;
@@ -295,7 +295,7 @@ serialize<User>(user);
 Um Interfaces mit Entity-Informationen zu annotieren. Wird nur im Datenbankkontext verwendet.
 
 ```typescript
-import { Entity, PrimaryKey } from '@deepkit/type';
+import { Entity, PrimaryKey } from '@d7/type';
 
 interface User extends Entity<{ name: 'user', collection: 'users'> {
     id: number & PrimaryKey;
@@ -308,7 +308,7 @@ interface User extends Entity<{ name: 'user', collection: 'users'> {
 Markiert das Feld als Primary Key. Wird nur im Datenbankkontext verwendet.
 
 ```typescript
-import { PrimaryKey } from '@deepkit/type';
+import { PrimaryKey } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -321,7 +321,7 @@ Markiert das Feld als Auto-Increment. Wird nur im Datenbankkontext verwendet.
 Üblicherweise zusammen mit `PrimaryKey`.
 
 ```typescript
-import { AutoIncrement } from '@deepkit/type';
+import { AutoIncrement } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey & AutoIncrement;
@@ -333,7 +333,7 @@ interface User {
 Markiert das Feld als Reference (Foreign Key). Wird nur im Datenbankkontext verwendet.
 
 ```typescript
-import { Reference } from '@deepkit/type';
+import { Reference } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -373,7 +373,7 @@ mit Joins ausgeführt wird. Die Property `users` wird nicht in der Datenbank ges
 Markiert das Feld als Index. Wird nur im Datenbankkontext verwendet.
 
 ```typescript
-import { Index } from '@deepkit/type';
+import { Index } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -386,7 +386,7 @@ interface User {
 Markiert das Feld als Unique. Wird nur im Datenbankkontext verwendet.
 
 ```typescript
-import { Unique } from '@deepkit/type';
+import { Unique } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -399,7 +399,7 @@ interface User {
 Mit `DatabaseField` können datenbankspezifische Optionen wie der konkrete Datenbank-Spaltentyp und der Default-Wert usw. definiert werden.
 
 ```typescript
-import { DatabaseField } from '@deepkit/type';
+import { DatabaseField } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -418,7 +418,7 @@ Siehe [Validierungs-Constraint-Typen](validation.md#validation-constraint-types)
 Um einen Runtime Type inline einzubetten. Wird nur in fortgeschrittenen Fällen verwendet.
 
 ```typescript
-import { InlineRuntimeType, ReflectionKind, Type } from '@deepkit/type';
+import { InlineRuntimeType, ReflectionKind, Type } from '@d7/type';
 
 const type: Type = { kind: ReflectionKind.string };
 
@@ -438,7 +438,7 @@ Dies ist nützlich, wenn du ein hochgradig anpassbares System baust, in dem du R
 Um alle Annotations einer Property zurückzusetzen. Wird nur in fortgeschrittenen Fällen verwendet.
 
 ```typescript
-import { ResetAnnotation } from '@deepkit/type';
+import { ResetAnnotation } from '@d7/type';
 
 interface User {
     id: number & PrimaryKey;
@@ -473,7 +473,7 @@ type Title = string & MyAnnotation & AnnotationOption<{ title: 'Hello' }>;
 Die Typannotationen können über die Type-Objekte von `typeOf<T>()` und `typeAnnotation` ausgelesen werden:
 
 ```typescript
-import { typeOf, typeAnnotation } from '@deepkit/type';
+import { typeOf, typeAnnotation } from '@d7/type';
 
 const type = typeOf<Username>();
 const annotation = typeAnnotation.getForName(type, 'myAnnotation'); //[]
@@ -483,7 +483,7 @@ Das Ergebnis in `annotation` ist entweder ein Array mit Optionen, falls die Typa
 Bereits mitgelieferte Typannotationen wie `MapName`, `Group`, `Data` usw. haben ihr eigenes Annotation-Objekt:
 
 ```typescript
-import { typeOf, Group, groupAnnotation } from '@deepkit/type';
+import { typeOf, Group, groupAnnotation } from '@d7/type';
 
 type Username = string & Group<'a'> & Group<'b'>;
 

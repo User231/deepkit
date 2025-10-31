@@ -1,21 +1,21 @@
 # 시작하기
 
-Deepkit RPC를 사용하려면 Runtime Types에 기반하므로 `@deepkit/type`가 올바르게 설치되어 있어야 합니다. [Runtime Type 설치](../runtime-types.md)를 참고하세요.
+Deepkit RPC를 사용하려면 Runtime Types에 기반하므로 `@d7/type`가 올바르게 설치되어 있어야 합니다. [Runtime Type 설치](../runtime-types.md)를 참고하세요.
 
-이 작업이 성공적으로 완료되면, 라이브러리를 내부적으로 이미 사용하는 Deepkit Framework 또는 `@deepkit/rpc`를 설치할 수 있습니다.
+이 작업이 성공적으로 완료되면, 라이브러리를 내부적으로 이미 사용하는 Deepkit Framework 또는 `@d7/rpc`를 설치할 수 있습니다.
 
 ```sh
-npm install @deepkit/rpc
+npm install @d7/rpc
 ```
 
-`@deepkit/rpc`의 Controller Class는 TypeScript decorator에 기반하며, 이 기능을 사용하려면 experimentalDecorators를 활성화해야 합니다.
+`@d7/rpc`의 Controller Class는 TypeScript decorator에 기반하며, 이 기능을 사용하려면 experimentalDecorators를 활성화해야 합니다.
 
-서버와 클라이언트가 각각의 package.json을 가지고 있다면 `@deepkit/rpc` 패키지는 서버와 클라이언트 모두에 설치해야 합니다.
+서버와 클라이언트가 각각의 package.json을 가지고 있다면 `@d7/rpc` 패키지는 서버와 클라이언트 모두에 설치해야 합니다.
 
-서버와 TCP로 통신하려면 클라이언트와 서버에 `@deepkit/rpc-tcp` 패키지를 설치해야 합니다.
+서버와 TCP로 통신하려면 클라이언트와 서버에 `@d7/rpc-tcp` 패키지를 설치해야 합니다.
 
 ```sh
-npm install @deepkit/rpc-tcp
+npm install @d7/rpc-tcp
 ```
 
 WebSocket 통신의 경우에도 서버에는 이 패키지가 필요합니다. 반면 브라우저의 클라이언트는 표준 WebSocket을 사용합니다.
@@ -28,13 +28,13 @@ npm install ws
 
 ## 사용법
 
-아래는 WebSocket과 @deepkit/rpc의 low-level API를 기반으로 한 완전한 예제입니다. Deepkit Framework를 사용할 경우, Controller는 app module을 통해 제공되며 RpcKernel을 수동으로 인스턴스화하지 않습니다.
+아래는 WebSocket과 @d7/rpc의 low-level API를 기반으로 한 완전한 예제입니다. Deepkit Framework를 사용할 경우, Controller는 app module을 통해 제공되며 RpcKernel을 수동으로 인스턴스화하지 않습니다.
 
 _파일: server.ts_
 
 ```typescript
-import { rpc, RpcKernel } from '@deepkit/rpc';
-import { RpcWebSocketServer } from '@deepkit/rpc-tcp';
+import { rpc, RpcKernel } from '@d7/rpc';
+import { RpcWebSocketServer } from '@d7/rpc-tcp';
 
 @rpc.controller('/main')
 export class Controller {
@@ -58,7 +58,7 @@ console.log('Server started at ws://127.0.0.1:8081');
 _파일: client.ts_
 
 ```typescript
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { RpcWebSocketClient } from '@d7/rpc';
 import type { Controller } from './server';
 
 async function main() {
@@ -81,7 +81,7 @@ Remote Procedure Call에서 "Procedure"라는 용어는 일반적으로 "Action"
 
 
 ```typescript
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 
 @rpc.controller('/main');
 class Controller {
@@ -124,7 +124,7 @@ TODO
 Class를 등록하려면 `@entity.name('id')` decorator를 사용합니다.
 
 ```typescript
-import { entity } from '@deepkit/type';
+import { entity } from '@d7/type';
 
 @entity.name('user')
 class User {

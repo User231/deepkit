@@ -7,14 +7,14 @@ Deepkit Broker ist Client und Server in einem. Er kann als eigenständiger Serve
 Der Client verwendet das Adapter-Pattern, um verschiedene Backends zu unterstützen. Sie können denselben Code mit unterschiedlichen Backends verwenden oder sogar mehrere Backends gleichzeitig nutzen.
 
 Aktuell sind 3 Adapter verfügbar. Einer ist der Standard-Adapter `BrokerDeepkitAdapter`, der mit dem Deepkit-Broker-Server kommuniziert und mit Deepkit Broker out of the box mitgeliefert wird (inklusive Server). 
-Der zweite ist `BrokerRedisAdapter` in [@deepkit/broker-redis](./package/broker-redis), der mit einem Redis-Server kommuniziert. Der dritte ist `BrokerMemoryAdapter`, ein In-Memory-Adapter für Testzwecke.
+Der zweite ist `BrokerRedisAdapter` in [@d7/broker-redis](./package/broker-redis), der mit einem Redis-Server kommuniziert. Der dritte ist `BrokerMemoryAdapter`, ein In-Memory-Adapter für Testzwecke.
 
 ## Installation
 
 Deepkit Broker wird standardmäßig installiert und aktiviert, wenn das [Deepkit Framework](./framework.md) verwendet wird. Andernfalls können Sie es über Folgendes installieren:
 
 ```bash
-npm install @deepkit/broker
+npm install @d7/broker
 ```
 
 ## Broker-Klassen
@@ -30,7 +30,7 @@ Deepkit Broker stellt diese Haupt-Broker-Klassen bereit:
 Diese Klassen sind dafür ausgelegt, einen Broker-Adapter zu verwenden, um typsicher mit einem Broker-Server zu kommunizieren.
 
 ```typescript
-import { BrokerBus, BrokerMemoryAdapter } from '@deepkit/broker';
+import { BrokerBus, BrokerMemoryAdapter } from '@d7/broker';
 
 const bus = new BrokerBus(new BrokerMemoryAdapter());
 const channel = bus.channel<{ foo: string }>('my-channel-name');
@@ -103,15 +103,15 @@ Fast alle Broker-Klassen haben diese Art von Ableitung, sodass Sie sie an einer 
 
 ## Benutzerdefinierter Adapter
 
-Wenn Sie einen benutzerdefinierten Adapter benötigen, können Sie Ihren eigenen Adapter erstellen, indem Sie eines oder mehrere der folgenden Interfaces aus `@deepkit/broker` implementieren:
+Wenn Sie einen benutzerdefinierten Adapter benötigen, können Sie Ihren eigenen Adapter erstellen, indem Sie eines oder mehrere der folgenden Interfaces aus `@d7/broker` implementieren:
 
 ```typescript
 export type BrokerAdapter = BrokerAdapterCache & BrokerAdapterBus & BrokerAdapterLock & BrokerAdapterQueue & BrokerAdapterKeyValue;
 ```
 
 ```typescript
-import { BrokerAdapterBus, BrokerBus, Release } from '@deepkit/broker';
-import { Type } from '@deepkit/type';
+import { BrokerAdapterBus, BrokerBus, Release } from '@d7/broker';
+import { Type } from '@d7/type';
 
 class MyAdapter implements BrokerAdapterBus {
   disconnect(): Promise<void> {

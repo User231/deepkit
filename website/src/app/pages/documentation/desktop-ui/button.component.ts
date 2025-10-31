@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { ApiDocComponent, CodeFrameComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
-import { ButtonComponent, ButtonGroupComponent, CheckboxComponent, DropdownComponent, DropdownItemComponent, DropdownSplitterComponent, OpenDropdownDirective, TabButtonComponent } from '@deepkit/desktop-ui';
+import { CodeHighlightComponent } from '@d7/ui-library';
+import { ButtonComponent, ButtonGroupComponent, CheckboxComponent, DropdownComponent, DropdownItemComponent, DropdownSplitterComponent, OpenDropdownDirective, TabButtonComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { AppTitle } from '@app/app/components/title.js';
 

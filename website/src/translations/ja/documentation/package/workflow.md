@@ -1,7 +1,7 @@
-# API `@deepkit/workflow`
+# API `@d7/workflow`
 
 ```shell
-npm install @deepkit/workflow
+npm install @d7/workflow
 ```
 
-<api-docs package="@deepkit/workflow"></api-docs>
+<api-docs package="@d7/workflow"></api-docs>

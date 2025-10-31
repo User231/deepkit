@@ -3,7 +3,7 @@
 デフォルトでは、すべての RPC 関数は任意のクライアントから呼び出すことができ、ピア・ツー・ピア通信機能が有効になっています。どのクライアントに何を許可するかを厳密に制御するには、`RpcKernelSecurity` クラスをオーバーライドできます。
 
 ```typescript
-import { RpcKernelSecurity, Session, RpcControllerAccess } from '@deepkit/type';
+import { RpcKernelSecurity, Session, RpcControllerAccess } from '@d7/type';
 
 //デフォルトの実装を含みます
 class MyKernelSecurity extends RpcKernelSecurity {
@@ -38,9 +38,9 @@ const kernel = new RpcKernel([{provide: RpcKernelSecurity, useClass: MyKernelSec
 また、Deepkit アプリの場合は、アプリ内でプロバイダを使って `RpcKernelSecurity` クラスをオーバーライドします:
 
 ```typescript
-import { App } from '@deepkit/type';
-import { RpcKernelSecurity } from '@deepkit/rpc';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/type';
+import { RpcKernelSecurity } from '@d7/rpc';
+import { FrameworkModule } from '@d7/framework';
 
 new App({
     controllers: [MyRpcController],
@@ -67,7 +67,7 @@ const controller = client.controller<Controller>('/main');
 この場合、`RpcKernelSecurity.authenticate` はトークン `123456789` を受け取り、それに応じて別のセッションを返すことができます。返されたセッションは、その後 `hasControllerAccess` のような他のすべてのメソッドに渡されます。
 
 ```typescript
-import { Session, RpcKernelSecurity } from '@deepkit/rpc';
+import { Session, RpcKernelSecurity } from '@d7/rpc';
 
 class UserSession extends Session {
 }

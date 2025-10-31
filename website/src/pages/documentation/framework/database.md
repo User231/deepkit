@@ -2,7 +2,7 @@
 
 Deepkit has its own powerful database abstraction library called Deepkit ORM. It is an Object-Relational Mapping (ORM) library that facilitates work with SQL databases and MongoDB.
 
-Although you can use any database library, we recommend Deepkit ORM as it is the fastest TypeScript database abstraction library that is perfectly integrated with the Deepkit framework and has many features that will improve your workflow and efficiency.
+Although you can use any database library, we recommend Deepkit ORM as it is the fastest TypeScript database abstraction library that is perfectly integrated with the D7 framework and has many features that will improve your workflow and efficiency.
 
 This chapter explains how to use Deepkit ORM with your Deepkit app. To get all the information about Deepkit ORM, see the [ORM](../orm.md) chapter.
 
@@ -11,8 +11,8 @@ This chapter explains how to use Deepkit ORM with your Deepkit app. To get all t
 The simplest way to use the `Database` object of Deepkit ORM within the application is to register a class that derives from it.
 
 ```typescript
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 export class SQLiteDatabase extends Database {
@@ -32,8 +32,8 @@ You can now register this database class as a provider. We also enable `migrateO
 We also enable `debug`, which allows us to open the debugger when the application's server is started and manage your database models directly in its built-in ORM browser.
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { SQLiteDatabase } from './database.ts';
 
 new App({
@@ -69,8 +69,8 @@ In many cases you want your connection credentials to be configurable. For examp
 
 ```typescript
 //database.ts
-import { Database } from '@deepkit/orm';
-import { PostgresDatabaseAdapter } from '@deepkit/sqlite';
+import { Database } from '@d7/orm';
+import { PostgresDatabaseAdapter } from '@d7/sqlite';
 import { User } from './models';
 
 type DbConfig = Pick<AppConfig, 'databaseHost', 'databaseUser', 'databasePassword'>;
@@ -97,8 +97,8 @@ export class AppConfig {
 
 ```typescript
 //app.ts
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
 import { MainDatabase } from './database.ts';
 import { AppConfig } from './config.ts';
 
@@ -136,7 +136,7 @@ You can add as many database classes as you like and name them as you like. Be s
 
 ## Manage Data
 
-You now have everything set up to manage your database data with the Deepkit ORM Browser. To open Deepkit ORM Browser and manage the content, write all the steps from above in the `app.ts` file and start the server.
+You now have everything set up to manage your database data with the D7 ORM Browser. To open Deepkit ORM Browser and manage the content, write all the steps from above in the `app.ts` file and start the server.
 
 ```sh
 $ ts-node app.ts server:start
@@ -164,11 +164,11 @@ If you click on `User` in the left sidebar, you can manage its content. Click th
 ## Learn More
 
 To learn more about how `SQLiteDatabase` works, please read the chapter [Database](../orm.md) and its subchapters, such as querying data, manipulating data via sessions, defining relations and much more.
-Please note that the chapters there refer to the standalone library `@deepkit/orm` and do not include documentation about the part of the deepkit framework you read above in this chapter. In the standalone library, you instantiate your database class manually, for example via `new SQLiteDatabase()`. However, in your Deepkit app, this is done automatically using the Dependency Injection container.
+Please note that the chapters there refer to the standalone library `@d7/orm` and do not include documentation about the part of the d7 framework you read above in this chapter. In the standalone library, you instantiate your database class manually, for example via `new SQLiteDatabase()`. However, in your Deepkit app, this is done automatically using the Dependency Injection container.
 
 ## Migration
 
-The Deepkit framework has a powerful migration system that allows you to create, execute and revert migrations. The migration system is based on the Deepkit ORM library and is therefore perfectly integrated into the framework.
+The Deepkit framework has a powerful migration system that allows you to create, execute and revert migrations. The migration system is based on the D7 ORM library and is therefore perfectly integrated into the framework.
 
 The `FrameworkModule` provides several commands to manage migrations.
 

@@ -5,7 +5,7 @@ HTTP-Middlewares ermöglichen es, sich als Alternative zu HTTP-Events in den Req
 Eine Middleware kann entweder eine Class (die vom Dependency-Injection-Container instanziiert wird) oder eine einfache Function sein.
 
 ```typescript
-import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@deepkit/http';
+import { HttpMiddleware, httpMiddleware, HttpRequest, HttpResponse } from '@d7/http';
 
 class MyMiddleware implements HttpMiddleware {
     async execute(request: HttpRequest, response: HttpResponse, next: (err?: any) => void) {
@@ -35,7 +35,7 @@ new App({
 Mit httpMiddleware.for(MyMiddleware) wird eine Middleware global für alle Routes registriert.
 
 ```typescript
-import { httpMiddleware } from '@deepkit/http';
+import { httpMiddleware } from '@d7/http';
 
 new App({
     providers: [MyMiddleware],

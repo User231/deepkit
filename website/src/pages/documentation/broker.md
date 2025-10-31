@@ -6,15 +6,15 @@ Deepkit Broker is a client and a server in one. It can be used as a standalone s
 
 The client uses an adapter pattern to support different backends. You can use the same code with different backends, or even use multiple backends at the same time.
 
-Currently, there are 3 adapters available. One is the default `BrokerDeepkitAdapter` which communicates with the Deepkit Broker server and comes with Deepkit Broker out of the box (including the server). 
-The second is `BrokerRedisAdapter` in [@deepkit/broker-redis](./package/broker-redis) which communicates with a Redis server. The third is `BrokerMemoryAdapter` which is an in-memory adapter for testing purposes.
+Currently, there are 3 adapters available. One is the default `BrokerDeepkitAdapter` which communicates with the D7 Broker server and comes with Deepkit Broker out of the box (including the server). 
+The second is `BrokerRedisAdapter` in [@d7/broker-redis](./package/broker-redis) which communicates with a Redis server. The third is `BrokerMemoryAdapter` which is an in-memory adapter for testing purposes.
 
 ## Installation
 
 Deepkit Broker is installed and activated per default when [Deepkit Framework](./framework.md) is used. Otherwise, you can install it via:
 
 ```bash
-npm install @deepkit/broker
+npm install @d7/broker
 ```
 
 ## Broker Classes
@@ -30,7 +30,7 @@ Deepkit Broker provides these main broker classes:
 These classes are designed to take a broker adapter to communicate with a broker server in a type-safe way.
 
 ```typescript
-import { BrokerBus, BrokerMemoryAdapter } from '@deepkit/broker';
+import { BrokerBus, BrokerMemoryAdapter } from '@d7/broker';
 
 const bus = new BrokerBus(new BrokerMemoryAdapter());
 const channel = bus.channel<{ foo: string }>('my-channel-name');
@@ -103,15 +103,15 @@ Almost all broker classes have this kind of derivation, so you can easily define
 
 ## Custom Adapter
 
-If you need a custom adapter, you can create your own adapter by implementing one or more of the following interfaces from `@deepkit/broker`:
+If you need a custom adapter, you can create your own adapter by implementing one or more of the following interfaces from `@d7/broker`:
 
 ```typescript
 export type BrokerAdapter = BrokerAdapterCache & BrokerAdapterBus & BrokerAdapterLock & BrokerAdapterQueue & BrokerAdapterKeyValue;
 ```
 
 ```typescript
-import { BrokerAdapterBus, BrokerBus, Release } from '@deepkit/broker';
-import { Type } from '@deepkit/type';
+import { BrokerAdapterBus, BrokerBus, Release } from '@d7/broker';
+import { Type } from '@d7/type';
 
 class MyAdapter implements BrokerAdapterBus {
   disconnect(): Promise<void> {

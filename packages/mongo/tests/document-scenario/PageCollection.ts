@@ -1,5 +1,5 @@
 import {PageClass} from "./PageClass.js";
-import {t} from "@deepkit/type";
+import {t} from "@d7/type";
 
 export class PageCollection {
     constructor(

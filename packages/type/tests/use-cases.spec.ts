@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { createSerializeFunction, executeTypeArgumentAsArray, SerializeFunction, serializer, TemplateState } from '../src/serializer';
 import { deserialize, serialize } from '../src/serializer-facade';
-import { validate } from '@deepkit/type';
+import { validate } from '@d7/type';
 import { TypeClass } from '../src/reflection/type';
 
 class MyIterable<T> implements Iterable<T> {

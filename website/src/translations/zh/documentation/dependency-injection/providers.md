@@ -71,7 +71,7 @@ new App({
 原始类型的提供者令牌必须使用 Inject 类型声明为依赖。
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class EmailService {
     constructor(public domain: Inject<string, 'domain'>) {}
@@ -81,7 +81,7 @@ class EmailService {
 注入别名与原始类型提供者令牌的组合也可用于为不包含运行时类型信息的包提供依赖。
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 import { Stripe } from 'stripe';
 
 export type StripeService = Inject<Stripe, '_stripe'>;
@@ -148,7 +148,7 @@ new App({
 除了类和原始类型外，还可以提供抽象（接口）。这是通过 `provide` 函数完成的，尤其在要提供的值不包含任何类型信息时非常有用。
 
 ```typescript
-import { provide } from '@deepkit/injector';
+import { provide } from '@d7/injector';
 
 interface Connection {
     write(data: Uint16Array): void;
@@ -192,7 +192,7 @@ new App({
 
 ## 异步提供者
 
-`@deepkit/injector` 的设计不支持与异步依赖注入容器一起使用异步提供者。这是因为请求提供者也需要是异步的，从而要求整个应用在最高层级以异步方式运行。
+`@d7/injector` 的设计不支持与异步依赖注入容器一起使用异步提供者。这是因为请求提供者也需要是异步的，从而要求整个应用在最高层级以异步方式运行。
 
 要进行异步初始化，应将该初始化移动到应用服务器的引导流程，因为那里事件可以是异步的。或者，也可以手动触发初始化。
 

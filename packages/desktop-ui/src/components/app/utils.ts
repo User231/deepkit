@@ -9,7 +9,7 @@
  */
 
 import { Directive, ElementRef, HostListener, inject, Input, input, OnChanges, OnDestroy, OnInit, output } from '@angular/core';
-import { nextTick } from '@deepkit/core';
+import { nextTick } from '@d7/core';
 import { Electron } from '../../core/utils';
 import { DOCUMENT } from '@angular/common';
 

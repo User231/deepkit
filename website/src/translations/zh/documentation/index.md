@@ -4,7 +4,7 @@ Deepkit 是一个面向后端应用的开源 TypeScript 框架，在 MIT 许可�
 
 在这里你可以找到 Deepkit 各个组件的章节以及我们所有包的 API 参考。
 
-如果你需要帮助，欢迎加入我们的[Discord 服务器](https://discord.com/invite/PtfVf7B8UU)或在 [GitHub](https://github.com/deepkit/deepkit-framework) 上提交 issue。
+如果你需要帮助，欢迎加入我们的[Discord 服务器](https://discord.com/invite/PtfVf7B8UU)或在 [GitHub](https://github.com/marcj/d7) 上提交 issue。
 
 ## 章节
 
@@ -26,62 +26,62 @@ Deepkit 是一个面向后端应用的开源 TypeScript 框架，在 MIT 许可�
 
 ### 组成
 
-- [@deepkit/app](/documentation/package/app.md)
-- [@deepkit/framework](/documentation/package/framework.md)
-- [@deepkit/http](/documentation/package/http.md)
-- [@deepkit/angular-ssr](/documentation/package/angular-ssr.md)
+- [@d7/app](/documentation/package/app.md)
+- [@d7/framework](/documentation/package/framework.md)
+- [@d7/http](/documentation/package/http.md)
+- [@d7/angular-ssr](/documentation/package/angular-ssr.md)
 
 ### 基础设施
 
-- [@deepkit/rpc](/documentation/package/rpc.md)
-- [@deepkit/rpc-tcp](/documentation/package/rpc-tcp.md)
-- [@deepkit/broker](/documentation/package/broker.md)
-- [@deepkit/broker-redis](/documentation/package/broker-redis.md)
+- [@d7/rpc](/documentation/package/rpc.md)
+- [@d7/rpc-tcp](/documentation/package/rpc-tcp.md)
+- [@d7/broker](/documentation/package/broker.md)
+- [@d7/broker-redis](/documentation/package/broker-redis.md)
 
 ### 文件系统
 
-- [@deepkit/filesystem](/documentation/package/filesystem.md)
-- [@deepkit/filesystem-ftp](/documentation/package/filesystem-ftp.md)
-- [@deepkit/filesystem-sftp](/documentation/package/filesystem-sftp.md)
-- [@deepkit/filesystem-s3](/documentation/package/filesystem-s3.md)
-- [@deepkit/filesystem-google](/documentation/package/filesystem-google.md)
-- [@deepkit/filesystem-database](/documentation/package/filesystem-database.md)
+- [@d7/filesystem](/documentation/package/filesystem.md)
+- [@d7/filesystem-ftp](/documentation/package/filesystem-ftp.md)
+- [@d7/filesystem-sftp](/documentation/package/filesystem-sftp.md)
+- [@d7/filesystem-s3](/documentation/package/filesystem-s3.md)
+- [@d7/filesystem-google](/documentation/package/filesystem-google.md)
+- [@d7/filesystem-database](/documentation/package/filesystem-database.md)
 
 ### 数据库
 
-- [@deepkit/orm](/documentation/package/orm.md)
-- [@deepkit/mysql](/documentation/package/mysql.md)
-- [@deepkit/postgres](/documentation/package/postgres.md)
-- [@deepkit/sqlite](/documentation/package/sqlite.md)
-- [@deepkit/mongodb](/documentation/package/mongodb.md)
+- [@d7/orm](/documentation/package/orm.md)
+- [@d7/mysql](/documentation/package/mysql.md)
+- [@d7/postgres](/documentation/package/postgres.md)
+- [@d7/sqlite](/documentation/package/sqlite.md)
+- [@d7/mongodb](/documentation/package/mongodb.md)
 
 ### 基础
 
-- [@deepkit/type](/documentation/package/type.md)
-- [@deepkit/event](/documentation/package/event.md)
-- [@deepkit/injector](/documentation/package/injector.md)
-- [@deepkit/template](/documentation/package/template.md)
-- [@deepkit/logger](/documentation/package/logger.md)
-- [@deepkit/workflow](/documentation/package/workflow.md)
-- [@deepkit/stopwatch](/documentation/package/stopwatch.md)
+- [@d7/type](/documentation/package/type.md)
+- [@d7/event](/documentation/package/event.md)
+- [@d7/injector](/documentation/package/injector.md)
+- [@d7/template](/documentation/package/template.md)
+- [@d7/logger](/documentation/package/logger.md)
+- [@d7/workflow](/documentation/package/workflow.md)
+- [@d7/stopwatch](/documentation/package/stopwatch.md)
 
 ### 工具
 
-- [@deepkit/api-console](/documentation/package/api-console.md)
-- [@deepkit/devtool](/documentation/package/devtool.md)
-- [@deepkit/desktop-ui](/documentation/package/desktop-ui.md)
-- [@deepkit/orm-browser](/documentation/package/orm-browser.md)
-- [@deepkit/bench](/documentation/package/bench.md)
-- [@deepkit/run](/documentation/package/run.md)
+- [@d7/api-console](/documentation/package/api-console.md)
+- [@d7/devtool](/documentation/package/devtool.md)
+- [@d7/desktop-ui](/documentation/package/desktop-ui.md)
+- [@d7/orm-browser](/documentation/package/orm-browser.md)
+- [@d7/bench](/documentation/package/bench.md)
+- [@d7/run](/documentation/package/run.md)
 
 ### 核心
 
-- [@deepkit/bson](/documentation/package/bson.md)
-- [@deepkit/core](/documentation/package/core.md)
-- [@deepkit/topsort](/documentation/package/topsort.md)
+- [@d7/bson](/documentation/package/bson.md)
+- [@d7/core](/documentation/package/core.md)
+- [@d7/topsort](/documentation/package/topsort.md)
 
 ### 运行时
 
-- [@deepkit/vite](/documentation/package/vite.md)
-- [@deepkit/bun](/documentation/package/bun.md)
-- [@deepkit/type-compiler](/documentation/package/type-compiler.md)
+- [@d7/vite](/documentation/package/vite.md)
+- [@d7/bun](/documentation/package/bun.md)
+- [@d7/type-compiler](/documentation/package/type-compiler.md)

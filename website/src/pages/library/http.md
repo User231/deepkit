@@ -1,6 +1,6 @@
 ---
 title: Deepkit HTTP
-package: "@deepkit/http"
+package: "@d7/http"
 doc: http/getting-started
 api: http
 category: http
@@ -30,9 +30,9 @@ category: http
 Write HTTP routes with class methods or simple async functions.
 
 ```typescript title=class-routes.ts
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { http } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { http } from '@d7/http';
 
 class MyPage {
     @http.GET('/')
@@ -48,9 +48,9 @@ new App({
 ```
 
 ```typescript title=functional-routes.ts
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry } from '@d7/http';
 
 const app = new App({
     imports: [new FrameworkModule]

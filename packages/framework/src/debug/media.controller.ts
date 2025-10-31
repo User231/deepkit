@@ -7,11 +7,11 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { DebugMediaInterface, MediaFile } from '@deepkit/framework-debug-api';
-import { rpc } from '@deepkit/rpc';
+import { DebugMediaInterface, MediaFile } from '@d7/framework-debug-api';
+import { rpc } from '@d7/rpc';
 import { FilesystemRegistry } from '../filesystem.js';
-import { Filesystem, FilesystemFile } from '@deepkit/filesystem';
-import { pathDirectory, pathJoin } from '@deepkit/core';
+import { Filesystem, FilesystemFile } from '@d7/filesystem';
+import { pathDirectory, pathJoin } from '@d7/core';
 import mime from 'mime-types';
 
 function mapFile(filesystem: number, file: FilesystemFile): MediaFile {

@@ -1,6 +1,6 @@
 ---
 title: Deepkit ORM Browser
-package: "@deepkit/orm-browser"
+package: "@d7/orm-browser"
 doc: orm/orm-browser
 ---
 
@@ -80,9 +80,9 @@ Deepkit ORM Browser is enabled by default in Deepkit Framework module.
 </p>
 
 ```typescript title=database.ts
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 
 @entity.collection('groups')
 export class Group {

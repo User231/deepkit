@@ -27,7 +27,7 @@ class MyService {
 Eine Alternative zur Konstruktorinjektion ist die Eigenschaftsinjektion. Diese wird üblicherweise verwendet, wenn die Abhängigkeit optional ist oder der Konstruktor sonst zu voll wäre. Die Properties werden automatisch zugewiesen, sobald die Instanz erstellt wurde (und damit der Konstruktor ausgeführt wurde).
 
 ```typescript
-import { Inject } from '@deepkit/core';
+import { Inject } from '@d7/core';
 
 class MyService {
     //erforderlich
@@ -56,7 +56,7 @@ app.get('/', (database: Database) => {
 Falls du Abhängigkeiten dynamisch auflösen möchtest, kannst du `InjectorContext` injizieren und ihn verwenden, um Abhängigkeiten zu beziehen.
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 class MyService {
     constructor(protected context: InjectorContext) {

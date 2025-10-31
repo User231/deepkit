@@ -1,6 +1,6 @@
 ---
 title: Deepkit RPC
-package: "@deepkit/rpc"
+package: "@d7/rpc"
 doc: rpc/getting-started
 api: rpc
 category: rpc
@@ -35,7 +35,7 @@ that can be imported by client and server.
 The server implements actions using the `@rpc` decorator. The client imports the type only and can call all the actions as if they were local functions.
 
 ```typescript title=client.ts
-import { DeepkitClient } from '@deepkit/rpc';
+import { DeepkitClient } from '@d7/rpc';
 import type { MyController } from './server.ts';
 import { User } from './shared/models';
 
@@ -49,7 +49,7 @@ console.log(user instanceof User); //true
 ```
 
 ```typescript title=server.ts
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@d7/rpc';
 import { User } from './shared/models';
 
 @rpc.controller('/main')
@@ -75,8 +75,8 @@ thanks to Deepkit Runtime Types.
 You can even share your database models from Deepkit ORM and return them directly in your RPC action.
 
 ```typescript
-import { Positive } from '@deepkit/type';
-import { rpc } from '@deepkit/rpc';
+import { Positive } from '@d7/type';
+import { rpc } from '@d7/rpc';
 import { User } from './shared/models';
 
 @rpc.controller('/main')
@@ -142,7 +142,7 @@ When invalid parameters are sent a ValidationError object is thrown with detaile
 
 ```typescript
 import { Positive, Maximum, 
-    Exclude, MaxLength } from "@deepkit/type";
+    Exclude, MaxLength } from "@d7/type";
 
 @rpc.controller('/main')
 class MyController {
@@ -181,7 +181,7 @@ All Observables and subscriptions are automatically closed when the client disco
 
 
 ```typescript title=client.ts
-import { DeepkitClient } from '@deepkit/rpc';
+import { DeepkitClient } from '@d7/rpc';
 import type { MyController } from './server.ts';
 
 const client = new DeepkitClient('localhost');
@@ -248,7 +248,7 @@ Custom error classes can also be used the same as with custom entity classes.
 A security layer allows to rewrite errors (e.g. to remove the error stack trace or hide sensitive messages).
 
 ```typescript title=client.ts
-import { MyCustomError } from "@deepkit/type";
+import { MyCustomError } from "@d7/type";
 
 const client = new DeepkitClient('localhost');
 const ctrl = client.controlle<Controller>('/main');

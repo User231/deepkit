@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { cast, validate } from '@deepkit/type';
+import { cast, validate } from '@d7/type';
 
 test('cast literal obj having typed tuple [number | null, number | null] as nested prop', () => {
     type MinMax = [number | null, number | null];

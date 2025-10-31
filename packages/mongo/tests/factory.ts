@@ -1,5 +1,5 @@
-import { Database } from '@deepkit/orm';
-import { DatabaseFactory } from '@deepkit/orm-integration';
+import { Database } from '@d7/orm';
+import { DatabaseFactory } from '@d7/orm-integration';
 import { MongoDatabaseAdapter } from '../src/adapter.js';
 
 export const databaseFactory: DatabaseFactory<MongoDatabaseAdapter> = async (entities, plugins): Promise<Database<MongoDatabaseAdapter>> => {

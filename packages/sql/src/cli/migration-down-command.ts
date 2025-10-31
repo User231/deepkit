@@ -8,9 +8,9 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { indent } from '@deepkit/core';
-import { cli, Flag } from '@deepkit/app';
-import { LoggerInterface } from '@deepkit/logger';
+import { indent } from '@d7/core';
+import { cli, Flag } from '@d7/app';
+import { LoggerInterface } from '@d7/logger';
 import { MigrationProvider } from '../migration/migration-provider.js';
 import { SQLDatabaseAdapter, SqlMigrationHandler } from '../sql-adapter.js';
 import { BaseCommand } from './base-command.js';

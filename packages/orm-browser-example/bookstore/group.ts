@@ -1,4 +1,4 @@
-import { AutoIncrement, entity, PrimaryKey, t } from '@deepkit/type';
+import { AutoIncrement, entity, PrimaryKey, t } from '@d7/type';
 
 @entity.name('group')
 export class Group {

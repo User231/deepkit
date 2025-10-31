@@ -2,12 +2,12 @@
 
 本地文件系统适配器是最常见的文件系统之一，提供对运行该应用程序的系统中文件系统的访问。
 
-它是 `@deepkit/filesystem` 的一部分，并在底层使用 Node 的 `fs/promises` API，因此不需要额外安装。
+它是 `@d7/filesystem` 的一部分，并在底层使用 Node 的 `fs/promises` API，因此不需要额外安装。
 
 ## 用法
 
 ```typescript
-import { FilesystemLocalAdapter, Filesystem } from '@deepkit/filesystem';
+import { FilesystemLocalAdapter, Filesystem } from '@d7/filesystem';
 
 const adapter = new FilesystemLocalAdapter({ root: '/path/to/files' });
 const filesystem = new Filesystem(adapter);

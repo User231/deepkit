@@ -14,8 +14,8 @@ import {
     WindowHeaderComponent,
     WindowSidebarComponent,
     WindowToolbarComponent,
-} from '@deepkit/desktop-ui';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+} from '@d7/desktop-ui';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import { AppTitle } from '@app/app/components/title.js';
 
 @Component({
@@ -238,7 +238,7 @@ export class DocDesktopUIWindowComponent {
         webPreferences: {
         scrollBounce: true,
         allowRunningInsecureContent: false,
-        preload: __dirname + '/../../node_modules/@deepkit/desktop-ui/preload.js',
+        preload: __dirname + '/../../node_modules/@d7/desktop-ui/preload.js',
         nativeWindowOpen: true,
         },
         titleBarStyle: 'hidden',

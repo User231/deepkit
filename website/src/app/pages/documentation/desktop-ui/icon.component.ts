@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
 import { ApiDocComponent, CodeFrameComponent } from '@app/app/pages/documentation/desktop-ui/api-doc.component.js';
-import { ButtonComponent, ButtonGroupComponent, ButtonGroupsComponent, IconComponent, InputComponent, OptionDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, ButtonGroupComponent, ButtonGroupsComponent, IconComponent, InputComponent, OptionDirective, SelectBoxComponent } from '@d7/desktop-ui';
 import { FormsModule } from '@angular/forms';
 import { IconBrowserComponent } from '@app/app/pages/documentation/desktop-ui/icon-browser.component.js';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@d7/ui-library';
 import { AppTitle } from '@app/app/components/title.js';
 
 @Component({
@@ -149,7 +149,7 @@ src/assets/icons
 
       To generate then your custom icon font set, you simply have to call
 
-      <code-highlight lang="bash" code="node node_modules/@deepkit/desktop-ui/bin/create-font.js src/assets/icons" />
+      <code-highlight lang="bash" code="node node_modules/@d7/desktop-ui/bin/create-font.js src/assets/icons" />
 
       You'll see a list of all base icons (from this library) and all your newly added icons.
       You can call this as often as you add new icons to your icon folder. Don't forget to git commit your svg files, so they don't get lost.

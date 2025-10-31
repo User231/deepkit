@@ -6,7 +6,7 @@ Wenn Sie einen Parameter als optional markieren, muss er nicht übergeben werden
 Je nach Typ (string, number, union, etc.) wird der übergebene Wert automatisch deserialisiert und validiert.
 
 ```typescript
-import { cli } from '@deepkit/app';
+import { cli } from '@d7/app';
 
 //funktional
 new App().command('test', (name: string) => {
@@ -56,7 +56,7 @@ und der Dependency Injection Container versucht, es aufzulösen. Siehe das Kapit
 Flags sind eine weitere Möglichkeit, Werte an Ihren Befehl zu übergeben. Meistens sind sie optional, müssen es aber nicht sein. Mit dem `Flag`-Typ markierte Parameter können via `--name value` oder `--name=value` übergeben werden.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //funktional
 new App().command('test', (id: number & Flag) => {
@@ -95,7 +95,7 @@ id 23
 Flags haben den Vorteil, dass sie auch ohne Wert verwendet werden können, z. B. um ein bestimmtes Verhalten zu aktivieren. Sobald ein Parameter als optionaler Boolean markiert ist, wird dieses Verhalten aktiviert.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //funktional
 new App().command('test', (remove: boolean & Flag = false) => {
@@ -123,7 +123,7 @@ delete? true
 Um mehrere Werte an dasselbe Flag zu übergeben, kann ein Flag als Array markiert werden.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //funktional
 new App().command('test', (id: number[] & Flag = []) => {
@@ -154,7 +154,7 @@ ids: [12, 23]
 Um ein Flag auch als einzelnes Zeichen zuzulassen, kann `Flag<{char: 'x'}>` verwendet werden.
 
 ```typescript
-import { Flag } from '@deepkit/app';
+import { Flag } from '@d7/app';
 
 //funktional
 new App().command('test', (output: string & Flag<{char: 'o'}>) => {
@@ -258,10 +258,10 @@ $ ts-node app.ts test 123
 id 123 number
 ```
 
-Zusätzliche Einschränkungen können mit den Typannotationen aus `@deepkit/type` definiert werden.
+Zusätzliche Einschränkungen können mit den Typannotationen aus `@d7/type` definiert werden.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 //funktional
 new App().command('test', (id: number & Positive) => {
     console.log('id', id, typeof id);
@@ -289,7 +289,7 @@ Diese zusätzliche, sehr einfach einzurichtende Validierung macht den Befehl deu
 Um ein Flag oder Argument zu beschreiben, verwenden Sie den `@description`-Kommentar-Decorator.
 
 ```typescript
-import { Positive } from '@deepkit/type';
+import { Positive } from '@d7/type';
 
 class TestCommand {
     async execute(

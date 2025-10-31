@@ -1,4 +1,4 @@
-import { getTypeJitContainer, getValidatorFunction, ReflectionKind, Type, TypeObjectLiteral, TypePropertySignature, ValidationError, ValidationErrorItem } from '@deepkit/type';
+import { getTypeJitContainer, getValidatorFunction, ReflectionKind, Type, TypeObjectLiteral, TypePropertySignature, ValidationError, ValidationErrorItem } from '@d7/type';
 import { getBSONDeserializer } from './bson-deserializer.js';
 import { BSONSerializer, BSONSerializerState, getBSONSerializer } from './bson-serializer.js';
 

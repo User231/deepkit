@@ -5,7 +5,7 @@ Entitäten werden einfach mit TypeScript Types definiert:
 
 ```typescript
 import { entity, PrimaryKey, AutoIncrement, 
-    Unique, MinLength, MaxLength } from '@deepkit/type';
+    Unique, MinLength, MaxLength } from '@d7/type';
 
 type Username = string & Unique & MinLength<2> & MaxLength<16>;
 
@@ -39,10 +39,10 @@ Das Entity Type-System ist so konzipiert, dass diese Types oder Classes auch in 
 
 ## Installation
 
-Da Deepkit ORM auf Runtime Types basiert, muss `@deepkit/type` bereits korrekt installiert sein.
+Da Deepkit ORM auf Runtime Types basiert, muss `@d7/type` bereits korrekt installiert sein.
 Siehe [Installation von Runtime Types](../runtime-types/getting-started.md).
 
-Wenn dies erfolgreich erledigt ist, können `@deepkit/orm` selbst und ein Datenbank-Adapter installiert werden.
+Wenn dies erfolgreich erledigt ist, können `@d7/orm` selbst und ein Datenbank-Adapter installiert werden.
 
 Wenn Classes als Entities verwendet werden sollen, muss `experimentalDecorators` in der tsconfig.json aktiviert sein:
 
@@ -59,11 +59,11 @@ Sobald die Library installiert ist, kann ein Datenbank-Adapter installiert werde
 ### SQLite
 
 ```sh
-npm install @deepkit/orm @deepkit/sqlite
+npm install @d7/orm @d7/sqlite
 ```
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 
 const database = new Database(new SQLiteDatabaseAdapter('./example.sqlite'), [User]);
 const database = new Database(new SQLiteDatabaseAdapter(':memory:'), [User]);
@@ -72,11 +72,11 @@ const database = new Database(new SQLiteDatabaseAdapter(':memory:'), [User]);
 ### MySQL
 
 ```sh
-npm install @deepkit/orm @deepkit/mysql
+npm install @d7/orm @d7/mysql
 ```
 
 ```typescript
-import { MySQLDatabaseAdapter } from '@deepkit/mysql';
+import { MySQLDatabaseAdapter } from '@d7/mysql';
 
 const database = new Database(new MySQLDatabaseAdapter({
     host: 'localhost',
@@ -87,11 +87,11 @@ const database = new Database(new MySQLDatabaseAdapter({
 ### Postgres
 
 ```sh
-npm install @deepkit/orm @deepkit/postgres
+npm install @d7/orm @d7/postgres
 ```
 
 ```typescript
-import { PostgresDatabaseAdapter } from '@deepkit/postgres';
+import { PostgresDatabaseAdapter } from '@d7/postgres';
 
 const database = new Database(new PostgresDatabaseAdapter({
     host: 'localhost',
@@ -102,11 +102,11 @@ const database = new Database(new PostgresDatabaseAdapter({
 ### MongoDB
 
 ```sh
-npm install @deepkit/orm @deepkit/bson @deepkit/mongo
+npm install @d7/orm @d7/bson @d7/mongo
 ```
 
 ```typescript
-import { MongoDatabaseAdapter } from '@deepkit/mongo';
+import { MongoDatabaseAdapter } from '@d7/mongo';
 
 const database = new Database(new MongoDatabaseAdapter('mongodb://localhost/mydatabase'), [User]);
 ```
@@ -118,9 +118,9 @@ In erster Linie wird das `Database` Objekt verwendet. Sobald es instanziiert wur
 Dem `Database` Objekt wird ein Adapter übergeben, der aus den Datenbank-Adapter-Libraries stammt.
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import { entity, PrimaryKey, AutoIncrement } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
+import { entity, PrimaryKey, AutoIncrement } from '@d7/type';
+import { Database } from '@d7/orm';
 
 async function main() {
     @entity.name('user')

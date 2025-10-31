@@ -49,10 +49,10 @@ class UserController {
 
 ## 스코프
 
-모든 HTTP 컨트롤러와 함수형 Route는 `http` 의존성 주입 스코프 내에서 관리됩니다. HTTP 컨트롤러는 각 HTTP 요청마다 인스턴스화됩니다. 이는 둘 다 `http` 스코프에 등록된 provider에 접근할 수 있음을 의미합니다. 따라서 `@deepkit/http`의 `HttpRequest`와 `HttpResponse`도 의존성으로 사용할 수 있습니다. deepkit framework를 사용하는 경우 `@deepkit/framework`의 `SessionHandler`도 사용할 수 있습니다.
+모든 HTTP 컨트롤러와 함수형 Route는 `http` 의존성 주입 스코프 내에서 관리됩니다. HTTP 컨트롤러는 각 HTTP 요청마다 인스턴스화됩니다. 이는 둘 다 `http` 스코프에 등록된 provider에 접근할 수 있음을 의미합니다. 따라서 `@d7/http`의 `HttpRequest`와 `HttpResponse`도 의존성으로 사용할 수 있습니다. d7 framework를 사용하는 경우 `@d7/framework`의 `SessionHandler`도 사용할 수 있습니다.
 
 ```typescript
-import { HttpResponse } from '@deepkit/http';
+import { HttpResponse } from '@d7/http';
 
 router.get('/user/:id', (id: number, request: HttpRequest) => {
 });

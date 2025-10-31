@@ -1,7 +1,7 @@
 {
-  "name": "@deepkit/filesystem-aws-s3",
+  "name": "@d7/filesystem-aws-s3",
   "version": "1.0.19",
-  "description": "Deepkit storage adapter for AWS S3",
+  "description": "D7 storage adapter for AWS S3",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -13,7 +13,7 @@
       "default": "./dist/esm/index.js"
     }
   },
-  "repository": "https://github.com/deepkit/deepkit-framework",
+  "repository": "https://github.com/marcj/d7",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "publishConfig": {
@@ -24,8 +24,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/filesystem": "^1.0.19"
+    "@d7/core": "^1.0.19",
+    "@d7/filesystem": "^1.0.19"
   },
   "jest": {
     "runner": "../../jest-serial-runner.js",

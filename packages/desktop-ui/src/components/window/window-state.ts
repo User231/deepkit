@@ -9,7 +9,7 @@
  */
 
 import { Injectable, Signal, signal, TemplateRef, ViewContainerRef } from '@angular/core';
-import { arrayRemoveItem } from '@deepkit/core';
+import { arrayRemoveItem } from '@d7/core';
 import { WindowMenuState } from './window-menu';
 import { BrowserWindow } from '../../core/utils';
 

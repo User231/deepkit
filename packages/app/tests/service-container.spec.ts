@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { AppModule, createModuleClass } from '../src/module.js';
 import { ServiceContainer } from '../src/service-container.js';
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 test('simple setup with import and overwrite', () => {
     class Connection {

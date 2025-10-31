@@ -36,8 +36,8 @@ new App({
 
 
 ```typescript
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from '@deepkit/http';
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from '@d7/http';
 
 const app = new App({
     providers: [UserManager],

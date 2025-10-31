@@ -1,6 +1,6 @@
 ---
 title: Deepkit Runtime Types
-package: "@deepkit/type"
+package: "@d7/type"
 doc: runtime-types/getting-started
 api: type
 category: runtime-types
@@ -32,7 +32,7 @@ Deepkit Type provides a rich runtime type system for TypeScript. It allows you t
 
 ```typescript
 import { MinLength, stringifyResolvedType, 
-    typeOf } from '@deepkit/type';
+    typeOf } from '@d7/type';
 
 type Username = string & MinLength<3>;
 
@@ -57,7 +57,7 @@ Real type casting in runtime for TypeScript. This is not a type assertion, but a
 Whenever you load data from a database, HTTP request, JSON, or any other source, you can use `cast` to convert the data to the correct type.
 
 ```typescript
-import { cast } from '@deepkit/type';
+import { cast } from '@d7/type';
 
 interface User {
     username: string;
@@ -83,7 +83,7 @@ Easy to use reflection API to introspect your types. This is especially useful f
 With the reflection API you can get all properties of classes, interfaces, or functions, properties, all methods, their parameters, and more.
 
 ```typescript
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 
 class User {
     logins: number = 1;
@@ -117,7 +117,7 @@ Highly configurable and extensible. You can add your own custom types, custom se
 Use `serialize` to convert your data to a plain JavaScript object, and `cast` to convert it back.
 
 ```typescript
-import { serialize, cast } from '@deepkit/type';
+import { serialize, cast } from '@d7/type';
 
 interface User {
     username: string;
@@ -149,7 +149,7 @@ This makes it possible to store the inherently circular TypeScript type object i
 
 ```typescript
 import { serializeType, deserializeType, 
-    cast } from '@deepkit/type';
+    cast } from '@d7/type';
 
 interface User {
     username: string;
@@ -180,7 +180,7 @@ Support for custom naming strategies. You can use this to convert your property 
 
 ```typescript
 import { cast, MapName,
-    underscoreNamingStrategy} from '@deepkit/type';
+    underscoreNamingStrategy} from '@d7/type';
 
 interface User {
     username: string;
@@ -210,7 +210,7 @@ TypeScript type guards in runtime. Whenever you accept untrusted data or `any`, 
 Type Assertion with `assert` to check the data and throw an error if it is not of the expected type.
 
 ```typescript
-import { is, assert} from '@deepkit/type';
+import { is, assert} from '@d7/type';
 
 interface User {
     username: string;

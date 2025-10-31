@@ -1,9 +1,9 @@
-# API `@deepkit/type-compiler`
+# API `@d7/type-compiler`
 
 ```shell
-npm install @deepkit/type-compiler
+npm install @d7/type-compiler
 ```
 
 TypeScript transformer to make runtime type information available at runtime.
 
-<api-docs package="@deepkit/type-compiler"></api-docs>
+<api-docs package="@d7/type-compiler"></api-docs>

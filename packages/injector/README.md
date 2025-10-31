@@ -1,4 +1,4 @@
-# @deepkit/injector
+# @d7/injector
 
 Deepkit Framework - Dependency Injection.
 

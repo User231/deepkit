@@ -9,10 +9,10 @@
 存储引用的实体通常称为 `owning side`，即 `owns` 该引用的一方。下面的代码展示了 `User` 与 `Post` 之间的一对多关系的两个实体。这意味着一个 `User` 可以拥有多个 `Post`。实体 `post` 拥有 `post->user` 关联。在数据库中，此时会有一个字段 `Post. "author"`，其中包含 `User` 的主键。
 
 ```typescript
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { entity, PrimaryKey, AutoIncrement, 
-    Reference } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
+    Reference } from '@d7/type';
+import { Database } from '@d7/orm';
 
 @entity.collection('users')
 class User {

@@ -2,7 +2,7 @@ import { expect, test } from '@jest/globals';
 import { InjectorModule } from '../src/module.js';
 import { InjectorContext } from '../src/injector.js';
 import { provide } from '../src/provider.js';
-import { assertType, findMember, ReflectionKind, typeOf } from '@deepkit/type';
+import { assertType, findMember, ReflectionKind, typeOf } from '@d7/type';
 
 test('nominal alias types are unique', () => {
     class Service {

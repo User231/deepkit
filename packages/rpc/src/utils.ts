@@ -1,5 +1,5 @@
 import { Subject } from 'rxjs';
-import { isFunction } from '@deepkit/core';
+import { isFunction } from '@d7/core';
 
 /**
  * Create a Subject with teardown function that is called when

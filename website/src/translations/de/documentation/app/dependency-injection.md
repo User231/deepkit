@@ -5,8 +5,8 @@ Alle Befehle haben vollen Zugriff auf den Dependency-Injection-Container. Sie k�
 Siehe das Kapitel [Abhängigkeitsinjektion](../dependency-injection.md) für weitere Informationen.
 
 ```typescript
-import { App, cli } from '@deepkit/app';
-import { Logger, ConsoleTransport } from '@deepkit/logger';
+import { App, cli } from '@d7/app';
+import { Logger, ConsoleTransport } from '@d7/logger';
 
 new App({
     providers: [{provide: Logger, useValue: new Logger([new ConsoleTransport])}],

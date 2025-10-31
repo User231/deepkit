@@ -11,7 +11,7 @@ Das System ist darauf ausgelegt, type-safe zu sein und serialisiert sowie deseri
 ## Verwendung
 
 ```typescript
-import { BrokerBus } from '@deepkit/broker';
+import { BrokerBus } from '@d7/broker';
 
 const bus = new BrokerBus(adapter);
 
@@ -49,8 +49,8 @@ Der Standardansatz zum Senden und Empfangen von Nachrichten ist die Verwendung d
 Dieser Ansatz entkoppelt deinen Business-Code sauber vom Broker-Server und ermöglicht dir, denselben Code in einer Testumgebung ohne Broker-Server zu verwenden.
 
 ```typescript
-import { BrokerBus, BrokerBusChannel, provideBusSubject } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerBus, BrokerBusChannel, provideBusSubject } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 import { Subject } from 'rxjs';
 
 // verschiebe diesen Typ in eine gemeinsame Datei
@@ -102,8 +102,8 @@ const app = new App({
 Wenn du eine Bestätigung für das Senden der Nachricht benötigst und Fehler in jedem Fall behandeln möchtest, kannst du den `BrokerBusChannel`-Typ verwenden. Dessen `subscribe`- und `publish`-Methoden geben jeweils eine Promise zurück.
 
 ```typescript
-import { BrokerBus, BrokerBusChannel, provideBusChannel } from '@deepkit/broker';
-import { FrameworkModule } from '@deepkit/framework';
+import { BrokerBus, BrokerBusChannel, provideBusChannel } from '@d7/broker';
+import { FrameworkModule } from '@d7/framework';
 
 // verschiebe diesen Typ in eine gemeinsame Datei
 type MyChannel = BrokerBusChannel<{

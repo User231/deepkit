@@ -2,10 +2,10 @@
 
 Deepkit における Dependency Injection はランタイムタイプに基づいているため、ランタイムタイプが正しくインストールされている必要があります。 [ランタイムタイプ](../runtime-types/getting-started.md) を参照してください。
 
-これが成功していれば、`@deepkit/injector` をインストールするか、すでに内部でこのライブラリを使用している Deepkit フレームワークを使うことができます。
+これが成功していれば、`@d7/injector` をインストールするか、すでに内部でこのライブラリを使用している Deepkit フレームワークを使うことができます。
 
 ```sh
-	npm install @deepkit/injector
+	npm install @d7/injector
 ```
 
 ライブラリがインストールされると、その API を直接使用できます。
@@ -19,14 +19,14 @@ Dependency Injection を使用する方法は 3 つあります。
 * Module API
 * App API（Deepkit フレームワーク）
 
-Deepkit フレームワークなしで `@deepkit/injector` を使用する場合は、最初の 2 つの方法を推奨します。
+Deepkit フレームワークなしで `@d7/injector` を使用する場合は、最初の 2 つの方法を推奨します。
 
 ### Injector API
 
 Injector API はすでに [Dependency Injection の紹介](../dependency-injection) で説明しました。これは、単一の DI コンテナを作成する単一のクラス `InjectorContext` によって非常にシンプルに使用でき、モジュールを持たないシンプルなアプリケーションに特に適しています。
 
 ```typescript
-import { InjectorContext } from '@deepkit/injector';
+import { InjectorContext } from '@d7/injector';
 
 const injector = InjectorContext.forProviders([
     UserRepository,
@@ -45,7 +45,7 @@ const repository = injector.get(UserRepository);
 アプリケーションがより複雑で、Deepkit フレームワークを使用しない場合は、この API を使用すべきです。
 
 ```typescript
-import { InjectorModule, InjectorContext } from '@deepkit/injector';
+import { InjectorModule, InjectorContext } from '@d7/injector';
 
 const lowLevelModule = new InjectorModule([HttpClient])
      .addExport(HttpClient);
@@ -76,14 +76,14 @@ const lowLevelModule = new InjectorModule([HttpClient])
 
 ### App API
 
-Deepkit フレームワークを使用する場合、モジュールは `@deepkit/app` API で定義します。これは Module API を基盤としており、その機能も利用できます。さらに、強力なフックを用いて処理したり、より動的なアーキテクチャを実現するための設定ローダーを定義したりできます。
+Deepkit フレームワークを使用する場合、モジュールは `@d7/app` API で定義します。これは Module API を基盤としており、その機能も利用できます。さらに、強力なフックを用いて処理したり、より動的なアーキテクチャを実現するための設定ローダーを定義したりできます。
 
 [フレームワークのモジュール](../app/modules.md) の章で詳しく説明しています。
 
 ```typescript
-import { App } from '@deepkit/app';
-import { FrameworkModule } from '@deepkit/framework';
-import { HttpRouterRegistry, HttpBody } from '@deepkit/http';
+import { App } from '@d7/app';
+import { FrameworkModule } from '@d7/framework';
+import { HttpRouterRegistry, HttpBody } from '@d7/http';
 
 interface User {
     username: string;

@@ -1,7 +1,7 @@
 # Deepkit ORM Browser
 
 ```sh
-npm install @deepkit/orm-browser
+npm install @d7/orm-browser
 ```
 
 Deepkit ORM Browser is a web application allowing to browse Database ORM schema, edit content,
@@ -16,4 +16,4 @@ This is part of [Framework Debugger](../framework.md) but can also be used stand
     <app-image src="/assets/screenshots-orm-browser/seed.png"></app-image>
 </app-images>
 
-<api-docs package="@deepkit/orm-browser"></api-docs>
+<api-docs package="@d7/orm-browser"></api-docs>

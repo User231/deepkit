@@ -1,13 +1,13 @@
 import 'reflect-metadata';
-import { AutoIncrement, Entity, entity, PrimaryKey, Reference, uuid, UUID } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { AutoIncrement, Entity, entity, PrimaryKey, Reference, uuid, UUID } from '@d7/type';
+import { Database } from '@d7/orm';
+import { SQLiteDatabaseAdapter } from '@d7/sqlite';
 import { User, UserGroup } from './bookstore/user.js';
 import { Group } from './bookstore/group.js';
 import { UserCredentials } from './bookstore/user-credentials.js';
-import { ConsoleLogger } from '@deepkit/logger';
+import { ConsoleLogger } from '@d7/logger';
 
-//import { MongoDatabaseAdapter } from '@deepkit/mongo';
+//import { MongoDatabaseAdapter } from '@d7/mongo';
 
 
 class BookModeration {

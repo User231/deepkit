@@ -9,12 +9,12 @@
  */
 
 import { Command, WriteConcernMessage } from './command.js';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 import { MongoError } from '../error.js';
 import type { MongoClientConfig } from '../config.js';
 import type { Host } from '../host.js';
 import type { MongoDatabaseTransaction } from '../connection.js';
-import { formatError } from '@deepkit/core';
+import { formatError } from '@d7/core';
 
 export interface CreateIndex {
     key: { [name: string]: 1 },

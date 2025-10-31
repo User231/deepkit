@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy, signal, WritableSignal } from '@angular/core';
-import { ClientProgress } from '@deepkit/rpc';
+import { ClientProgress } from '@d7/rpc';
 import { FilesystemApi } from './api';
 
 interface CacheState {

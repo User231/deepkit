@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
-import { Group, User, UserGroup } from '@deepkit/orm-integration';
-import { ReflectionClass, ReflectionKind, ReflectionProperty } from '@deepkit/type';
+import { Group, User, UserGroup } from '@d7/orm-integration';
+import { ReflectionClass, ReflectionKind, ReflectionProperty } from '@d7/type';
 
 //User, Group, UserGroup have a relatively complex circular reference with runtime typeof, which makes it a good candidate to check if all parents and refs are correctly set
 test('check type structure', () => {

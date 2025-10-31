@@ -10,8 +10,8 @@ Es optimiert den JSX-Code zur Laufzeit und speichert das Ergebnis im Cache. Es i
 JSX ist eine Syntaxerweiterung für JavaScript und wird von TypeScript standardmäßig unterstützt. Es ermöglicht, HTML in TypeScript zu schreiben. Es ist sehr ähnlich zu Vue.js oder React.js.
 
 ```tsx app=app.ts
-import { App } from '@deepkit/app';
-import { HttpRouterRegistry } from "@deepkit/http";
+import { App } from '@d7/app';
+import { HttpRouterRegistry } from "@d7/http";
 
 export function View() {
     return <div>

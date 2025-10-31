@@ -8,14 +8,14 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
-import { EventDispatcherUnsubscribe } from '@deepkit/event';
+import { ClassType } from '@d7/core';
+import { EventDispatcherUnsubscribe } from '@d7/event';
 import { DatabaseSession } from '../database-session.js';
 import { Database } from '../database.js';
 import { DatabaseAdapter } from '../database-adapter.js';
 import { Query } from '../query.js';
 import { OrmEntity } from '../type.js';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@d7/type';
 import { DatabasePlugin } from './plugin.js';
 
 interface SoftDeleteEntity extends OrmEntity {
