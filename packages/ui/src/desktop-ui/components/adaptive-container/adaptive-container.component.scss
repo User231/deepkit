@@ -1,0 +1,37 @@
+
+:host {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+:host.row {
+  flex-direction: row;
+}
+
+:host.row-reverse {
+  flex-direction: row-reverse;
+}
+
+:host.column {
+  flex-direction: column;
+}
+
+:host.column-reverse {
+  flex-direction: column-reverse;
+}
+
+:host ::ng-deep > .dui-ac-hidden {
+  display: none;
+}
+
+.dui-adaptive-container-dropdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dui-overflow-fallback {
+  display: none;
+}

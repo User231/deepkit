@@ -1,0 +1,70 @@
+{
+  "name": "@7b/io",
+  "version": "1.0.0",
+  "description": "Networking and I/O primitives: HTTP, RPC, Broker, Filesystem",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./http": {
+      "types": "./dist/http/index.d.ts",
+      "default": "./dist/http/index.js"
+    },
+    "./rpc": {
+      "types": "./dist/rpc/index.d.ts",
+      "default": "./dist/rpc/index.js"
+    },
+    "./broker": {
+      "types": "./dist/broker/index.d.ts",
+      "default": "./dist/broker/index.js"
+    },
+    "./fs": {
+      "types": "./dist/fs/index.d.ts",
+      "default": "./dist/fs/index.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": "https://github.com/deepkit/deepkit-framework",
+  "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
+  "license": "MIT",
+  "peerDependencies": {
+    "@7b/core": "^1.0.0",
+    "@7b/codec": "^1.0.0",
+    "rxjs": "*",
+    "ioredis": "*",
+    "@aws-sdk/client-s3": "*",
+    "basic-ftp": "*",
+    "@google-cloud/storage": "*",
+    "ssh2-sftp-client": "*"
+  },
+  "peerDependenciesMeta": {
+    "rxjs": {
+      "optional": true
+    },
+    "ioredis": {
+      "optional": true
+    },
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
+    "basic-ftp": {
+      "optional": true
+    },
+    "@google-cloud/storage": {
+      "optional": true
+    },
+    "ssh2-sftp-client": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

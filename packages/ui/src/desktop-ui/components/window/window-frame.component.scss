@@ -1,0 +1,11 @@
+:host {
+    position: relative;
+    display: block;
+    border-radius: 4px;
+    box-shadow: 0 0 4px #dadada8c;
+}
+
+:host ::ng-deep dui-window {
+    border-radius: 4px;
+    overflow: hidden;
+}

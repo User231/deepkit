@@ -1,0 +1,47 @@
+:host ::ng-deep dui-window-content.no-padding > .content {
+    padding: 0 !important;
+    overflow: visible;
+}
+
+.logo {
+    width: 16px;
+    vertical-align: text-bottom;
+    margin-left: 4px;
+}
+
+.request-line {
+  display: flex;
+  font-size: 10px;
+  line-height: 12px;
+
+  .id, .method {
+    flex: 0;
+    white-space: nowrap;
+    margin-right: 5px;
+  }
+
+  .url {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .icons {
+    width: 34px;
+  }
+}
+
+.request-subline {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dui-text-light);
+}
+
+.top-right {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 15px;
+    top: 0;
+}
+

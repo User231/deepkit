@@ -1,0 +1,38 @@
+{
+  "name": "@7b/ui",
+  "version": "1.0.0",
+  "description": "Angular UI components and frontend integrations",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": "https://github.com/deepkit/deepkit-framework",
+  "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
+  "license": "MIT",
+  "peerDependencies": {
+    "@7b/core": "^1.0.0",
+    "@7b/codec": "^1.0.0",
+    "@angular/core": "*",
+    "rxjs": "*"
+  },
+  "peerDependenciesMeta": {
+    "@angular/core": {
+      "optional": true
+    },
+    "rxjs": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

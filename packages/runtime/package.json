@@ -1,0 +1,24 @@
+{
+  "name": "@7b/runtime",
+  "version": "1.0.0",
+  "description": "Runtime utilities, benchmarks, and cross-runtime abstractions - zero dependencies",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": "https://github.com/deepkit/deepkit-framework",
+  "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc"
+  }
+}

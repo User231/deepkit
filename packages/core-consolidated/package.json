@@ -1,0 +1,29 @@
+{
+  "name": "@7b/core",
+  "version": "1.0.0",
+  "description": "CLI, DI container, logger, typed events, stopwatch, lifecycle",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": "https://github.com/deepkit/deepkit-framework",
+  "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
+  "license": "MIT",
+  "peerDependencies": {
+    "@7b/runtime": "^1.0.0",
+    "@7b/reflection": "^1.0.0",
+    "@7b/codec": "^1.0.0"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}
