@@ -1,9 +1,9 @@
-import { Filesystem, FilesystemFile, FilesystemLocalAdapter } from '@deepkit/filesystem';
-import { AppModule } from '@deepkit/app';
-import { ClassType, pathJoin, pathNormalizeDirectory } from '@deepkit/core';
-import { InjectorContext } from '@deepkit/injector';
-import { HttpResponse, httpWorkflow } from '@deepkit/http';
-import { InlineRuntimeType, ReceiveType } from '@deepkit/type';
+import { Filesystem, FilesystemFile, FilesystemLocalAdapter } from '@7b/io/fs';
+import { AppModule } from '@7b/core';
+import { ClassType, pathJoin, pathNormalizeDirectory } from '@7b/runtime';
+import { InjectorContext } from '@7b/core';
+import { HttpResponse, httpWorkflow } from '@7b/io/http';
+import { InlineRuntimeType, ReceiveType } from '@7b/reflection';
 
 export class FilesystemRegistry {
     protected filesystems: { classType: ClassType, module: AppModule<any> }[] = [];

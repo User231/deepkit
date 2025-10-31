@@ -1,4 +1,4 @@
-import { getClassName } from '@deepkit/core';
+import { getClassName } from '@7b/runtime';
 import { expect, test } from '@jest/globals';
 import { ReceiveType, reflect, ReflectionClass, resolveReceiveType, typeOf } from '../src/reflection/reflection.js';
 import {

@@ -8,11 +8,11 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { deserialize, ReflectionClass, resolvePath, serialize, serializer } from '@deepkit/type';
-import { ClassType } from '@deepkit/core';
+import { deserialize, ReflectionClass, resolvePath, serialize, serializer } from '@7b/reflection';
+import { ClassType } from '@7b/runtime';
 import './mongo-serializer';
 import { mongoSerializer } from './mongo-serializer.js';
-import { convertQueryFilter, QueryCustomFields, QueryFieldNames } from '@deepkit/orm';
+import { convertQueryFilter, QueryCustomFields, QueryFieldNames } from '@7b/db';
 import { FilterQuery } from './query.model.js';
 
 export function convertClassQueryToMongo<T, K extends keyof T, Q extends FilterQuery<T>>(

@@ -1,5 +1,5 @@
 import { Component, input, model } from '@angular/core';
-import { IconComponent, SplitterComponent } from '@deepkit/desktop-ui';
+import { IconComponent, SplitterComponent } from '@7b/ui';
 
 @Component({
     selector: 'deepkit-toggle-box',

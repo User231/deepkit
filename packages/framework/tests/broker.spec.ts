@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
+import { InjectorContext, InjectorModule } from '@7b/core';
 import { FrameworkConfig } from '../src/module.config.js';
 import { BrokerServer } from '../src/broker/broker.js';
 

@@ -22,7 +22,7 @@ import {
     typeResolvesToInteger,
     typeResolvesToNumber,
     typeResolvesToString,
-} from '@deepkit/sql';
+} from '@7b/db';
 import {
     isDateType,
     isMapType,
@@ -33,13 +33,13 @@ import {
     ReflectionProperty,
     Serializer,
     Type,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { SQLiteSchemaParser } from './sqlite-schema-parser.js';
 import { sqliteSerializer } from './sqlite-serializer.js';
 import { SQLiteFilterBuilder } from './sql-filter-builder.sqlite.js';
-import { isArray, isObject } from '@deepkit/core';
+import { isArray, isObject } from '@7b/runtime';
 import sqlstring from 'sqlstring-sqlite';
-import { MigrateOptions } from '@deepkit/orm';
+import { MigrateOptions } from '@7b/db';
 
 export function isJsonLike(type: Type): boolean {
     if (isSetType(type) || isMapType(type) || isDateType(type)) return false;

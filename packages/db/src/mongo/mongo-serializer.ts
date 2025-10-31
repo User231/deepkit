@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BSONBinarySerializer, ValueWithBSONSerializer } from '@deepkit/bson';
+import { BSONBinarySerializer, ValueWithBSONSerializer } from '@7b/codec';
 import {
     ContainerAccessor,
     EmptySerializer,
@@ -21,7 +21,7 @@ import {
     ReflectionKind,
     TemplateState,
     Type
-} from '@deepkit/type';
+} from '@7b/reflection';
 
 /**
  * Serializer class from BSONBinarySerializer with a few adjustments to make sure

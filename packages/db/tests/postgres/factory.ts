@@ -1,5 +1,5 @@
-import { Database } from '@deepkit/orm';
-import { DatabaseFactory } from '@deepkit/orm-integration';
+import { Database } from '@7b/db';
+import { DatabaseFactory } from '@7b/db';
 import { PostgresDatabaseAdapter } from '../src/postgres-adapter.js';
 
 export const databaseFactory: DatabaseFactory<PostgresDatabaseAdapter> = async (entities, plugins): Promise<Database<PostgresDatabaseAdapter>> => {

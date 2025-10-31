@@ -31,7 +31,7 @@ import {
     TypeObjectLiteral,
     TypeUnion,
     uuidAnnotation,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { typeRequiresJSONCast } from '../platform/default-platform.js';
 
 export const hexTable: string[] = [];

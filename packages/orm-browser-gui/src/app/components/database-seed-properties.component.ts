@@ -1,9 +1,9 @@
 import { Component, EventEmitter, forwardRef, Input, Output } from '@angular/core';
-import { EntityPropertySeed, FakerTypes } from '@deepkit/orm-browser-api';
+import { EntityPropertySeed, FakerTypes } from '@7b/ui';
 import { autoTypes } from './seed';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@7b/reflection';
 import { showTypeString } from '../utils';
-import { ButtonComponent, ButtonGroupComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, ButtonGroupComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@7b/ui';
 import { DatabaseSeedPropertyComponent } from './database-seed-property.component';
 
 @Component({

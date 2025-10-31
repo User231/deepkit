@@ -1,13 +1,13 @@
-import { uuid } from '@deepkit/type';
+import { uuid } from '@7b/reflection';
 import { ChildProcess, spawn, spawnSync } from 'child_process';
 import { existsSync, mkdirSync } from 'fs';
-import { asyncOperation, sleep } from '@deepkit/core';
+import { asyncOperation, sleep } from '@7b/runtime';
 import { createConnection, Server, Socket } from 'net';
 import { connect, createServer } from 'node:net';
 import { rmSync } from 'node:fs';
 import { MongoClient } from '../../src/client/client.js';
-import { ConsoleLogger, LoggerLevel } from '@deepkit/logger';
-import { EventDispatcher } from '@deepkit/event';
+import { ConsoleLogger, LoggerLevel } from '@7b/core';
+import { EventDispatcher } from '@7b/core';
 import { onMongoNewHost } from '../../src/client/connection.js';
 
 export function createMongoClientFactory(mongoEnv: MongoEnv) {

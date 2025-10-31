@@ -1,4 +1,4 @@
-import { ReflectionKind, Type, typeOf } from '@deepkit/type';
+import { ReflectionKind, Type, typeOf } from '@7b/reflection';
 
 export type AnalyticData = {
     timestamp: number;

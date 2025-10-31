@@ -1,9 +1,9 @@
 import { expect, jest, test } from '@jest/globals';
 import { MongoClient } from '../../src/client/client.js';
 import { IsMasterCommand } from '../../src/client/command/ismaster.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@7b/runtime';
 import { ConnectionOptions } from '../../src/client/options.js';
-import { cast, validatedDeserialize } from '@deepkit/type';
+import { cast, validatedDeserialize } from '@7b/reflection';
 import { createConnection } from 'net';
 import { fail } from 'assert';
 import { MongoConnectionError } from '../../src/client/error.js';

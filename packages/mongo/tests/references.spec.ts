@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { BackReference, entity, PrimaryKey, Reference, ReflectionClass, serializer } from '@deepkit/type';
+import { BackReference, entity, PrimaryKey, Reference, ReflectionClass, serializer } from '@7b/reflection';
 import { createDatabase } from './utils.js';
-import { DatabaseQueryModel, Formatter, getInstanceStateFromItem } from '@deepkit/orm';
-import { deserializeBSON, serializeBSON } from '@deepkit/bson';
+import { DatabaseQueryModel, Formatter, getInstanceStateFromItem } from '@7b/db';
+import { deserializeBSON, serializeBSON } from '@7b/codec';
 
 @entity.name('image')
 class Image {

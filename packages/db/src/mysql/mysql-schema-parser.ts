@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { Column, DatabaseModel, ForeignKey, IndexModel, parseType, SchemaParser, Table } from '@deepkit/sql';
-import { isNumeric } from '@deepkit/core';
+import { Column, DatabaseModel, ForeignKey, IndexModel, parseType, SchemaParser, Table } from '@7b/db';
+import { isNumeric } from '@7b/runtime';
 
 export class MysqlSchemaParser extends SchemaParser {
     public defaultSchema = '';

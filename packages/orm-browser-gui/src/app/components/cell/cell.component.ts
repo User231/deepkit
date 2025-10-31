@@ -1,5 +1,5 @@
 import { Component, ComponentFactoryResolver, ComponentRef, inject, Input, OnChanges, OnDestroy, ViewContainerRef } from '@angular/core';
-import { Type } from '@deepkit/type';
+import { Type } from '@7b/reflection';
 import { ComponentRegistry } from '../../registry';
 import { TypeDecoration } from './utils';
 

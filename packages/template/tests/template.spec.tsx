@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import '../src/optimize-tsx';
 import { html, render } from '../src/template.js';
-import { Injector } from '@deepkit/injector';
+import { Injector } from '@7b/core';
 import { simple1, simple2, simple3, simple4, simpleHtmlInjected, simpleHtmlInjectedValid } from './simple.js';
 import { convertJsxCodeToCreateElement, optimizeJSX } from '../src/optimize-tsx.js';
 

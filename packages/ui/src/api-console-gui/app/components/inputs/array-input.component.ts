@@ -1,9 +1,9 @@
 import { Component, EventEmitter, forwardRef, input, model, OnChanges, OnInit, Output } from '@angular/core';
-import { arrayMoveItem } from '@deepkit/core';
+import { arrayMoveItem } from '@7b/runtime';
 import { DataStructure } from '../../store';
-import { TypeArray } from '@deepkit/type';
+import { TypeArray } from '@7b/reflection';
 import { InputComponent } from './input.component';
-import { ButtonComponent, IconComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, IconComponent } from '@7b/ui';
 import { TypeDecoration } from '../../utils.js';
 
 @Component({

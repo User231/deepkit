@@ -23,15 +23,15 @@ import {
     WindowSidebarComponent,
     WindowToolbarComponent,
     WindowToolbarContainerComponent,
-} from '@deepkit/desktop-ui';
-import { Database, DebugRequest, Filesystem } from '@deepkit/framework-debug-api';
-import { Collection } from '@deepkit/rpc';
+} from '@7b/ui';
+import { Database, DebugRequest, Filesystem } from '@7b/ui';
+import { Collection } from '@7b/io/rpc';
 import { ControllerClient } from './client';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { FileUploaderComponent } from './components/file-uploader.component';
 import { AsyncPipe } from '@angular/common';
-import { HeaderStatusBarComponent } from '@deepkit/ui-library';
-import { DatabaseBrowserListComponent } from '@deepkit/orm-browser-gui';
+import { HeaderStatusBarComponent } from '@7b/ui';
+import { DatabaseBrowserListComponent } from '@7b/ui';
 
 @Component({
     selector: 'app-root',

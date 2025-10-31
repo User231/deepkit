@@ -95,7 +95,7 @@ import {
     serializeEntityNameAsExpression,
 } from './reflection-ast.js';
 import { SourceFile } from './ts-types.js';
-import { MappedModifier, ReflectionOp, TypeNumberBrand } from '@deepkit/type-spec';
+import { MappedModifier, ReflectionOp, TypeNumberBrand } from '@7b/reflection';
 import { Resolver } from './resolver.js';
 import { knownLibFilesForCompilerOptions } from '@typescript/vfs';
 import { debug, debug2 } from './debug.js';

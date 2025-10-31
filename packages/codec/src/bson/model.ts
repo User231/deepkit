@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { CustomError } from '@deepkit/core';
+import { CustomError } from '@7b/runtime';
 
 
 let PROCESS_UNIQUE: Uint8Array | undefined = undefined;

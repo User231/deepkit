@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { arrayRemoveItem, nextTick } from '@deepkit/core';
+import { arrayRemoveItem, nextTick } from '@7b/runtime';
 import { Injectable } from '@angular/core';
 import { Electron } from '../../core/utils';
 import type { MenuComponent } from '../app/menu';

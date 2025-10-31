@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { SqlSerializer } from '@deepkit/sql';
-import { binaryTypes, isUUIDType, TemplateState, Type } from '@deepkit/type';
+import { SqlSerializer } from '@7b/db';
+import { binaryTypes, isUUIDType, TemplateState, Type } from '@7b/reflection';
 
 //for queries with `returning`, MySQL returns binary stuff as base64.
 function convertBinaryFromBase64(type: Type, state: TemplateState) {

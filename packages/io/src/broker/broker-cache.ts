@@ -1,10 +1,10 @@
 /** @group Cache */
 
-import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
+import { ReceiveType, resolveReceiveType, Type } from '@7b/reflection';
 import { BrokerAdapterBase } from './broker.js';
 import { parseTime } from './utils.js';
-import { ConsoleLogger, LoggerInterface } from '@deepkit/logger';
-import { asyncOperation } from '@deepkit/core';
+import { ConsoleLogger, LoggerInterface } from '@7b/core';
+import { asyncOperation } from '@7b/runtime';
 
 export interface BrokerCacheOptions {
     /**

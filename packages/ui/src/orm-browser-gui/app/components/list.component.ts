@@ -3,7 +3,7 @@ import { BrowserState } from '../browser-state';
 import { ControllerClient } from '../client';
 import { trackByDatabase, trackBySchema } from '../utils';
 import { RouterLink } from '@angular/router';
-import { ListItemComponent } from '@deepkit/desktop-ui';
+import { ListItemComponent } from '@7b/ui';
 
 @Component({
     selector: 'orm-browser-list',

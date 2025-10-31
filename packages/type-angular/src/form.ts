@@ -9,7 +9,7 @@
  */
 
 import { AbstractControl, FormArray, FormControl, FormControlOptions, FormControlState, FormGroup, ValidationErrors, ValidatorFn } from "@angular/forms";
-import { ClassType, isClass, isFunction } from "@deepkit/core";
+import { ClassType, isClass, isFunction } from "@7b/runtime";
 import {
     deserialize,
     getValidatorFunction,
@@ -27,7 +27,7 @@ import {
     UnpopulatedCheck,
     validationAnnotation,
     ValidationErrorItem
-} from "@deepkit/type";
+} from "@7b/reflection";
 
 type PropPath = string | (() => string);
 

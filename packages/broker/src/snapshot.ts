@@ -1,4 +1,4 @@
-import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+import { getBSONDeserializer, getBSONSerializer } from '@7b/codec';
 import { BrokerState, Queue } from './kernel.js';
 import { QueueMessage, QueueMessageProcessing, SnapshotEntry, SnapshotEntryType } from './model.js';
 import { handleMessageDeduplication } from './utils.js';

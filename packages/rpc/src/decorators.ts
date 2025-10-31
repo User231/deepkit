@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@7b/runtime';
 import {
     ClassDecoratorResult,
     createClassDecoratorContext,
@@ -16,7 +16,7 @@ import {
     mergeDecorator,
     PropertyDecoratorResult,
     reflect,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { ControllerDefinition } from './model.js';
 
 export class RpcController {

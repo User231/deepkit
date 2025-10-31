@@ -1,9 +1,9 @@
 import { ChangeDetectorRef, Component, EventEmitter, forwardRef, Input, OnInit, Output } from '@angular/core';
 import { FakerTypeDialogComponent } from './dialog/faker-type-dialog.component';
-import { EntityPropertySeed, FakerTypes } from '@deepkit/orm-browser-api';
-import { ButtonComponent, CheckboxComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog, InputComponent, OpenDialogDirective, OptionDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
-import { empty } from '@deepkit/core';
-import { isAutoIncrementType, isReferenceType, ReflectionKind, resolveClassType, Type, TypeArray, TypeBoolean, TypeClass, TypeEnum, TypeObjectLiteral } from '@deepkit/type';
+import { EntityPropertySeed, FakerTypes } from '@7b/ui';
+import { ButtonComponent, CheckboxComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog, InputComponent, OpenDialogDirective, OptionDirective, SelectBoxComponent } from '@7b/ui';
+import { empty } from '@7b/runtime';
+import { isAutoIncrementType, isReferenceType, ReflectionKind, resolveClassType, Type, TypeArray, TypeBoolean, TypeClass, TypeEnum, TypeObjectLiteral } from '@7b/reflection';
 import { FormsModule } from '@angular/forms';
 import { DatabaseSeedPropertiesComponent } from './database-seed-properties.component';
 import { PropertyComponent } from './property.component';

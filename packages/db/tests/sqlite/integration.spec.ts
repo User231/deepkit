@@ -1,5 +1,5 @@
 import { test } from '@jest/globals';
-import { runIntegrationTests } from '@deepkit/orm-integration';
+import { runIntegrationTests } from '@7b/db';
 import { databaseFactory } from './factory.js';
 
 runIntegrationTests(databaseFactory);

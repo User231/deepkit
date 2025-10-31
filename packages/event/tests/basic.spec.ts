@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
 import { BaseEvent, DataEvent, DataEventToken, EventDispatcher, EventOfEventToken, EventToken, EventTokenSync } from '../src/event.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@7b/runtime';
 
 type TypeA = 'asd' | void;
 

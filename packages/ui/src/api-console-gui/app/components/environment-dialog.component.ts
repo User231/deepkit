@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 import { Environment, Store } from '../store';
-import { arrayRemoveItem, copy } from '@deepkit/core';
-import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, FormRowComponent, InputComponent } from '@deepkit/desktop-ui';
+import { arrayRemoveItem, copy } from '@7b/runtime';
+import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, FormRowComponent, InputComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 import { HeadersComponent } from './headers.component';
 

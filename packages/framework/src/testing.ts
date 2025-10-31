@@ -8,16 +8,16 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BrokerBus, BrokerCache, BrokerDeepkitAdapter, BrokerKernel, BrokerLock, BrokerQueue } from '@deepkit/broker';
-import { ClassType } from '@deepkit/core';
-import { ConsoleTransport, Logger, LogMessage, MemoryLoggerTransport } from '@deepkit/logger';
-import { Database, DatabaseRegistry, MemoryDatabaseAdapter } from '@deepkit/orm';
+import { BrokerBus, BrokerCache, BrokerDeepkitAdapter, BrokerKernel, BrokerLock, BrokerQueue } from '@7b/io/broker';
+import { ClassType } from '@7b/runtime';
+import { ConsoleTransport, Logger, LogMessage, MemoryLoggerTransport } from '@7b/core';
+import { Database, DatabaseRegistry, MemoryDatabaseAdapter } from '@7b/db';
 import { ApplicationServer } from './application-server.js';
 import { BrokerServer } from './broker/broker.js';
-import { App, AppModule, RootAppModule, RootModuleDefinition } from '@deepkit/app';
+import { App, AppModule, RootAppModule, RootModuleDefinition } from '@7b/core';
 import { WebMemoryWorkerFactory, WebWorkerFactory } from './worker.js';
-import { MemoryHttpResponse, RequestBuilder } from '@deepkit/http';
-import { RpcClient, RpcDirectClientAdapter } from '@deepkit/rpc';
+import { MemoryHttpResponse, RequestBuilder } from '@7b/io/http';
+import { RpcClient, RpcDirectClientAdapter } from '@7b/io/rpc';
 import { FrameworkModule } from './module.js';
 import { DebugBrokerBus } from './debug/broker.js';
 

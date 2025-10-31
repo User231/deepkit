@@ -1,6 +1,6 @@
 import { Component, ComponentRef, EventEmitter, inject, Input, OnChanges, OnDestroy, Optional, Output, SimpleChanges, ViewContainerRef } from '@angular/core';
-import { TableComponent, unsubscribe } from '@deepkit/desktop-ui';
-import { Type } from '@deepkit/type';
+import { TableComponent, unsubscribe } from '@7b/ui';
+import { Type } from '@7b/reflection';
 import { Subscription } from 'rxjs';
 import { ComponentRegistry } from '../../registry';
 import { isProperty } from '../../utils';

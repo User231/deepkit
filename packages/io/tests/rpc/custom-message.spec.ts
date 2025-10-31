@@ -2,7 +2,7 @@ import { expect, test } from '@jest/globals';
 import { RpcKernel, RpcKernelConnection } from '../src/server/kernel.js';
 import { createRpcMessage, RpcMessage } from '../src/protocol.js';
 import { DirectClient } from '../src/client/client-direct.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@7b/runtime';
 
 test('back controller', async () => {
     /**

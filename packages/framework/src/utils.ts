@@ -9,7 +9,7 @@
  */
 
 import sift from 'sift';
-import { FilterQuery } from '@deepkit/rpc';
+import { FilterQuery } from '@7b/io/rpc';
 
 //todo: move to live-database
 export function findQuerySatisfied<T extends { [index: string]: any }>(target: T, query: FilterQuery<T>): boolean {

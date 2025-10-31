@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
-import { FakerTypes } from '@deepkit/orm-browser-api';
-import { ButtonComponent, CheckboxComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { FakerTypes } from '@7b/ui';
+import { ButtonComponent, CheckboxComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 
 @Component({

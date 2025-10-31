@@ -1,4 +1,4 @@
-import { ReflectionKind, Type } from '@deepkit/type';
+import { ReflectionKind, Type } from '@7b/reflection';
 
 export type FakerDataType = 'string' | 'date' | 'number' | 'boolean' | 'any';
 

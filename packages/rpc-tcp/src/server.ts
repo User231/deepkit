@@ -1,5 +1,5 @@
-import { asyncOperation, ParsedHost, parseHost } from '@deepkit/core';
-import { RpcKernel, RpcMessageDefinition } from '@deepkit/rpc';
+import { asyncOperation, ParsedHost, parseHost } from '@7b/runtime';
+import { RpcKernel, RpcMessageDefinition } from '@7b/io/rpc';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { createServer, Server, Socket } from 'net';
 import type { ServerOptions as WebSocketServerOptions } from 'ws';

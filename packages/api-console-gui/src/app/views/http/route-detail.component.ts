@@ -1,14 +1,14 @@
 import { ChangeDetectorRef, Component, effect, EventEmitter, input, Output } from '@angular/core';
-import { ApiRoute } from '@deepkit/api-console-api';
-import { isArray, isObject } from '@deepkit/core';
+import { ApiRoute } from '@7b/ui';
+import { isArray, isObject } from '@7b/runtime';
 import { extractDataStructure, extractDataStructureFromSchema, Request, RouteState, Store } from '../../store';
 import { ControllerClient } from '../../client';
 import { Router } from '@angular/router';
-import { ButtonComponent, ButtonGroupComponent, DuiDialog, OptionDirective, SelectBoxComponent, TabButtonComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, ButtonGroupComponent, DuiDialog, OptionDirective, SelectBoxComponent, TabButtonComponent } from '@7b/ui';
 import { headerStatusCodes, methods, typeToTSJSONInterface } from '../../utils';
-import { getTypeJitContainer } from '@deepkit/type';
+import { getTypeJitContainer } from '@7b/reflection';
 import { FormsModule } from '@angular/forms';
-import { CodeHighlightComponent, DeepkitBoxComponent, ToggleBoxComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent, DeepkitBoxComponent, ToggleBoxComponent } from '@7b/ui';
 import { InputComponent } from '../../components/inputs/input.component';
 import { HeadersComponent } from '../../components/headers.component';
 

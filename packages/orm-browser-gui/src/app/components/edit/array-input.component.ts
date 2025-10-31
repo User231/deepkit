@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, signal } from '@angular/core';
-import { defaultValue, Type, TypeArray } from '@deepkit/type';
-import { isArray } from '@deepkit/core';
-import { ButtonComponent, CloseDialogDirective, DialogComponent } from '@deepkit/desktop-ui';
+import { defaultValue, Type, TypeArray } from '@7b/reflection';
+import { isArray } from '@7b/runtime';
+import { ButtonComponent, CloseDialogDirective, DialogComponent } from '@7b/ui';
 import { CellComponent } from '../cell/cell.component';
 import { InputEditingComponent } from './input.component';
 import { JsonPipe } from '@angular/common';

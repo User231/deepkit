@@ -1,5 +1,5 @@
 import { BehaviorSubject } from 'rxjs';
-import { throttleTime } from '@deepkit/core';
+import { throttleTime } from '@7b/runtime';
 
 export interface ProgressTrackerState {
     total: number;

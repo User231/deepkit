@@ -18,9 +18,9 @@ import {
     JSONPartial,
     PrimaryKeyFields,
     ReflectionClass
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { OrmEntity } from './type.js';
-import { getClassTypeFromInstance, isObject, toFastProperties } from '@deepkit/core';
+import { getClassTypeFromInstance, isObject, toFastProperties } from '@7b/runtime';
 
 export function getNormalizedPrimaryKey(schema: ReflectionClass<any>, primaryKey: any) {
     const primaryFields = schema.getPrimaries();

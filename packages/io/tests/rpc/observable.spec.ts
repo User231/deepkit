@@ -1,5 +1,5 @@
-import { sleep } from '@deepkit/core';
-import { entity } from '@deepkit/type';
+import { sleep } from '@7b/runtime';
+import { entity } from '@7b/reflection';
 import { expect, test } from '@jest/globals';
 import { BehaviorSubject, defer, Observable, Subject, Subscription, switchMap, toArray } from 'rxjs';
 import { first, take } from 'rxjs/operators';

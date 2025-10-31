@@ -1,8 +1,8 @@
-import { ClassType, isClass } from '@deepkit/core';
-import { AppModule } from '@deepkit/app';
-import { createFreeDecoratorContext } from '@deepkit/type';
+import { ClassType, isClass } from '@7b/runtime';
+import { AppModule } from '@7b/core';
+import { createFreeDecoratorContext } from '@7b/reflection';
 import { HttpRequest, HttpResponse } from './model.js';
-import { InjectorModule } from '@deepkit/injector';
+import { InjectorModule } from '@7b/core';
 
 export type HttpMiddlewareFn = (req: HttpRequest, res: HttpResponse, next: (err?: any) => void) => void | Promise<void>;
 

@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { Formatter } from '@deepkit/orm';
+import { Formatter } from '@7b/db';
 
 export class SqlFormatter extends Formatter {
 }

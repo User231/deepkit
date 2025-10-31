@@ -20,7 +20,7 @@ import {
     Serializer,
     Type,
     TypeNumberBrand,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import {
     Column,
     DefaultPlatform,
@@ -34,7 +34,7 @@ import {
     typeResolvesToInteger,
     typeResolvesToNumber,
     typeResolvesToString,
-} from '@deepkit/sql';
+} from '@7b/db';
 import { MysqlSchemaParser } from './mysql-schema-parser.js';
 import { MySQLSQLFilterBuilder } from './filter-builder.js';
 

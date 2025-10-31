@@ -9,11 +9,11 @@
  */
 
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
-import { DatabaseInfo } from '@deepkit/orm-browser-api';
+import { DatabaseInfo } from '@7b/ui';
 import { graphlib, layout } from 'dagre';
 import panzoom from 'panzoom';
 import { BrowserText } from './browser-text';
-import { isAutoIncrementType, isBackReferenceType, isPrimaryKeyType, isReferenceType, isSetType, ReflectionClass, ReflectionKind, resolveClassType, stringifyType, Type, TypeProperty, TypePropertySignature } from '@deepkit/type';
+import { isAutoIncrementType, isBackReferenceType, isPrimaryKeyType, isReferenceType, isSetType, ReflectionClass, ReflectionKind, resolveClassType, stringifyType, Type, TypeProperty, TypePropertySignature } from '@7b/reflection';
 
 type EdgeNode = { d: string, class?: string };
 type DKNode = { entity: ReflectionClass<any>, properties: (TypeProperty | TypePropertySignature)[], height: number, width: number, x: number, y: number };

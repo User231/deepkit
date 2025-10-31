@@ -1,5 +1,5 @@
-import { Database } from '@deepkit/orm';
-import { entity, MongoId, PrimaryKey } from '@deepkit/type';
+import { Database } from '@7b/db';
+import { entity, MongoId, PrimaryKey } from '@7b/reflection';
 import { expect, test } from '@jest/globals';
 import { MongoDatabaseAdapter } from '../../../src/adapter.js';
 

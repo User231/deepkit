@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { App } from '@deepkit/app';
-import { ConsoleTransport, Logger } from '@deepkit/logger';
+import { App } from '@7b/core';
+import { ConsoleTransport, Logger } from '@7b/core';
 import { CreateController } from './src/controller/create.js';
 
 new App({

@@ -8,10 +8,10 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { registerStaticHttpController } from '@deepkit/http';
-import { AppModule, findParentPath } from '@deepkit/app';
+import { registerStaticHttpController } from '@7b/io/http';
+import { AppModule, findParentPath } from '@7b/core';
 import { dirname } from 'path';
-import { getCurrentFileName } from '@deepkit/core';
+import { getCurrentFileName } from '@7b/runtime';
 
 export function registerDebugHttpController(module: AppModule<any>, path: string): void {
     const currentDir = dirname(getCurrentFileName());

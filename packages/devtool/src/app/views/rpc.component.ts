@@ -1,10 +1,10 @@
 import { Component, computed, effect, OnInit, Signal, signal } from '@angular/core';
 import { clearClient, Client, clients, RpcAction } from '../collector';
 import { DatePipe, DecimalPipe, JsonPipe, KeyValuePipe, SlicePipe } from '@angular/common';
-import { humanBytes } from '@deepkit/core';
+import { humanBytes } from '@7b/runtime';
 import { FormsModule } from '@angular/forms';
-import { RpcTypes } from '@deepkit/rpc';
-import { CodeHighlightComponent, DeepkitBoxComponent } from '@deepkit/ui-library';
+import { RpcTypes } from '@7b/io/rpc';
+import { CodeHighlightComponent, DeepkitBoxComponent } from '@7b/ui';
 import { ConnectedPosition } from '@angular/cdk/overlay';
 import {
     ButtonGroupComponent,
@@ -21,7 +21,7 @@ import {
     TableCellDirective,
     TableColumnDirective,
     TableComponent,
-} from '@deepkit/desktop-ui';
+} from '@7b/ui';
 
 @Component({
     styles: `

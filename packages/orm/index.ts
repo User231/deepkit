@@ -25,4 +25,4 @@ export * from './src/plugin/plugin.js';
 export * from './src/plugin/soft-delete-plugin.js';
 export * from './src/plugin/log-plugin.js';
 
-export { atomicChange } from '@deepkit/type';
+export { atomicChange } from '@7b/reflection';

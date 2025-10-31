@@ -1,7 +1,7 @@
 import { Component, EventEmitter, forwardRef, input, model, OnChanges, OnInit, Output } from '@angular/core';
-import { isType, ReflectionKind, stringifyType, Type, TypeUnion } from '@deepkit/type';
+import { isType, ReflectionKind, stringifyType, Type, TypeUnion } from '@7b/reflection';
 import { DataStructure } from '../../store';
-import { OptionDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
+import { OptionDirective, SelectBoxComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 import { InputComponent } from './input.component';
 import { TypeDecoration } from '../../utils.js';

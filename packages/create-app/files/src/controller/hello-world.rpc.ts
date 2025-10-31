@@ -1,5 +1,5 @@
-import { MaxLength } from '@deepkit/type';
-import { rpc } from '@deepkit/rpc';
+import { MaxLength } from '@7b/reflection';
+import { rpc } from '@7b/io/rpc';
 import { Service } from '../app/service';
 
 @rpc.controller('/main')

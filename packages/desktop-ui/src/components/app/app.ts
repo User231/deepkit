@@ -1,5 +1,5 @@
 import { ApplicationRef, Component, Directive, HostBinding, Inject, Injectable, input, Optional, Renderer2, RendererFactory2, signal } from '@angular/core';
-import { arrayRemoveItem } from '@deepkit/core';
+import { arrayRemoveItem } from '@7b/runtime';
 import { DOCUMENT } from '@angular/common';
 import { WindowRegistry } from '../window/window-state';
 import { Router } from '@angular/router';

@@ -1,10 +1,10 @@
-// import { ClassType } from '@deepkit/core';
-// import { createTestingApp as createTestingAppOriginal, LiveDatabase, TestingFacade } from '@deepkit/framework';
-// import { App, AppModule, RootModuleDefinition } from '@deepkit/app';
-// import { Database, DatabaseRegistry } from '@deepkit/orm';
-// import { Collection, IdInterface, rpc } from '@deepkit/rpc';
-// import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-// import { AutoIncrement, BackReference, entity, PrimaryKey, Reference, uuid, UUID } from '@deepkit/type';
+// import { ClassType } from '@7b/runtime';
+// import { createTestingApp as createTestingAppOriginal, LiveDatabase, TestingFacade } from '@7b/core';
+// import { App, AppModule, RootModuleDefinition } from '@7b/core';
+// import { Database, DatabaseRegistry } from '@7b/db';
+// import { Collection, IdInterface, rpc } from '@7b/io/rpc';
+// import { SQLiteDatabaseAdapter } from '@7b/db/sqlite';
+// import { AutoIncrement, BackReference, entity, PrimaryKey, Reference, uuid, UUID } from '@7b/reflection';
 // import { expect, test } from '@jest/globals';
 //
 // export function createTestingApp<O extends RootModuleDefinition>(options: O, entities?: (ClassType)[]): TestingFacade<App<O>> {

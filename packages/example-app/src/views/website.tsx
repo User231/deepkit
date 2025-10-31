@@ -1,4 +1,4 @@
-import { html } from '@deepkit/template';
+import { html } from '@7b/core';
 
 export class Website {
     constructor(

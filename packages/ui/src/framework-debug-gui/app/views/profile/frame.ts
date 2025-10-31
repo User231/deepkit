@@ -1,5 +1,5 @@
-import { FrameCategory, FrameEnd, FrameStart, FrameType } from '@deepkit/stopwatch';
-import { arrayRemoveItem } from '@deepkit/core';
+import { FrameCategory, FrameEnd, FrameStart, FrameType } from '@7b/core';
+import { arrayRemoveItem } from '@7b/runtime';
 
 export const defaultColors = { border: 0x73AB77, bg: 0x497A4C };
 

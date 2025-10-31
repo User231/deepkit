@@ -1,5 +1,5 @@
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit } from '@angular/core';
-import { isReferenceType, ReflectionClass, TypeClass, TypeObjectLiteral } from '@deepkit/type';
+import { isReferenceType, ReflectionClass, TypeClass, TypeObjectLiteral } from '@7b/reflection';
 import { objToString } from './utils';
 import { BrowserState } from '../../browser-state';
 

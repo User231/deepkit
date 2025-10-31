@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BrokerKernel } from '@deepkit/broker';
-import { RpcTcpServer } from '@deepkit/rpc-tcp';
+import { BrokerKernel } from '@7b/io/broker';
+import { RpcTcpServer } from '@7b/io/rpc';
 import { BrokerConfig } from '../module.config.js';
 
 // export enum EntityChannelMessageType {

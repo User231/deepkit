@@ -9,7 +9,7 @@
  */
 
 import { OnDestroy, ɵComponentDef as ComponentDef, ɵNG_COMP_DEF as NG_COMP_DEF } from '@angular/core';
-import { getClassName } from '@deepkit/core';
+import { getClassName } from '@7b/runtime';
 
 const lazyValuesStore = new WeakMap<any, object>();
 const lazyValuesDestroyed = new WeakMap<any, object>();

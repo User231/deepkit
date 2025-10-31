@@ -1,4 +1,4 @@
-import { Flag } from '@deepkit/app';
+import { Flag } from '@7b/core';
 
 export class BaseCommand {
     /**

@@ -1,5 +1,5 @@
-import { AutoIncrement, entity, PrimaryKey, Unique } from '@deepkit/type';
-import { ActiveRecord } from '@deepkit/orm';
+import { AutoIncrement, entity, PrimaryKey, Unique } from '@7b/reflection';
+import { ActiveRecord } from '@7b/db';
 
 @entity.name('active-record-tag')
 export class Tag extends ActiveRecord {

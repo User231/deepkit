@@ -8,14 +8,14 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, ExtractClassType, isFunction, isObject, pathBasename, setPathValue } from '@deepkit/core';
+import { ClassType, ExtractClassType, isFunction, isObject, pathBasename, setPathValue } from '@7b/runtime';
 import { ConfigLoader, ServiceContainer } from './service-container.js';
-import { ConfigureProviderOptions, injectedFunction, InjectorContext, ResolveToken, Scope, Token } from '@deepkit/injector';
+import { ConfigureProviderOptions, injectedFunction, InjectorContext, ResolveToken, Scope, Token } from '@7b/core';
 import { AppModule, RootModuleDefinition } from './module.js';
 import { EnvConfiguration } from './configuration.js';
-import { DataEventToken, DispatchArguments, EventDispatcher, EventDispatcherDispatchType, EventListener, EventListenerCallback, EventToken } from '@deepkit/event';
-import { ReceiveType, ReflectionClass, ReflectionKind } from '@deepkit/type';
-import { Logger } from '@deepkit/logger';
+import { DataEventToken, DispatchArguments, EventDispatcher, EventDispatcherDispatchType, EventListener, EventListenerCallback, EventToken } from '@7b/core';
+import { ReceiveType, ReflectionClass, ReflectionKind } from '@7b/reflection';
+import { Logger } from '@7b/core';
 import { executeCommand, getArgsFromEnvironment, getBinFromEnvironment } from './command.js';
 
 /**

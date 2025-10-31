@@ -1,7 +1,7 @@
 import { createRpcMessage, readBinaryRpcMessage, RpcBinaryMessageReader, RpcMessage, RpcMessageDefinition, serializeBinaryRpcMessage } from './protocol.js';
 import { SingleProgress } from './progress.js';
 import { rpcChunk, RpcError, RpcTransportStats, RpcTypes } from './model.js';
-import { asyncOperation } from '@deepkit/core';
+import { asyncOperation } from '@7b/runtime';
 
 export class TransportOptions {
     /**

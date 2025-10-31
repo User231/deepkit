@@ -1,7 +1,7 @@
 import { DatabaseFactory } from './test.js';
-import { AutoIncrement, BackReference, entity, PrimaryKey, Reference } from '@deepkit/type';
+import { AutoIncrement, BackReference, entity, PrimaryKey, Reference } from '@7b/reflection';
 import { expect } from '@jest/globals';
-import { getObjectKeysSize } from '@deepkit/core';
+import { getObjectKeysSize } from '@7b/runtime';
 
 @entity.name('users_user')
 class User {

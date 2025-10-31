@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { DatabaseField, entity, PrimaryKey, ReflectionClass, ReflectionKind, serializer } from '@deepkit/type';
+import { DatabaseField, entity, PrimaryKey, ReflectionClass, ReflectionKind, serializer } from '@7b/reflection';
 import { SQLFilterBuilder } from '../src/sql-filter-builder.js';
 import { escape } from 'sqlstring';
 import { splitDotPath, sql, SQLQueryModel } from '../src/sql-adapter.js';

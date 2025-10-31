@@ -5,8 +5,8 @@
  * This is like an intrinsic type, but only for runtime.
  *
  * ```typescript
- * import { TypeAnnotation } from '@deepkit/core';
- * import { typeAnnotation } from '@deepkit/type';
+ * import { TypeAnnotation } from '@7b/runtime';
+ * import { typeAnnotation } from '@7b/reflection';
  *
  * type PrimaryKey = TypeAnnotation<'primaryKey'>;
  * type UserId = string & PrimaryKey;

@@ -10,8 +10,8 @@
 
 import { DatabaseSession, DatabaseTransaction } from './database-session.js';
 import { DatabaseQueryModel, GenericQueryResolver, Query } from './query.js';
-import { Changes, getSerializeFunction, ReceiveType, ReflectionClass, resolvePath, serialize, Serializer } from '@deepkit/type';
-import { AbstractClassType, deletePathValue, getPathValue, setPathValue } from '@deepkit/core';
+import { Changes, getSerializeFunction, ReceiveType, ReflectionClass, resolvePath, serialize, Serializer } from '@7b/reflection';
+import { AbstractClassType, deletePathValue, getPathValue, setPathValue } from '@7b/runtime';
 import { DatabaseAdapter, DatabaseAdapterQueryFactory, DatabaseEntityRegistry, DatabasePersistence, DatabasePersistenceChangeSet, MigrateOptions } from './database-adapter.js';
 import { DeleteResult, OrmEntity, PatchResult } from './type.js';
 import { findQueryList } from './utils.js';

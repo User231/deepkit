@@ -1,7 +1,7 @@
-import { ClassType, getObjectKeysSize, isArray } from '@deepkit/core';
-import { AppModule } from '@deepkit/app';
-import { http, HttpBody, httpClass, HttpQueries, JSONResponse } from '@deepkit/http';
-import { Database, DatabaseRegistry, Query, UniqueConstraintFailure } from '@deepkit/orm';
+import { ClassType, getObjectKeysSize, isArray } from '@7b/runtime';
+import { AppModule } from '@7b/core';
+import { http, HttpBody, httpClass, HttpQueries, JSONResponse } from '@7b/io/http';
+import { Database, DatabaseRegistry, Query, UniqueConstraintFailure } from '@7b/db';
 import {
     InlineRuntimeType,
     Maximum,
@@ -10,7 +10,7 @@ import {
     ReflectionKind,
     TypeUnion,
     ValidationError,
-} from '@deepkit/type';
+} from '@7b/reflection';
 
 function applySelect(query: Query<any>, select: string[] | string): Query<any> {
     const names: string[] = isArray(select) ? select.map(v => v.trim()) : select.replace(/\s+/g, '').split(',');

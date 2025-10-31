@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { arrayRemoveItem, ClassType, deletePathValue, getPathValue, setPathValue } from '@deepkit/core';
+import { arrayRemoveItem, ClassType, deletePathValue, getPathValue, setPathValue } from '@7b/runtime';
 import {
     EntityPatch,
     EntitySubject,
@@ -20,7 +20,7 @@ import {
     RpcTypes,
 } from '../model.js';
 import { RpcMessage } from '../protocol.js';
-import { getPartialSerializeFunction, ReflectionClass, serializer, TypeObjectLiteral } from '@deepkit/type';
+import { getPartialSerializeFunction, ReflectionClass, serializer, TypeObjectLiteral } from '@7b/reflection';
 
 export class EntitySubjectStore<T extends IdVersionInterface> {
     store = new Map<IdType, { item: T, forks: EntitySubject<T>[] }>();

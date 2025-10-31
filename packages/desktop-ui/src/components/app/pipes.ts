@@ -11,7 +11,7 @@
 import { ChangeDetectorRef, OnDestroy, Pipe, PipeTransform } from '@angular/core';
 import { Observable, Subscription } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
-import { humanBytes } from '@deepkit/core';
+import { humanBytes } from '@7b/runtime';
 
 /**
  * Almost the same as |async pipe, but renders directly (detectChanges() instead of marking it only(markForCheck())

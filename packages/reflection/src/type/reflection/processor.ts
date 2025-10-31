@@ -53,9 +53,9 @@ import {
     validationAnnotation,
     widenLiteral,
 } from './type.js';
-import { MappedModifier, ReflectionOp } from '@deepkit/type-spec';
+import { MappedModifier, ReflectionOp } from '@7b/reflection';
 import { isExtendable } from './extends.js';
-import { ClassType, isArray, isClass, isFunction, stringifyValueWithType } from '@deepkit/core';
+import { ClassType, isArray, isClass, isFunction, stringifyValueWithType } from '@7b/runtime';
 import { isWithDeferredDecorators } from '../decorator.js';
 import { ReflectionClass, TData } from './reflection.js';
 import { state } from './state.js';

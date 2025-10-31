@@ -9,11 +9,11 @@
  */
 
 import { AngularNodeAppEngine, createNodeRequestHandler, isMainModule, NodeRequestHandlerFunction, writeResponseToNodeResponse } from '@angular/ssr/node';
-import { HttpKernel, HttpNotFoundError, HttpRequest, HttpResponse, httpWorkflow, RouteConfig, staticOnRoute } from '@deepkit/http';
-import { eventDispatcher } from '@deepkit/event';
-import { createModuleClass } from '@deepkit/app';
-import { ApplicationServer } from '@deepkit/framework';
-import { Logger } from '@deepkit/logger';
+import { HttpKernel, HttpNotFoundError, HttpRequest, HttpResponse, httpWorkflow, RouteConfig, staticOnRoute } from '@7b/io/http';
+import { eventDispatcher } from '@7b/core';
+import { createModuleClass } from '@7b/core';
+import { ApplicationServer } from '@7b/core';
+import { Logger } from '@7b/core';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -112,7 +112,7 @@ class AngularStaticListener {
  *
  * ```typescript
  * import { app } from './app';
- * import { RequestHandler } from '@deepkit/angular-ssr';
+ * import { RequestHandler } from '@7b/ui';
  *
  * export const reqHandler = app.get(RequestHandler).create(import.meta.url);
  * ```

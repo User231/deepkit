@@ -1,6 +1,6 @@
-import { AutoIncrement, Email, entity, MaxLength, MinLength, PrimaryKey, Reference, Unique } from '@deepkit/type';
-import { Database } from '@deepkit/orm';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { AutoIncrement, Email, entity, MaxLength, MinLength, PrimaryKey, Reference, Unique } from '@7b/reflection';
+import { Database } from '@7b/db';
+import { SQLiteDatabaseAdapter } from '@7b/db/sqlite';
 import { Config } from './config.js';
 
 @(entity.name('user').collection('users'))

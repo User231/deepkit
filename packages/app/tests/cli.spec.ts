@@ -1,10 +1,10 @@
 import { expect, test } from '@jest/globals';
 import { executeCommand, Flag, parseCliArgs, ParsedCliControllerConfig } from '../src/command.js';
-import { EventDispatcher } from '@deepkit/event';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
-import { Logger, MemoryLogger } from '@deepkit/logger';
-import { Stopwatch } from '@deepkit/stopwatch';
-import { PrimaryKey, Reference } from '@deepkit/type';
+import { EventDispatcher } from '@7b/core';
+import { InjectorContext, InjectorModule } from '@7b/core';
+import { Logger, MemoryLogger } from '@7b/core';
+import { Stopwatch } from '@7b/core';
+import { PrimaryKey, Reference } from '@7b/reflection';
 
 test('parser', async () => {
     expect(parseCliArgs(['--id 1', '--id 2'])).toEqual({ id: ['1', '2'] });

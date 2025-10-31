@@ -1,5 +1,5 @@
-import { ClassType } from '@deepkit/core';
-import { AppModule } from '@deepkit/app';
+import { ClassType } from '@7b/runtime';
+import { AppModule } from '@7b/core';
 import { RouteConfig, HttpRouter } from './router.js';
 
 export interface HttpRouteFilterRoute {

@@ -1,4 +1,4 @@
-import { AutoIncrement, BackReference, entity, PrimaryKey, Reference } from '@deepkit/type';
+import { AutoIncrement, BackReference, entity, PrimaryKey, Reference } from '@7b/reflection';
 import { UserCredentials } from './user-credentials.js';
 import { Group } from './group.js';
 

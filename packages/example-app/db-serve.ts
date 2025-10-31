@@ -1,4 +1,4 @@
-import { serveOrmBrowser } from '@deepkit/orm-browser';
+import { serveOrmBrowser } from '@7b/ui';
 import { SQLiteDatabase } from './src/database.js';
 
 const db = new SQLiteDatabase(':memory:');

@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
-import { BackReference, entity, Index, PrimaryKey, Reference, ReflectionClass, resolveForeignReflectionClass, UUID, uuid } from '@deepkit/type';
-import { getInstanceStateFromItem, hydrateEntity } from '@deepkit/orm';
+import { BackReference, entity, Index, PrimaryKey, Reference, ReflectionClass, resolveForeignReflectionClass, UUID, uuid } from '@7b/reflection';
+import { getInstanceStateFromItem, hydrateEntity } from '@7b/db';
 import { createDatabase } from './utils.js';
 
 Error.stackTraceLimit = 20;

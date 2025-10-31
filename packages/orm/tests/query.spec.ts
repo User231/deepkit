@@ -1,4 +1,4 @@
-import { AutoIncrement, BackReference, deserialize, Index, PrimaryKey, Reference, UUID, uuid } from '@deepkit/type';
+import { AutoIncrement, BackReference, deserialize, Index, PrimaryKey, Reference, UUID, uuid } from '@7b/reflection';
 import { expect, test } from '@jest/globals';
 import { assert, IsExact } from 'conditional-type-checks';
 import { Database } from '../src/database.js';

@@ -1,4 +1,4 @@
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@7b/core';
 
 export class Service {
     constructor(private logger: Logger) {

@@ -1,8 +1,8 @@
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@7b/runtime';
 import { SQLDatabaseAdapter } from './sql-adapter.js';
 import { DatabaseModel, TableComparator } from './schema/table.js';
-import { Database, DatabaseEntityRegistry } from '@deepkit/orm';
-import { ReflectionClass, Type } from '@deepkit/type';
+import { Database, DatabaseEntityRegistry } from '@7b/db';
+import { ReflectionClass, Type } from '@7b/reflection';
 
 export async function schemaMigrationRoundTrip(types: (Type | ClassType | ReflectionClass<any>)[], adapter: SQLDatabaseAdapter) {
     const originDatabaseModel = new DatabaseModel([], adapter.getName());

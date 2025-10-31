@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { CompilerContext, isObject, toFastProperties } from '@deepkit/core';
+import { CompilerContext, isObject, toFastProperties } from '@7b/runtime';
 import { typeSettings, UnpopulatedCheck } from './core.js';
 import { ReflectionClass, ReflectionProperty } from './reflection/reflection.js';
 import { ContainerAccessor, executeTemplates, noopTemplate, serializer, Serializer, TemplateRegistry, TemplateState } from './serializer.js';

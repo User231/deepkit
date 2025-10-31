@@ -1,13 +1,13 @@
-import { assertType, ReceiveType, ReflectionKind, resolveReceiveType, stringifyType, Type } from '@deepkit/type';
-import { EventToken } from '@deepkit/event';
+import { assertType, ReceiveType, ReflectionKind, resolveReceiveType, stringifyType, Type } from '@7b/reflection';
+import { EventToken } from '@7b/core';
 import { parseTime } from './utils.js';
 import { BrokerAdapterCache } from './broker-cache.js';
 import { QueueMessageProcessing } from './model.js';
 import { BrokerAdapterKeyValue } from './broker-key-value.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@7b/core';
 import { Subject } from 'rxjs';
-import { arrayRemoveItem, ensureError, formatError } from '@deepkit/core';
-import { provide, Provider } from '@deepkit/injector';
+import { arrayRemoveItem, ensureError, formatError } from '@7b/runtime';
+import { provide, Provider } from '@7b/core';
 
 export interface BrokerTimeOptions {
     /**

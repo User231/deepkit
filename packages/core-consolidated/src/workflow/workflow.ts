@@ -8,11 +8,11 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { capitalize, ClassType, CompilerContext, CustomError, ExtractClassType, getClassName, isArray, toFastProperties } from '@deepkit/core';
-import { BaseEvent, EventDispatcher, EventToken, isEventListenerContainerEntryCallback, isEventListenerContainerEntryService } from '@deepkit/event';
-import { injectedFunction, InjectorContext } from '@deepkit/injector';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
-import { ReflectionClass } from '@deepkit/type';
+import { capitalize, ClassType, CompilerContext, CustomError, ExtractClassType, getClassName, isArray, toFastProperties } from '@7b/runtime';
+import { BaseEvent, EventDispatcher, EventToken, isEventListenerContainerEntryCallback, isEventListenerContainerEntryService } from '@7b/core';
+import { injectedFunction, InjectorContext } from '@7b/core';
+import { FrameCategory, Stopwatch } from '@7b/core';
+import { ReflectionClass } from '@7b/reflection';
 
 interface WorkflowTransition<T> {
     from: keyof T & string,

@@ -10,9 +10,9 @@
 
 /** @group Kernel */
 
-import { arrayRemoveItem, ProcessLock, ProcessLocker } from '@deepkit/core';
-import { createRpcMessage, RpcKernel, RpcKernelBaseConnection, RpcKernelConnections, RpcMessage, RpcMessageBuilder, RpcMessageRouteType, RpcStats, TransportConnection } from '@deepkit/rpc';
-import { Logger } from '@deepkit/logger';
+import { arrayRemoveItem, ProcessLock, ProcessLocker } from '@7b/runtime';
+import { createRpcMessage, RpcKernel, RpcKernelBaseConnection, RpcKernelConnections, RpcMessage, RpcMessageBuilder, RpcMessageRouteType, RpcStats, TransportConnection } from '@7b/io/rpc';
+import { Logger } from '@7b/core';
 import {
     brokerBusPublish,
     brokerBusResponseHandleMessage,
@@ -45,8 +45,8 @@ import cluster from 'cluster';
 import { closeSync, openSync, renameSync, writeSync } from 'fs';
 import { snapshotState } from './snapshot.js';
 import { handleMessageDeduplication } from './utils.js';
-import { InjectorContext } from '@deepkit/injector';
-import { EventDispatcher } from '@deepkit/event';
+import { InjectorContext } from '@7b/core';
+import { EventDispatcher } from '@7b/core';
 
 /**
  * @internal

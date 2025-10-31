@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { AbstractClassType, asyncOperation, ClassType, empty } from '@deepkit/core';
+import { AbstractClassType, asyncOperation, ClassType, empty } from '@7b/runtime';
 import {
     DatabaseDeleteError,
     DatabaseError,
@@ -23,7 +23,7 @@ import {
     PatchResult,
     primaryKeyObjectConverter,
     UniqueConstraintFailure,
-} from '@deepkit/orm';
+} from '@7b/db';
 import {
     asAliasName,
     DefaultPlatform,
@@ -40,12 +40,12 @@ import {
     SQLQueryModel,
     SQLQueryResolver,
     SQLStatement,
-} from '@deepkit/sql';
-import { Changes, getPatchSerializeFunction, getSerializeFunction, ReceiveType, ReflectionClass, resolvePath } from '@deepkit/type';
+} from '@7b/db';
+import { Changes, getPatchSerializeFunction, getSerializeFunction, ReceiveType, ReflectionClass, resolvePath } from '@7b/reflection';
 import sqlite3 from 'better-sqlite3';
 import { SQLitePlatform } from './sqlite-platform.js';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
-import { Logger } from '@deepkit/logger';
+import { FrameCategory, Stopwatch } from '@7b/core';
+import { Logger } from '@7b/core';
 
 /**
  * Converts a specific database error to a more specific error, if possible.

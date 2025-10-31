@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@7b/runtime';
 import { ClientTransportAdapter, RpcClient } from './client.js';
 import { TransportClientConnection } from '../transport.js';
 import { RpcError } from '../model.js';

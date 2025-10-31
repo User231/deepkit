@@ -1,9 +1,9 @@
-import { BrokerAdapterBus, BrokerAdapterCache, BrokerAdapterKeyValue, BrokerAdapterLock, BrokerCacheItemOptionsResolved, BrokerKeyValueOptionsResolved, BrokerTimeOptionsResolved, Release } from '@deepkit/broker';
-import { Type } from '@deepkit/type';
-import { AutoBuffer, getBsonEncoder } from '@deepkit/bson';
+import { BrokerAdapterBus, BrokerAdapterCache, BrokerAdapterKeyValue, BrokerAdapterLock, BrokerCacheItemOptionsResolved, BrokerKeyValueOptionsResolved, BrokerTimeOptionsResolved, Release } from '@7b/io/broker';
+import { Type } from '@7b/reflection';
+import { AutoBuffer, getBsonEncoder } from '@7b/codec';
 import Redis, { Callback, RedisOptions } from 'ioredis';
-import { arrayRemoveItem, fixAsyncOperation } from '@deepkit/core';
-import { Logger } from '@deepkit/logger';
+import { arrayRemoveItem, fixAsyncOperation } from '@7b/runtime';
+import { Logger } from '@7b/core';
 
 export type RedisBrokerAdapterOptions = RedisOptions & {
     prefix?: string; // optional prefix for all keys

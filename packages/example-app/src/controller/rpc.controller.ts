@@ -1,4 +1,4 @@
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@7b/io/rpc';
 import { Observable, Subject } from 'rxjs';
 
 @rpc.controller('test-rpc')

@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { convertQueryFilter, FilterQuery } from '@deepkit/orm';
-import { ReflectionClass, resolvePath, serialize, Serializer } from '@deepkit/type';
+import { convertQueryFilter, FilterQuery } from '@7b/db';
+import { ReflectionClass, resolvePath, serialize, Serializer } from '@7b/reflection';
 
 export function getSqlFilter<T>(classSchema: ReflectionClass<any>, filter: FilterQuery<T>, parameters: { [name: string]: any } = {}, serializer: Serializer): any {
     return convertQueryFilter(classSchema.getClassType(), (filter || {}), (convertClass: ReflectionClass<any>, path: string, value: any) => {

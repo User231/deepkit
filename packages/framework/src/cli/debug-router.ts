@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { cli, Command } from '@deepkit/app';
-import { HttpRouter } from '@deepkit/http';
+import { cli, Command } from '@7b/core';
+import { HttpRouter } from '@7b/io/http';
 
 /**
  * @description Prints debugging information about the router.

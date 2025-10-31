@@ -1,10 +1,10 @@
 // import { afterAll, expect, test } from '@jest/globals';
-// import { Entity, f } from '@deepkit/type';
+// import { Entity, f } from '@7b/reflection';
 // import { appModuleForControllers, closeAllCreatedServers, createServerClientPair } from './util.js';
-// import { createModule, DeepkitRpcSecurity } from '@deepkit/framework';
+// import { createModule, DeepkitRpcSecurity } from '@7b/core';
 // import { Observable } from 'rxjs';
-// import { sleep } from '@deepkit/core';
-// import { rpc, RpcKernelSecurity, } from '@deepkit/rpc';
+// import { sleep } from '@7b/runtime';
+// import { rpc, RpcKernelSecurity, } from '@7b/io/rpc';
 // import { fail } from 'assert';
 // import ws from 'ws';
 //

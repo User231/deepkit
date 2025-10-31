@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { AbstractClassType, ClassType, getClassName } from '@deepkit/core';
+import { AbstractClassType, ClassType, getClassName } from '@7b/runtime';
 
 export type ClassDecoratorFn = (classType: AbstractClassType, property?: string, parameterIndexOrDescriptor?: any) => void;
 export type PropertyDecoratorFn = (prototype: object, property?: number | string | symbol, parameterIndexOrDescriptor?: any) => void;

@@ -1,7 +1,7 @@
 // @ts-ignore
 import * as tsNode from 'ts-node/esm';
-import { optimizeJSX } from '@deepkit/template';
-import { inDebugMode } from '@deepkit/core';
+import { optimizeJSX } from '@7b/core';
+import { inDebugMode } from '@7b/runtime';
 import { importedFiles } from './src/watch.js';
 
 export async function resolve(specifier: string, context: { parentURL: string }, defaultResolve: typeof resolve): Promise<{ url: string }> {

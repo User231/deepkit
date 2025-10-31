@@ -1,4 +1,4 @@
-import { AutoIncrement, cast, entity, PrimaryKey, Reference, t } from '@deepkit/type';
+import { AutoIncrement, cast, entity, PrimaryKey, Reference, t } from '@7b/reflection';
 import { expect } from '@jest/globals';
 import { DatabaseFactory } from './test.js';
 

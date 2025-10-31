@@ -8,14 +8,14 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { cli, Command, Flag } from '@deepkit/app';
+import { cli, Command, Flag } from '@7b/core';
 import { FrameworkConfig } from '../module.config.js';
-import { LoggerInterface } from '@deepkit/logger';
-import { FrameCategory, Stopwatch, StopwatchStore } from '@deepkit/stopwatch';
+import { LoggerInterface } from '@7b/core';
+import { FrameCategory, Stopwatch, StopwatchStore } from '@7b/core';
 import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
-import { decodeFrames } from '@deepkit/framework-debug-api';
-import { sleep } from '@deepkit/core';
+import { decodeFrames } from '@7b/ui';
+import { sleep } from '@7b/runtime';
 import { FileStopwatchStore } from '../debug/stopwatch/store.js';
 
 /**

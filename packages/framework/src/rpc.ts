@@ -8,11 +8,11 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { InjectorContext } from '@deepkit/injector';
-import { rpcActionType, RpcControllerAccess, RpcKernel, RpcKernelBaseConnection, RpcKernelConnection, RpcMessage, RpcMessageBuilder, RpcServerAction, TransportConnection } from '@deepkit/rpc';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
-import { ClassType } from '@deepkit/core';
-import { AppModule } from '@deepkit/app';
+import { InjectorContext } from '@7b/core';
+import { rpcActionType, RpcControllerAccess, RpcKernel, RpcKernelBaseConnection, RpcKernelConnection, RpcMessage, RpcMessageBuilder, RpcServerAction, TransportConnection } from '@7b/io/rpc';
+import { FrameCategory, Stopwatch } from '@7b/core';
+import { ClassType } from '@7b/runtime';
+import { AppModule } from '@7b/core';
 
 export class RpcControllers {
     public readonly controllers = new Map<string, { controller: ClassType, module: AppModule<any> }>();

@@ -1,12 +1,12 @@
-import { arrayRemoveItem, ClassType, sleep } from '@deepkit/core';
-import { ApplicationServer, FrameworkModule } from '@deepkit/framework';
-import { App, AppModule } from '@deepkit/app';
+import { arrayRemoveItem, ClassType, sleep } from '@7b/runtime';
+import { ApplicationServer, FrameworkModule } from '@7b/core';
+import { App, AppModule } from '@7b/core';
 import { Observable } from 'rxjs';
 import { createServer } from 'http';
-import { DeepkitClient, RemoteController } from '@deepkit/rpc';
-import { Database } from '@deepkit/orm';
+import { DeepkitClient, RemoteController } from '@7b/io/rpc';
+import { Database } from '@7b/db';
 import { performance } from 'perf_hooks';
-import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
+import { SQLiteDatabaseAdapter } from '@7b/db/sqlite';
 
 export async function subscribeAndWait<T>(observable: Observable<T>, callback: (next: T) => Promise<void>, timeout: number = 5): Promise<void> {
     return new Promise<void>((resolve, reject) => {

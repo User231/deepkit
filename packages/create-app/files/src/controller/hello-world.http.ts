@@ -1,5 +1,5 @@
-import { MaxLength } from '@deepkit/type';
-import { http } from '@deepkit/http';
+import { MaxLength } from '@7b/reflection';
+import { http } from '@7b/io/http';
 import { Service } from '../app/service';
 
 export class HelloWorldControllerHttp {

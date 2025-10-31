@@ -8,11 +8,11 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { InjectorModule, InjectorModuleConfig, NormalizedProvider, ProviderWithScope, Token } from '@deepkit/injector';
-import { AbstractClassType, ClassType, CustomError, ExtractClassType, isClass } from '@deepkit/core';
-import { EventListener, EventToken } from '@deepkit/event';
-import { WorkflowDefinition } from '@deepkit/workflow';
-import { getPartialSerializeFunction, ReflectionFunction, ReflectionKind, ReflectionMethod, resolveReceiveType, serializer, Type, TypeClass } from '@deepkit/type';
+import { InjectorModule, InjectorModuleConfig, NormalizedProvider, ProviderWithScope, Token } from '@7b/core';
+import { AbstractClassType, ClassType, CustomError, ExtractClassType, isClass } from '@7b/runtime';
+import { EventListener, EventToken } from '@7b/core';
+import { WorkflowDefinition } from '@7b/core';
+import { getPartialSerializeFunction, ReflectionFunction, ReflectionKind, ReflectionMethod, resolveReceiveType, serializer, Type, TypeClass } from '@7b/reflection';
 import { ControllerConfig } from './service-container.js';
 
 /**

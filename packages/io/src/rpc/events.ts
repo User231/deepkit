@@ -1,5 +1,5 @@
-import { DataEvent, EventToken, EventTokenSync } from '@deepkit/event';
-import { InjectorContext } from '@deepkit/injector';
+import { DataEvent, EventToken, EventTokenSync } from '@7b/core';
+import { InjectorContext } from '@7b/core';
 import { RpcKernelBaseConnection } from './server/kernel.js';
 import { RpcControllerAccess, Session } from './server/security.js';
 

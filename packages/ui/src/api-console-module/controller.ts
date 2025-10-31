@@ -1,10 +1,10 @@
-import { ApiAction, ApiConsoleApi, ApiDocument, ApiEntryPoints, ApiRoute, ApiRouteResponse } from '@deepkit/api-console-api';
-import { getActions, rpc, RpcKernel } from '@deepkit/rpc';
-import { HttpRouteFilter, HttpRouterFilterResolver, parseRouteControllerAction } from '@deepkit/http';
-import { ClassType, getClassName, isClass } from '@deepkit/core';
+import { ApiAction, ApiConsoleApi, ApiDocument, ApiEntryPoints, ApiRoute, ApiRouteResponse } from '@7b/ui';
+import { getActions, rpc, RpcKernel } from '@7b/io/rpc';
+import { HttpRouteFilter, HttpRouterFilterResolver, parseRouteControllerAction } from '@7b/io/http';
+import { ClassType, getClassName, isClass } from '@7b/runtime';
 import { Config } from './module.config.js';
 import { readFile } from 'fs/promises';
-import { ReflectionClass, ReflectionKind, serializeType, Type, TypeClass, TypeObjectLiteral, TypePropertySignature } from '@deepkit/type';
+import { ReflectionClass, ReflectionKind, serializeType, Type, TypeClass, TypeObjectLiteral, TypePropertySignature } from '@7b/reflection';
 
 class ControllerNameGenerator {
     controllers = new Map<ClassType | Function, string>();

@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { atomicChange, Changes } from '@deepkit/type';
+import { atomicChange, Changes } from '@7b/reflection';
 
 
 test('atomic', () => {

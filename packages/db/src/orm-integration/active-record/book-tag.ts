@@ -1,5 +1,5 @@
-import { AutoIncrement, entity, PrimaryKey, Reference } from '@deepkit/type';
-import { ActiveRecord } from '@deepkit/orm';
+import { AutoIncrement, entity, PrimaryKey, Reference } from '@7b/reflection';
+import { ActiveRecord } from '@7b/db';
 import { Book } from './book.js';
 import { Tag } from './tag.js';
 

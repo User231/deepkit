@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, isClass, isPrototypeOfBase, ProcessLocker } from '@deepkit/core';
-import { EventDispatcher } from '@deepkit/event';
+import { ClassType, isClass, isPrototypeOfBase, ProcessLocker } from '@7b/runtime';
+import { EventDispatcher } from '@7b/core';
 import { isAbsolute, join } from 'path';
 import { ApplicationServer, LogStartupListener, onServerShutdown } from './application-server.js';
 import { DebugRouterController } from './cli/debug-router.js';
@@ -17,33 +17,33 @@ import { DebugDIController } from './cli/debug-di.js';
 import { ServerStartController } from './cli/server-start.js';
 import { DebugController } from './debug/debug.controller.js';
 import { registerDebugHttpController } from './debug/http-debug.controller.js';
-import { http, HttpLogger, HttpModule, HttpRegExp, HttpRequest, HttpResponse, serveStaticListener } from '@deepkit/http';
-import { InjectorContext, ProviderWithScope, Token } from '@deepkit/injector';
+import { http, HttpLogger, HttpModule, HttpRegExp, HttpRequest, HttpResponse, serveStaticListener } from '@7b/io/http';
+import { InjectorContext, ProviderWithScope, Token } from '@7b/core';
 import { BrokerConfig, FrameworkConfig } from './module.config.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@7b/core';
 import { RpcServer, WebWorkerFactory } from './worker.js';
-import { Stopwatch, StopwatchStore } from '@deepkit/stopwatch';
+import { Stopwatch, StopwatchStore } from '@7b/core';
 import { OrmBrowserController } from './orm-browser/controller.js';
 import { DatabaseListener } from './database/database-listener.js';
-import { Database, DatabaseRegistry } from '@deepkit/orm';
+import { Database, DatabaseRegistry } from '@7b/db';
 import { MigrationCreateController, MigrationDownCommand, MigrationPendingCommand, MigrationProvider, MigrationUpCommand } from '@deepkit/sql/commands';
 import { FileStopwatchStore } from './debug/stopwatch/store.js';
 import { DebugProfileFramesCommand } from './cli/debug-debug-frames.js';
-import { rpcClass, RpcKernel, RpcKernelBaseConnection, RpcKernelConnection, RpcKernelSecurity, SessionState } from '@deepkit/rpc';
+import { rpcClass, RpcKernel, RpcKernelBaseConnection, RpcKernelConnection, RpcKernelSecurity, SessionState } from '@7b/io/rpc';
 import { DebugConfigController } from './cli/app-config.js';
 import { Zone } from './zone.js';
 import { DebugBrokerBus } from './debug/broker.js';
-import { ApiConsoleModule } from '@deepkit/api-console-module';
-import { AppModule, ControllerConfig, createModuleClass, DeepPartial, onAppShutdown } from '@deepkit/app';
+import { ApiConsoleModule } from '@7b/ui';
+import { AppModule, ControllerConfig, createModuleClass, DeepPartial, onAppShutdown } from '@7b/core';
 import { RpcControllers, RpcKernelWithStopwatch } from './rpc.js';
 import { normalizeDirectory } from './utils.js';
 import { FilesystemRegistry, PublicFilesystem } from './filesystem.js';
-import { Filesystem } from '@deepkit/filesystem';
+import { Filesystem } from '@7b/io/fs';
 import { MediaController } from './debug/media.controller.js';
 import { DebugHttpController } from './debug/debug-http.controller.js';
 import { BrokerServer } from './broker/broker.js';
 import { BrokerListener } from './broker/listener.js';
-import { BrokerBus, BrokerCache, BrokerDeepkitAdapter, BrokerKeyValue, BrokerLock, BrokerQueue } from '@deepkit/broker';
+import { BrokerBus, BrokerCache, BrokerDeepkitAdapter, BrokerKeyValue, BrokerLock, BrokerQueue } from '@7b/io/broker';
 import { getBrokerServers } from './broker.js';
 
 export class FrameworkModule extends createModuleClass({

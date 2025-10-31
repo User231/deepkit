@@ -1,4 +1,4 @@
-import { benchmark, run } from '@deepkit/bench';
+import { benchmark, run } from '@7b/runtime';
 import { asyncOperation } from '../src/core.js';
 
 const sab = new SharedArrayBuffer(1024);

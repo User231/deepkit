@@ -1,5 +1,5 @@
-import { ClassType } from '@deepkit/core';
-import { InjectorModule } from '@deepkit/injector';
+import { ClassType } from '@7b/runtime';
+import { InjectorModule } from '@7b/core';
 
 export class HttpControllers {
     constructor(public readonly controllers: {controller: ClassType, module: InjectorModule<any>}[] = []) {

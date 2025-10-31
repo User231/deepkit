@@ -8,10 +8,10 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
-import { BaseEvent, EventToken } from '@deepkit/event';
-import type { Changes } from '@deepkit/type';
-import { PrimaryKeyType, ReflectionClass } from '@deepkit/type';
+import { ClassType } from '@7b/runtime';
+import { BaseEvent, EventToken } from '@7b/core';
+import type { Changes } from '@7b/reflection';
+import { PrimaryKeyType, ReflectionClass } from '@7b/reflection';
 import type { DatabasePersistenceChangeSet } from './database-adapter.js';
 import type { DatabaseSession } from './database-session.js';
 import type { Query } from './query.js';

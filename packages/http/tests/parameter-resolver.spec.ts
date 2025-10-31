@@ -1,4 +1,4 @@
-import { App, AppModule } from '@deepkit/app';
+import { App, AppModule } from '@7b/core';
 import { expect, jest, test } from '@jest/globals';
 import { http } from '../src/decorator.js';
 import { HttpRequest } from '../src/model.js';
@@ -6,7 +6,7 @@ import { RouteConfig, RouteParameterResolver, RouteParameterResolverContext } fr
 import { createHttpKernel } from './utils.js';
 import { HttpModule } from '../src/module.js';
 import { HttpKernel } from '../src/kernel.js';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@7b/reflection';
 
 test('parameter resolver by name', async () => {
     class Resolver implements RouteParameterResolver {

@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { JSONTransport, Logger, LoggerLevel, MemoryLogger, ScopedLogger, ScopeFormatter } from '../src/logger.js';
 import { MemoryLoggerTransport } from '../src/memory-logger.js';
-import { Injector, ServiceNotFoundError, TransientInjectionTarget } from '@deepkit/injector';
+import { Injector, ServiceNotFoundError, TransientInjectionTarget } from '@7b/core';
 
 test('log level', () => {
     const logger = new Logger();

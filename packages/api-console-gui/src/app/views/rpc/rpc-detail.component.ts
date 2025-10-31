@@ -1,13 +1,13 @@
 import { ChangeDetectorRef, Component, input, OnChanges } from '@angular/core';
-import { CodeHighlightComponent, DeepkitBoxComponent, ToggleBoxComponent } from '@deepkit/ui-library';
-import { ApiAction } from '@deepkit/api-console-api';
+import { CodeHighlightComponent, DeepkitBoxComponent, ToggleBoxComponent } from '@7b/ui';
+import { ApiAction } from '@7b/ui';
 import { extractDataStructureFromParameters, RpcActionState, RpcClientConfiguration, RpcExecution, RpcExecutionSubscription, Store } from '../../store';
-import { ButtonComponent, ButtonGroupComponent, DuiDialog, IconComponent, OptionDirective, SelectBoxComponent, TabButtonComponent } from '@deepkit/desktop-ui';
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { ButtonComponent, ButtonGroupComponent, DuiDialog, IconComponent, OptionDirective, SelectBoxComponent, TabButtonComponent } from '@7b/ui';
+import { RpcWebSocketClient } from '@7b/io/rpc';
 import { ControllerClient } from '../../client';
 import { Observable, Subject } from 'rxjs';
 import { inspect, typeToTSJSONInterface } from '../../utils';
-import { isSubject } from '@deepkit/core-rxjs';
+import { isSubject } from '@7b/io';
 import { FormsModule } from '@angular/forms';
 import { AsyncPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { RpcInspectMessageComponent } from './rpc-inspect-message.component';

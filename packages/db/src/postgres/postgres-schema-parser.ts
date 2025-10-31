@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { isNumeric } from '@deepkit/core';
-import { Column, DatabaseModel, ForeignKey, parseType, SchemaParser, Table } from '@deepkit/sql';
+import { isNumeric } from '@7b/runtime';
+import { Column, DatabaseModel, ForeignKey, parseType, SchemaParser, Table } from '@7b/db';
 
 export class PostgresSchemaParser extends SchemaParser {
     protected defaultPrecisions = {

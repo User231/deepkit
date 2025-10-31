@@ -1,6 +1,6 @@
 import { ConnectionOptions } from 'tls';
 import { PoolConfig } from 'pg';
-import { cast } from '@deepkit/type';
+import { cast } from '@7b/reflection';
 
 interface AdapterClientConfig {
     user?: string;

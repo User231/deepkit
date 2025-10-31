@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, ClassType, CustomError, formatError, sleep } from '@deepkit/core';
-import { ReceiveType, resolveReceiveType, ValidationError } from '@deepkit/type';
+import { asyncOperation, ClassType, CustomError, formatError, sleep } from '@7b/runtime';
+import { ReceiveType, resolveReceiveType, ValidationError } from '@7b/reflection';
 import { BehaviorSubject, Subject } from 'rxjs';
 import {
     ControllerDefinition,

@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, jest, test } from '@jest/globals';
 import { MongoClient } from '../../src/client/client.js';
 import { createMongoClientFactory, MongoEnv, MongoInstance } from './env-setup.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@7b/runtime';
 import { MongoConnection, MongoConnectionPool, MongoStats, onMongoTopologyChange } from '../../src/client/connection.js';
-import { EventDispatcher } from '@deepkit/event';
-import { ConsoleLogger } from '@deepkit/logger';
+import { EventDispatcher } from '@7b/core';
+import { ConsoleLogger } from '@7b/core';
 import { IsMasterCommand } from '../../src/client/command/ismaster.js';
 import { MongoConnectionError } from '../../src/client/error.js';
 import { Host } from '../../src/client/host.js';

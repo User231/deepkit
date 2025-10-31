@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
-import { decodeFrameData, deserializeFrameData, encodeFrameData } from '@deepkit/framework-debug-api';
-import { encodeCompoundKey, FrameCategory, FrameCategoryData, Stopwatch } from '@deepkit/stopwatch';
-import { App } from '@deepkit/app';
+import { decodeFrameData, deserializeFrameData, encodeFrameData } from '@7b/ui';
+import { encodeCompoundKey, FrameCategory, FrameCategoryData, Stopwatch } from '@7b/core';
+import { App } from '@7b/core';
 import { FrameworkModule } from '../src/module.js';
 
 

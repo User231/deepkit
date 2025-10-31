@@ -1,5 +1,5 @@
-import { LogPlugin, LogType, LogQuery, LogSession } from '@deepkit/orm';
-import { AutoIncrement, deserialize, entity, PrimaryKey } from '@deepkit/type';
+import { LogPlugin, LogType, LogQuery, LogSession } from '@7b/db';
+import { AutoIncrement, deserialize, entity, PrimaryKey } from '@7b/reflection';
 import { DatabaseFactory } from './test.js';
 import { expect } from '@jest/globals';
 

@@ -26,7 +26,7 @@ import {
     SQLQueryModel,
     SQLQueryResolver,
     SQLStatement,
-} from '@deepkit/sql';
+} from '@7b/db';
 import {
     DatabaseDeleteError,
     DatabaseError,
@@ -41,12 +41,12 @@ import {
     PatchResult,
     primaryKeyObjectConverter,
     UniqueConstraintFailure,
-} from '@deepkit/orm';
+} from '@7b/db';
 import { PostgresPlatform } from './postgres-platform.js';
 import type { Pool, PoolClient, PoolConfig } from 'pg';
 import pg from 'pg';
-import { AbstractClassType, asyncOperation, ClassType, empty } from '@deepkit/core';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
+import { AbstractClassType, asyncOperation, ClassType, empty } from '@7b/runtime';
+import { FrameCategory, Stopwatch } from '@7b/core';
 import {
     Changes,
     getPatchSerializeFunction,
@@ -56,9 +56,9 @@ import {
     ReflectionKind,
     ReflectionProperty,
     resolvePath,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { parseConnectionString } from './config.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@7b/core';
 
 /**
  * Converts a specific database error to a more specific error, if possible.

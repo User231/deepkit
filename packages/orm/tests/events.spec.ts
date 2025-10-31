@@ -1,11 +1,11 @@
 import { expect, test } from '@jest/globals';
 import { Database } from '../src/database.js';
 import { MemoryDatabaseAdapter } from '../src/memory-db.js';
-import { AutoIncrement, PrimaryKey, ReflectionClass, t } from '@deepkit/type';
+import { AutoIncrement, PrimaryKey, ReflectionClass, t } from '@7b/reflection';
 import { DatabaseSession } from '../src/database-session.js';
 import { DatabasePersistence } from '../src/database-adapter.js';
 import { DatabaseErrorEvent, DatabaseErrorInsertEvent, DatabaseErrorUpdateEvent, onDatabaseError } from '../src/event.js';
-import { assertDefined, assertInstanceOf } from '@deepkit/core';
+import { assertDefined, assertInstanceOf } from '@7b/runtime';
 
 test('onUpdate plugin', async () => {
     function onUpdate() {

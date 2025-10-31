@@ -1,12 +1,12 @@
-import { createModuleClass, findParentPath } from '@deepkit/app';
-import { OrmBrowserController } from '@deepkit/framework';
-import { Database, DatabaseRegistry } from '@deepkit/orm';
+import { createModuleClass, findParentPath } from '@7b/core';
+import { OrmBrowserController } from '@7b/core';
+import { Database, DatabaseRegistry } from '@7b/db';
 import { Config } from './config.js';
-import { rpc } from '@deepkit/rpc';
-import { getCurrentFileName } from '@deepkit/core';
-import { InjectorContext } from '@deepkit/injector';
+import { rpc } from '@7b/io/rpc';
+import { getCurrentFileName } from '@7b/runtime';
+import { InjectorContext } from '@7b/core';
 import { dirname } from 'path';
-import { registerStaticHttpController } from '@deepkit/http';
+import { registerStaticHttpController } from '@7b/io/http';
 
 export class OrmBrowserModule extends createModuleClass({
     config: Config

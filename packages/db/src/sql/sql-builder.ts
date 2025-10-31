@@ -10,8 +10,8 @@
 
 import { SQLQueryModel } from './sql-adapter.js';
 import { DefaultPlatform, SqlPlaceholderStrategy } from './platform/default-platform.js';
-import { getPrimaryKeyHashGenerator, ReflectionClass, ReflectionProperty } from '@deepkit/type';
-import { DatabaseJoinModel, DatabaseQueryModel, OrmEntity } from '@deepkit/orm';
+import { getPrimaryKeyHashGenerator, ReflectionClass, ReflectionProperty } from '@7b/reflection';
+import { DatabaseJoinModel, DatabaseQueryModel, OrmEntity } from '@7b/db';
 import { getSqlFilter } from './filter.js';
 import { getPreparedEntity, PreparedAdapter } from './prepare.js';
 

@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, Input, OnDestroy, Optional } from '@angular/core';
-import { ButtonComponent, ButtonGroupComponent, DuiDialog, TabButtonComponent, unsubscribe } from '@deepkit/desktop-ui';
-import { DatabaseInfo } from '@deepkit/orm-browser-api';
-import { empty } from '@deepkit/core';
+import { ButtonComponent, ButtonGroupComponent, DuiDialog, TabButtonComponent, unsubscribe } from '@7b/ui';
+import { DatabaseInfo } from '@7b/ui';
+import { empty } from '@7b/runtime';
 import { BrowserState } from '../browser-state';
 import { ControllerClient } from '../client';
 import { ActivatedRoute } from '@angular/router';

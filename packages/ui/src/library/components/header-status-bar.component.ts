@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
-import { DropdownComponent, DropdownItemComponent, DuiApp, IconComponent, OpenDropdownDirective } from '@deepkit/desktop-ui';
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { DropdownComponent, DropdownItemComponent, DuiApp, IconComponent, OpenDropdownDirective } from '@7b/ui';
+import { RpcWebSocketClient } from '@7b/io/rpc';
 import { AsyncPipe } from '@angular/common';
 
 @Component({

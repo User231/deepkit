@@ -10,15 +10,15 @@
 
 import { ConnectionRequest, MongoConnection, MongoConnectionPool, MongoDatabaseTransaction, MongoStats } from './connection.js';
 import { isErrorRetryableRead, isErrorRetryableWrite, MongoError } from './error.js';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@7b/runtime';
 import { Command } from './command/command.js';
 import { DropDatabaseCommand } from './command/dropDatabase.js';
 import { MongoClientConfig } from './config.js';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@7b/reflection';
 import { mongoBinarySerializer } from '../mongo-serializer.js';
-import { BSONBinarySerializer } from '@deepkit/bson';
-import { EventDispatcher } from '@deepkit/event';
-import { ConsoleLogger, Logger } from '@deepkit/logger';
+import { BSONBinarySerializer } from '@7b/codec';
+import { EventDispatcher } from '@7b/core';
+import { ConsoleLogger, Logger } from '@7b/core';
 
 export class MongoClient {
     protected inCloseProcedure: boolean = false;

@@ -8,9 +8,9 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { arrayRemoveItem } from '@deepkit/core';
+import { arrayRemoveItem } from '@7b/runtime';
 import { cyrb53 } from '../hash.js';
-import { genericEqual, ReflectionClass, ReflectionProperty } from '@deepkit/type';
+import { genericEqual, ReflectionClass, ReflectionProperty } from '@7b/reflection';
 
 export class DatabaseModel {
     public schemaName: string = '';

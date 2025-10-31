@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType, EmitterEvent, empty, EventEmitter, formatError } from '@deepkit/core';
+import { ClassType, EmitterEvent, empty, EventEmitter, formatError } from '@7b/runtime';
 import {
     assertType,
     Changes,
@@ -22,14 +22,14 @@ import {
     ReflectionKind,
     ReflectionProperty,
     resolveForeignReflectionClass,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { DatabaseAdapter } from './database-adapter.js';
 import { DatabaseSession } from './database-session.js';
 import { DatabaseErrorEvent, onDatabaseError, QueryDatabaseDeleteEvent, QueryDatabaseEvent, QueryDatabasePatchEvent } from './event.js';
 import { DeleteResult, OrmEntity, PatchResult } from './type.js';
 import { FieldName, FlattenIfArray, Replace, Resolve } from './utils.js';
-import { FrameCategory } from '@deepkit/stopwatch';
-import { EventToken } from '@deepkit/event';
+import { FrameCategory } from '@7b/core';
+import { EventToken } from '@7b/core';
 
 export type SORT_ORDER = 'asc' | 'desc' | any;
 export type Sort<T extends OrmEntity, ORDER extends SORT_ORDER = SORT_ORDER> = { [P in keyof T & string]?: ORDER };

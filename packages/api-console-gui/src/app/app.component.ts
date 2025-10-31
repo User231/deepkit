@@ -1,7 +1,7 @@
 import { Component, ElementRef } from '@angular/core';
-import { DuiApp, DuiStyleComponent, WindowComponent, WindowContentComponent, WindowHeaderComponent, WindowToolbarComponent, WindowToolbarContainerComponent } from '@deepkit/desktop-ui';
+import { DuiApp, DuiStyleComponent, WindowComponent, WindowContentComponent, WindowHeaderComponent, WindowToolbarComponent, WindowToolbarContainerComponent } from '@7b/ui';
 import { ControllerClient } from './client';
-import { HeaderLogoComponent, HeaderStatusBarComponent } from '@deepkit/ui-library';
+import { HeaderLogoComponent, HeaderStatusBarComponent } from '@7b/ui';
 import { RouterLink, RouterOutlet } from '@angular/router';
 
 @Component({

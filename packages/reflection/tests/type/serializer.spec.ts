@@ -34,7 +34,7 @@ import {
 } from '../src/reflection/type.js';
 import { createSerializeFunction, getSerializeFunction, NamingStrategy, Serializer, serializer, underscoreNamingStrategy } from '../src/serializer.js';
 import { cast, deserialize, patch, serialize } from '../src/serializer-facade.js';
-import { getClassName, TypeAnnotation } from '@deepkit/core';
+import { getClassName, TypeAnnotation } from '@7b/runtime';
 import { entity, t } from '../src/decorator.js';
 import { Alphanumeric, MaxLength, MinLength, ValidationError } from '../src/validator.js';
 import { StatEnginePowerUnit, StatWeightUnit } from './types.js';

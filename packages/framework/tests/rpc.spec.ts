@@ -1,9 +1,9 @@
 import { expect, test } from '@jest/globals';
-import { ControllerSymbol, rpc, RpcKernelConnection, RpcKernelSecurity, Session, SessionState } from '@deepkit/rpc';
+import { ControllerSymbol, rpc, RpcKernelConnection, RpcKernelSecurity, Session, SessionState } from '@7b/io/rpc';
 import { createTestingApp } from '../src/testing.js';
-import { AppModule } from '@deepkit/app';
-import { InjectorContext } from '@deepkit/injector';
-import { http, HttpQuery, HttpRequest } from '@deepkit/http';
+import { AppModule } from '@7b/core';
+import { InjectorContext } from '@7b/core';
+import { http, HttpQuery, HttpRequest } from '@7b/io/http';
 
 test('di', async () => {
     class MyService {

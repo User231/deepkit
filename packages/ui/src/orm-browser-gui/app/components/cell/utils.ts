@@ -1,4 +1,4 @@
-import { isArray, isObject } from '@deepkit/core';
+import { isArray, isObject } from '@7b/runtime';
 
 export function objToString(obj: { [s: string]: any } | ArrayLike<any>): string {
     const strings: string[] = [];

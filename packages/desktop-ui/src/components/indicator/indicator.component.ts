@@ -9,7 +9,7 @@
  */
 
 import { ChangeDetectorRef, Component, OnChanges, OnDestroy, input } from '@angular/core';
-import { ProgressTracker } from '@deepkit/core-rxjs';
+import { ProgressTracker } from '@7b/io';
 import { Subscription } from 'rxjs';
 import { DecimalPipe } from '@angular/common';
 import { DialogActionsComponent } from '../dialog/dialog.component';

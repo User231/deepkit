@@ -38,7 +38,7 @@ import {
 } from '../src/reflection/type.js';
 import { isExtendable } from '../src/reflection/extends.js';
 import { expectEqualType } from './utils.js';
-import { ClassType, TypeAnnotation } from '@deepkit/core';
+import { ClassType, TypeAnnotation } from '@7b/runtime';
 import { Partial } from '../src/changes.js';
 import { MaxLength, MinLength } from '../src/validator.js';
 

@@ -1,4 +1,4 @@
-import { entity, PrimaryKey, Reference } from '@deepkit/type';
+import { entity, PrimaryKey, Reference } from '@7b/reflection';
 import { User } from './user.js';
 
 @entity.name('user-credentials')

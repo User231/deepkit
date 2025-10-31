@@ -1,5 +1,5 @@
-import { ClassType } from '@deepkit/core';
-import { TypeRegistry } from '@deepkit/type';
+import { ClassType } from '@7b/runtime';
+import { TypeRegistry } from '@7b/reflection';
 import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })

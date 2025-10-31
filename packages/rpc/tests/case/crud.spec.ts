@@ -1,4 +1,4 @@
-import { entity } from '@deepkit/type';
+import { entity } from '@7b/reflection';
 import { expect, test } from '@jest/globals';
 import { DirectClient } from '../../src/client/client-direct.js';
 import { rpc } from '../../src/decorators.js';

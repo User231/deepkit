@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { EmbeddedOptions, getEmbeddedProperty, NamingStrategy, ReflectionKind, Serializer, Type, TypeClass, TypeProperty } from '@deepkit/type';
+import { EmbeddedOptions, getEmbeddedProperty, NamingStrategy, ReflectionKind, Serializer, Type, TypeClass, TypeProperty } from '@7b/reflection';
 
 export const TWO_PWR_32_DBL_N = (1 << 16) * (1 << 16);
 

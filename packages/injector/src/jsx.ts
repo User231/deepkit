@@ -1,5 +1,5 @@
-import { ClassType, isArray, isFunction } from '@deepkit/core';
-import { reflect, ReflectionKind } from '@deepkit/type';
+import { ClassType, isArray, isFunction } from '@7b/runtime';
+import { reflect, ReflectionKind } from '@7b/reflection';
 import { InjectorContext, Resolver } from './injector.js';
 import { ProviderWithScope } from './provider.js';
 import { InjectorModule } from './module.js';

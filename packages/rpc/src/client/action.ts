@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, ClassType, toFastProperties } from '@deepkit/core';
+import { asyncOperation, ClassType, toFastProperties } from '@7b/runtime';
 import { BehaviorSubject, Observable, Subject, Subscriber } from 'rxjs';
 import { skip } from 'rxjs/operators';
 import { Collection, CollectionQueryModelInterface, CollectionState } from '../collection.js';
@@ -31,10 +31,10 @@ import {
 import { rpcDecodeError, RpcMessage } from '../protocol.js';
 import type { WritableClient } from './client.js';
 import { EntityState, EntitySubjectStore } from './entity-state.js';
-import { assertType, deserializeType, ReflectionKind, Type, TypeObjectLiteral, typeOf } from '@deepkit/type';
+import { assertType, deserializeType, ReflectionKind, Type, TypeObjectLiteral, typeOf } from '@7b/reflection';
 import { RpcMessageSubject } from './message-subject.js';
 import { ClientProgress, Progress } from '../progress.js';
-import { ProgressTracker, ProgressTrackerState } from '@deepkit/core-rxjs';
+import { ProgressTracker, ProgressTrackerState } from '@7b/io';
 
 type ControllerStateActionTypes = {
     mode: ActionMode;

@@ -2,7 +2,7 @@
 import { expect, test } from '@jest/globals';
 import { pack } from '../src/reflection/processor.js';
 import { copyAndSetParent, ParentLessType, ReflectionKind, ReflectionVisibility, TypeObjectLiteral, TypePropertySignature, TypeUnion } from '../src/reflection/type.js';
-import { MappedModifier, ReflectionOp } from '@deepkit/type-spec';
+import { MappedModifier, ReflectionOp } from '@7b/reflection';
 import { isExtendable } from '../src/reflection/extends.js';
 import { assertValidParent, expectEqualType, expectType } from './utils.js';
 

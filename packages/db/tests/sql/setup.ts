@@ -1,7 +1,7 @@
-import { Database } from '@deepkit/orm';
-import { ClassType } from '@deepkit/core';
+import { Database } from '@7b/db';
+import { ClassType } from '@7b/runtime';
 import { SQLDatabaseAdapter } from '../src/sql-adapter.js';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@7b/reflection';
 
 export async function createSetup(adapter: SQLDatabaseAdapter, schemas: (ReflectionClass<any> | ClassType)[]) {
     const database = new Database(adapter);

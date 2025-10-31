@@ -3,8 +3,8 @@ import { ControllerClient } from '../../client';
 import { Application, Container, Rectangle, Text } from 'pixi.js';
 import { ChangeFeed, formatTime, FrameItem, FrameParser, ViewState } from './frame';
 import { FrameContainer } from './frame-container';
-import { FrameCategory } from '@deepkit/stopwatch';
-import { DragDirective, DuiDragEvent, InputComponent, OptionDirective, SelectBoxComponent } from '@deepkit/desktop-ui';
+import { FrameCategory } from '@7b/core';
+import { DragDirective, DuiDragEvent, InputComponent, OptionDirective, SelectBoxComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 
 class TimelineFrameContainer extends FrameContainer {

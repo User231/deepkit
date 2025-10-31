@@ -4,7 +4,7 @@ import { RpcClient } from '../src/client/client.js';
 import { TransportClientConnection } from '../src/transport.js';
 import { rpc } from '../src/decorators';
 import { DirectClient } from '../src/client/client-direct';
-import { sleep } from '@deepkit/core';
+import { sleep } from '@7b/runtime';
 
 test('connect', async () => {
     const kernel = new RpcKernel();

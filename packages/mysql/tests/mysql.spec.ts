@@ -1,10 +1,10 @@
 import { expect, test } from '@jest/globals';
 import { createPool } from 'mariadb';
 import { MySQLConnectionPool } from '../src/mysql-adapter.js';
-import { AutoIncrement, cast, entity, PrimaryKey, Unique } from '@deepkit/type';
+import { AutoIncrement, cast, entity, PrimaryKey, Unique } from '@7b/reflection';
 import { databaseFactory } from './factory.js';
-import { UniqueConstraintFailure } from '@deepkit/orm';
-import { Logger } from '@deepkit/logger';
+import { UniqueConstraintFailure } from '@7b/db';
+import { Logger } from '@7b/core';
 
 test('connection MySQLConnectionPool', async () => {
     const pool = createPool({

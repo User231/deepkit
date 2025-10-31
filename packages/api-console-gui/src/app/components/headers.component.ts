@@ -1,6 +1,6 @@
 import { Component, model } from '@angular/core';
-import { arrayRemoveItem } from '@deepkit/core';
-import { ButtonComponent, ButtonGroupComponent, IconComponent, InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@deepkit/desktop-ui';
+import { arrayRemoveItem } from '@7b/runtime';
+import { ButtonComponent, ButtonGroupComponent, IconComponent, InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 
 interface Entry {

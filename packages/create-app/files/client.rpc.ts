@@ -1,4 +1,4 @@
-import { RpcWebSocketClient } from '@deepkit/rpc';
+import { RpcWebSocketClient } from '@7b/io/rpc';
 
 //`import type` is important, since we do not want to import server code in the runtime.
 import type { HelloWorldControllerRpc } from './src/controller/hello-world.rpc';

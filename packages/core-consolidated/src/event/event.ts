@@ -8,9 +8,9 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, ClassType, CustomError, isClass, isFunction, isObject } from '@deepkit/core';
-import { injectedFunction, InjectorContext, InjectorModule } from '@deepkit/injector';
-import { ClassDecoratorResult, createClassDecoratorContext, createPropertyDecoratorContext, PropertyDecoratorResult } from '@deepkit/type';
+import { asyncOperation, ClassType, CustomError, isClass, isFunction, isObject } from '@7b/runtime';
+import { injectedFunction, InjectorContext, InjectorModule } from '@7b/core';
+import { ClassDecoratorResult, createClassDecoratorContext, createPropertyDecoratorContext, PropertyDecoratorResult } from '@7b/reflection';
 
 export type EventListenerCallbackAsync<E> = (event: E, ...args: any[]) => Promise<void> | void;
 export type EventListenerCallbackSync<E> = (event: E, ...args: any[]) => undefined | void;

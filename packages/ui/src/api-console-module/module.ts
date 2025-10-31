@@ -1,11 +1,11 @@
-import { createModuleClass, findParentPath } from '@deepkit/app';
-import { HttpRouteFilter, normalizeDirectory, registerStaticHttpController } from '@deepkit/http';
-import { ApiConsoleApi } from '@deepkit/api-console-api';
+import { createModuleClass, findParentPath } from '@7b/core';
+import { HttpRouteFilter, normalizeDirectory, registerStaticHttpController } from '@7b/io/http';
+import { ApiConsoleApi } from '@7b/ui';
 import { Config } from './module.config.js';
-import { rpc } from '@deepkit/rpc';
+import { rpc } from '@7b/io/rpc';
 import { ApiConsoleController } from './controller.js';
 import { dirname } from 'path';
-import { getCurrentFileName } from '@deepkit/core';
+import { getCurrentFileName } from '@7b/runtime';
 
 export class ApiConsoleModule extends createModuleClass({
     name: 'apiConsole',

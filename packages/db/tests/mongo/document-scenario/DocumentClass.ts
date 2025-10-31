@@ -1,7 +1,7 @@
 import {PageCollection} from './PageCollection.js';
 import {PageClass} from './PageClass.js';
-import {t, ParentReference} from '@deepkit/type';
-import {Forward} from '@deepkit/core';
+import {t, ParentReference} from '@7b/reflection';
+import {Forward} from '@7b/runtime';
 
 export class DocumentClass {
     @t.primary.mongoId

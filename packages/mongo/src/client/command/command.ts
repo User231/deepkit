@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, getClassName } from '@deepkit/core';
+import { asyncOperation, getClassName } from '@7b/runtime';
 import { handleErrorResponse, MongoDatabaseError, MongoError } from '../error.js';
 import type { MongoClientConfig } from '../config.js';
 import type { Host } from '../host.js';
@@ -25,8 +25,8 @@ import {
     UnpopulatedCheck,
     UUID,
     ValidationError,
-} from '@deepkit/type';
-import { BSONDeserializer, deserializeBSONWithoutOptimiser, getBSONDeserializer } from '@deepkit/bson';
+} from '@7b/reflection';
+import { BSONDeserializer, deserializeBSONWithoutOptimiser, getBSONDeserializer } from '@7b/codec';
 import { mongoBinarySerializer } from '../../mongo-serializer.js';
 import { CommandOptions, ConnectionOptions } from '../options.js';
 

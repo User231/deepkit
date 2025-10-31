@@ -1,8 +1,8 @@
 import { Component, computed, EventEmitter, input, model, Output } from '@angular/core';
-import { ReflectionKind, Type } from '@deepkit/type';
+import { ReflectionKind, Type } from '@7b/reflection';
 import { DataStructure } from '../../store';
 import { TypeDecoration } from '../../utils';
-import { InputComponent } from '@deepkit/desktop-ui';
+import { InputComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 
 @Component({

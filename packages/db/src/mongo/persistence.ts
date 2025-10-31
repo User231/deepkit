@@ -18,7 +18,7 @@ import {
     getClassState,
     getInstanceState,
     OrmEntity,
-} from '@deepkit/orm';
+} from '@7b/db';
 import { convertClassQueryToMongo } from './mapping.js';
 import { FilterQuery } from './query.model.js';
 import { MongoClient } from './client/client.js';
@@ -26,11 +26,11 @@ import { InsertCommand } from './client/command/insert.js';
 import { UpdateCommand } from './client/command/update.js';
 import { DeleteCommand } from './client/command/delete.js';
 import { FindAndModifyCommand } from './client/command/findAndModify.js';
-import { empty, formatError } from '@deepkit/core';
+import { empty, formatError } from '@7b/runtime';
 import { FindCommand } from './client/command/find.js';
 import { MongoConnection } from './client/connection.js';
-import { getPartialSerializeFunction, ReflectionClass } from '@deepkit/type';
-import { ObjectId } from '@deepkit/bson';
+import { getPartialSerializeFunction, ReflectionClass } from '@7b/reflection';
+import { ObjectId } from '@7b/codec';
 import { mongoSerializer } from './mongo-serializer.js';
 import { handleSpecificError } from './error.js';
 import { CommandOptions } from './client/options.js';

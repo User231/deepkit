@@ -1,15 +1,15 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ControllerClient } from '../client';
-import { ApiDocument, ApiRoute } from '@deepkit/api-console-api';
+import { ApiDocument, ApiRoute } from '@7b/ui';
 import { filterAndSortRoutes } from './view-helper';
 import { headerStatusCodes, typeToTSJSONInterface } from '../utils';
-import { Subscriptions } from '@deepkit/core-rxjs';
-import { typeSettings } from '@deepkit/type';
+import { Subscriptions } from '@7b/io';
+import { typeSettings } from '@7b/reflection';
 import { AsyncPipe } from '@angular/common';
 import { MarkdownComponent } from 'ngx-markdown';
-import { ButtonComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent } from '@7b/ui';
 import { RouterLink } from '@angular/router';
-import { CodeHighlightComponent } from '@deepkit/ui-library';
+import { CodeHighlightComponent } from '@7b/ui';
 
 @Component({
     templateUrl: './overview.component.html',

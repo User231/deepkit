@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Output } from '@angular/core';
-import { empty, size } from '@deepkit/core';
-import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog } from '@deepkit/desktop-ui';
-import { Changes } from '@deepkit/type';
+import { empty, size } from '@7b/runtime';
+import { ButtonComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, DuiDialog } from '@7b/ui';
+import { Changes } from '@7b/reflection';
 import { BrowserState } from '../browser-state';
 import { ControllerClient } from '../client';
 import { JsonPipe, KeyValuePipe } from '@angular/common';

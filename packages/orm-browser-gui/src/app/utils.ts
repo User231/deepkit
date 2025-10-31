@@ -1,5 +1,5 @@
-import { getTypeJitContainer, isNullable, isOptional, ReflectionClass, ReflectionKind, stringifyType, Type, TypeProperty, TypePropertySignature } from '@deepkit/type';
-import { DatabaseInfo } from '@deepkit/orm-browser-api';
+import { getTypeJitContainer, isNullable, isOptional, ReflectionClass, ReflectionKind, stringifyType, Type, TypeProperty, TypePropertySignature } from '@7b/reflection';
+import { DatabaseInfo } from '@7b/ui';
 
 export function trackByDatabase(index: number, database: DatabaseInfo) {
     return database.name;

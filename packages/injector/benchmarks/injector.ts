@@ -1,4 +1,4 @@
-import { benchmark, run } from '@deepkit/bench';
+import { benchmark, run } from '@7b/runtime';
 import { InjectorModule } from '../src/module.js';
 import { InjectorContext } from '../src/injector.js';
 

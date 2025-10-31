@@ -4,7 +4,7 @@ import { provideMarkdown } from 'ngx-markdown';
 import { AppComponent } from './app/app.component';
 import { routes } from './app/routes';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRpcWebSocketClient } from '@deepkit/rpc';
+import { provideRpcWebSocketClient } from '@7b/io/rpc';
 import { provideApiConsoleRegistry } from './app/provider';
 
 bootstrapApplication(AppComponent, {

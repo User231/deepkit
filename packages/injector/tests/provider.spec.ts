@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { assertType, findMember, ReceiveType, ReflectionKind, resolveReceiveType, TypeClass, TypeObjectLiteral, typeOf } from '@deepkit/type';
+import { assertType, findMember, ReceiveType, ReflectionKind, resolveReceiveType, TypeClass, TypeObjectLiteral, typeOf } from '@7b/reflection';
 import { nominalCompatibility } from '../src/types.js';
 
 /**

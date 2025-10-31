@@ -1,4 +1,4 @@
-import { cli, Command } from '@deepkit/app';
+import { cli, Command } from '@7b/core';
 import { BrokerServer } from '../broker/broker.js';
 
 /**

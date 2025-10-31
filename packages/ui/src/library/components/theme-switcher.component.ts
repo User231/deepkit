@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { DropdownComponent, DropdownItemComponent, DuiApp, IconComponent, OpenDropdownDirective } from '@deepkit/desktop-ui';
+import { DropdownComponent, DropdownItemComponent, DuiApp, IconComponent, OpenDropdownDirective } from '@7b/ui';
 
 
 @Component({

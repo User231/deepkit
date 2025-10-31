@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { CompilerContext, empty, toFastProperties } from '@deepkit/core';
+import { CompilerContext, empty, toFastProperties } from '@7b/runtime';
 import { Changes, changeSetSymbol, ItemChanges } from './changes.js';
 import { getConverterForSnapshot } from './snapshot.js';
 import { ReflectionClass } from './reflection/reflection.js';

@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
-import { Database, DatabaseRegistry } from '@deepkit/orm';
+import { ClassType } from '@7b/runtime';
+import { Database, DatabaseRegistry } from '@7b/db';
 import glob from 'fast-glob';
 import { basename, join } from 'path';
 import { Migration } from './migration.js';

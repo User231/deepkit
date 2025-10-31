@@ -1,4 +1,4 @@
-import { cast, entity, ReflectionClass } from '@deepkit/type';
+import { cast, entity, ReflectionClass } from '@7b/reflection';
 import { expect, test } from '@jest/globals';
 import { EntitySubject, rpcEntityPatch, RpcTypes } from '../src/model.js';
 import { DirectClient } from '../src/client/client-direct.js';

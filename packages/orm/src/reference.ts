@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
-import { createReference, getPrimaryKeyHashGenerator, ReflectionClass } from '@deepkit/type';
+import { ClassType } from '@7b/runtime';
+import { createReference, getPrimaryKeyHashGenerator, ReflectionClass } from '@7b/reflection';
 import { IdentityMap } from './identity-map.js';
 
 export function getReference<T>(

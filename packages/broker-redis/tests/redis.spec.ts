@@ -1,7 +1,7 @@
 import { describe } from '@jest/globals';
 import { setAdapterFactory } from '@deepkit/broker/test';
 import { RedisBrokerAdapter } from '../src/broker-redis.js';
-import { ConsoleLogger } from '@deepkit/logger';
+import { ConsoleLogger } from '@7b/core';
 
 setAdapterFactory(() => {
     return new RedisBrokerAdapter({}, new ConsoleLogger());

@@ -1,4 +1,4 @@
-import { BrokerBus, BrokerDeepkitAdapter } from '@deepkit/broker';
+import { BrokerBus, BrokerDeepkitAdapter } from '@7b/io/broker';
 import { FrameworkConfig } from '../module.config.js';
 import { getBrokerServers } from '../broker.js';
 

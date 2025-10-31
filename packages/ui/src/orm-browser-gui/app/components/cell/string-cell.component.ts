@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { Type } from '@deepkit/type';
+import { Type } from '@7b/reflection';
 
 @Component({ template: `{{ model }}` })
 export class StringCellComponent {

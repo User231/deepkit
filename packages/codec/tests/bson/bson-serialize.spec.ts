@@ -24,7 +24,7 @@ import {
     typeOf,
     uuid,
     UUID,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import bson from 'bson';
 import { randomBytes } from 'crypto';
 import { BSON_BINARY_SUBTYPE_DEFAULT, BSONType } from '../src/utils.js';

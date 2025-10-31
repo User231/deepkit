@@ -17,8 +17,8 @@ import {
     isPlainObject,
     isPrototypeOfBase,
     toFastProperties,
-} from '@deepkit/core';
-import { isBehaviorSubject, isSubject, ProgressTracker, ProgressTrackerState } from '@deepkit/core-rxjs';
+} from '@7b/runtime';
+import { isBehaviorSubject, isSubject, ProgressTracker, ProgressTrackerState } from '@7b/io';
 import {
     assertType,
     getValidatorFunction,
@@ -33,7 +33,7 @@ import {
     TypeTuple,
     ValidationError,
     ValidationErrorItem,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { isObservable, Observable, Subject, Subscription } from 'rxjs';
 import { Collection, CollectionEvent, CollectionQueryModel, CollectionQueryModelInterface, CollectionState } from '../collection.js';
 import { getActions } from '../decorators.js';
@@ -59,10 +59,10 @@ import {
 import { createBodyDecoder, rpcEncodeError, RpcMessage } from '../protocol.js';
 import { RpcCache, RpcCacheAction, RpcKernelBaseConnection, RpcMessageBuilder } from './kernel.js';
 import { RpcControllerAccess, RpcKernelSecurity, SessionState } from './security.js';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
-import { LoggerInterface } from '@deepkit/logger';
+import { InjectorContext, InjectorModule } from '@7b/core';
+import { LoggerInterface } from '@7b/core';
 import { onRpcAction, onRpcControllerAccess, RpcActionTimings, RpcControllerAccessEventStart } from '../events.js';
-import { DataEvent, EventDispatcher } from '@deepkit/event';
+import { DataEvent, EventDispatcher } from '@7b/core';
 
 export type ActionTypes = {
     strictSerialization: boolean;

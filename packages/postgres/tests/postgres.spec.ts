@@ -1,11 +1,11 @@
 import { expect, test } from '@jest/globals';
 import pg from 'pg';
-import { assertInstanceOf } from '@deepkit/core';
-import { DatabaseError, DatabaseInsertError, UniqueConstraintFailure } from '@deepkit/orm';
-import { AutoIncrement, cast, DatabaseField, entity, PrimaryKey, Unique, UUID, uuid } from '@deepkit/type';
+import { assertInstanceOf } from '@7b/runtime';
+import { DatabaseError, DatabaseInsertError, UniqueConstraintFailure } from '@7b/db';
+import { AutoIncrement, cast, DatabaseField, entity, PrimaryKey, Unique, UUID, uuid } from '@7b/reflection';
 
 import { databaseFactory } from './factory.js';
-import { ConsoleLogger } from '@deepkit/logger';
+import { ConsoleLogger } from '@7b/core';
 
 
 test('count', async () => {

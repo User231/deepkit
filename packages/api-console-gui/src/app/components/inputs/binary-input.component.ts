@@ -1,6 +1,6 @@
 import { Component, EventEmitter, input, model, OnChanges, OnInit, Output } from '@angular/core';
-import { TypeClass } from '@deepkit/type';
-import { ButtonComponent, FilePickerDirective, FilePickerItem } from '@deepkit/desktop-ui';
+import { TypeClass } from '@7b/reflection';
+import { ButtonComponent, FilePickerDirective, FilePickerItem } from '@7b/ui';
 import { DataStructure } from '../../store';
 import { TypeDecoration } from '../../utils.js';
 

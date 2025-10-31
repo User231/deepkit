@@ -1,7 +1,7 @@
-import { ApiAction, ApiRoute } from '@deepkit/api-console-api';
-import { RemoteController, RpcClient, RpcClientEventIncomingMessage, RpcClientEventOutgoingMessage } from '@deepkit/rpc';
+import { ApiAction, ApiRoute } from '@7b/ui';
+import { RemoteController, RpcClient, RpcClientEventIncomingMessage, RpcClientEventOutgoingMessage } from '@7b/io/rpc';
 import { Observable, Subject, Subscription } from 'rxjs';
-import { deserialize, Excluded, isBackReferenceType, isMapType, isOptional, isReferenceType, isSetType, ReflectionClass, ReflectionKind, serialize, Type, TypeParameter } from '@deepkit/type';
+import { deserialize, Excluded, isBackReferenceType, isMapType, isOptional, isReferenceType, isSetType, ReflectionClass, ReflectionKind, serialize, Type, TypeParameter } from '@7b/reflection';
 import { Injectable, signal, WritableSignal } from '@angular/core';
 
 export class DataStructure {

@@ -1,5 +1,5 @@
 import { getTypeJitContainer, ReflectionKind, Type } from './reflection/type.js';
-import { CompilerContext, toFastProperties } from '@deepkit/core';
+import { CompilerContext, toFastProperties } from '@7b/runtime';
 import { ReceiveType, resolveReceiveType } from './reflection/reflection.js';
 import { getIndexCheck, JitStack } from './serializer.js';
 

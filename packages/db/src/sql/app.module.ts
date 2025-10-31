@@ -1,7 +1,7 @@
-import { AppModule } from '@deepkit/app';
-import { ConsoleTransport, Logger } from '@deepkit/logger';
-import { InjectorContext } from '@deepkit/injector';
-import { DatabaseRegistry } from '@deepkit/orm';
+import { AppModule } from '@7b/core';
+import { ConsoleTransport, Logger } from '@7b/core';
+import { InjectorContext } from '@7b/core';
+import { DatabaseRegistry } from '@7b/db';
 import { MigrationCreateController } from './cli/migration-create-command.js';
 import { MigrationDownCommand } from './cli/migration-down-command.js';
 import { MigrationUpCommand } from './cli/migration-up-command.js';

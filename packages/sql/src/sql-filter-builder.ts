@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { isArray, isPlainObject } from '@deepkit/core';
+import { isArray, isPlainObject } from '@7b/runtime';
 import {
     isBackReferenceType,
     isReferenceType,
@@ -17,7 +17,7 @@ import {
     resolvePath,
     Serializer,
     Type,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { SqlPlaceholderStrategy } from './platform/default-platform.js';
 import { getPreparedEntity, PreparedAdapter, PreparedEntity } from './prepare.js';
 import { SqlReference } from './sql-builder.js';

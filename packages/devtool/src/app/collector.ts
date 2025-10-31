@@ -1,8 +1,8 @@
 import { signal, WritableSignal } from '@angular/core';
 import { Subject } from 'rxjs';
-import { ActionObservableTypes, readBinaryRpcMessage, RpcMessage, RpcTypes } from '@deepkit/rpc';
-import { deserializeType, stringifyType } from '@deepkit/type';
-import { bufferConcat } from '@deepkit/core';
+import { ActionObservableTypes, readBinaryRpcMessage, RpcMessage, RpcTypes } from '@7b/io/rpc';
+import { deserializeType, stringifyType } from '@7b/reflection';
+import { bufferConcat } from '@7b/runtime';
 
 declare const chrome: any;
 

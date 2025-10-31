@@ -1,10 +1,10 @@
-import { App } from '@deepkit/app';
+import { App } from '@7b/core';
 import { expect, test } from '@jest/globals';
 import { ApiConsoleModule } from '../src/module.js';
-import { HttpKernel, HttpModule, HttpRequest } from '@deepkit/http';
+import { HttpKernel, HttpModule, HttpRequest } from '@7b/io/http';
 import { ApiEntryPoints } from '@deepkit/api-console-gui/src/api';
-import { reflect, ReflectionKind, TypeObjectLiteral } from '@deepkit/type';
-import { serializeBSON } from '@deepkit/bson';
+import { reflect, ReflectionKind, TypeObjectLiteral } from '@7b/reflection';
+import { serializeBSON } from '@7b/codec';
 
 test('type api', () => {
     const type = reflect(ApiEntryPoints);

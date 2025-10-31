@@ -1,6 +1,6 @@
 import { Component, OnDestroy } from '@angular/core';
-import { ModuleApi } from '@deepkit/framework-debug-api';
-import { LiveSubject } from '@deepkit/ui-library';
+import { ModuleApi } from '@7b/ui';
+import { LiveSubject } from '@7b/ui';
 import { ControllerClient } from '../../client';
 import { Subscription } from 'rxjs';
 import { AsyncPipe } from '@angular/common';

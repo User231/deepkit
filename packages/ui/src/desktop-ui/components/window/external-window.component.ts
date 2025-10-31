@@ -36,7 +36,7 @@ import { Subscription } from 'rxjs';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { DuiDialog } from '../dialog/dialog';
 import { BrowserWindow, Electron } from '../../core/utils';
-import { nextTick } from '@deepkit/core';
+import { nextTick } from '@7b/runtime';
 
 function PopupCenter(url: string, title: string, w: number, h: number): Window {
     let top = window.screenTop + (window.outerHeight / 2) - w / 2;

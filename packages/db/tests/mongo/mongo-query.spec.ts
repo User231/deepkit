@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
 import { convertClassQueryToMongo, convertPlainQueryToMongo } from '../index.js';
-import { Embedded, PrimaryKey, Reference } from '@deepkit/type';
+import { Embedded, PrimaryKey, Reference } from '@7b/reflection';
 
 class SimpleConfig {
     items: string[] = [];

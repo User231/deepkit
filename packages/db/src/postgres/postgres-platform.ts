@@ -23,7 +23,7 @@ import {
     typeResolvesToInteger,
     typeResolvesToNumber,
     typeResolvesToString,
-} from '@deepkit/sql';
+} from '@7b/db';
 import { postgresSerializer } from './postgres-serializer.js';
 import {
     isReferenceType,
@@ -34,10 +34,10 @@ import {
     Serializer,
     Type,
     TypeNumberBrand,
-} from '@deepkit/type';
+} from '@7b/reflection';
 import { PostgresSchemaParser } from './postgres-schema-parser.js';
 import { PostgreSQLFilterBuilder } from './sql-filter-builder.js';
-import { isArray, isObject } from '@deepkit/core';
+import { isArray, isObject } from '@7b/runtime';
 import sqlstring from 'sqlstring';
 
 function escapeLiteral(value: any): string {

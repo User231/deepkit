@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output } from '@angular/core';
-import { ButtonComponent, FilePickerDirective, FilePickerItem } from '@deepkit/desktop-ui';
-import { isArray } from '@deepkit/core';
-import { ReflectionKind, Type } from '@deepkit/type';
+import { ButtonComponent, FilePickerDirective, FilePickerItem } from '@7b/ui';
+import { isArray } from '@7b/runtime';
+import { ReflectionKind, Type } from '@7b/reflection';
 
 @Component({
     template: `

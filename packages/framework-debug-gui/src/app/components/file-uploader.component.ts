@@ -1,10 +1,10 @@
-import { EventDispatcher } from '@deepkit/event';
+import { EventDispatcher } from '@7b/core';
 import { fileQueuedEvent, FileToUpload, fileUploadedEvent, State } from '../state';
 import { ChangeDetectorRef, Component } from '@angular/core';
 import { ControllerClient } from '../client';
-import { ClientProgress } from '@deepkit/rpc';
+import { ClientProgress } from '@7b/io/rpc';
 import { AsyncPipe } from '@angular/common';
-import { ButtonComponent, IndicatorComponent } from '@deepkit/desktop-ui';
+import { ButtonComponent, IndicatorComponent } from '@7b/ui';
 
 @Component({
     selector: 'app-file-uploader',

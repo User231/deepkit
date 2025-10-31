@@ -9,9 +9,9 @@
  */
 
 import { BaseResponse, CollationMessage, Command, HintMessage, ReadPreferenceMessage, TransactionalMessage } from './command.js';
-import { toFastProperties } from '@deepkit/core';
+import { toFastProperties } from '@7b/runtime';
 import { DEEP_SORT } from '../../query.model.js';
-import { InlineRuntimeType, ReflectionClass, ReflectionKind, typeOf, TypeUnion } from '@deepkit/type';
+import { InlineRuntimeType, ReflectionClass, ReflectionKind, typeOf, TypeUnion } from '@7b/reflection';
 import { MongoError } from '../error.js';
 import { GetMoreMessage } from './getMore.js';
 import type { MongoClientConfig } from '../config.js';

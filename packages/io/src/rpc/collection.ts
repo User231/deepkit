@@ -13,8 +13,8 @@
  * This collection "lives" in the sense that its items are automatically
  * updated, added and removed. When such a change happens, an event is triggered* you can listen on.
  */
-import { ClassType, getClassName, isArray } from '@deepkit/core';
-import { tearDown } from '@deepkit/core-rxjs';
+import { ClassType, getClassName, isArray } from '@7b/runtime';
+import { tearDown } from '@7b/io';
 import { ReplaySubject, Subject, TeardownLogic } from 'rxjs';
 import { EntitySubject, IdInterface, RpcError } from './model.js';
 

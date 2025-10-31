@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { Minimum, MinLength } from '@deepkit/type';
-import { provide } from '@deepkit/injector';
+import { Minimum, MinLength } from '@7b/reflection';
+import { provide } from '@7b/core';
 import { ServiceContainer } from '../src/service-container.js';
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@7b/runtime';
 import { AppModule, createModuleClass } from '../src/module.js';
 import { App } from '../src/app.js';
 

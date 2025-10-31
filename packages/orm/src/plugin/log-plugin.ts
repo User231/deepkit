@@ -8,11 +8,11 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@7b/runtime';
 import { DatabaseSession } from '../database-session.js';
 import { Database } from '../database.js';
 import { Query } from '../query.js';
-import { AutoIncrement, entity, InlineRuntimeType, PrimaryKey, PrimaryKeyFields, ReflectionClass, ResetAnnotation } from '@deepkit/type';
+import { AutoIncrement, entity, InlineRuntimeType, PrimaryKey, PrimaryKeyFields, ReflectionClass, ResetAnnotation } from '@7b/reflection';
 import { DatabasePlugin } from './plugin.js';
 import { OrmEntity } from '../type.js';
 

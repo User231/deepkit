@@ -1,7 +1,7 @@
 import { Component, EventEmitter, input, Output } from '@angular/core';
-import { getSerializeFunction, ReflectionKind, serializer, Type } from '@deepkit/type';
+import { getSerializeFunction, ReflectionKind, serializer, Type } from '@7b/reflection';
 import { DataStructure } from '../../store';
-import { InputComponent } from '@deepkit/desktop-ui';
+import { InputComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 import { TypeDecoration } from '../../utils.js';
 

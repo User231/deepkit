@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { DatabaseAdapter, DatabaseDeleteError, DatabasePatchError, DatabaseSession, DeleteResult, Formatter, GenericQueryResolver, OrmEntity, PatchResult, QueryExplainOp } from '@deepkit/orm';
-import { Changes, getPartialSerializeFunction, getPatchSerializeFunction, PrimaryKeyFields, ReflectionClass, ReflectionKind, ReflectionVisibility, resolveForeignReflectionClass, serializer, typeOf } from '@deepkit/type';
+import { DatabaseAdapter, DatabaseDeleteError, DatabasePatchError, DatabaseSession, DeleteResult, Formatter, GenericQueryResolver, OrmEntity, PatchResult, QueryExplainOp } from '@7b/db';
+import { Changes, getPartialSerializeFunction, getPatchSerializeFunction, PrimaryKeyFields, ReflectionClass, ReflectionKind, ReflectionVisibility, resolveForeignReflectionClass, serializer, typeOf } from '@7b/reflection';
 import { MongoClient } from './client/client.js';
 import { AggregateCommand } from './client/command/aggregate.js';
 import { CountCommand } from './client/command/count.js';
@@ -21,7 +21,7 @@ import { convertClassQueryToMongo } from './mapping.js';
 import { DEEP_SORT, FilterQuery, MongoQueryModel } from './query.model.js';
 import { MongoConnection } from './client/connection.js';
 import { MongoDatabaseAdapter, MongoExplainVerbosity } from './adapter.js';
-import { empty, formatError } from '@deepkit/core';
+import { empty, formatError } from '@7b/runtime';
 import { mongoSerializer } from './mongo-serializer.js';
 import { handleSpecificError } from './error.js';
 import { ExplainCommand, MongoExplain } from './client/command/explain.js';

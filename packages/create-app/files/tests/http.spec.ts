@@ -1,8 +1,8 @@
 import { expect, test } from '@jest/globals';
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp } from '@7b/core';
 import { Service } from '../src/app/service';
 import { HelloWorldControllerHttp } from '../src/controller/hello-world.http';
-import { HttpRequest } from '@deepkit/http';
+import { HttpRequest } from '@7b/io/http';
 
 test('http controller', async () => {
     const testing = createTestingApp({

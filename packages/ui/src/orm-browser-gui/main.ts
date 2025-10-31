@@ -2,7 +2,7 @@ import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, withHashLocation } from '@angular/router';
 import { AppComponent } from './app/app.component';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRpcWebSocketClient } from '@deepkit/rpc';
+import { provideRpcWebSocketClient } from '@7b/io/rpc';
 import { routes } from './app/routes';
 import { provideOrmBrowserRegistry } from './app/provider';
 

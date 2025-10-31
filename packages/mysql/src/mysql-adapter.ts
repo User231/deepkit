@@ -26,7 +26,7 @@ import {
     SQLQueryModel,
     SQLQueryResolver,
     SQLStatement,
-} from '@deepkit/sql';
+} from '@7b/db';
 import {
     DatabaseDeleteError,
     DatabasePatchError,
@@ -40,13 +40,13 @@ import {
     PatchResult,
     primaryKeyObjectConverter,
     UniqueConstraintFailure,
-} from '@deepkit/orm';
+} from '@7b/db';
 import { MySQLPlatform } from './mysql-platform.js';
-import { Changes, getPatchSerializeFunction, getSerializeFunction, ReceiveType, ReflectionClass, resolvePath } from '@deepkit/type';
-import { AbstractClassType, asyncOperation, ClassType, empty, isArray } from '@deepkit/core';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
+import { Changes, getPatchSerializeFunction, getSerializeFunction, ReceiveType, ReflectionClass, resolvePath } from '@7b/reflection';
+import { AbstractClassType, asyncOperation, ClassType, empty, isArray } from '@7b/runtime';
+import { FrameCategory, Stopwatch } from '@7b/core';
 import { parseConnectionString } from './config.js';
-import { Logger } from '@deepkit/logger';
+import { Logger } from '@7b/core';
 
 /**
  * Converts a specific database error to a more specific error, if possible.

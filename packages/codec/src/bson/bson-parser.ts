@@ -10,7 +10,7 @@
 
 import { BSON_BINARY_SUBTYPE_BYTE_ARRAY, BSON_BINARY_SUBTYPE_UUID, BSONType, digitByteSize, TWO_PWR_32_DBL_N } from './utils.js';
 import { decodeUTF8 } from './strings.js';
-import { nodeBufferToArrayBuffer, ReflectionKind, SerializationError, Type } from '@deepkit/type';
+import { nodeBufferToArrayBuffer, ReflectionKind, SerializationError, Type } from '@7b/reflection';
 import { hexTable } from './model.js';
 
 export function readUint32LE(buffer: Uint8Array, offset: number): number {

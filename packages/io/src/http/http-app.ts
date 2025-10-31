@@ -1,4 +1,4 @@
-import { App, RootModuleDefinition } from '@deepkit/app';
+import { App, RootModuleDefinition } from '@7b/core';
 import { HttpRouterRegistry } from './router.js';
 
 /**

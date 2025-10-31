@@ -1,4 +1,4 @@
-import { ClassType, isArray, isFunction } from '@deepkit/core';
+import { ClassType, isArray, isFunction } from '@7b/runtime';
 import { binaryTypes, ReflectionKind, Type } from './reflection/type.js';
 
 interface RegistryDecorator<T> {

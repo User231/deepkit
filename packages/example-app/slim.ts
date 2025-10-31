@@ -1,5 +1,5 @@
-import { App } from '@deepkit/app';
-import { http, HttpKernel, HttpModule, HttpRequest, HttpResponse } from '@deepkit/http';
+import { App } from '@7b/core';
+import { http, HttpKernel, HttpModule, HttpRequest, HttpResponse } from '@7b/io/http';
 import { Server } from 'http';
 
 class MyService {

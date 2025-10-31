@@ -1,5 +1,5 @@
-import { Server } from '@deepkit/broker';
-import { RpcTcpClientAdapter } from '@deepkit/rpc-tcp';
+import { Server } from '@7b/io/broker';
+import { RpcTcpClientAdapter } from '@7b/io/rpc';
 import { BrokerConfig } from './module.config.js';
 
 export function getBrokerServers(config: BrokerConfig): Server[] {

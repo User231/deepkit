@@ -8,8 +8,8 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ReflectionClass, ReflectionKind, ReflectionProperty } from '@deepkit/type';
-import { ClassType, isArray, isPlainObject } from '@deepkit/core';
+import { ReflectionClass, ReflectionKind, ReflectionProperty } from '@7b/reflection';
+import { ClassType, isArray, isPlainObject } from '@7b/runtime';
 import { FilterQuery } from './query.js';
 
 export type Converter = (convertClass: ReflectionClass<any>, path: string, value: any) => any;

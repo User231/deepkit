@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, EventEmitter, Input, Output } from '@angular/core';
-import { defaultValue, isAutoIncrementType, Type } from '@deepkit/type';
-import { IconComponent } from '@deepkit/desktop-ui';
+import { defaultValue, isAutoIncrementType, Type } from '@7b/reflection';
+import { IconComponent } from '@7b/ui';
 import { isRequired } from '../utils';
 import { CellComponent } from './cell/cell.component';
 import { InputEditingComponent } from './edit/input.component';

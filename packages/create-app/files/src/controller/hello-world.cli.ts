@@ -1,6 +1,6 @@
-import { MaxLength } from '@deepkit/type';
-import { cli } from '@deepkit/app';
-import { Logger } from '@deepkit/logger';
+import { MaxLength } from '@7b/reflection';
+import { cli } from '@7b/core';
+import { Logger } from '@7b/core';
 import { Service } from '../app/service';
 
 @cli.controller('hello')

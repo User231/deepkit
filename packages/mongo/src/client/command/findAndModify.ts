@@ -9,7 +9,7 @@
  */
 
 import { BaseResponse, CollationMessage, Command, HintMessage, TransactionalMessage, WriteConcernMessage } from './command.js';
-import { ReflectionClass } from '@deepkit/type';
+import { ReflectionClass } from '@7b/reflection';
 import type { MongoClientConfig } from '../config.js';
 import type { Host } from '../host.js';
 import type { MongoDatabaseTransaction } from '../connection.js';

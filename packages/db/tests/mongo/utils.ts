@@ -1,5 +1,5 @@
 import { afterEach } from '@jest/globals';
-import { Database } from '@deepkit/orm';
+import { Database } from '@7b/db';
 import { MongoDatabaseAdapter } from '../src/adapter.js';
 import { performance } from 'perf_hooks';
 

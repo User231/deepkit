@@ -12,8 +12,8 @@ import { IncomingMessage, OutgoingHttpHeader, OutgoingHttpHeaders, ServerRespons
 import { UploadedFile } from './router.js';
 import * as querystring from 'querystring';
 import { Writable } from 'stream';
-import { ReflectionKind, Type, typeAnnotation, ValidationErrorItem } from '@deepkit/type';
-import { asyncOperation, isArray, TypeAnnotation } from '@deepkit/core';
+import { ReflectionKind, Type, typeAnnotation, ValidationErrorItem } from '@7b/reflection';
+import { asyncOperation, isArray, TypeAnnotation } from '@7b/runtime';
 
 export class HttpResponse extends ServerResponse {
     status(code: number) {

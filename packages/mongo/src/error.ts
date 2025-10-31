@@ -1,4 +1,4 @@
-import { DatabaseError, DatabaseSession, UniqueConstraintFailure } from '@deepkit/orm';
+import { DatabaseError, DatabaseSession, UniqueConstraintFailure } from '@7b/db';
 
 /**
  * Converts a specific database error to a more specific error, if possible.

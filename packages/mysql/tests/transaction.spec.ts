@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { AutoIncrement, entity, PrimaryKey } from '@deepkit/type';
+import { AutoIncrement, entity, PrimaryKey } from '@7b/reflection';
 import { databaseFactory } from './factory.js';
 
 test('transaction', async () => {

@@ -1,7 +1,7 @@
-import { EfficientState } from '@deepkit/desktop-ui';
-import { EventToken } from '@deepkit/event';
-import { Progress } from '@deepkit/rpc';
-import { Excluded } from '@deepkit/type';
+import { EfficientState } from '@7b/ui';
+import { EventToken } from '@7b/core';
+import { Progress } from '@7b/io/rpc';
+import { Excluded } from '@7b/reflection';
 
 export const fileQueuedEvent = new EventToken('file.queued');
 export const fileAddedEvent = new EventToken('file.added');

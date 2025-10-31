@@ -8,17 +8,17 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { indent } from '@deepkit/core';
+import { indent } from '@7b/runtime';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
-import { cli, Command, Flag } from '@deepkit/app';
-import { LoggerInterface } from '@deepkit/logger';
+import { cli, Command, Flag } from '@7b/core';
+import { LoggerInterface } from '@7b/core';
 import { MigrationStateEntity, SQLDatabaseAdapter } from '../sql-adapter.js';
 import { DatabaseComparator, DatabaseModel } from '../schema/table.js';
 import { MigrationProvider } from '../migration/migration-provider.js';
 import { BaseCommand } from './base-command.js';
-import { ReflectionClass } from '@deepkit/type';
-import { MigrateOptions } from '@deepkit/orm';
+import { ReflectionClass } from '@7b/reflection';
+import { MigrateOptions } from '@7b/db';
 
 function serializeSQLLine(sql: string): string {
     return '`' + sql.replace(/`/g, '\\`') + '`';
@@ -117,7 +117,7 @@ export class MigrationCreateController extends BaseCommand implements Command {
             const migrationFile = join(this.provider.getMigrationDir(), migrationName + '.ts');
 
             const code = `
-import {Migration} from '@deepkit/sql';
+import {Migration} from '@7b/db';
 
 /**
  * Schema migration created automatically. You should commit this into your Git repository.

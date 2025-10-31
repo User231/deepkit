@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { ClassType } from '@deepkit/core';
+import { ClassType } from '@7b/runtime';
 import { expect, test } from '@jest/globals';
 import { entity, t } from '../src/decorator.js';
 import { propertiesOf, reflect, ReflectionClass, ReflectionFunction, ReflectionMethod, typeOf, valuesOf } from '../src/reflection/reflection.js';
@@ -50,7 +50,7 @@ import {
     TypeTuple,
     Unique,
 } from '../src/reflection/type.js';
-import { TypeNumberBrand } from '@deepkit/type-spec';
+import { TypeNumberBrand } from '@7b/reflection';
 import { validate, ValidatorError } from '../src/validator.js';
 import { expectEqualType } from './utils.js';
 import { MyAlias } from './types.js';

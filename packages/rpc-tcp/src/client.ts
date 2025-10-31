@@ -1,5 +1,5 @@
-import { parseHost } from '@deepkit/core';
-import { ClientTransportAdapter, TransportClientConnection } from '@deepkit/rpc';
+import { parseHost } from '@7b/runtime';
+import { ClientTransportAdapter, TransportClientConnection } from '@7b/io/rpc';
 import { connect } from 'net';
 
 /*

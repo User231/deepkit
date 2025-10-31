@@ -1,7 +1,7 @@
 import { isClassProvider, isExistingProvider, isFactoryProvider, isValueProvider, NormalizedProvider, ProviderWithScope, Tag, TagProvider, TagRegistry, Token } from './provider.js';
-import { AbstractClassType, ClassType, CompilerContext, CustomError, getClassName, getPathValue, isArray, isClass, isFunction, isPrototypeOfBase } from '@deepkit/core';
+import { AbstractClassType, ClassType, CompilerContext, CustomError, getClassName, getPathValue, isArray, isClass, isFunction, isPrototypeOfBase } from '@7b/runtime';
 import { ConfigurationProviderRegistry, ConfigureProviderEntry, findModuleForConfig, getScope, InjectorModule, PreparedProvider } from './module.js';
-import { isOptional, isWithAnnotations, Packed, ReceiveType, reflect, ReflectionClass, ReflectionFunction, ReflectionKind, resolveReceiveType, stringifyType, Type, typeAnnotation } from '@deepkit/type';
+import { isOptional, isWithAnnotations, Packed, ReceiveType, reflect, ReflectionClass, ReflectionFunction, ReflectionKind, resolveReceiveType, stringifyType, Type, typeAnnotation } from '@7b/reflection';
 
 export class InjectorError extends CustomError {
 

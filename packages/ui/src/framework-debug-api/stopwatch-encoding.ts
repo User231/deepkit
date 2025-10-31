@@ -6,9 +6,9 @@ import {
     getBSONSizer,
     stringByteLength,
     Writer,
-} from '@deepkit/bson';
-import { AnalyticData, FrameData, FrameEnd, FrameStart, FrameType, getTypeOfCategory } from '@deepkit/stopwatch';
-import { createBuffer } from '@deepkit/core';
+} from '@7b/codec';
+import { AnalyticData, FrameData, FrameEnd, FrameStart, FrameType, getTypeOfCategory } from '@7b/core';
+import { createBuffer } from '@7b/runtime';
 
 export function encodeFrames(frames: (FrameStart | FrameEnd)[]): Uint8Array {
     //cid = id and worker, as compound key

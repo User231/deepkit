@@ -1,6 +1,6 @@
 import {PageCollection} from "./PageCollection.js";
 import {DocumentClass} from "./DocumentClass.js";
-import {Entity, t, ParentReference, uuid} from '@deepkit/type';
+import {Entity, t, ParentReference, uuid} from '@7b/reflection';
 
 @Entity('PageClass')
 export class PageClass {

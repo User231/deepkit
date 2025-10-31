@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, EventEmitter, input, model, OnChanges, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
-import { OptionDirective, SelectBoxComponent, unsubscribe } from '@deepkit/desktop-ui';
-import { TypeEnum } from '@deepkit/type';
+import { OptionDirective, SelectBoxComponent, unsubscribe } from '@7b/ui';
+import { TypeEnum } from '@7b/reflection';
 import { Subscription } from 'rxjs';
 import { DataStructure } from '../../store';
 import { FormsModule } from '@angular/forms';

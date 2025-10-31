@@ -1,5 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { entity, MongoId, PrimaryKey, ReflectionClass } from '@deepkit/type';
+import { entity, MongoId, PrimaryKey, ReflectionClass } from '@7b/reflection';
 import { createDatabase } from './utils';
 import { AggregateCommand } from '../src/client/command/aggregate';
 

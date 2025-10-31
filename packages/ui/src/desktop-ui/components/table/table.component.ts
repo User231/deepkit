@@ -34,7 +34,7 @@ import {
     viewChild,
     viewChildren,
 } from '@angular/core';
-import { arrayHasItem, arrayRemoveItem, empty, first, getPathValue, indexOf, nextTick } from '@deepkit/core';
+import { arrayHasItem, arrayRemoveItem, empty, first, getPathValue, indexOf, nextTick } from '@7b/runtime';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { ContextDropdownDirective, DropdownComponent, DropdownComponent as DropdownComponent_1, DropdownContainerDirective, DropdownItemComponent, DropdownSplitterComponent } from '../button/dropdown.component';
 import { injectElementRef, registerEventListener, RegisterEventListenerRemove } from '../app/utils';

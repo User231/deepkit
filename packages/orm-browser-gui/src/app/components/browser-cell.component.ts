@@ -1,11 +1,11 @@
 import { Component, Input } from '@angular/core';
-import { Changes, isAutoIncrementType, TypeProperty, TypePropertySignature } from '@deepkit/type';
+import { Changes, isAutoIncrementType, TypeProperty, TypePropertySignature } from '@7b/reflection';
 import { BrowserEntityState, BrowserState, ValidationErrors } from '../browser-state';
-import { getInstanceStateFromItem } from '@deepkit/orm';
+import { getInstanceStateFromItem } from '@7b/db';
 import { isRequired } from '../utils';
 import { InputEditingComponent } from './edit/input.component';
 import { CellComponent } from './cell/cell.component';
-import { IconComponent } from '@deepkit/desktop-ui';
+import { IconComponent } from '@7b/ui';
 
 @Component({
     selector: 'orm-browser-cell',

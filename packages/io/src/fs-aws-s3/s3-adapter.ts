@@ -1,5 +1,5 @@
-import { FilesystemAdapter, FilesystemError, FilesystemFile, FileVisibility, Reporter } from '@deepkit/filesystem';
-import { pathDirectory, pathNormalize } from '@deepkit/core';
+import { FilesystemAdapter, FilesystemError, FilesystemFile, FileVisibility, Reporter } from '@7b/io/fs';
+import { pathDirectory, pathNormalize } from '@7b/runtime';
 import {
     CopyObjectCommand,
     DeleteObjectsCommand,

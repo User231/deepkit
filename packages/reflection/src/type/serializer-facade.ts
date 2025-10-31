@@ -1,4 +1,4 @@
-import { getClassTypeFromInstance } from '@deepkit/core';
+import { getClassTypeFromInstance } from '@7b/runtime';
 import { ReceiveType, resolveReceiveType } from './reflection/reflection.js';
 import {
     getPartialSerializeFunction,

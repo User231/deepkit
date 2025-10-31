@@ -8,17 +8,17 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { asyncOperation, ClassType, CustomError, getClassName, getClassTypeFromInstance, isArray, isClassInstance, isObject } from '@deepkit/core';
+import { asyncOperation, ClassType, CustomError, getClassName, getClassTypeFromInstance, isArray, isClassInstance, isObject } from '@7b/runtime';
 import { OutgoingHttpHeaders, ServerResponse } from 'http';
-import { BaseEvent, eventDispatcher } from '@deepkit/event';
+import { BaseEvent, eventDispatcher } from '@7b/core';
 import { HttpRequest, HttpRequestPositionedParameters, HttpResponse } from './model.js';
-import { Injector, InjectorContext, Setter } from '@deepkit/injector';
-import { LoggerInterface } from '@deepkit/logger';
+import { Injector, InjectorContext, Setter } from '@7b/core';
+import { LoggerInterface } from '@7b/core';
 import { HttpRouter, RouteConfig, RouteParameterResolverForInjector } from './router.js';
-import { createWorkflow, WorkflowEvent } from '@deepkit/workflow';
-import type { ElementStruct, render } from '@deepkit/template';
-import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
-import { getSerializeFunction, hasTypeInformation, ReflectionKind, resolveReceiveType, SerializationError, serialize, serializer, Type, typeSettings, UnpopulatedCheck, ValidationError } from '@deepkit/type';
+import { createWorkflow, WorkflowEvent } from '@7b/core';
+import type { ElementStruct, render } from '@7b/core';
+import { FrameCategory, Stopwatch } from '@7b/core';
+import { getSerializeFunction, hasTypeInformation, ReflectionKind, resolveReceiveType, SerializationError, serialize, serializer, Type, typeSettings, UnpopulatedCheck, ValidationError } from '@7b/reflection';
 import stream from 'stream';
 
 export function isElementStruct(v: any): v is ElementStruct {
@@ -29,7 +29,7 @@ let templateRender: typeof render;
 
 function getTemplateRender(): typeof render {
     if (!templateRender) {
-        const template = require('@deepkit/template');
+        const template = require('@7b/core');
         templateRender = template.render;
     }
 

@@ -1,7 +1,7 @@
-import { benchmark, run } from '@deepkit/bench';
+import { benchmark, run } from '@7b/runtime';
 import { InjectorContext } from '../src/injector.js';
 import { InjectorModule } from '../src/module.js';
-import { ClassType, CompilerContext, getClassName } from '@deepkit/core';
+import { ClassType, CompilerContext, getClassName } from '@7b/runtime';
 
 class ServiceA {
 }

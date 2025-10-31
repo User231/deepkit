@@ -36,4 +36,4 @@ export * from './src/reflection/type.js';
 export * from './src/reflection/extends.js';
 export * from './src/reflection/reflection.js';
 
-export { TypeNumberBrand } from '@deepkit/type-spec';
+export { TypeNumberBrand } from '@7b/reflection';
