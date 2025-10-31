@@ -9,9 +9,115 @@
  */
 
 import { indent } from '@7b/runtime';
-import { Command, Flag, LoggerInterface, cli } from '@7b/core';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { cli, Command, Flag } from '@7b/core';
+import { LoggerInterface } from '@7b/core';
+import { MigrationStateEntity, SQLDatabaseAdapter } from '../sql-adapter.js';
+import { DatabaseComparator, DatabaseModel } from '../schema/table.js';
+import { MigrationProvider } from '../migration/migration-provider.js';
+import { BaseCommand } from './base-command.js';
 import { ReflectionClass } from '@7b/reflection';
-import { MigrateOptions, Migration } from '@7b/db';
+import { MigrateOptions } from '@7b/db';
+
+function serializeSQLLine(sql: string): string {
+    return '`' + sql.replace(/`/g, '\\`') + '`';
+}
+
+/**
+ * @description Generates a new migration file based on a database diff.
+ */
+@cli.controller('migration:create')
+export class MigrationCreateController extends BaseCommand implements Command {
+    constructor(
+        protected logger: LoggerInterface,
+        protected provider: MigrationProvider,
+    ) {
+        super();
+    }
+
+    async execute(
+        /**
+         * @description Limit the migration to a specific database.
+         */
+        database?: string & Flag,
+        /**
+         * @description Do drop any table that is not available anymore as entity. CAUTION: this might wipe your whole database.
+         */
+        drop: boolean & Flag = false,
+        /**
+         * @description Create an empty migration file.
+         */
+        empty: boolean & Flag = false,
+    ): Promise<void> {
+        if (this.migrationDir) this.provider.setMigrationDir(this.migrationDir);
+
+        if (!this.provider.databases.getDatabases().length) {
+            this.logger.error('No databases detected. Use --path path/to/database.ts');
+        }
+
+        const options = new MigrateOptions();
+        options.drop = drop;
+
+        for (const db of this.provider.databases.getDatabases()) {
+            if (database && db.name !== database) continue;
+            if (db.name === 'debug') continue;
+            if (!(db.adapter instanceof SQLDatabaseAdapter)) continue;
+
+            let upSql: string[] = [];
+            let downSql: string[] = [];
+
+            if (!empty) {
+                const databaseModel = new DatabaseModel([], db.adapter.getName());
+                databaseModel.schemaName = db.adapter.getSchemaName();
+                db.adapter.platform.createTables(db.entityRegistry, databaseModel);
+
+                const connection = await db.adapter.connectionPool.getConnection();
+                const schemaParser = new db.adapter.platform.schemaParserType(connection, db.adapter.platform);
+
+                const parsedDatabaseModel = new DatabaseModel([], db.adapter.getName());
+                parsedDatabaseModel.schemaName = db.adapter.getSchemaName();
+                await schemaParser.parse(parsedDatabaseModel);
+                parsedDatabaseModel.removeUnknownTables(databaseModel);
+                parsedDatabaseModel.removeTable(ReflectionClass.from(MigrationStateEntity).getCollectionName());
+
+                connection.release();
+                db.disconnect();
+
+                const databaseDiff = DatabaseComparator.computeDiff(parsedDatabaseModel, databaseModel);
+                if (!databaseDiff) {
+                    this.logger.error(db.name, `No database differences for ${db.name} found.`);
+                    continue;
+                }
+
+                if (databaseDiff) {
+                    upSql = db.adapter.platform.getModifyDatabaseDDL(databaseDiff, options);
+                    if (!empty && !upSql.length) {
+                        this.logger.error(db.name, `No generated sql for ${db.name} found.`);
+                        continue;
+                    }
+
+                    const reverseDatabaseDiff = DatabaseComparator.computeDiff(databaseModel, parsedDatabaseModel);
+                    downSql = reverseDatabaseDiff ? db.adapter.platform.getModifyDatabaseDDL(reverseDatabaseDiff, options) : [];
+                }
+            }
+
+            let migrationName = '';
+            const date = new Date;
+
+            const { format } = require('date-fns');
+            for (let i = 1; i < 100; i++) {
+                migrationName = format(date, 'yyyyMMdd-HHmm');
+                if (i > 1) migrationName += '_' + i;
+
+                if (!existsSync(join(this.provider.getMigrationDir(), migrationName + '.ts'))) {
+                    break;
+                }
+            }
+            const migrationFile = join(this.provider.getMigrationDir(), migrationName + '.ts');
+
+            const code = `
+import {Migration} from '@deepkit/sql';
 
 /**
  * Schema migration created automatically. You should commit this into your Git repository.
