@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "references": [
+    { "path": "../runtime" },
+    { "path": "../reflection" },
+    { "path": "../codec" },
+    { "path": "../core-consolidated" }
+  ],
+  "include": [
+    "src/**/*",
+    "index.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "tests"
+  ]
+}

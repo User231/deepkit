@@ -25,10 +25,7 @@
   },
   "workspaces": [
     "website",
-    "packages/*",
-    "!packages/fs",
-    "!packages/orm-browser-example",
-    "!packages/framework-examples"
+    "packages/*"
   ],
   "devDependencies": {
     "@commitlint/config-conventional": "^18.4.3",
@@ -64,36 +61,13 @@
       "src/**/*.ts"
     ],
     "projects": [
-      "packages/angular-ssr",
-      "packages/core",
-      "packages/core-rxjs",
-      "packages/ui-library",
-      "packages/type",
-      "packages/type-compiler",
-      "packages/app",
-      "packages/event",
-      "packages/workflow",
-      "packages/stopwatch",
-      "packages/orm",
-      "packages/bson",
-      "packages/http",
-      "packages/template",
-      "packages/injector",
-      "packages/mongo",
-      "packages/filesystem",
-      "packages/filesystem-aws-s3",
-      "packages/filesystem-ftp",
-      "packages/filesystem-sftp",
-      "packages/filesystem-google",
-      "packages/sql",
-      "packages/mysql",
-      "packages/postgres",
-      "packages/sqlite",
-      "packages/framework-integration",
-      "packages/framework",
-      "packages/rpc",
-      "packages/broker",
-      "packages/topsort"
+      "packages/runtime",
+      "packages/reflection",
+      "packages/codec",
+      "packages/core-consolidated",
+      "packages/io",
+      "packages/db",
+      "packages/ui"
     ]
   },
   "packageManager": "yarn@4.9.2"
