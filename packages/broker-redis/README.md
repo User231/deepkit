@@ -1,1 +1,0 @@
-# Deepkit FTP Storage adapter
