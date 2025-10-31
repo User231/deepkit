@@ -1,12 +1,4 @@
-import { App, AppModule } from '@7b/core';
-import { expect, test } from '@jest/globals';
-import { HttpModule } from '../src/module.js';
-import { HttpKernel } from '../src/kernel.js';
-import { HttpRequest } from '../src/model.js';
-import { http } from '../src/decorator.js';
-import { HttpUnauthorizedError, httpWorkflow } from '../src/http.js';
-import { HttpRouterRegistry, RouteConfig } from '../src/router.js';
-import { provide } from '@7b/core';
+import { App, AppModule, provide } from '@7b/core';
 
 test('module basic functionality', async () => {
     class Controller {

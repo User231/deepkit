@@ -9,34 +9,7 @@
  */
 
 import { ClassType, getClassName, TypeAnnotation } from '@7b/runtime';
-import {
-    ClassDecoratorResult,
-    createClassDecoratorContext,
-    deserialize,
-    hasDefaultValue,
-    isCustomTypeClass,
-    isDateType,
-    isOptional,
-    isReferenceType,
-    reflect,
-    ReflectionClass,
-    ReflectionFunction,
-    ReflectionKind,
-    stringifyType,
-    Type,
-    typeAnnotation,
-    TypeParameter,
-    TypeProperty,
-    TypePropertySignature,
-    validate,
-    ValidationError,
-} from '@7b/reflection';
-import { EventDispatcher } from '@7b/core';
-import { getInjectOptions, InjectorContext, InjectorModule, ServiceNotFoundError } from '@7b/core';
-import { ControllerConfig } from './service-container.js';
-import { LoggerInterface } from '@7b/core';
-import { onAppError, onAppExecute, onAppExecuted, onAppShutdown } from './app.js';
-import { FrameCategory, Stopwatch } from '@7b/core';
+import { EventDispatcher, FrameCategory, InjectorContext, InjectorModule, LoggerInterface, ServiceNotFoundError, Stopwatch, getInjectOptions } from '@7b/core';
 
 /**
  * Flag is a command line argument that is prefixed with `--` and can have a value.

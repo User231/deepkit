@@ -9,11 +9,9 @@
  */
 
 import { onServerMainBootstrap } from '../application-server.js';
-import { eventDispatcher } from '@7b/core';
-import { LoggerInterface } from '@7b/core';
+import { LoggerInterface, eventDispatcher, onAppShutdown } from '@7b/core';
 import { DatabaseRegistry } from '@7b/db';
 import { getClassName } from '@7b/runtime';
-import { onAppShutdown } from '@7b/core';
 
 export class DatabaseListener {
     constructor(

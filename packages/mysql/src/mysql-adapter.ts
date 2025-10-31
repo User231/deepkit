@@ -44,9 +44,7 @@ import {
 import { MySQLPlatform } from './mysql-platform.js';
 import { Changes, getPatchSerializeFunction, getSerializeFunction, ReceiveType, ReflectionClass, resolvePath } from '@7b/reflection';
 import { AbstractClassType, asyncOperation, ClassType, empty, isArray } from '@7b/runtime';
-import { FrameCategory, Stopwatch } from '@7b/core';
-import { parseConnectionString } from './config.js';
-import { Logger } from '@7b/core';
+import { FrameCategory, Logger, Stopwatch } from '@7b/core';
 
 /**
  * Converts a specific database error to a more specific error, if possible.

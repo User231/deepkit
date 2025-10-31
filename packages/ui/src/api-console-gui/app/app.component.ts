@@ -1,7 +1,5 @@
 import { Component, ElementRef } from '@angular/core';
-import { DuiApp, DuiStyleComponent, WindowComponent, WindowContentComponent, WindowHeaderComponent, WindowToolbarComponent, WindowToolbarContainerComponent } from '@7b/ui';
-import { ControllerClient } from './client';
-import { HeaderLogoComponent, HeaderStatusBarComponent } from '@7b/ui';
+import { DuiApp, DuiStyleComponent, HeaderLogoComponent, HeaderStatusBarComponent, WindowComponent, WindowContentComponent, WindowHeaderComponent, WindowToolbarComponent, WindowToolbarContainerComponent } from '@7b/ui';
 import { RouterLink, RouterOutlet } from '@angular/router';
 
 @Component({

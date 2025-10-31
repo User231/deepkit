@@ -9,8 +9,7 @@
  */
 
 import { AfterViewInit, ChangeDetectorRef, Component, ContentChildren, Input, OnChanges, QueryList, SimpleChanges, TemplateRef, ViewChild } from '@angular/core';
-import { BrowserText } from '@7b/ui';
-import { Workflow } from '@7b/ui';
+import { BrowserText, Workflow } from '@7b/ui';
 import { graphlib, layout, Node } from 'dagre';
 import { NgTemplateOutlet } from '@angular/common';
 

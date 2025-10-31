@@ -1,11 +1,7 @@
 import { arrayRemoveItem, ClassType, sleep } from '@7b/runtime';
-import { ApplicationServer, FrameworkModule } from '@7b/core';
-import { App, AppModule } from '@7b/core';
-import { Observable } from 'rxjs';
-import { createServer } from 'http';
+import { App, AppModule, ApplicationServer, FrameworkModule } from '@7b/core';
 import { DeepkitClient, RemoteController } from '@7b/io/rpc';
 import { Database } from '@7b/db';
-import { performance } from 'perf_hooks';
 import { SQLiteDatabaseAdapter } from '@7b/db/sqlite';
 
 export async function subscribeAndWait<T>(observable: Observable<T>, callback: (next: T) => Promise<void>, timeout: number = 5): Promise<void> {

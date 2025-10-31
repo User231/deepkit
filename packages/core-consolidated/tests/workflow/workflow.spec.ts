@@ -1,8 +1,6 @@
 import { expect, test } from '@jest/globals';
 import { createWorkflow, WorkflowEvent } from '../src/workflow.js';
-import { eventDispatcher, EventDispatcher, EventToken } from '@7b/core';
-import { InjectorContext, InjectorModule } from '@7b/core';
-import { Stopwatch } from '@7b/core';
+import { EventDispatcher, EventToken, InjectorContext, InjectorModule, Stopwatch, eventDispatcher } from '@7b/core';
 
 class EndEvent extends WorkflowEvent {
     test: string = 'hi';

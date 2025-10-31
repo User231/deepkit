@@ -8,12 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { cli, Command, Flag } from '@7b/core';
-import { FrameworkConfig } from '../module.config.js';
-import { LoggerInterface } from '@7b/core';
-import { FrameCategory, Stopwatch, StopwatchStore } from '@7b/core';
-import { join } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import { Command, Flag, FrameCategory, LoggerInterface, Stopwatch, StopwatchStore, cli } from '@7b/core';
 import { decodeFrames } from '@7b/ui';
 import { sleep } from '@7b/runtime';
 import { FileStopwatchStore } from '../debug/stopwatch/store.js';

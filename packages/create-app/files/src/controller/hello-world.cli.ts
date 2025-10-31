@@ -1,6 +1,5 @@
 import { MaxLength } from '@7b/reflection';
-import { cli } from '@7b/core';
-import { Logger } from '@7b/core';
+import { Logger, cli } from '@7b/core';
 import { Service } from '../app/service';
 
 @cli.controller('hello')

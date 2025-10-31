@@ -18,10 +18,7 @@ $ curl http://localhost:8080
 */
 
 import { http, HttpAction, httpWorkflow, JSONResponse, RouteParameterResolverContext } from '@7b/io/http';
-import { eventDispatcher } from '@7b/core';
-import { Logger } from '@7b/core';
-import { App } from '@7b/core';
-import { FrameworkModule } from '@7b/core';
+import { App, FrameworkModule, Logger, eventDispatcher } from '@7b/core';
 
 class User {
     constructor(

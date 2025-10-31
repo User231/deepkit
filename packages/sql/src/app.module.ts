@@ -1,6 +1,4 @@
-import { AppModule } from '@7b/core';
-import { ConsoleTransport, Logger } from '@7b/core';
-import { InjectorContext } from '@7b/core';
+import { AppModule, ConsoleTransport, InjectorContext, Logger } from '@7b/core';
 import { DatabaseRegistry } from '@7b/db';
 import { MigrationCreateController } from './cli/migration-create-command.js';
 import { MigrationDownCommand } from './cli/migration-down-command.js';

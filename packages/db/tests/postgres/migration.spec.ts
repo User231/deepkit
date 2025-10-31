@@ -1,25 +1,5 @@
 import { expect, test } from '@jest/globals';
-import { schemaMigrationRoundTrip } from '@7b/db';
-import {
-    AutoIncrement,
-    Entity,
-    float32,
-    int16,
-    int32,
-    int8,
-    integer,
-    Postgres,
-    PrimaryKey,
-    Reference,
-    ReflectionClass,
-    typeOf,
-    uint16,
-    uint32,
-    uint8,
-    Unique
-} from '@7b/reflection';
-import { PostgresDatabaseAdapter } from '../src/postgres-adapter.js';
-import { DatabaseEntityRegistry } from '@7b/db';
+import { DatabaseEntityRegistry, schemaMigrationRoundTrip } from '@7b/db';
 
 test('custom type', async () => {
     class post {

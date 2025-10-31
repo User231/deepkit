@@ -2,34 +2,9 @@ import { ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, I
 import { ControllerClient } from '../../client';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EventDispatcher } from '@7b/core';
-import { fileAddedEvent, fileQueuedEvent, fileUploadedEvent, State } from '../../state';
-import {
-    ButtonComponent,
-    ButtonGroupComponent,
-    ButtonGroupsComponent,
-    ContextDropdownDirective,
-    DropdownComponent,
-    DropdownItemComponent,
-    DropdownSplitterComponent,
-    DuiDialog,
-    FileDropDirective,
-    FilePickerDirective,
-    FilePickerItem,
-    HumanFileSizePipe,
-    IconComponent,
-    IndicatorComponent,
-    InputComponent,
-    ObjectURLPipe,
-    OpenDropdownDirective,
-    TableCellDirective,
-    TableColumnDirective,
-    TableComponent,
-} from '@7b/ui';
 import { ClientProgress, Progress } from '@7b/io/rpc';
 import { asyncOperation } from '@7b/runtime';
-import { MediaFile } from '@7b/ui';
-import { Lifecycle, trackByIndex } from '../../utils';
-import { LoadingSpinnerComponent } from '@7b/ui';
+import { LoadingSpinnerComponent, MediaFile } from '@7b/ui';
 import { AsyncPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 

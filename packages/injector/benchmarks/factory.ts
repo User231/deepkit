@@ -1,7 +1,4 @@
-import { benchmark, run } from '@7b/runtime';
-import { InjectorContext } from '../src/injector.js';
-import { InjectorModule } from '../src/module.js';
-import { ClassType, CompilerContext, getClassName } from '@7b/runtime';
+import { ClassType, CompilerContext, benchmark, getClassName, run } from '@7b/runtime';
 
 class ServiceA {
 }

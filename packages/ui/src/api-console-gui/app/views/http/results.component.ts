@@ -1,11 +1,7 @@
 import { ChangeDetectorRef, Component, EventEmitter, Output, signal } from '@angular/core';
 import { ControllerClient } from '../../client';
 import { Request, Store } from '../../store';
-import { ButtonComponent, ButtonGroupComponent, DuiDialog, IconComponent, TabButtonComponent, TableColumnDirective, TableComponent } from '@7b/ui';
-import { Router } from '@angular/router';
-import { ApiRoute } from '@7b/ui';
-import { DatePipe, DecimalPipe } from '@angular/common';
-import { CodeHighlightComponent, ToggleBoxComponent } from '@7b/ui';
+import { ApiRoute, ButtonComponent, ButtonGroupComponent, CodeHighlightComponent, DuiDialog, IconComponent, TabButtonComponent, TableColumnDirective, TableComponent, ToggleBoxComponent } from '@7b/ui';
 
 @Component({
     selector: 'api-console-http-routes',

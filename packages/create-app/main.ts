@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import { App } from '@7b/core';
-import { ConsoleTransport, Logger } from '@7b/core';
+import { App, ConsoleTransport, Logger } from '@7b/core';
 import { CreateController } from './src/controller/create.js';
 
 new App({

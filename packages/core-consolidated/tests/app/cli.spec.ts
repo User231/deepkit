@@ -1,9 +1,6 @@
 import { expect, test } from '@jest/globals';
 import { executeCommand, Flag, parseCliArgs, ParsedCliControllerConfig } from '../src/command.js';
-import { EventDispatcher } from '@7b/core';
-import { InjectorContext, InjectorModule } from '@7b/core';
-import { Logger, MemoryLogger } from '@7b/core';
-import { Stopwatch } from '@7b/core';
+import { EventDispatcher, InjectorContext, InjectorModule, Logger, MemoryLogger, Stopwatch } from '@7b/core';
 import { PrimaryKey, Reference } from '@7b/reflection';
 
 test('parser', async () => {

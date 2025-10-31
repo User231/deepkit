@@ -1,6 +1,4 @@
-import { LoggerInterface } from '@7b/core';
-import { SQLiteDatabase, User } from '../database.js';
-import { cli, Flag } from '@7b/core';
+import { Flag, LoggerInterface, cli } from '@7b/core';
 
 @cli.controller('users')
 export class UsersCommand {

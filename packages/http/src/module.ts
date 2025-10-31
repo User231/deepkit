@@ -1,18 +1,7 @@
 import { HttpListener, HttpResultFormatter, httpWorkflow } from './http.js';
 import { HttpConfig } from './module.config.js';
-import { AddedListener, AppModule, ControllerConfig, createModuleClass, stringifyListener } from '@7b/core';
-import { HttpRouter, HttpRouterRegistry, RouteConfig } from './router.js';
-import { HttpKernel } from './kernel.js';
-import { HttpRouterFilterResolver } from './filter.js';
-import { HttpControllers } from './controllers.js';
-import { ConsoleTransport, Logger } from '@7b/core';
-import { HttpRequest, HttpResponse } from './model.js';
-import '@deepkit/type';
-import { httpClass } from './decorator.js';
-import { EventToken } from '@7b/core';
+import { AddedListener, AppModule, ConsoleTransport, ControllerConfig, EventToken, InjectorContext, Logger, createModuleClass, stringifyListener } from '@7b/core';
 import { ReflectionKind, ReflectionParameter, Type, typeAnnotation } from '@7b/reflection';
-import { buildRequestParser } from './request-parser.js';
-import { InjectorContext } from '@7b/core';
 
 function parameterRequiresRequest(parameter: ReflectionParameter): boolean {
     return Boolean(typeAnnotation.getType(parameter.type, 'httpQueries')

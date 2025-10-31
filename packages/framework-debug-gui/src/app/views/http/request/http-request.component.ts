@@ -12,9 +12,7 @@ import { ChangeDetectorRef, Component } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ControllerClient } from '../../../client';
 import { EntitySubject } from '@7b/io/rpc';
-import { DebugRequest, Workflow } from '@7b/ui';
-import { AsyncPipe, DatePipe } from '@angular/common';
-import { ButtonGroupComponent, TabButtonComponent } from '@7b/ui';
+import { ButtonGroupComponent, DebugRequest, TabButtonComponent, Workflow } from '@7b/ui';
 import { WorkflowCardComponent, WorkflowComponent } from '../../../components/workflow.component';
 
 @Component({

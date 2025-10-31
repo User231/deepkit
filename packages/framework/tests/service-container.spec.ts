@@ -1,9 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { rpc } from '@7b/io/rpc';
-import { App, AppModule, createModuleClass, ServiceContainer } from '@7b/core';
-import { FrameworkModule } from '../src/module.js';
+import { App, AppModule, EventDispatcher, ServiceContainer, createModuleClass } from '@7b/core';
 import { Database, DatabaseEvent, DatabaseRegistry, MemoryDatabaseAdapter, Query } from '@7b/db';
-import { EventDispatcher } from '@7b/core';
 import { PrimaryKey } from '@7b/reflection';
 
 test('controller', () => {

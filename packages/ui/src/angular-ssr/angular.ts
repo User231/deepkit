@@ -10,10 +10,7 @@
 
 import { AngularNodeAppEngine, createNodeRequestHandler, isMainModule, NodeRequestHandlerFunction, writeResponseToNodeResponse } from '@angular/ssr/node';
 import { HttpKernel, HttpNotFoundError, HttpRequest, HttpResponse, httpWorkflow, RouteConfig, staticOnRoute } from '@7b/io/http';
-import { eventDispatcher } from '@7b/core';
-import { createModuleClass } from '@7b/core';
-import { ApplicationServer } from '@7b/core';
-import { Logger } from '@7b/core';
+import { ApplicationServer, Logger, createModuleClass, eventDispatcher } from '@7b/core';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 

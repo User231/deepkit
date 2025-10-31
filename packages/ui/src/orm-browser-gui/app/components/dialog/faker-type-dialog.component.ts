@@ -1,6 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
-import { FakerTypes } from '@7b/ui';
-import { ButtonComponent, CheckboxComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@7b/ui';
+import { ButtonComponent, CheckboxComponent, CloseDialogDirective, DialogActionsComponent, DialogComponent, FakerTypes, InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 
 @Component({

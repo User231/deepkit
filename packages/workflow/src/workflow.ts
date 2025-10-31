@@ -9,9 +9,7 @@
  */
 
 import { capitalize, ClassType, CompilerContext, CustomError, ExtractClassType, getClassName, isArray, toFastProperties } from '@7b/runtime';
-import { BaseEvent, EventDispatcher, EventToken, isEventListenerContainerEntryCallback, isEventListenerContainerEntryService } from '@7b/core';
-import { injectedFunction, InjectorContext } from '@7b/core';
-import { FrameCategory, Stopwatch } from '@7b/core';
+import { BaseEvent, EventDispatcher, EventToken, FrameCategory, InjectorContext, Stopwatch, injectedFunction, isEventListenerContainerEntryCallback, isEventListenerContainerEntryService } from '@7b/core';
 import { ReflectionClass } from '@7b/reflection';
 
 interface WorkflowTransition<T> {

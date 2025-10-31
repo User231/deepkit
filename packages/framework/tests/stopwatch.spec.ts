@@ -1,7 +1,6 @@
 import { expect, test } from '@jest/globals';
 import { decodeFrameData, deserializeFrameData, encodeFrameData } from '@7b/ui';
-import { encodeCompoundKey, FrameCategory, FrameCategoryData, Stopwatch } from '@7b/core';
-import { App } from '@7b/core';
+import { App, FrameCategory, FrameCategoryData, Stopwatch, encodeCompoundKey } from '@7b/core';
 import { FrameworkModule } from '../src/module.js';
 
 

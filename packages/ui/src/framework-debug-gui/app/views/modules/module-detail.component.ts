@@ -1,8 +1,6 @@
 import { Component, Input, OnChanges } from '@angular/core';
-import { ModuleApi, ModuleImportedService, ModuleService } from '@7b/ui';
+import { CodeHighlightComponent, DeepkitBoxComponent, IconComponent, ModuleApi, ModuleImportedService, ModuleService } from '@7b/ui';
 import { stringifyType } from '@7b/reflection';
-import { CodeHighlightComponent, DeepkitBoxComponent } from '@7b/ui';
-import { IconComponent } from '@7b/ui';
 
 @Component({
     selector: 'module-detail-service',

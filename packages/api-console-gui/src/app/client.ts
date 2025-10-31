@@ -10,8 +10,7 @@
 
 import { Injectable } from '@angular/core';
 import { RpcWebSocketClient } from '@7b/io/rpc';
-import { ApiConsoleApi, ApiDocument, ApiEntryPoints } from '@7b/ui';
-import { LiveSubject } from '@7b/ui';
+import { ApiConsoleApi, ApiDocument, ApiEntryPoints, LiveSubject } from '@7b/ui';
 
 @Injectable({ providedIn: 'root' })
 export class ControllerClient {

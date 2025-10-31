@@ -9,8 +9,7 @@
  */
 
 import { ApplicationServer } from '../application-server.js';
-import { AppModule, cli, Command, Flag, ServiceContainer } from '@7b/core';
-import { DefaultFormatter, Logger, LoggerInterface } from '@7b/core';
+import { AppModule, Command, DefaultFormatter, Flag, Logger, LoggerInterface, ServiceContainer, cli } from '@7b/core';
 import { FrameworkModule } from '../module.js';
 
 /**

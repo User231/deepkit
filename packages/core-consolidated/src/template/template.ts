@@ -8,10 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 import { ClassType, getClassName, isArray, isClass } from '@7b/runtime';
-import './optimize-tsx';
-import { injectedFunction, Injector, Resolver } from '@7b/core';
-import { FrameCategory, Stopwatch } from '@7b/core';
-import { escapeAttribute, escapeHtml, safeString } from './utils.js';
+import { FrameCategory, Injector, Resolver, Stopwatch, injectedFunction } from '@7b/core';
 import { ReflectionClass, Type } from '@7b/reflection';
 
 export type Attributes<T = any> = {

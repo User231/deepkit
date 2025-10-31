@@ -1,13 +1,5 @@
 import { provideRpcWebSocketClient } from '@7b/io/rpc';
-import { provideState } from '@7b/ui';
-import { State } from './app/state';
-import { bootstrapApplication } from '@angular/platform-browser';
-import { AppComponent } from './app/app.component';
-import { provideRouter, withHashLocation } from '@angular/router';
-import { routes } from './app/routes';
-import { provideApiConsoleRegistry, routes as apiConsoleRoutes } from '@7b/ui';
-import { provideOrmBrowserRegistry, routes as ormBrowserRoutes } from '@7b/ui';
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideApiConsoleRegistry, provideOrmBrowserRegistry, provideState, routes as apiConsoleRoutes, routes as ormBrowserRoutes } from '@7b/ui';
 import { EventDispatcher } from '@7b/core';
 
 bootstrapApplication(AppComponent, {

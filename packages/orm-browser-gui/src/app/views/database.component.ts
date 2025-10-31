@@ -1,6 +1,5 @@
 import { ChangeDetectorRef, Component, Input, OnDestroy, Optional } from '@angular/core';
-import { ButtonComponent, ButtonGroupComponent, DuiDialog, TabButtonComponent, unsubscribe } from '@7b/ui';
-import { DatabaseInfo } from '@7b/ui';
+import { ButtonComponent, ButtonGroupComponent, DatabaseInfo, DuiDialog, TabButtonComponent, unsubscribe } from '@7b/ui';
 import { empty } from '@7b/runtime';
 import { BrowserState } from '../browser-state';
 import { ControllerClient } from '../client';

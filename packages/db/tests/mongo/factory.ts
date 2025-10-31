@@ -1,5 +1,4 @@
-import { Database } from '@7b/db';
-import { DatabaseFactory } from '@7b/db';
+import { Database, DatabaseFactory } from '@7b/db';
 import { MongoDatabaseAdapter } from '../src/adapter.js';
 
 export const databaseFactory: DatabaseFactory<MongoDatabaseAdapter> = async (entities, plugins): Promise<Database<MongoDatabaseAdapter>> => {

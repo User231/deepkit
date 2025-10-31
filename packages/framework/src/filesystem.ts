@@ -1,7 +1,6 @@
 import { Filesystem, FilesystemFile, FilesystemLocalAdapter } from '@7b/io/fs';
-import { AppModule } from '@7b/core';
+import { AppModule, InjectorContext } from '@7b/core';
 import { ClassType, pathJoin, pathNormalizeDirectory } from '@7b/runtime';
-import { InjectorContext } from '@7b/core';
 import { HttpResponse, httpWorkflow } from '@7b/io/http';
 import { InlineRuntimeType, ReceiveType } from '@7b/reflection';
 

@@ -9,8 +9,7 @@
  */
 
 import { indent } from '@7b/runtime';
-import { cli, Flag } from '@7b/core';
-import { LoggerInterface } from '@7b/core';
+import { Flag, LoggerInterface, cli } from '@7b/core';
 import { MigrationProvider } from '../migration/migration-provider.js';
 import { SQLDatabaseAdapter, SqlMigrationHandler } from '../sql-adapter.js';
 import { BaseCommand } from './base-command.js';

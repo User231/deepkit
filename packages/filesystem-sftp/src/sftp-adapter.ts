@@ -1,8 +1,5 @@
 import { FileType, FileVisibility, Reporter, resolveFilesystemPath, FilesystemAdapter, FilesystemFile } from '@7b/io/fs';
-import { pathDirectory, pathBasename } from '@7b/runtime';
-import Client, { ConnectOptions, FileInfo } from 'ssh2-sftp-client';
-import { Readable } from 'stream';
-import { asyncOperation } from '@7b/runtime';
+import { asyncOperation, pathBasename, pathDirectory } from '@7b/runtime';
 
 export interface FilesystemFtpOptions extends ConnectOptions {
     /**

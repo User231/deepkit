@@ -9,21 +9,10 @@
  */
 
 import { arrayRemoveItem, asyncOperation, formatError } from '@7b/runtime';
-import { Host } from './host.js';
-import { createConnection, Socket } from 'net';
-import { connect as createTLSConnection, TLSSocket } from 'tls';
-import { Command, TransactionalMessage } from './command/command.js';
 import { stringifyType, Type, uuid } from '@7b/reflection';
 import { BSONBinarySerializer, BsonStreamReader, getBSONSerializer, getBSONSizer, Writer } from '@7b/codec';
-import { HandshakeCommand } from './command/handshake.js';
-import { detectTopology, MongoClientConfig, updateKnownHosts, updateStaleness } from './config.js';
-import { MongoConnectionError, MongoError } from './error.js';
 import { DatabaseTransaction } from '@7b/db';
-import { CommitTransactionCommand } from './command/commitTransaction.js';
-import { AbortTransactionCommand } from './command/abortTransaction.js';
-import { DataEvent, EventDispatcher, EventTokenSync } from '@7b/core';
-import { IsMasterCommand } from './command/ismaster.js';
-import { Logger } from '@7b/core';
+import { DataEvent, EventDispatcher, EventTokenSync, Logger } from '@7b/core';
 import { CommandOptions, ConnectionOptions } from './options.js';
 
 export enum MongoConnectionStatus {

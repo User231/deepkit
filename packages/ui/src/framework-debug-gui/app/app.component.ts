@@ -24,14 +24,8 @@ import {
     WindowToolbarComponent,
     WindowToolbarContainerComponent,
 } from '@7b/ui';
-import { Database, DebugRequest, Filesystem } from '@7b/ui';
+import { Database, DatabaseBrowserListComponent, DebugRequest, Filesystem, HeaderStatusBarComponent } from '@7b/ui';
 import { Collection } from '@7b/io/rpc';
-import { ControllerClient } from './client';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
-import { FileUploaderComponent } from './components/file-uploader.component';
-import { AsyncPipe } from '@angular/common';
-import { HeaderStatusBarComponent } from '@7b/ui';
-import { DatabaseBrowserListComponent } from '@7b/ui';
 
 @Component({
     selector: 'app-root',

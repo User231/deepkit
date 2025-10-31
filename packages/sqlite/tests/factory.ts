@@ -1,5 +1,4 @@
-import { Database } from '@7b/db';
-import { DatabaseFactory } from '@7b/db';
+import { Database, DatabaseFactory } from '@7b/db';
 import { SQLiteDatabaseAdapter } from '../src/sqlite-adapter.js';
 import { join } from 'path';
 

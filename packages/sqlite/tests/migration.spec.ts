@@ -1,8 +1,6 @@
 import { expect, test } from '@jest/globals';
-import { schemaMigrationRoundTrip } from '@7b/db';
+import { DatabaseEntityRegistry, schemaMigrationRoundTrip } from '@7b/db';
 import { AutoIncrement, Entity, integer, PrimaryKey, Reference, SQLite, typeOf, Unique } from '@7b/reflection';
-import { SQLiteDatabaseAdapter } from '../src/sqlite-adapter.js';
-import { DatabaseEntityRegistry } from '@7b/db';
 
 test('custom type', async () => {
     interface Post extends Entity<{ name: 'post' }> {

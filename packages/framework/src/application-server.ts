@@ -10,12 +10,8 @@
 
 import { asyncOperation, getClassName, urlJoin } from '@7b/runtime';
 import { RpcClient, RpcKernel } from '@7b/io/rpc';
-import cluster from 'cluster';
 import { HttpRouter } from '@7b/io/http';
-import { BaseEvent, EventDispatcher, eventDispatcher, EventToken } from '@7b/core';
-import { InjectorContext } from '@7b/core';
-import { FrameworkConfig } from './module.config.js';
-import { LoggerInterface } from '@7b/core';
+import { BaseEvent, EventDispatcher, EventToken, InjectorContext, LoggerInterface, eventDispatcher } from '@7b/core';
 import { createRpcConnection, WebWorker, WebWorkerFactory } from './worker.js';
 import { RpcControllers } from './rpc.js';
 import '@deepkit/type';

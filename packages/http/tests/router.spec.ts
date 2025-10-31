@@ -11,39 +11,8 @@ import {
     JSONResponse,
     Response,
 } from '../src/http.js';
-import { eventDispatcher } from '@7b/core';
-import {
-    HttpBody,
-    HttpBodyValidation,
-    HttpHeader,
-    HttpPath,
-    HttpQueries,
-    HttpQuery,
-    HttpRegExp,
-    HttpRequest,
-    HttpRequestParser,
-    MemoryHttpResponse,
-} from '../src/model.js';
+import { eventDispatcher, provide } from '@7b/core';
 import { getClassName, isObject, sleep, TypeAnnotation } from '@7b/runtime';
-import { createHttpKernel } from './utils.js';
-import {
-    Excluded,
-    Group,
-    integer,
-    JSONEntity,
-    Maximum,
-    MinLength,
-    Positive,
-    PrimaryKey,
-    Reference,
-    serializer,
-    Type,
-    typeAnnotation,
-    typeSettings,
-    UnpopulatedCheck,
-} from '@7b/reflection';
-import { Readable } from 'stream';
-import { provide } from '@7b/core';
 
 test('router', async () => {
     class Controller {

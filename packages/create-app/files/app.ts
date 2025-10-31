@@ -1,6 +1,4 @@
-import { App } from '@7b/core';
-import { FrameworkModule } from '@7b/core';
-import { JSONTransport, Logger } from '@7b/core';
+import { App, FrameworkModule, JSONTransport, Logger } from '@7b/core';
 
 import { HelloWorldControllerCli } from './src/controller/hello-world.cli';
 import { HelloWorldControllerHttp } from './src/controller/hello-world.http';

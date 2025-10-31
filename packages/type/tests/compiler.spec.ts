@@ -2,10 +2,7 @@
 import { describe, expect, test } from '@jest/globals';
 import * as ts from 'typescript';
 import { ModuleKind, ScriptTarget, TransformationContext, transpileModule } from 'typescript';
-import { DeclarationTransformer, ReflectionTransformer } from '@7b/reflection';
-import { reflect, reflect as reflect2, ReflectionClass, removeTypeName, typeOf as typeOf2 } from '../src/reflection/reflection.js';
-import { assertType, defaultAnnotation, primaryKeyAnnotation, ReflectionKind, ReflectionVisibility, stringifyType, Type, TypeClass, TypeFunction, TypeMethod, TypeObjectLiteral, TypeProperty, TypeUnion } from '../src/reflection/type.js';
-import { ReflectionOp } from '@7b/reflection';
+import { DeclarationTransformer, ReflectionOp, ReflectionTransformer } from '@7b/reflection';
 import { ClassType, isObject } from '@7b/runtime';
 import { pack, resolveRuntimeType } from '../src/reflection/processor.js';
 import { expectEqualType } from './utils.js';

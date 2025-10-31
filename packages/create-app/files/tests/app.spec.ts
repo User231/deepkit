@@ -1,7 +1,6 @@
 import { test, expect } from '@jest/globals';
 import { Service } from '../src/app/service';
-import { Logger, MemoryLoggerTransport } from '@7b/core';
-import { createTestingApp } from '@7b/core';
+import { Logger, MemoryLoggerTransport, createTestingApp } from '@7b/core';
 
 test('first test', () => {
     expect(1 + 1).toBe(2);

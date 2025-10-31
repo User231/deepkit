@@ -9,23 +9,8 @@
  */
 
 import { ClassType, getClassName, isClass, isFunction } from '@7b/runtime';
-import { EventDispatcher, EventListenerRegistered, isEventListenerContainerEntryCallback } from '@7b/core';
-import { AddedListener, AppModule, ConfigurationInvalidError, MiddlewareConfig, ModuleDefinition } from './module.js';
-import {
-    injectedFunction,
-    Injector,
-    InjectorContext,
-    InjectorModule,
-    isProvided,
-    ProviderWithScope,
-    resolveToken,
-    Token,
-} from '@7b/core';
-import { cli } from './command.js';
-import { WorkflowDefinition } from '@7b/core';
+import { ConsoleTransport, EventDispatcher, EventListenerRegistered, Logger, ScopedLogger, Stopwatch, WorkflowDefinition, isEventListenerContainerEntryCallback } from '@7b/core';
 import { deserialize, ReflectionClass, ReflectionFunction, validate } from '@7b/reflection';
-import { ConsoleTransport, Logger, ScopedLogger } from '@7b/core';
-import { Stopwatch } from '@7b/core';
 
 /**
  * @reflection never

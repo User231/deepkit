@@ -12,12 +12,8 @@ import { http } from './decorator.js';
 import { join } from 'path';
 import { readFileSync, stat } from 'fs';
 import { HtmlResponse, httpWorkflow } from './http.js';
-import { AppModule } from '@7b/core';
-import { normalizeDirectory } from './utils.js';
+import { AppModule, eventDispatcher } from '@7b/core';
 import { ClassType, urlJoin } from '@7b/runtime';
-import { HttpRequest, HttpResponse } from './model.js';
-import send from 'send';
-import { eventDispatcher } from '@7b/core';
 import { HttpRouter, RouteConfig } from './router.js';
 
 export function staticServe(

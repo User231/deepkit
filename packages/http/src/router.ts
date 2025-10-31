@@ -9,12 +9,7 @@
  */
 import { ClassType, CompilerContext, getClassName, isArray, isClass, urlJoin } from '@7b/runtime';
 import { entity, ReflectionClass, ReflectionFunction, ReflectionKind, ReflectionParameter, SerializationOptions, serializer, Serializer, Type, ValidationError } from '@7b/reflection';
-import { getActions, HttpAction, httpClass, HttpController, HttpDecorator } from './decorator.js';
-import { HttpRequest, HttpRequestPositionedParameters, HttpRequestQuery, HttpRequestResolvedParameters } from './model.js';
-import { InjectorContext, InjectorModule } from '@7b/core';
-import { Logger, LoggerInterface } from '@7b/core';
-import { HttpControllers } from './controllers.js';
-import { MiddlewareRegistry, MiddlewareRegistryEntry } from '@7b/core';
+import { InjectorContext, InjectorModule, Logger, LoggerInterface, MiddlewareRegistry, MiddlewareRegistryEntry } from '@7b/core';
 import { HttpMiddlewareConfig, HttpMiddlewareFn } from './middleware.js';
 
 //@ts-ignore

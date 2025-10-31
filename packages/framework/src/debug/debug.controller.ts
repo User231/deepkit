@@ -30,20 +30,9 @@ import {
 import { rpc, rpcClass } from '@7b/io/rpc';
 import { HttpRouter, parseRouteControllerAction } from '@7b/io/http';
 import { changeClass, ClassType, getClassName, isClass } from '@7b/runtime';
-import { EventDispatcher, isEventListenerContainerEntryService } from '@7b/core';
+import { AppModule, EventDispatcher, FrameCategory, FrameCategoryData, FrameType, ServiceContainer, Token, getScope, isEventListenerContainerEntryService, resolveToken } from '@7b/core';
 import { DatabaseAdapter, DatabaseRegistry } from '@7b/db';
-import { existsSync, readFileSync, statSync, truncateSync } from 'fs';
-import { join } from 'path';
-import { FrameworkConfig } from '../module.config.js';
-import { FileStopwatchStore } from './stopwatch/store.js';
-import { Subject } from 'rxjs';
-import { unlink } from 'fs/promises';
-import { getScope, resolveToken, Token } from '@7b/core';
-import { AppModule, ServiceContainer } from '@7b/core';
-import { RpcControllers } from '../rpc.js';
 import { isType, ReflectionClass, serializeType, stringifyType } from '@7b/reflection';
-import { FilesystemRegistry } from '../filesystem.js';
-import { FrameCategory, FrameCategoryData, FrameType } from '@7b/core';
 
 @rpc.controller(DebugControllerInterface)
 export class DebugController implements DebugControllerInterface {

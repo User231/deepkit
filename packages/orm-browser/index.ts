@@ -1,5 +1,4 @@
-import { App } from '@7b/core';
-import { FrameworkModule } from '@7b/core';
+import { App, FrameworkModule } from '@7b/core';
 import { Database } from '@7b/db';
 import { OrmBrowserModule } from './src/module.js';
 

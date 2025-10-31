@@ -1,9 +1,4 @@
-import { cli, findParentPath } from '@7b/core';
-import { Logger } from '@7b/core';
-import { copySync, existsSync } from 'fs-extra';
-import { basename, join } from 'path';
-import { readFileSync, writeFileSync } from 'fs';
-import { spawn } from 'child_process';
+import { Logger, cli, findParentPath } from '@7b/core';
 import { getCurrentDirName } from '@7b/runtime';
 
 const dirname = getCurrentDirName();

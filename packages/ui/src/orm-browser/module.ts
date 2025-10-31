@@ -1,11 +1,7 @@
-import { createModuleClass, findParentPath } from '@7b/core';
-import { OrmBrowserController } from '@7b/core';
+import { InjectorContext, OrmBrowserController, createModuleClass, findParentPath } from '@7b/core';
 import { Database, DatabaseRegistry } from '@7b/db';
-import { Config } from './config.js';
 import { rpc } from '@7b/io/rpc';
 import { getCurrentFileName } from '@7b/runtime';
-import { InjectorContext } from '@7b/core';
-import { dirname } from 'path';
 import { registerStaticHttpController } from '@7b/io/http';
 
 export class OrmBrowserModule extends createModuleClass({

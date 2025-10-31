@@ -1,5 +1,4 @@
-import { Database } from '@7b/db';
-import { DatabaseFactory } from '@7b/db';
+import { Database, DatabaseFactory } from '@7b/db';
 import { MySQLDatabaseAdapter } from '../src/mysql-adapter.js';
 
 export const databaseFactory: DatabaseFactory<MySQLDatabaseAdapter> = async (entities, plugins): Promise<Database<MySQLDatabaseAdapter>> => {

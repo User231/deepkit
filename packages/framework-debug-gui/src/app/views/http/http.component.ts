@@ -10,9 +10,7 @@
 
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { ControllerClient } from '../../client';
-import { Route, Workflow } from '@7b/ui';
-import { WorkflowComponent } from '../../components/workflow.component';
-import { InputComponent, TableCellDirective, TableColumnDirective, TableComponent } from '@7b/ui';
+import { InputComponent, Route, TableCellDirective, TableColumnDirective, TableComponent, Workflow } from '@7b/ui';
 import { FormsModule } from '@angular/forms';
 
 @Component({

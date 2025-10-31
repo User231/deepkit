@@ -1,15 +1,8 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ControllerClient } from '../client';
-import { ApiDocument, ApiRoute } from '@7b/ui';
-import { filterAndSortRoutes } from './view-helper';
-import { headerStatusCodes, typeToTSJSONInterface } from '../utils';
+import { ApiDocument, ApiRoute, ButtonComponent, CodeHighlightComponent } from '@7b/ui';
 import { Subscriptions } from '@7b/io';
 import { typeSettings } from '@7b/reflection';
-import { AsyncPipe } from '@angular/common';
-import { MarkdownComponent } from 'ngx-markdown';
-import { ButtonComponent } from '@7b/ui';
-import { RouterLink } from '@angular/router';
-import { CodeHighlightComponent } from '@7b/ui';
 
 @Component({
     templateUrl: './overview.component.html',

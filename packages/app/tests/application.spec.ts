@@ -1,9 +1,7 @@
 import { beforeEach, expect, test } from '@jest/globals';
 import { App, onAppError, onAppExecute, onAppExecuted, onAppShutdown } from '../src/app.js';
 import { ClassType, getCurrentDirName, Inject, isClass } from '@7b/runtime';
-import { ProviderWithScope, Token } from '@7b/core';
-import { AppModule, createModule, createModuleClass } from '../src/module.js';
-import { BaseEvent, DataEvent, DataEventToken, EventDispatcher, eventDispatcher, EventOfEventToken, EventToken } from '@7b/core';
+import { BaseEvent, DataEvent, DataEventToken, EventDispatcher, EventOfEventToken, EventToken, ProviderWithScope, Token, eventDispatcher } from '@7b/core';
 import { cli, Command, Flag } from '../src/command.js';
 import { ControllerConfig, ServiceContainer } from '../src/service-container.js';
 
