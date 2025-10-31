@@ -18,3 +18,10 @@ packages/create-app/files/var
 .vs
 .fleet
 .DS_Store
+
+# Build artifacts from consolidated packages
+packages/*/index.js
+packages/*/index.d.ts
+packages/*/index.d.ts.map
+packages/*/tsconfig.tsbuildinfo
+packages/*/dist/
