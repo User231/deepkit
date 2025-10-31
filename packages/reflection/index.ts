@@ -1,0 +1,42 @@
+/*
+ * Deepkit Framework
+ * Copyright (C) 2021 Deepkit UG, Marc J. Schmidt
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the MIT License.
+ *
+ * You should have received a copy of the MIT License along with this program.
+ */
+
+// Type system (from @deepkit/type)
+export * from './src/type/core.js';
+export * from './src/type/changes.js';
+export * from './src/type/decorator.js';
+export * from './src/type/decorator-builder.js';
+export * from './src/type/reference.js';
+export * from './src/type/serializer.js';
+export * from './src/type/serializer-facade.js';
+export * from './src/type/typeguard.js';
+export * from './src/type/types.js';
+export * from './src/type/utils.js';
+export * from './src/type/validator.js';
+export * from './src/type/validators.js';
+export * from './src/type/snapshot.js';
+export * from './src/type/change-detector.js';
+export * from './src/type/path.js';
+export * from './src/type/type-serialization.js';
+export * from './src/type/registry.js';
+export * from './src/type/default.js';
+export * from './src/type/mixin.js';
+
+export * from './src/type/reflection/type.js';
+export { typeAnnotation as metaAnnotation } from './src/type/reflection/type.js';
+export * from './src/type/reflection/processor.js';
+export * from './src/type/reflection/extends.js';
+export * from './src/type/reflection/reflection.js';
+
+// Type spec (from @deepkit/type-spec)
+export * from './src/spec/index.js';
+
+// Type compiler (from @deepkit/type-compiler)
+export * from './src/compiler/index.js';
