@@ -35,6 +35,13 @@ export enum TypeNumberBrand {
     float64,
 }
 
+export enum TypeIntrinsic {
+    Uppercase,
+    Lowercase,
+    Capitalize,
+    Uncapitalize
+}
+
 /**
  * The instruction set.
  * Should not be greater than 93 members, because we encode it via charCode starting at 33. +93 means we end up with charCode=126
@@ -236,4 +243,6 @@ export enum ReflectionOp {
     implements, //pops one type from the stack and assigns it to the latest class on the stack as `implements` type.
 
     nominal, //marks the last type on the stack as nominal. (used at the end of class/interface/type alias programs).
+
+    intrinsic, //has one parameter, the kind of the intrinsic type, and pulls a type from the stack.
 }

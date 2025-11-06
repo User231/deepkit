@@ -592,3 +592,13 @@ test('infer type', () => {
     console.log(res.app);
     expect(res.app).toContain(`'a'`);
 });
+
+test('intrinsic type', () => {
+    const res = transpile({
+        'app': `
+        export type A = Capitalize<'a'>;
+        `
+    });
+    console.log(res.app);
+    expect(res.app).toContain(`const __ΩCapitalize = `);
+});

@@ -95,7 +95,7 @@ import {
     serializeEntityNameAsExpression,
 } from './reflection-ast.js';
 import { SourceFile } from './ts-types.js';
-import { MappedModifier, ReflectionOp, TypeNumberBrand } from '@deepkit/type-spec';
+import { MappedModifier, ReflectionOp, TypeIntrinsic, TypeNumberBrand } from '@deepkit/type-spec';
 import { Resolver } from './resolver.js';
 import { knownLibFilesForCompilerOptions } from '@typescript/vfs';
 import { debug, debug2 } from './debug.js';
@@ -1992,6 +1992,34 @@ export class ReflectionTransformer implements CustomTransformer {
                 }
                 break;
             }
+            case SyntaxKind.IntrinsicKeyword: {
+                if (node.parent?.kind !== SyntaxKind.TypeAliasDeclaration) {
+                    program.pushOp(ReflectionOp.never);
+                    break;
+                }
+                const parent = node.parent as TypeAliasDeclaration;
+                const T = parent.typeParameters?.[0];
+                // All intrinsics require one type parameter
+                if (!T) {
+                    program.pushOp(ReflectionOp.never);
+                    break;
+                }
+                const name = getNameAsString(parent.name);
+                const mapping: Record<string, TypeIntrinsic> = {
+                    'Capitalize': TypeIntrinsic.Capitalize,
+                    'Uppercase': TypeIntrinsic.Uppercase,
+                    'Lowercase': TypeIntrinsic.Lowercase,
+                    'Uncapitalize': TypeIntrinsic.Uncapitalize,
+                };
+                const intrinsic = mapping[name];
+                if (intrinsic === undefined) {
+                    program.pushOp(ReflectionOp.never);
+                    break;
+                }
+                this.extractPackStructOfTypeReference(T.name, program);
+                program.pushOp(ReflectionOp.intrinsic, Number(intrinsic));
+                break;
+            }
             default: {
                 program.pushOp(ReflectionOp.never);
             }
@@ -2147,15 +2175,21 @@ export class ReflectionTransformer implements CustomTransformer {
         return res === 'never';
     }
 
-    protected extractPackStructOfTypeReference(type: TypeReferenceNode | ExpressionWithTypeArguments, program: CompilerProgram): void {
-        const typeName: EntityName | undefined = isTypeReferenceNode(type) ? type.typeName : (isIdentifier(type.expression) ? type.expression : undefined);
+    protected extractPackStructOfTypeReference(type: Identifier | TypeReferenceNode | ExpressionWithTypeArguments, program: CompilerProgram): void {
+        const typeName: EntityName | undefined = isIdentifier(type)
+            ? type
+            : isTypeReferenceNode(type)
+                ? type.typeName
+                : (isIdentifier(type.expression) ? type.expression : undefined);
+        const typeArguments: readonly TypeNode[] | undefined = isTypeReferenceNode(type) || isExpressionWithTypeArguments(type) ? type.typeArguments : [];
+
         if (!typeName) {
             program.pushOp(ReflectionOp.any);
             return;
         }
 
-        if (isIdentifier(typeName) && getIdentifierName(typeName) === 'InlineRuntimeType' && type.typeArguments && type.typeArguments[0] && isTypeQueryNode(type.typeArguments[0])) {
-            const expression = serializeEntityNameAsExpression(this.f, type.typeArguments[0].exprName);
+        if (isIdentifier(typeName) && getIdentifierName(typeName) === 'InlineRuntimeType' && typeArguments && typeArguments[0] && isTypeQueryNode(typeArguments[0])) {
+            const expression = serializeEntityNameAsExpression(this.f, typeArguments[0].exprName);
             program.pushOp(ReflectionOp.arg, program.pushStack(expression));
             return;
         }
@@ -2166,8 +2200,8 @@ export class ReflectionTransformer implements CustomTransformer {
             program.pushOp(op);
         } else if (isIdentifier(typeName) && getIdentifierName(typeName) === 'Promise') {
             //promise has always one sub type
-            if (type.typeArguments && type.typeArguments[0]) {
-                this.extractPackStructOfType(type.typeArguments[0], program);
+            if (typeArguments && typeArguments[0]) {
+                this.extractPackStructOfType(typeArguments[0], program);
             } else {
                 program.pushOp(ReflectionOp.any);
             }
@@ -2263,8 +2297,8 @@ export class ReflectionTransformer implements CustomTransformer {
                 //Set/Map are interface declarations
                 const name = getNameAsString(typeName);
                 if (name === 'Array') {
-                    if (type.typeArguments && type.typeArguments[0]) {
-                        this.extractPackStructOfType(type.typeArguments[0], program);
+                    if (typeArguments && typeArguments[0]) {
+                        this.extractPackStructOfType(typeArguments[0], program);
                     } else {
                         program.pushOp(ReflectionOp.any);
                     }
@@ -2278,21 +2312,21 @@ export class ReflectionTransformer implements CustomTransformer {
                     program.popFrameImplicit();
                     return;
                 } else if (name === 'Set') {
-                    if (type.typeArguments && type.typeArguments[0]) {
-                        this.extractPackStructOfType(type.typeArguments[0], program);
+                    if (typeArguments && typeArguments[0]) {
+                        this.extractPackStructOfType(typeArguments[0], program);
                     } else {
                         program.pushOp(ReflectionOp.any);
                     }
                     program.pushOp(ReflectionOp.set);
                     return;
                 } else if (name === 'Map') {
-                    if (type.typeArguments && type.typeArguments[0]) {
-                        this.extractPackStructOfType(type.typeArguments[0], program);
+                    if (typeArguments && typeArguments[0]) {
+                        this.extractPackStructOfType(typeArguments[0], program);
                     } else {
                         program.pushOp(ReflectionOp.any);
                     }
-                    if (type.typeArguments && type.typeArguments[1]) {
-                        this.extractPackStructOfType(type.typeArguments[1], program);
+                    if (typeArguments && typeArguments[1]) {
+                        this.extractPackStructOfType(typeArguments[1], program);
                     } else {
                         program.pushOp(ReflectionOp.any);
                     }
@@ -2386,20 +2420,20 @@ export class ReflectionTransformer implements CustomTransformer {
                 const index = program.pushStack(
                     program.forNode === declaration ? 0 : this.f.createArrowFunction(undefined, undefined, [], undefined, undefined, runtimeTypeName),
                 );
-                if (type.typeArguments) {
-                    for (const argument of type.typeArguments) {
+                if (typeArguments) {
+                    for (const argument of typeArguments) {
                         this.extractPackStructOfType(argument, program);
                     }
-                    program.pushOp(ReflectionOp.inlineCall, index, type.typeArguments.length);
+                    program.pushOp(ReflectionOp.inlineCall, index, typeArguments.length);
                 } else {
                     program.pushOp(ReflectionOp.inline, index);
                 }
 
-                // if (type.typeArguments) {
-                //     for (const argument of type.typeArguments) {
+                // if (typeArguments) {
+                //     for (const argument of typeArguments) {
                 //         this.extractPackStructOfType(argument, program);
                 //     }
-                //     program.pushOp(ReflectionOp.inlineCall, index, type.typeArguments.length);
+                //     program.pushOp(ReflectionOp.inlineCall, index, typeArguments.length);
                 // } else {
                 //     program.pushOp(ReflectionOp.inline, index);
                 // }
@@ -2430,8 +2464,8 @@ export class ReflectionTransformer implements CustomTransformer {
 
                 if (resolved.importDeclaration && isIdentifier(typeName)) ensureImportIsEmitted(resolved.importDeclaration, typeName);
                 program.pushFrame();
-                if (type.typeArguments) {
-                    for (const typeArgument of type.typeArguments) {
+                if (typeArguments) {
+                    for (const typeArgument of typeArguments) {
                         this.extractPackStructOfType(typeArgument, program);
                     }
                 }
@@ -2519,7 +2553,7 @@ export class ReflectionTransformer implements CustomTransformer {
      * }
      * ```
      */
-    protected needsToBeInferred(declaration: TypeParameterDeclaration, type: TypeReferenceNode | ExpressionWithTypeArguments): boolean {
+    protected needsToBeInferred(declaration: TypeParameterDeclaration, type: Identifier | TypeReferenceNode | ExpressionWithTypeArguments): boolean {
         const declarationUser = this.getTypeUser(declaration);
         const typeUser = this.getTypeUser(type);
 
@@ -2539,7 +2573,7 @@ export class ReflectionTransformer implements CustomTransformer {
         program.pushOp(ReflectionOp.typeName, program.findOrAddStackEntry(typeName));
     }
 
-    protected resolveTypeParameter(declaration: TypeParameterDeclaration, type: TypeReferenceNode | ExpressionWithTypeArguments, program: CompilerProgram) {
+    protected resolveTypeParameter(declaration: TypeParameterDeclaration, type: Identifier | TypeReferenceNode | ExpressionWithTypeArguments, program: CompilerProgram) {
         //check if `type` was used in an expression. if so, we need to resolve it from runtime, otherwise we mark it as T
         const isUsedInFunction = isFunctionLike(declaration.parent);
         const resolveRuntimeTypeParameter = (isUsedInFunction && program.isResolveFunctionParameters(declaration.parent)) || (this.needsToBeInferred(declaration, type));

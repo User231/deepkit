@@ -2523,6 +2523,7 @@ export function stringifyType(type: Type, stateIn: Partial<StringifyTypeOptions>
                     break;
                 case ReflectionKind.templateLiteral:
                     stack.push({ before: '`' });
+                    debugger;
                     for (let i = type.types.length - 1; i >= 0; i--) {
                         const sub = type.types[i];
                         if (sub.kind === ReflectionKind.literal) {

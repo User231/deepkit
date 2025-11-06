@@ -53,7 +53,7 @@ import {
     validationAnnotation,
     widenLiteral,
 } from './type.js';
-import { MappedModifier, ReflectionOp } from '@deepkit/type-spec';
+import { MappedModifier, ReflectionOp, TypeIntrinsic } from '@deepkit/type-spec';
 import { isExtendable } from './extends.js';
 import { ClassType, isArray, isClass, isFunction, stringifyValueWithType } from '@deepkit/core';
 import { isWithDeferredDecorators } from '../decorator.js';
@@ -1186,6 +1186,30 @@ export class Processor {
                             t.id = state.nominalId++;
                             break;
                         }
+                        case ReflectionOp.intrinsic: {
+                            // intrinsics operate on the current stack entry
+                            const type = this.pop() as Type;
+                            const kind = this.eatParameter() as TypeIntrinsic;
+                            switch (kind) {
+                                case TypeIntrinsic.Uppercase: {
+                                    this.push(handleUppercase(type));
+                                    break;
+                                }
+                                case TypeIntrinsic.Lowercase: {
+                                    this.push(handleLowercase(type));
+                                    break;
+                                }
+                                case TypeIntrinsic.Capitalize: {
+                                    this.push(handleCapitalize(type));
+                                    break;
+                                }
+                                case TypeIntrinsic.Uncapitalize: {
+                                    this.push(handleUncapitalize(type));
+                                    break;
+                                }
+                            }
+                            break;
+                        }
                         case ReflectionOp.inline: {
                             const pPosition = this.eatParameter() as number;
                             const pOrFn = program.stack[pPosition] as number | Packed | (() => Packed);
@@ -1419,7 +1443,7 @@ export class Processor {
 
             // two different primitives always return never
             if (isPrimitive(a) && isPrimitive(b) && a.kind !== b.kind) {
-                return { kind: ReflectionKind.never }
+                return { kind: ReflectionKind.never };
             }
 
             if (a.kind === ReflectionKind.objectLiteral || a.kind === ReflectionKind.class || a.kind === ReflectionKind.never || a.kind === ReflectionKind.unknown) return b;
@@ -1764,6 +1788,46 @@ export class Processor {
     protected eatParameter(): RuntimeStackEntry {
         return this.program.ops[++this.program.program];
     }
+}
+
+function handleUppercase(type: Type): Type {
+    if (type.kind === ReflectionKind.union) {
+        return { kind: ReflectionKind.union, types: type.types.map(t => handleUppercase(t)) };
+    }
+    if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
+        return { kind: ReflectionKind.string };
+    }
+    return { kind: ReflectionKind.literal, literal: type.literal.toUpperCase() };
+}
+
+function handleLowercase(type: Type): Type {
+    if (type.kind === ReflectionKind.union) {
+        return { kind: ReflectionKind.union, types: type.types.map(t => handleLowercase(t)) };
+    }
+    if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
+        return { kind: ReflectionKind.string };
+    }
+    return { kind: ReflectionKind.literal, literal: type.literal.toLowerCase() };
+}
+
+function handleCapitalize(type: Type): Type {
+    if (type.kind === ReflectionKind.union) {
+        return { kind: ReflectionKind.union, types: type.types.map(t => handleCapitalize(t)) };
+    }
+    if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
+        return { kind: ReflectionKind.string };
+    }
+    return { kind: ReflectionKind.literal, literal: type.literal.charAt(0).toUpperCase() + type.literal.slice(1) };
+}
+
+function handleUncapitalize(type: Type): Type {
+    if (type.kind === ReflectionKind.union) {
+        return { kind: ReflectionKind.union, types: type.types.map(t => handleUncapitalize(t)) };
+    }
+    if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
+        return { kind: ReflectionKind.string };
+    }
+    return { kind: ReflectionKind.literal, literal: type.literal.charAt(0).toLowerCase() + type.literal.slice(1) };
 }
 
 function typeInferFromContainer(container: Iterable<any>): Type {
