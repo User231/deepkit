@@ -35,6 +35,10 @@ export enum TypeNumberBrand {
     float64,
 }
 
+/**
+ * Intrinsic string manipulation type operations.
+ * These correspond to TypeScript's built-in string manipulation utility types.
+ */
 export enum TypeIntrinsic {
     Uppercase,
     Lowercase,

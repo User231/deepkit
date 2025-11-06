@@ -1207,6 +1207,10 @@ export class Processor {
                                     this.push(handleUncapitalize(type));
                                     break;
                                 }
+                                default: {
+                                    this.push(type);
+                                    break;
+                                }
                             }
                             break;
                         }
@@ -1797,6 +1801,7 @@ function handleUppercase(type: Type): Type {
     if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
         return { kind: ReflectionKind.string };
     }
+    if (!type.literal) return type;
     return { kind: ReflectionKind.literal, literal: type.literal.toUpperCase() };
 }
 
@@ -1807,6 +1812,7 @@ function handleLowercase(type: Type): Type {
     if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
         return { kind: ReflectionKind.string };
     }
+    if (!type.literal) return type;
     return { kind: ReflectionKind.literal, literal: type.literal.toLowerCase() };
 }
 
@@ -1817,6 +1823,7 @@ function handleCapitalize(type: Type): Type {
     if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
         return { kind: ReflectionKind.string };
     }
+    if (!type.literal) return type;
     return { kind: ReflectionKind.literal, literal: type.literal.charAt(0).toUpperCase() + type.literal.slice(1) };
 }
 
@@ -1827,6 +1834,7 @@ function handleUncapitalize(type: Type): Type {
     if (type.kind !== ReflectionKind.literal || 'string' !== typeof type.literal) {
         return { kind: ReflectionKind.string };
     }
+    if (!type.literal) return type;
     return { kind: ReflectionKind.literal, literal: type.literal.charAt(0).toLowerCase() + type.literal.slice(1) };
 }
 

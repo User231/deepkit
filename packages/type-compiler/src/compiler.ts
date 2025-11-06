@@ -2181,7 +2181,7 @@ export class ReflectionTransformer implements CustomTransformer {
             : isTypeReferenceNode(type)
                 ? type.typeName
                 : (isIdentifier(type.expression) ? type.expression : undefined);
-        const typeArguments: readonly TypeNode[] | undefined = isTypeReferenceNode(type) || isExpressionWithTypeArguments(type) ? type.typeArguments : [];
+        const typeArguments: readonly TypeNode[] | undefined = isTypeReferenceNode(type) || isExpressionWithTypeArguments(type) ? type.typeArguments : undefined;
 
         if (!typeName) {
             program.pushOp(ReflectionOp.any);
