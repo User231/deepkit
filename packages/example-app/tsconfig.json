@@ -1,16 +1,12 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "strict": true,
-    "sourceMap": true,
     "declaration": false,
-    "experimentalDecorators": true,
-    "moduleResolution": "node",
+    "composite": false,
     "useDefineForClassFields": false,
     "target": "es2022",
     "module": "commonjs",
     "preserveSymlinks": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
     "outDir": "./dist",
     "jsx": "react-jsx",
     "jsxImportSource": "@deepkit/template"

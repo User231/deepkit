@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-export const enum MappedModifier {
+export enum MappedModifier {
     optional = 1 << 0,
     removeOptional = 1 << 1,
     readonly = 1 << 2,

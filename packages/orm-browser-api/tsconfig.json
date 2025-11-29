@@ -1,22 +1,10 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "sourceMap": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "moduleResolution": "node",
     "useDefineForClassFields": false,
     "target": "es2022",
-    "module": "CommonJS",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "baseUrl": ".",
     "outDir": "./dist/cjs",
-    "declaration": true,
-    "composite": true,
     "types": []
   },
   "reflection": true,

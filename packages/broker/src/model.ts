@@ -11,7 +11,7 @@
 /**
  * @internal
  */
-export const enum BrokerType {
+export enum BrokerType {
     //the first 100 are reserved
     Ack,
     Error,

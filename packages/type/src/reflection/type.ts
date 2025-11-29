@@ -1939,7 +1939,7 @@ export type Postgres<Options extends PostgresOptions> = Database<'postgres', Opt
 export type SQLite<Options extends SqliteOptions> = Database<'sqlite', Options>;
 export type DatabaseField<Options extends DatabaseFieldOptions, Name extends string = '*'> = Database<Name, Options>;
 
-export const enum BinaryBigIntType {
+export enum BinaryBigIntType {
     unsigned,
     signed
 }

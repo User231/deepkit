@@ -37,7 +37,7 @@ interface IsMasterSchema {
     };
 }
 
-const enum AuthMechanism {
+enum AuthMechanism {
     MONGODB_AWS = 'mongodb-aws',
     // MONGODB_CR = 'mongocr', removed in v4.0
     MONGODB_X509 = 'x509',

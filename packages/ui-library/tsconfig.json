@@ -1,17 +1,15 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "declaration": false,
+    "composite": false,
     "baseUrl": "./",
     "outDir": "./dist",
-    "moduleResolution": "node",
-    "experimentalDecorators": true,
     "downlevelIteration": true,
-    "sourceMap": true,
-    "strict": true,
     "target": "es2022",
     "module": "es2020",
     "useDefineForClassFields": false,
     "noImplicitAny": true,
-    "esModuleInterop": true,
     "preserveSymlinks": true,
     "types": [
       "fs-extra",
@@ -21,8 +19,7 @@
       "angular-ui-library": [
         "dist/"
       ]
-    },
-    "skipLibCheck": true
+    }
   },
   "reflection": true,
   "angularCompilerOptions": {

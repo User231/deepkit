@@ -1,28 +1,15 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "sourceMap": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "moduleResolution": "node",
-    "target": "es2020",
-    "module": "CommonJS",
     "lib": [
       "es2020",
       "es2022.error"
     ],
-    "esModuleInterop": true,
     "outDir": "./dist/cjs",
-    "declaration": true,
-    "composite": true,
     "types": [
       "sqlstring",
       "node"
-    ],
-    "skipLibCheck": true
+    ]
   },
   "reflection": true,
   "include": [

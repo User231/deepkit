@@ -14,7 +14,7 @@ import { rpcChunk, RpcError, rpcError, RpcTypes } from './model.js';
 import type { SingleProgress } from './progress.js';
 import { deserialize, ReceiveType, ReflectionClass, resolveReceiveType, serialize, Type, typeOf, typeSettings } from '@deepkit/type';
 
-export const enum RpcMessageRouteType {
+export enum RpcMessageRouteType {
     client = 0,
     server = 1,
     sourceDest = 2,

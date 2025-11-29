@@ -1,22 +1,9 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "sourceMap": true,
     "noImplicitAny": false,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "moduleResolution": "node",
-    "target": "es2020",
-    "module": "CommonJS",
-    "esModuleInterop": true,
     "outDir": "./dist",
-    "declaration": true,
-    "composite": true,
-    "types": [],
-    "skipLibCheck": true
+    "types": []
   },
   "reflection": true,
   "include": [
