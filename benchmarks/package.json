@@ -12,7 +12,8 @@
     "benchmark:all": "npm run benchmark -- -d src/benchmarks",
     "benchmark:json": "npm run benchmark -- -d src/benchmarks -j results.json",
     "benchmark:compare": "npm run benchmark -- -d src/benchmarks --compare-baseline",
-    "benchmark:save-baseline": "npm run benchmark -- -d src/benchmarks --save-baseline"
+    "benchmark:save-baseline": "npm run benchmark -- -d src/benchmarks --save-baseline",
+    "report": "node --preserve-symlinks -r ../node_modules/ts-node/register src/generate-report.ts"
   },
   "dependencies": {
     "@deepkit/bson": "file:../packages/bson",

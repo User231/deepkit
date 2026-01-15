@@ -157,5 +157,5 @@ export default async function() {
         }, { category: 'p0' });
     }
 
-    suite.run();
+    return suite;
 }

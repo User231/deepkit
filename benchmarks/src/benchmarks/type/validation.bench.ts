@@ -82,5 +82,5 @@ export default async function() {
         validate(invalidData);
     }, { category: 'p0' });
 
-    suite.run();
+    return suite;
 }

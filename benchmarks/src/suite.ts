@@ -449,15 +449,55 @@ export class BenchSuite {
             }
         }
 
+        const self = this;
         print('Start benchmark', green(this.name), cyan(`[${category}]`));
         await new Promise<void>((resolve, reject) => {
-            filteredSuite.run({ async: true });
+            filteredSuite.on('cycle', (event: Benchmark.Event) => {
+                const target = event.target as BenchmarkInstance;
+                print(
+                    ' ',
+                    'x', green(target.hz.toLocaleString(undefined, { maximumFractionDigits: 2 })), 'ops/sec',
+                    '\xb1' + target.stats.rme.toFixed(2) + '%',
+                    yellow(target.stats.mean.toLocaleString(undefined, { maximumFractionDigits: 16 })), 'sec/op',
+                    '\t' + getBlocks(target.stats.sample),
+                    green(target.name ?? ''),
+                );
+            });
             filteredSuite.on('error', (event: Benchmark.Event) => {
                 reject(event.target);
             });
             filteredSuite.on('complete', () => {
+                const runBenchmarks = (filteredSuite as any).slice() as BenchmarkInstance[];
+                const filtered = (filteredSuite as any).filter('fastest') as BenchmarkInstance[];
+                const fastest = filtered[0];
+                const result: BenchSuiteResult = {};
+
+                for (const benchmark of runBenchmarks) {
+                    const benchName = benchmark.name ?? '';
+                    const memoryData = self.memorySnapshots.get(benchName);
+                    result[benchName] = {
+                        hz: benchmark.hz,
+                        elapsed: benchmark.times.elapsed,
+                        rme: benchmark.stats.rme,
+                        mean: benchmark.stats.mean,
+                        memory: memoryData ? {
+                            rss: memoryData.after.rss - memoryData.before.rss,
+                            heapTotal: memoryData.after.heapTotal - memoryData.before.heapTotal,
+                            heapUsed: memoryData.after.heapUsed - memoryData.before.heapUsed,
+                            external: memoryData.after.external - memoryData.before.external,
+                            arrayBuffers: memoryData.after.arrayBuffers - memoryData.before.arrayBuffers,
+                        } : undefined,
+                    };
+                }
+
+                if (BenchSuite.onComplete) {
+                    BenchSuite.onComplete(self.name, result);
+                }
+
+                print(' Fastest:', green(fastest?.name ?? 'unknown'));
                 resolve();
             });
+            filteredSuite.run({ async: true });
         });
     }
 }

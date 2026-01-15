@@ -125,5 +125,5 @@ export default async function() {
         JSON.stringify(numbers);
     }, { category: 'p0' });
 
-    suite.run();
+    return suite;
 }

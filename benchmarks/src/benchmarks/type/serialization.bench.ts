@@ -135,5 +135,5 @@ export default async function() {
         serialize<MediumModel>(mediumInstance);
     }, { category: 'p0' });
 
-    suite.run();
+    return suite;
 }
