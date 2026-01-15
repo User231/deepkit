@@ -10,7 +10,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { BenchSuiteResult, BenchResult } from '../suite';
+import { BenchSuiteResult, BenchResult } from '../bench';
 
 /**
  * Metadata about the benchmark run environment

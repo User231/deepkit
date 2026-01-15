@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BenchSuite } from '../../suite';
+import { BenchSuite } from '../../bench';
 import { Maximum, Negative, guard } from '@deepkit/type';
 
 /**

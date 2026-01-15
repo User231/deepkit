@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BenchSuiteResult, BenchResult, formatHz } from '../suite';
+import { BenchSuiteResult, BenchResult, formatHz } from '../bench';
 import { BenchmarkReport } from './json';
 
 /**

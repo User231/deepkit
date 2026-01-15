@@ -10,7 +10,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { BenchSuiteResult, BenchResult, formatHz } from '../suite';
+import { BenchSuiteResult, BenchResult, formatHz } from '../bench';
 import { BenchmarkReport, readReport, listReports, getLatestReport } from './json';
 
 // ANSI color codes

@@ -11,15 +11,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { BenchSuite, BenchSuiteResult, BenchmarkCategory } from './suite';
+import { BenchSuite, BenchSuiteResult, BenchmarkCategory } from './bench';
 import { JsonReporter } from './reporter/json';
-import { ConsoleReporter } from './reporter/console';
-import { ComparisonReporter, saveBaseline, compareWithBaseline } from './reporter/comparison';
-import { forceGC } from './utils';
+import { saveBaseline, compareWithBaseline } from './reporter/comparison';
 
-/**
- * Runner configuration options
- */
+// ══════════════════════════════════════════════════════════════════════════════
+// TYPES
+// ══════════════════════════════════════════════════════════════════════════════
+
 export interface RunnerOptions {
     /** Directory containing benchmark files */
     benchmarkDir?: string;
@@ -39,63 +38,62 @@ export interface RunnerOptions {
     filter?: string;
     /** Run in verbose mode */
     verbose?: boolean;
-    /** Maximum time per benchmark */
+    /** Maximum time per benchmark in seconds */
     maxTime?: number;
-    /** Track memory usage */
-    trackMemory?: boolean;
 }
 
-/**
- * Benchmark module export interface
- */
 export interface BenchmarkModule {
-    /** Default export should be a function that returns BenchSuite or void */
     default?: () => BenchSuite | Promise<BenchSuite> | void | Promise<void>;
-    /** Or a suite export */
     suite?: BenchSuite;
-    /** Or a run function */
     run?: () => Promise<void> | void;
 }
 
-/**
- * Benchmark Runner - Discovers and runs benchmark files
- */
+// ══════════════════════════════════════════════════════════════════════════════
+// COLORS
+// ══════════════════════════════════════════════════════════════════════════════
+
+const Reset = '\x1b[0m';
+const Bold = '\x1b[1m';
+const FgGreen = '\x1b[32m';
+const FgCyan = '\x1b[36m';
+const FgGray = '\x1b[90m';
+
+function green(text: string): string { return `${FgGreen}${text}${Reset}`; }
+function cyan(text: string): string { return `${FgCyan}${text}${Reset}`; }
+function gray(text: string): string { return `${FgGray}${text}${Reset}`; }
+function bold(text: string): string { return `${Bold}${text}${Reset}`; }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BENCHMARK RUNNER
+// ══════════════════════════════════════════════════════════════════════════════
+
 export class BenchmarkRunner {
-    private options: RunnerOptions;
+    private options: Required<RunnerOptions>;
     private results: { [suiteName: string]: BenchSuiteResult } = {};
     private jsonReporter: JsonReporter;
-    private consoleReporter: ConsoleReporter;
 
     constructor(options: RunnerOptions = {}) {
         this.options = {
             benchmarkDir: options.benchmarkDir ?? path.join(process.cwd(), 'benchmarks'),
             pattern: options.pattern ?? '**/*.bench.ts',
-            category: options.category,
-            jsonOutput: options.jsonOutput,
+            category: options.category as BenchmarkCategory,
+            jsonOutput: options.jsonOutput ?? '',
             saveBaseline: options.saveBaseline ?? false,
             compareBaseline: options.compareBaseline ?? false,
             baselineDir: options.baselineDir ?? path.join(process.cwd(), 'benchmarks', 'baselines'),
-            filter: options.filter,
+            filter: options.filter ?? '',
             verbose: options.verbose ?? false,
             maxTime: options.maxTime ?? 1,
-            trackMemory: options.trackMemory ?? false,
         };
 
         this.jsonReporter = new JsonReporter();
-        this.consoleReporter = new ConsoleReporter({
-            showMemory: this.options.trackMemory,
-            colors: true,
-        });
     }
 
-    /**
-     * Discovers benchmark files in the benchmark directory
-     */
     async discoverBenchmarks(): Promise<string[]> {
-        const searchPath = path.join(this.options.benchmarkDir!, this.options.pattern!);
+        const searchPath = path.join(this.options.benchmarkDir, this.options.pattern);
 
         if (this.options.verbose) {
-            console.log(`Searching for benchmarks: ${searchPath}`);
+            console.log(gray(`Searching: ${searchPath}`));
         }
 
         const files = await glob(searchPath, {
@@ -111,21 +109,19 @@ export class BenchmarkRunner {
         return files;
     }
 
-    /**
-     * Loads and runs a single benchmark file
-     */
     async runBenchmarkFile(filePath: string): Promise<void> {
         if (this.options.verbose) {
-            console.log(`Loading benchmark: ${filePath}`);
+            console.log(gray(`Loading: ${filePath}`));
         }
 
         try {
-            // Force GC before each benchmark file
-            forceGC();
+            // Force GC before each file
+            if (typeof global !== 'undefined' && (global as any).gc) {
+                (global as any).gc();
+            }
 
             const module = await import(filePath) as BenchmarkModule;
 
-            // Handle different module export styles
             if (module.default && typeof module.default === 'function') {
                 const result = await module.default();
                 if (result instanceof BenchSuite) {
@@ -137,20 +133,16 @@ export class BenchmarkRunner {
                 await module.run();
             } else {
                 if (this.options.verbose) {
-                    console.log(`No runnable export found in ${filePath}`);
+                    console.log(gray(`  No runnable export in ${path.basename(filePath)}`));
                 }
             }
         } catch (error) {
-            console.error(`Error running benchmark ${filePath}:`, error);
+            console.error(`Error in ${filePath}:`, error);
             throw error;
         }
     }
 
-    /**
-     * Runs a BenchSuite and collects results
-     */
     async runSuite(suite: BenchSuite): Promise<void> {
-        // Set up result collection
         const originalOnComplete = BenchSuite.onComplete;
         BenchSuite.onComplete = (name, result) => {
             this.results[name] = result;
@@ -171,63 +163,65 @@ export class BenchmarkRunner {
         }
     }
 
-    /**
-     * Runs all discovered benchmarks
-     */
     async runAll(): Promise<void> {
         const files = await this.discoverBenchmarks();
 
         if (files.length === 0) {
             console.log('No benchmark files found.');
-            console.log(`Searched in: ${this.options.benchmarkDir}`);
-            console.log(`Pattern: ${this.options.pattern}`);
+            console.log(`  Directory: ${this.options.benchmarkDir}`);
+            console.log(`  Pattern: ${this.options.pattern}`);
             return;
         }
 
-        console.log(`Found ${files.length} benchmark file(s)`);
         console.log();
+        console.log(bold(`╔${'═'.repeat(60)}╗`));
+        console.log(bold(`║${' '.repeat(18)}${green('DEEPKIT BENCHMARKS')}${' '.repeat(22)}║`));
+        console.log(bold(`╚${'═'.repeat(60)}╝`));
+        console.log();
+        console.log(gray(`  Node ${process.version} | ${process.platform} ${process.arch}`));
+        console.log(gray(`  Found ${files.length} benchmark file(s)`));
+        if (this.options.category) {
+            console.log(gray(`  Category: ${this.options.category}`));
+        }
 
         for (const file of files) {
             await this.runBenchmarkFile(file);
         }
 
-        // Report results
-        this.consoleReporter.reportAll(this.results);
-
-        // Save JSON output if requested
+        // Save JSON output
         if (this.options.jsonOutput) {
             this.jsonReporter.writeToFile(this.options.jsonOutput);
+            console.log(green(`\n✓ Results saved to: ${this.options.jsonOutput}`));
         }
 
-        // Save as baseline if requested
+        // Save baseline
         if (this.options.saveBaseline) {
-            const baselinePath = saveBaseline(this.results, this.options.baselineDir!);
-            console.log(`Baseline saved to: ${baselinePath}`);
+            const baselinePath = saveBaseline(this.results, this.options.baselineDir);
+            console.log(green(`✓ Baseline saved to: ${baselinePath}`));
         }
 
-        // Compare against baseline if requested
+        // Compare against baseline
         if (this.options.compareBaseline) {
-            const exitCode = compareWithBaseline(
-                this.results,
-                this.options.baselineDir!
-            );
+            const exitCode = compareWithBaseline(this.results, this.options.baselineDir);
             if (exitCode !== 0) {
                 process.exitCode = exitCode;
             }
         }
+
+        console.log();
+        console.log(bold(green('All benchmarks complete.')));
+        console.log();
     }
 
-    /**
-     * Gets collected results
-     */
     getResults(): { [suiteName: string]: BenchSuiteResult } {
         return this.results;
     }
 }
 
-/**
- * Parse command line arguments
- */
+// ══════════════════════════════════════════════════════════════════════════════
+// CLI
+// ══════════════════════════════════════════════════════════════════════════════
+
 function parseArgs(): RunnerOptions {
     const args = process.argv.slice(2);
     const options: RunnerOptions = {};
@@ -273,17 +267,12 @@ function parseArgs(): RunnerOptions {
             case '-t':
                 options.maxTime = parseFloat(args[++i]);
                 break;
-            case '--track-memory':
-            case '-m':
-                options.trackMemory = true;
-                break;
             case '--help':
             case '-h':
                 printHelp();
                 process.exit(0);
                 break;
             default:
-                // If it's not a flag, treat it as a file path or pattern
                 if (!arg.startsWith('-')) {
                     if (arg.includes('*')) {
                         options.pattern = arg;
@@ -302,45 +291,37 @@ function parseArgs(): RunnerOptions {
     return options;
 }
 
-/**
- * Print help message
- */
 function printHelp(): void {
     console.log(`
-Deepkit Benchmark Runner
+${bold('Deepkit Benchmark Runner')} ${gray('(zero dependencies)')}
 
-Usage: npx ts-node src/runner.ts [options] [path|pattern|filter]
+${bold('Usage:')} npx ts-node src/runner.ts [options] [path|pattern|filter]
 
-Options:
+${bold('Options:')}
   -d, --dir <path>          Directory containing benchmark files
   -p, --pattern <glob>      Glob pattern for benchmark files (default: **/*.bench.ts)
   -c, --category <cat>      Run only benchmarks of category (p0, p1, p2)
   -j, --json <path>         Output results to JSON file
   -f, --filter <regex>      Filter benchmarks by name
   -t, --max-time <sec>      Maximum time per benchmark in seconds
-  -m, --track-memory        Track memory usage during benchmarks
   -v, --verbose             Verbose output
   --save-baseline           Save results as a new baseline
   --compare-baseline        Compare results against latest baseline
   --baseline-dir <path>     Directory for baseline files
   -h, --help                Show this help message
 
-Examples:
+${bold('Examples:')}
   npx ts-node src/runner.ts                          # Run all benchmarks
   npx ts-node src/runner.ts -c p0                    # Run only P0 benchmarks
   npx ts-node src/runner.ts -f "serialize"           # Run benchmarks matching "serialize"
   npx ts-node src/runner.ts --save-baseline          # Save results as baseline
   npx ts-node src/runner.ts --compare-baseline       # Compare against baseline
 
-Environment:
-  For V8 introspection, run with: node --allow-natives-syntax
+${bold('Environment:')}
   For GC control, run with: node --expose-gc
 `);
 }
 
-/**
- * Main entry point
- */
 async function main(): Promise<void> {
     const options = parseArgs();
     const runner = new BenchmarkRunner(options);
@@ -353,13 +334,12 @@ async function main(): Promise<void> {
     }
 }
 
-// Export for programmatic use
-export { BenchmarkRunner as Runner };
-export * from './suite';
-export * from './utils';
+// Exports
+export { BenchSuite, BenchSuiteResult, BenchmarkCategory } from './bench';
 export * from './reporter/json';
-export * from './reporter/console';
 export * from './reporter/comparison';
+export * from './reporter/markdown';
+export * from './reporter/svg';
 
 // Run if executed directly
 if (require.main === module) {

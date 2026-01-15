@@ -20,12 +20,10 @@
     "@deepkit/type": "file:../packages/type",
     "@deepkit/type-compiler": "file:../packages/type-compiler",
     "@deepkit/core": "file:../packages/core",
-    "benchmark": "^2.1.4",
     "bson": "^6.0.0",
     "glob": "^10.3.10"
   },
   "devDependencies": {
-    "@types/benchmark": "^2.1.5",
     "@types/node": "^20.10.0"
   }
 }
