@@ -20,6 +20,7 @@
     "@deepkit/type": "file:../packages/type",
     "@deepkit/type-compiler": "file:../packages/type-compiler",
     "@deepkit/core": "file:../packages/core",
+    "@deepkit/injector": "file:../packages/injector",
     "bson": "^6.0.0",
     "glob": "^10.3.10"
   },
