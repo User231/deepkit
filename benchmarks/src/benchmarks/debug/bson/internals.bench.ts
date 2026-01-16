@@ -29,7 +29,7 @@ function randomString(length: number): string {
 }
 
 export default async function() {
-    const suite = new BenchSuite('BSON Internals');
+    const suite = new BenchSuite('debug/bson-internals');
 
     interface Item {
         id: number;

@@ -15,7 +15,7 @@ import { BenchSuite } from '../../../bench';
  */
 
 export default async function() {
-    const suite = new BenchSuite('language/map');
+    const suite = new BenchSuite('debug/language-map');
 
     const map = new Map<number, number>();
     const count = 1000;

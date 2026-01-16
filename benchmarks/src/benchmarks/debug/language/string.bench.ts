@@ -15,7 +15,7 @@ import { BenchSuite } from '../../../bench';
  */
 
 export default async function() {
-    const suite = new BenchSuite('language/string');
+    const suite = new BenchSuite('debug/language-string');
 
     const literal = 'a';
     const object = new String('a');

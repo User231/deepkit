@@ -10,7 +10,14 @@
 
 import { BenchSuite } from '../../../bench';
 import { guard, validate } from '@deepkit/type';
-import { z } from 'zod';
+
+// Try to import zod for comparison
+let zod: typeof import('zod') | undefined;
+try {
+    zod = require('zod');
+} catch {
+    // zod package not available
+}
 
 // ============================================================================
 // Test Models - Realistic user data structure
@@ -35,24 +42,28 @@ interface User {
     createdAt: Date;
 }
 
-// Zod requires explicit schema definition
-const zodUserSchema = z.object({
-    id: z.number(),
-    email: z.string(),
-    name: z.string(),
-    age: z.number(),
-    active: z.boolean(),
-    roles: z.array(z.string()),
-    profile: z.object({
-        bio: z.string(),
-        website: z.string(),
-        social: z.object({
-            twitter: z.string().optional(),
-            github: z.string().optional(),
+// Zod schema is created dynamically if zod is available
+function createZodSchema() {
+    if (!zod) return undefined;
+    const z = zod;
+    return z.object({
+        id: z.number(),
+        email: z.string(),
+        name: z.string(),
+        age: z.number(),
+        active: z.boolean(),
+        roles: z.array(z.string()),
+        profile: z.object({
+            bio: z.string(),
+            website: z.string(),
+            social: z.object({
+                twitter: z.string().optional(),
+                github: z.string().optional(),
+            }),
         }),
-    }),
-    createdAt: z.date(),
-});
+        createdAt: z.date(),
+    });
+}
 
 // ============================================================================
 // Test Data
@@ -96,13 +107,16 @@ const invalidUser = {
 // ============================================================================
 
 export default async function() {
-    const suite = new BenchSuite('Validation: Deepkit vs Zod');
+    if (!zod) {
+        console.log('Skipping Zod benchmark: zod package not installed');
+        return new BenchSuite('comparison/validation (skipped)');
+    }
+
+    const suite = new BenchSuite('comparison/validation', 1, true);
 
     // Pre-compile validators
     const deepkitGuard = guard<User>();
-    const deepkitValidate = (data: unknown) => validate<User>(data);
-
-    // Zod validators
+    const zodUserSchema = createZodSchema()!;
     const zodParse = (data: unknown) => zodUserSchema.safeParse(data);
 
     // Sanity checks

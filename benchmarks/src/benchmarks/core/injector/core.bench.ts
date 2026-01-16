@@ -24,7 +24,7 @@ import { asyncOperation } from '@deepkit/core';
  */
 
 export default async function() {
-    const suite = new BenchSuite('framework/core');
+    const suite = new BenchSuite('core/async');
 
     suite.add('empty async', async () => {
     });

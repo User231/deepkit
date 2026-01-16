@@ -1,8 +1,9 @@
-import { ModuleKind, readConfigFile, ScriptTarget, transpile } from 'typescript';
+import * as ts from 'typescript';
 import { existsSync, readFileSync } from 'fs';
 import { dirname, extname } from 'path';
 import { readFile, stat } from 'node:fs/promises';
 import { createMatchPath } from 'tsconfig-paths';
+import { transformer, declarationTransformer } from '@deepkit/type-compiler';
 
 let tsConfigPath = 'tsconfig.json';
 let currentPath = process.cwd();
@@ -18,10 +19,10 @@ while (currentPath !== '/') {
     currentPath = next;
 }
 
-const tsConfig = readConfigFile(tsConfigPath, (path) => readFileSync(path, 'utf8'));
-const tsConfigNormalized = Object.assign({}, tsConfig?.config.compilerOptions || {}, {
-    module: ModuleKind.ES2022, // Keep as ESNext for ESM support
-    target: ScriptTarget.ES2022, // Transpile to ES2020+ for modern ESM support
+const tsConfig = ts.readConfigFile(tsConfigPath, (path) => readFileSync(path, 'utf8'));
+const tsConfigNormalized: ts.CompilerOptions = Object.assign({}, tsConfig?.config.compilerOptions || {}, {
+    module: ts.ModuleKind.ES2022, // Keep as ESNext for ESM support
+    target: ts.ScriptTarget.ES2022, // Transpile to ES2020+ for modern ESM support
     configFilePath: tsConfigPath,
     sourceMap: true,
 });
@@ -70,8 +71,15 @@ export async function load(url, context, nextLoad) {
     if (extname(url) === '.ts') {
         const path = new URL(url).pathname;
         const source = await readFile(path, 'utf8');
-        const transpiled = transpile(source, tsConfigNormalized, path);
-        return { format: 'module', source: transpiled, shortCircuit: true };
+        const result = ts.transpileModule(source, {
+            compilerOptions: tsConfigNormalized,
+            fileName: path,
+            transformers: {
+                before: [transformer],
+                afterDeclarations: [declarationTransformer],
+            },
+        });
+        return { format: 'module', source: result.outputText, shortCircuit: true };
     }
     return nextLoad(url);
 }

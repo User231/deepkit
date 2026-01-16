@@ -240,7 +240,9 @@ export class BenchSuite {
 
     constructor(
         public readonly name: string,
-        private defaultMaxTime: number = 1
+        private defaultMaxTime: number = 1,
+        /** Show comparison summary at end (useful for comparison benchmarks) */
+        private showSummary: boolean = false
     ) { }
 
     /**
@@ -287,7 +289,7 @@ export class BenchSuite {
             }
         }
 
-        if (verbose) {
+        if (verbose && this.showSummary) {
             this.printSummary();
         }
 

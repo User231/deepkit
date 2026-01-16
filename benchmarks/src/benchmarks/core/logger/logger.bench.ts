@@ -57,7 +57,7 @@ class CountingTransport implements LoggerTransport {
 }
 
 export default async function() {
-    const suite = new BenchSuite('logger');
+    const suite = new BenchSuite('logger/core');
 
     // Test 1: Simple log with no-op transport (minimal overhead)
     {

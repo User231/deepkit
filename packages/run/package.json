@@ -23,6 +23,7 @@
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "dependencies": {
+    "@deepkit/type-compiler": "^1.0.1-alpha.158",
     "tsconfig-paths": "^4.2.0",
     "typescript": "~5.8.3"
   }

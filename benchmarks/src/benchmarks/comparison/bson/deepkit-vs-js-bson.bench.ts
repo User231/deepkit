@@ -44,10 +44,10 @@ interface MongoResponse {
 export default async function() {
     if (!officialBson) {
         console.log('Skipping BSON benchmark: bson package not installed');
-        return new BenchSuite('BSON: Deepkit vs js-bson (skipped)');
+        return new BenchSuite('comparison/bson (skipped)');
     }
 
-    const suite = new BenchSuite('BSON: Deepkit vs js-bson');
+    const suite = new BenchSuite('comparison/bson', 1, true);
 
     // Generate test data - 10,000 items simulating a MongoDB cursor response
     const items: Item[] = [];

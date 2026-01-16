@@ -8,65 +8,22 @@
  * a popular TypeScript serialization library.
  */
 
-import 'reflect-metadata';
 import { BenchSuite } from '../../../bench';
 import { deserialize, serialize } from '@deepkit/type';
-import { plainToInstance, instanceToPlain, Type, Expose } from 'class-transformer';
+
+// Try to import class-transformer for comparison
+let classTransformer: typeof import('class-transformer') | undefined;
+try {
+    require('reflect-metadata');
+    classTransformer = require('class-transformer');
+} catch {
+    // class-transformer or reflect-metadata not available
+}
 
 // ============================================================================
-// Test Models - Realistic data structure
+// Deepkit Models - native TypeScript interfaces
 // ============================================================================
 
-// class-transformer requires decorators
-class Address {
-    @Expose()
-    street: string = '';
-
-    @Expose()
-    city: string = '';
-
-    @Expose()
-    zipCode: string = '';
-}
-
-class Profile {
-    @Expose()
-    bio: string = '';
-
-    @Expose()
-    website: string = '';
-
-    @Expose()
-    @Type(() => Date)
-    joinedAt: Date = new Date();
-}
-
-class User {
-    @Expose()
-    id: number = 0;
-
-    @Expose()
-    email: string = '';
-
-    @Expose()
-    name: string = '';
-
-    @Expose()
-    active: boolean = false;
-
-    @Expose()
-    tags: string[] = [];
-
-    @Expose()
-    @Type(() => Address)
-    address: Address = new Address();
-
-    @Expose()
-    @Type(() => Profile)
-    profile: Profile = new Profile();
-}
-
-// Deepkit uses native TypeScript interfaces - same structure, no decorators needed
 interface DeepkitAddress {
     street: string;
     city: string;
@@ -112,15 +69,81 @@ const plainUser = {
 };
 
 // ============================================================================
+// class-transformer Models (created dynamically if available)
+// ============================================================================
+
+function createClassTransformerModels() {
+    if (!classTransformer) return undefined;
+
+    const { Expose, Type, plainToInstance, instanceToPlain } = classTransformer;
+
+    class Address {
+        @Expose()
+        street: string = '';
+
+        @Expose()
+        city: string = '';
+
+        @Expose()
+        zipCode: string = '';
+    }
+
+    class Profile {
+        @Expose()
+        bio: string = '';
+
+        @Expose()
+        website: string = '';
+
+        @Expose()
+        @Type(() => Date)
+        joinedAt: Date = new Date();
+    }
+
+    class User {
+        @Expose()
+        id: number = 0;
+
+        @Expose()
+        email: string = '';
+
+        @Expose()
+        name: string = '';
+
+        @Expose()
+        active: boolean = false;
+
+        @Expose()
+        tags: string[] = [];
+
+        @Expose()
+        @Type(() => Address)
+        address: Address = new Address();
+
+        @Expose()
+        @Type(() => Profile)
+        profile: Profile = new Profile();
+    }
+
+    return { User, plainToInstance, instanceToPlain };
+}
+
+// ============================================================================
 // Benchmark
 // ============================================================================
 
 export default async function() {
-    const suite = new BenchSuite('Serialization: Deepkit vs class-transformer');
+    if (!classTransformer) {
+        console.log('Skipping class-transformer benchmark: class-transformer package not installed');
+        return new BenchSuite('comparison/serialization (skipped)');
+    }
+
+    const suite = new BenchSuite('comparison/serialization', 1, true);
+    const ct = createClassTransformerModels()!;
 
     // Pre-create instances for serialize benchmarks
     const deepkitUser = deserialize<DeepkitUser>(plainUser);
-    const ctUser = plainToInstance(User, plainUser);
+    const ctUser = ct.plainToInstance(ct.User, plainUser);
 
     // Sanity checks - deserialize
     if (typeof deepkitUser.profile.joinedAt === 'string') {
@@ -132,7 +155,7 @@ export default async function() {
 
     // Sanity checks - serialize
     const deepkitSerialized = serialize<DeepkitUser>(deepkitUser);
-    const ctSerialized = instanceToPlain(ctUser);
+    const ctSerialized = ct.instanceToPlain(ctUser);
 
     if (deepkitSerialized.profile.joinedAt instanceof Date) {
         throw new Error('Deepkit serialize should return plain object');
@@ -149,7 +172,7 @@ export default async function() {
     });
 
     suite.add('class-transformer deserialize', () => {
-        plainToInstance(User, plainUser);
+        ct.plainToInstance(ct.User, plainUser);
     });
 
     // ========================================================================
@@ -161,7 +184,7 @@ export default async function() {
     });
 
     suite.add('class-transformer serialize', () => {
-        instanceToPlain(ctUser);
+        ct.instanceToPlain(ctUser);
     });
 
     return suite;

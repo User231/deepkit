@@ -15,7 +15,7 @@ import { BenchSuite } from '../../../bench';
  */
 
 export default async function() {
-    const suite = new BenchSuite('language/is-array');
+    const suite = new BenchSuite('debug/language-is-array');
 
     const array = ['a', 'b', 'c'];
 

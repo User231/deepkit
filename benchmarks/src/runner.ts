@@ -324,13 +324,15 @@ async function main(): Promise<void> {
 }
 
 // Exports
-export { BenchSuite, BenchSuiteResult } from './bench';
+export { BenchSuite } from './bench';
+export type { BenchSuiteResult } from './bench';
 export * from './reporter/json';
 export * from './reporter/comparison';
 export * from './reporter/markdown';
 export * from './reporter/svg';
 
 // Run if executed directly
-if (require.main === module) {
+const isMain = import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('runner.ts');
+if (isMain) {
     main();
 }

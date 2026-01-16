@@ -15,7 +15,7 @@ import { BenchSuite } from '../../../bench';
  */
 
 export default async function() {
-    const suite = new BenchSuite('language/fn');
+    const suite = new BenchSuite('debug/language-fn');
 
     interface Session {
         id: number;

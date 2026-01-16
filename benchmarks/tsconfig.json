@@ -15,7 +15,8 @@
     "sourceMap": true,
     "resolveJsonModule": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "preserveSymlinks": true
   },
   "reflection": true,
   "include": ["src/**/*.ts"],

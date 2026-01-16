@@ -15,7 +15,7 @@ import { BenchSuite } from '../../../bench';
  */
 
 export default async function() {
-    const suite = new BenchSuite('language/prototype');
+    const suite = new BenchSuite('debug/language-prototype');
 
     class Peter { }
 
