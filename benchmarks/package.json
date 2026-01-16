@@ -17,12 +17,14 @@
   },
   "dependencies": {
     "@deepkit/bson": "file:../packages/bson",
-    "@deepkit/type": "file:../packages/type",
-    "@deepkit/type-compiler": "file:../packages/type-compiler",
     "@deepkit/core": "file:../packages/core",
     "@deepkit/injector": "file:../packages/injector",
+    "@deepkit/type": "file:../packages/type",
+    "@deepkit/type-compiler": "file:../packages/type-compiler",
     "bson": "^6.0.0",
+    "class-transformer": "^0.5.1",
     "glob": "^10.3.10",
+    "reflect-metadata": "^0.2.2",
     "zod": "^3.22.0"
   },
   "devDependencies": {
