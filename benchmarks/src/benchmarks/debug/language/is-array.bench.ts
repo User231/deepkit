@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BenchSuite } from '../../bench';
+import { BenchSuite } from '../../../bench';
 
 /**
  * Array type checking benchmark - compares different methods to check if a value is an array

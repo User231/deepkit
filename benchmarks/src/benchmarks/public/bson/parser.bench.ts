@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 
-import { BenchSuite } from '../../bench';
+import { BenchSuite } from '../../../bench';
 import { BaseParser, getBSONDeserializer, getBSONSerializer, parseObject, decodeUTF8 } from '@deepkit/bson';
 
 // Try to import official bson package for comparison
