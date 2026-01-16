@@ -83,11 +83,11 @@ export default async function() {
 
     suite.add('Deepkit serialize', () => {
         deepkitSerialize(data);
-    }, { category: 'p0' });
+    });
 
     suite.add('js-bson serialize', () => {
         officialBson!.serialize(data);
-    }, { category: 'p0' });
+    });
 
     // ========================================================================
     // Deserialize (BSON -> object)
@@ -95,11 +95,11 @@ export default async function() {
 
     suite.add('Deepkit deserialize', () => {
         deepkitDeserialize(deepkitBson);
-    }, { category: 'p0' });
+    });
 
     suite.add('js-bson deserialize', () => {
         officialBson!.deserialize(officialBsonData);
-    }, { category: 'p0' });
+    });
 
     return suite;
 }

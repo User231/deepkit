@@ -75,12 +75,12 @@ export default async function() {
     // Benchmark: Validate valid data (common case)
     suite.add('deepkit validate (valid)', () => {
         validate(validData);
-    }, { category: 'p0' });
+    });
 
     // Benchmark: Validate invalid data (error path)
     suite.add('deepkit validate (invalid)', () => {
         validate(invalidData);
-    }, { category: 'p0' });
+    });
 
     return suite;
 }

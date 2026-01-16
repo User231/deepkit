@@ -106,11 +106,11 @@ export default async function() {
 
     suite.add('deepkit small deserialize', () => {
         deserialize<SmallModel>(smallPlainData);
-    }, { category: 'p0' });
+    });
 
     suite.add('deepkit small serialize', () => {
         serialize<SmallModel>(smallInstance);
-    }, { category: 'p0' });
+    });
 
     // ========================================================================
     // Medium Model Benchmarks
@@ -129,11 +129,11 @@ export default async function() {
 
     suite.add('deepkit medium deserialize', () => {
         deserialize<MediumModel>(mediumPlainData);
-    }, { category: 'p0' });
+    });
 
     suite.add('deepkit medium serialize', () => {
         serialize<MediumModel>(mediumInstance);
-    }, { category: 'p0' });
+    });
 
     return suite;
 }

@@ -59,11 +59,11 @@ export default async function() {
 
     suite.add('JIT deserializer', () => {
         jitParser(bsonData);
-    }, { category: 'p1' });
+    });
 
     suite.add('Generic BaseParser', () => {
         parseObject(new BaseParser(bsonData));
-    }, { category: 'p1' });
+    });
 
     // ========================================================================
     // UTF-8 Decoding at Various Sizes
@@ -73,7 +73,7 @@ export default async function() {
         const stringBinary = Buffer.from(randomString(size));
         suite.add(`decodeUTF8 ${size}B`, () => {
             decodeUTF8(stringBinary, 0, stringBinary.byteLength);
-        }, { category: 'p1' });
+        });
     }
 
     // ========================================================================
@@ -84,12 +84,12 @@ export default async function() {
 
     suite.add('Deepkit sizer', () => {
         sizer(item);
-    }, { category: 'p1' });
+    });
 
     if (officialBson) {
         suite.add('js-bson calculateObjectSize', () => {
             officialBson!.calculateObjectSize(item);
-        }, { category: 'p1' });
+        });
     }
 
     // ========================================================================
@@ -108,13 +108,13 @@ export default async function() {
 
         suite.add('ObjectId.toString()', () => {
             objectId.toString();
-        }, { category: 'p1' });
+        });
 
         suite.add('Lookup table hex', () => {
             hexTable[b[0]] + hexTable[b[1]] + hexTable[b[2]] + hexTable[b[3]] +
             hexTable[b[4]] + hexTable[b[5]] + hexTable[b[6]] + hexTable[b[7]] +
             hexTable[b[8]] + hexTable[b[9]] + hexTable[b[10]] + hexTable[b[11]];
-        }, { category: 'p1' });
+        });
     }
 
     return suite;

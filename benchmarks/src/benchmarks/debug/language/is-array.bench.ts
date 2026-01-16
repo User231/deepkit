@@ -28,15 +28,15 @@ export default async function() {
 
     suite.add('Array.isArray()', () => {
         Array.isArray(array);
-    }, { category: 'p1' });
+    });
 
     suite.add('custom isArray() (local)', () => {
         isArrayLocal(array);
-    }, { category: 'p1' });
+    });
 
     suite.add('custom isArray() (function)', () => {
         isArray(array);
-    }, { category: 'p1' });
+    });
 
     suite.add('instanceof Array', () => {
         let is = false;
@@ -44,7 +44,7 @@ export default async function() {
             is = true;
         }
         if (!is) throw Error('invalid');
-    }, { category: 'p1' });
+    });
 
     suite.add('constructor === Array', () => {
         let is = false;
@@ -52,7 +52,7 @@ export default async function() {
             is = true;
         }
         if (!is) throw Error('invalid');
-    }, { category: 'p1' });
+    });
 
     suite.add('.length check', () => {
         let is = false;
@@ -60,7 +60,7 @@ export default async function() {
             is = true;
         }
         if (!is) throw Error('invalid');
-    }, { category: 'p1' });
+    });
 
     suite.add('.length && typeof slice', () => {
         let is = false;
@@ -68,7 +68,7 @@ export default async function() {
             is = true;
         }
         if (!is) throw Error('invalid');
-    }, { category: 'p1' });
+    });
 
     suite.add('!.length || !slice (negative check)', () => {
         let is = true;
@@ -76,7 +76,7 @@ export default async function() {
             is = false;
         }
         if (!is) throw Error('invalid');
-    }, { category: 'p1' });
+    });
 
     return suite;
 }

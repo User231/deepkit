@@ -21,8 +21,6 @@ const AsyncFunction = (async () => { }).constructor as { new(...args: string[]):
 // TYPES
 // ══════════════════════════════════════════════════════════════════════════════
 
-export type BenchmarkCategory = 'p0' | 'p1' | 'p2';
-
 export interface BenchResult {
     /** Operations per second */
     hz: number;
@@ -47,8 +45,6 @@ export type BenchSuiteResult = { [name: string]: BenchResult };
 export interface BenchmarkOptions {
     /** Maximum time to run in seconds (default: 1) */
     maxTime?: number;
-    /** Benchmark category for filtering */
-    category?: BenchmarkCategory;
 }
 
 interface BenchmarkEntry {
@@ -258,41 +254,31 @@ export class BenchSuite {
     /**
      * Run all benchmarks synchronously (blocking)
      */
-    run(options: { category?: BenchmarkCategory; verbose?: boolean } = {}): void {
+    run(options: { verbose?: boolean } = {}): void {
         this.runAsync(options).then(() => { });
     }
 
     /**
      * Run all benchmarks asynchronously
      */
-    async runAsync(options: { category?: BenchmarkCategory; verbose?: boolean } = {}): Promise<BenchSuiteResult> {
-        const { category, verbose = true } = options;
+    async runAsync(options: { verbose?: boolean } = {}): Promise<BenchSuiteResult> {
+        const { verbose = true } = options;
 
-        const filtered = category
-            ? this.benchmarks.filter(b => {
-                const cat = b.options.category ?? 'p1';
-                return cat === category ||
-                    (category === 'p1' && cat === 'p0') ||
-                    (category === 'p2');
-            })
-            : this.benchmarks;
-
-        if (filtered.length === 0) {
+        if (this.benchmarks.length === 0) {
             if (verbose) console.log(gray(`No benchmarks to run in suite "${this.name}"`));
             return {};
         }
 
         // Calculate max name length for alignment
-        const maxNameLen = Math.max(...filtered.map(b => b.name.length));
+        const maxNameLen = Math.max(...this.benchmarks.map(b => b.name.length));
 
         if (verbose) {
             console.log();
             console.log(bold(`━━━ ${green(this.name)} ━━━`));
-            if (category) console.log(gray(`  Category: ${category}`));
             console.log();
         }
 
-        for (const bench of filtered) {
+        for (const bench of this.benchmarks) {
             try {
                 const result = await this.runBenchmark(bench, verbose, maxNameLen);
                 this.results[bench.name] = result;
@@ -310,13 +296,6 @@ export class BenchSuite {
         }
 
         return this.results;
-    }
-
-    /**
-     * Run by category filter
-     */
-    async runByCategory(category: BenchmarkCategory): Promise<BenchSuiteResult> {
-        return this.runAsync({ category });
     }
 
     /**

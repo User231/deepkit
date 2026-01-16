@@ -23,7 +23,7 @@ export default async function() {
 
     suite.add('Object.getPrototypeOf', () => {
         const same = Object.getPrototypeOf(sub) === Peter;
-    }, { category: 'p1' });
+    });
 
     function base1() {
         const obj = { name: 'Peter', age: 24 };
@@ -47,15 +47,15 @@ export default async function() {
 
     suite.add('object literal creation', () => {
         base1();
-    }, { category: 'p1' });
+    });
 
     suite.add('object property assignment', () => {
         base2();
-    }, { category: 'p1' });
+    });
 
     suite.add('compiled object creation', () => {
         compiledFn();
-    }, { category: 'p1' });
+    });
 
     return suite;
 }

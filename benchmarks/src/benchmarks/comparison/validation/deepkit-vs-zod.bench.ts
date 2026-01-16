@@ -125,11 +125,11 @@ export default async function() {
 
     suite.add('Deepkit (valid)', () => {
         deepkitGuard(validUser);
-    }, { category: 'p0' });
+    });
 
     suite.add('Zod (valid)', () => {
         zodParse(validUser);
-    }, { category: 'p0' });
+    });
 
     // ========================================================================
     // Invalid data (error path)
@@ -137,11 +137,11 @@ export default async function() {
 
     suite.add('Deepkit (invalid)', () => {
         deepkitGuard(invalidUser);
-    }, { category: 'p0' });
+    });
 
     suite.add('Zod (invalid)', () => {
         zodParse(invalidUser);
-    }, { category: 'p0' });
+    });
 
     return suite;
 }

@@ -27,19 +27,19 @@ export default async function() {
     const suite = new BenchSuite('framework/core');
 
     suite.add('empty async', async () => {
-    }, { category: 'p1' });
+    });
 
     suite.add('new Promise', async () => {
         await new Promise((resolve) => {
             resolve(undefined);
         });
-    }, { category: 'p1' });
+    });
 
     suite.add('asyncOperation', async () => {
         await asyncOperation((resolve) => {
             resolve(undefined);
         });
-    }, { category: 'p1' });
+    });
 
     return suite;
 }

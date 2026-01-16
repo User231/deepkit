@@ -35,7 +35,7 @@ export default async function() {
             i += (current.id > 39 + 30000) as any;
             current = current.next;
         }
-    }, { category: 'p1' });
+    });
 
     function createObject() {
         return {};
@@ -43,19 +43,19 @@ export default async function() {
 
     suite.add('function call returning object', () => {
         const obj = createObject();
-    }, { category: 'p1' });
+    });
 
     const boundFn = createObject.bind({});
 
     suite.add('bound function call', () => {
         const obj = boundFn();
-    }, { category: 'p1' });
+    });
 
     const arrowFn = () => ({});
 
     suite.add('arrow function call', () => {
         const obj = arrowFn();
-    }, { category: 'p1' });
+    });
 
     return suite;
 }

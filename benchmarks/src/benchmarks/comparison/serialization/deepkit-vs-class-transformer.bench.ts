@@ -146,11 +146,11 @@ export default async function() {
 
     suite.add('Deepkit deserialize', () => {
         deserialize<DeepkitUser>(plainUser);
-    }, { category: 'p0' });
+    });
 
     suite.add('class-transformer deserialize', () => {
         plainToInstance(User, plainUser);
-    }, { category: 'p0' });
+    });
 
     // ========================================================================
     // Serialize (typed instance -> plain object)
@@ -158,11 +158,11 @@ export default async function() {
 
     suite.add('Deepkit serialize', () => {
         serialize<DeepkitUser>(deepkitUser);
-    }, { category: 'p0' });
+    });
 
     suite.add('class-transformer serialize', () => {
         instanceToPlain(ctUser);
-    }, { category: 'p0' });
+    });
 
     return suite;
 }

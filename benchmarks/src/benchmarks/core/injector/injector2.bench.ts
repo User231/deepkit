@@ -57,23 +57,23 @@ export default async function() {
 
     suite.add('injector.get(Service)', () => {
         injector.get(Service1);
-    }, { category: 'p0' });
+    });
 
     suite.add('scoped.get(ScopedService)', () => {
         scoped.get(ScopedService, module1);
-    }, { category: 'p0' });
+    });
 
     suite.add('context.getInjector(module1).get(Service)', () => {
         context.getInjector(module1).get(Service1);
-    }, { category: 'p0' });
+    });
 
     suite.add('context.createChildScope(\'http\')', () => {
         context.createChildScope('http');
-    }, { category: 'p0' });
+    });
 
     suite.add('context.createChildScope(\'http\').getInjector(module1)', () => {
         context.createChildScope('http').getInjector(module1);
-    }, { category: 'p0' });
+    });
 
     return suite;
 }

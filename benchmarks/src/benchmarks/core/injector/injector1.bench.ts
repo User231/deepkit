@@ -65,30 +65,30 @@ export default async function() {
 
     suite.add('base (new Database())', () => {
         new Database();
-    }, { category: 'p0' });
+    });
 
     suite.add('get simple resolver', () => {
         resolve1();
-    }, { category: 'p0' });
+    });
 
     suite.add('get simple', () => {
         injector.get(Database);
-    }, { category: 'p0' });
+    });
 
     suite.add('get with dependency', () => {
         injector.get(MyService);
-    }, { category: 'p0' });
+    });
 
     const scoped = injector.createChildScope('http');
 
     suite.add('get scoped, same scope', () => {
         scoped.get(ScopedService);
-    }, { category: 'p0' });
+    });
 
     suite.add('get scoped, new scope', () => {
         const scoped = injector.createChildScope('http');
         scoped.get(ScopedService);
-    }, { category: 'p0' });
+    });
 
     return suite;
 }

@@ -11,7 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { BenchSuite, BenchSuiteResult, BenchmarkCategory } from './bench';
+import { BenchSuite, BenchSuiteResult } from './bench';
 import { JsonReporter } from './reporter/json';
 import { saveBaseline, compareWithBaseline } from './reporter/comparison';
 
@@ -24,8 +24,6 @@ export interface RunnerOptions {
     benchmarkDir?: string;
     /** Glob pattern for benchmark files */
     pattern?: string;
-    /** Category to run (p0, p1, p2) */
-    category?: BenchmarkCategory;
     /** Output JSON results to file */
     jsonOutput?: string;
     /** Save results as baseline */
@@ -74,9 +72,8 @@ export class BenchmarkRunner {
 
     constructor(options: RunnerOptions = {}) {
         this.options = {
-            benchmarkDir: options.benchmarkDir ?? path.join(process.cwd(), 'src', 'benchmarks'),
+            benchmarkDir: options.benchmarkDir ?? path.join(process.cwd(), 'src', 'benchmarks', 'core'),
             pattern: options.pattern ?? '**/*.bench.ts',
-            category: options.category as BenchmarkCategory,
             jsonOutput: options.jsonOutput ?? '',
             saveBaseline: options.saveBaseline ?? false,
             compareBaseline: options.compareBaseline ?? false,
@@ -153,11 +150,7 @@ export class BenchmarkRunner {
         };
 
         try {
-            if (this.options.category) {
-                await suite.runByCategory(this.options.category);
-            } else {
-                await suite.runAsync();
-            }
+            await suite.runAsync();
         } finally {
             BenchSuite.onComplete = originalOnComplete;
         }
@@ -180,9 +173,6 @@ export class BenchmarkRunner {
         console.log();
         console.log(gray(`  Node ${process.version} | ${process.platform} ${process.arch}`));
         console.log(gray(`  Found ${files.length} benchmark file(s)`));
-        if (this.options.category) {
-            console.log(gray(`  Category: ${this.options.category}`));
-        }
 
         for (const file of files) {
             await this.runBenchmarkFile(file);
@@ -238,10 +228,6 @@ function parseArgs(): RunnerOptions {
             case '-p':
                 options.pattern = args[++i];
                 break;
-            case '--category':
-            case '-c':
-                options.category = args[++i] as BenchmarkCategory;
-                break;
             case '--json':
             case '-j':
                 options.jsonOutput = args[++i];
@@ -293,14 +279,18 @@ function parseArgs(): RunnerOptions {
 
 function printHelp(): void {
     console.log(`
-${bold('Deepkit Benchmark Runner')} ${gray('(zero dependencies)')}
+${bold('Deepkit Benchmark Runner')}
 
-${bold('Usage:')} npx ts-node src/runner.ts [options] [path|pattern|filter]
+${bold('Usage:')} npm run benchmark [options]
+
+${bold('Benchmark Sets:')}
+  npm run benchmark              Run core benchmarks (default, for CI)
+  npm run benchmark:comparison   Run comparison benchmarks (vs external libs)
+  npm run benchmark:debug        Run debug benchmarks (local profiling)
 
 ${bold('Options:')}
   -d, --dir <path>          Directory containing benchmark files
   -p, --pattern <glob>      Glob pattern for benchmark files (default: **/*.bench.ts)
-  -c, --category <cat>      Run only benchmarks of category (p0, p1, p2)
   -j, --json <path>         Output results to JSON file
   -f, --filter <regex>      Filter benchmarks by name
   -t, --max-time <sec>      Maximum time per benchmark in seconds
@@ -311,11 +301,10 @@ ${bold('Options:')}
   -h, --help                Show this help message
 
 ${bold('Examples:')}
-  npx ts-node src/runner.ts                          # Run all benchmarks
-  npx ts-node src/runner.ts -c p0                    # Run only P0 benchmarks
-  npx ts-node src/runner.ts -f "serialize"           # Run benchmarks matching "serialize"
-  npx ts-node src/runner.ts --save-baseline          # Save results as baseline
-  npx ts-node src/runner.ts --compare-baseline       # Compare against baseline
+  npm run benchmark                              # Run core benchmarks
+  npm run benchmark -- -f "serialize"            # Filter by name
+  npm run benchmark -- --save-baseline           # Save results as baseline
+  npm run benchmark -- --compare-baseline        # Compare against baseline
 
 ${bold('Environment:')}
   For GC control, run with: node --expose-gc
@@ -335,7 +324,7 @@ async function main(): Promise<void> {
 }
 
 // Exports
-export { BenchSuite, BenchSuiteResult, BenchmarkCategory } from './bench';
+export { BenchSuite, BenchSuiteResult } from './bench';
 export * from './reporter/json';
 export * from './reporter/comparison';
 export * from './reporter/markdown';

@@ -35,55 +35,55 @@ export default async function() {
 
     suite.add('literal concat', () => {
         const s = literal + '1';
-    }, { category: 'p1' });
+    });
 
     suite.add('template concat', () => {
         const s = ts + '1';
-    }, { category: 'p1' });
+    });
 
     suite.add('template tag concat', () => {
         const s = tsTag + '1';
-    }, { category: 'p1' });
+    });
 
     suite.add('String.toString concat', () => {
         const s = object.toString() + '1';
-    }, { category: 'p1' });
+    });
 
     suite.add('EscapedString.toString concat', () => {
         const s = escaped.toString() + '1';
-    }, { category: 'p1' });
+    });
 
     suite.add('FakeString concat', () => {
         const s = FakeString + '1';
-    }, { category: 'p1' });
+    });
 
     suite.add('template creation', () => {
         const s = `a`;
-    }, { category: 'p1' });
+    });
 
     suite.add('template tag creation', () => {
         const s = myTag`a`;
-    }, { category: 'p1' });
+    });
 
     suite.add('String creation', () => {
         const s = new String('a2');
-    }, { category: 'p1' });
+    });
 
     suite.add('EscapedString creation', () => {
         const s = new EscapedString('a2');
-    }, { category: 'p1' });
+    });
 
     suite.add('FakeString creation', () => {
         const s = {toString() { return 'a'}, [escapedS]: true};
-    }, { category: 'p1' });
+    });
 
     suite.add('typeof literal', () => {
         const t = typeof literal;
-    }, { category: 'p1' });
+    });
 
     suite.add('instanceof String', () => {
         const t = object instanceof String;
-    }, { category: 'p1' });
+    });
 
     return suite;
 }

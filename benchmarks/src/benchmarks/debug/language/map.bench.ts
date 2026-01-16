@@ -30,24 +30,24 @@ export default async function() {
 
     suite.add('Set has', () => {
         const d = !!s.has('127.0.0.1');
-    }, { category: 'p1' });
+    });
 
     suite.add('Object property access', () => {
         const d = !!o['127.0.0.1'];
-    }, { category: 'p1' });
+    });
 
     suite.add('Map set (1000 items)', () => {
         map.clear();
         for (let i = 0; i < count; i++) {
             map.set(i, Math.random());
         }
-    }, { category: 'p1' });
+    });
 
     suite.add('Map get (1000 items)', () => {
         for (let i = 0; i < count; i++) {
             const v = map.get(i);
         }
-    }, { category: 'p1' });
+    });
 
     let object: any = {};
 
@@ -56,14 +56,14 @@ export default async function() {
         for (let i = 0; i < count; i++) {
             object[i] = Math.random();
         }
-    }, { category: 'p1' });
+    });
 
     suite.add('Object get (1000 items)', () => {
         let v: any = undefined;
         for (let i = 0; i < count; i++) {
             v = object[i];
         }
-    }, { category: 'p1' });
+    });
 
     const hashmapSize = 1000;
     const hashmap: { key: number, value: number }[][] = Array(hashmapSize);
@@ -86,7 +86,7 @@ export default async function() {
             }
             if (!found) bucket.push({ key: i, value: v });
         }
-    }, { category: 'p1' });
+    });
 
     suite.add('Hashmap get (1000 items)', () => {
         for (let i = 0; i < count; i++) {
@@ -100,7 +100,7 @@ export default async function() {
                 }
             }
         }
-    }, { category: 'p1' });
+    });
 
     const arraySize = count;
     const array: number[] = [];
@@ -110,13 +110,13 @@ export default async function() {
         for (let i = 0; i < count; i++) {
             array[i] = Math.random();
         }
-    }, { category: 'p1' });
+    });
 
     suite.add('Array get (1000 items)', () => {
         for (let i = 0; i < count; i++) {
             const v = array[i];
         }
-    }, { category: 'p1' });
+    });
 
     return suite;
 }
