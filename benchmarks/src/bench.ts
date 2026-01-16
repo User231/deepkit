@@ -282,6 +282,9 @@ export class BenchSuite {
             return {};
         }
 
+        // Calculate max name length for alignment
+        const maxNameLen = Math.max(...filtered.map(b => b.name.length));
+
         if (verbose) {
             console.log();
             console.log(bold(`━━━ ${green(this.name)} ━━━`));
@@ -291,7 +294,7 @@ export class BenchSuite {
 
         for (const bench of filtered) {
             try {
-                const result = await this.runBenchmark(bench, verbose);
+                const result = await this.runBenchmark(bench, verbose, maxNameLen);
                 this.results[bench.name] = result;
             } catch (err) {
                 if (verbose) console.error(red(`  ✗ ${bench.name} failed:`), err);
@@ -327,15 +330,10 @@ export class BenchSuite {
     // PRIVATE
     // ────────────────────────────────────────────────────────────────────────────
 
-    private async runBenchmark(bench: BenchmarkEntry, verbose: boolean): Promise<BenchResult> {
+    private async runBenchmark(bench: BenchmarkEntry, verbose: boolean, maxNameLen: number = 20): Promise<BenchResult> {
         const maxTime = bench.options.maxTime ?? this.defaultMaxTime;
         const isAsync = bench.fn instanceof AsyncFunction ||
             (bench.fn as any).constructor?.name === 'AsyncFunction';
-
-        if (verbose) {
-            process.stdout.write(`  ${cyan('○')} ${bench.name} `);
-            if (isAsync) process.stdout.write(dim('(async) '));
-        }
 
         const result = isAsync
             ? await this.testAsync(bench.fn as () => Promise<void>, maxTime)
@@ -344,7 +342,7 @@ export class BenchSuite {
         result.async = isAsync;
 
         if (verbose) {
-            this.printResult(result);
+            this.printResult(bench.name, result, maxNameLen, isAsync);
         }
 
         return result;
@@ -448,13 +446,14 @@ export class BenchSuite {
         };
     }
 
-    private printResult(result: BenchResult): void {
+    private printResult(name: string, result: BenchResult, maxNameLen: number, isAsync: boolean): void {
         const bar = getBlockBar(result.samples, 20);
         const hzStr = green(formatHzFull(result.hz).padStart(18));
         const meanStr = yellow(formatMean(result.mean).padStart(12));
-        const rmeStr = gray(formatRme(result.rme));
+        const rmeStr = gray(formatRme(result.rme).padStart(8));
+        const asyncTag = isAsync ? dim(' (async)') : '';
 
-        console.log(`${bar} ${hzStr} ops/sec ${meanStr}/op ${rmeStr}`);
+        console.log(`  ${bar} ${hzStr} ops/sec ${meanStr}/op ${rmeStr}  ${name}${asyncTag}`);
     }
 
     private printSummary(): void {
@@ -464,31 +463,31 @@ export class BenchSuite {
         // Sort by ops/sec descending
         entries.sort((a, b) => b[1].hz - a[1].hz);
         const fastest = entries[0];
+        const maxNameLen = Math.max(...entries.map(([name]) => name.length));
 
         console.log();
         console.log(bold('  Summary:'));
-        console.log(`  ┌${'─'.repeat(76)}┐`);
 
         for (let i = 0; i < entries.length; i++) {
             const [name, result] = entries[i];
             const isFastest = i === 0;
             const factor = fastest[1].hz / result.hz;
 
-            const nameStr = (isFastest ? bold(green(name)) : name).padEnd(40 + (isFastest ? 18 : 0));
-            const hzStr = formatHz(result.hz).padStart(10);
-            const factorStr = isFastest
-                ? green(bold('fastest'))
-                : dim(`x${factor.toFixed(2)}`);
-
             // Performance bar (relative to fastest)
             const barWidth = 15;
             const filled = Math.round((result.hz / fastest[1].hz) * barWidth);
             const bar = green('█'.repeat(filled)) + gray('░'.repeat(barWidth - filled));
 
-            console.log(`  │ ${nameStr} ${bar} ${cyan(hzStr)} ops/sec ${factorStr.padStart(12)} │`);
+            const hzStr = cyan(formatHz(result.hz).padStart(10));
+            const factorStr = isFastest
+                ? green(bold('fastest'))
+                : dim(`x${factor.toFixed(2).padStart(6)}`);
+
+            const nameStr = isFastest ? bold(green(name)) : name;
+
+            console.log(`  ${bar} ${hzStr} ops/sec ${factorStr}  ${nameStr}`);
         }
 
-        console.log(`  └${'─'.repeat(76)}┘`);
         console.log();
     }
 }
