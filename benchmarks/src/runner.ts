@@ -74,13 +74,13 @@ export class BenchmarkRunner {
 
     constructor(options: RunnerOptions = {}) {
         this.options = {
-            benchmarkDir: options.benchmarkDir ?? path.join(process.cwd(), 'benchmarks'),
+            benchmarkDir: options.benchmarkDir ?? path.join(process.cwd(), 'src', 'benchmarks'),
             pattern: options.pattern ?? '**/*.bench.ts',
             category: options.category as BenchmarkCategory,
             jsonOutput: options.jsonOutput ?? '',
             saveBaseline: options.saveBaseline ?? false,
             compareBaseline: options.compareBaseline ?? false,
-            baselineDir: options.baselineDir ?? path.join(process.cwd(), 'benchmarks', 'baselines'),
+            baselineDir: options.baselineDir ?? path.join(process.cwd(), 'src', 'benchmarks', 'baselines'),
             filter: options.filter ?? '',
             verbose: options.verbose ?? false,
             maxTime: options.maxTime ?? 1,
