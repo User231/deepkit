@@ -15,10 +15,11 @@ pre-commit:
       glob: '[*.{json,yml,yaml,html,ts,tsx,js,jsx},!./package-lock.json]'
       run: ./node_modules/.bin/prettier --write {staged_files} && git add {staged_files}
 
-    # Fast typecheck using tsgo (required - blocks commit on failure)
+    # Typecheck (skip by default - too slow for pre-commit, run manually or in CI)
     typecheck:
       glob: '*.{ts,tsx}'
       run: npm run typecheck
+      skip: true
       fail_text: |
         ❌ TypeScript typecheck failed!
         Fix type errors before committing.
