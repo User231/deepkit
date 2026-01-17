@@ -17,3 +17,5 @@ packages/create-app/files/var
 .vs
 .fleet
 .DS_Store
+*.sqlite
+*.sqlite-journal
