@@ -8,11 +8,12 @@
  * You should have received a copy of the MIT License along with this program.
  */
 import { expect, test } from '@jest/globals';
-import { float, float32, int8, integer, PrimaryKey, Reference } from '../src/reflection/type.js';
-import { is } from '../src/typeguard.js';
-import { Serializer } from '../src/serializer.js';
-import { cast } from '../src/serializer-facade.js';
+
 import { isReferenceInstance } from '../src/reference.js';
+import { PrimaryKey, Reference, float, float32, int8, integer } from '../src/reflection/type.js';
+import { cast } from '../src/serializer-facade.js';
+import { Serializer } from '../src/serializer.js';
+import { is } from '../src/typeguard.js';
 
 test('primitive string', () => {
     expect(is<string>('a')).toEqual(true);
@@ -61,18 +62,20 @@ test('primitive number float32', () => {
     expect(is<float32>('a')).toEqual(false);
     expect(is<float32>(123)).toEqual(true);
     expect(is<float32>(123.4)).toEqual(true);
-    expect(is<float32>(3.40282347e+38)).toEqual(true);
+    expect(is<float32>(3.40282347e38)).toEqual(true);
     //JS precision issue:
-    expect(is<float32>(3.40282347e+38 + 100000000000000000000000)).toEqual(false);
-    expect(is<float32>(-3.40282347e+38)).toEqual(true);
-    expect(is<float32>(-3.40282347e+38 - 100000000000000000000000)).toEqual(false);
+    expect(is<float32>(3.40282347e38 + 100000000000000000000000)).toEqual(false);
+    expect(is<float32>(-3.40282347e38)).toEqual(true);
+    expect(is<float32>(-3.40282347e38 - 100000000000000000000000)).toEqual(false);
     expect(is<float32>(true)).toEqual(false);
     expect(is<float32>({})).toEqual(false);
 });
 
 test('enum', () => {
     enum MyEnum {
-        a, b, c
+        a,
+        b,
+        c,
     }
 
     expect(is<MyEnum>(0)).toEqual(true);
@@ -85,8 +88,10 @@ test('enum', () => {
 });
 
 test('enum const', () => {
-    const enum MyEnum {
-        a, b, c
+    enum MyEnum {
+        a,
+        b,
+        c,
     }
 
     expect(is<MyEnum>(0)).toEqual(true);
@@ -100,7 +105,9 @@ test('enum const', () => {
 
 test('enum string', () => {
     enum MyEnum {
-        a = 'a', b = 'b', c = 'c'
+        a = 'a',
+        b = 'b',
+        c = 'c',
     }
 
     expect(is<MyEnum>('a')).toEqual(true);
@@ -147,8 +154,22 @@ test('set', () => {
 
 test('map', () => {
     expect(is<Map<string, number>>(new Map([['a', 1]]))).toEqual(true);
-    expect(is<Map<string, number>>(new Map([['a', 1], ['b', 2]]))).toEqual(true);
-    expect(is<Map<string, number>>(new Map<any, any>([['a', 1], ['b', 'b']]))).toEqual(false);
+    expect(
+        is<Map<string, number>>(
+            new Map([
+                ['a', 1],
+                ['b', 2],
+            ]),
+        ),
+    ).toEqual(true);
+    expect(
+        is<Map<string, number>>(
+            new Map<any, any>([
+                ['a', 1],
+                ['b', 'b'],
+            ]),
+        ),
+    ).toEqual(false);
     expect(is<Map<string, number>>(new Map<any, any>([[2, 1]]))).toEqual(false);
 });
 
@@ -228,8 +249,8 @@ test('object literal', () => {
     expect(is<{ a?: string }>({})).toEqual(true);
     expect(is<{ a?: string }>({ a: 'abc' })).toEqual(true);
     expect(is<{ a?: string }>({ a: 123 })).toEqual(false);
-    expect(is<{ a: string, b: number }>({ a: 'a', b: 12 })).toEqual(true);
-    expect(is<{ a: string, b: number }>({ a: 'a', b: 'asd' })).toEqual(false);
+    expect(is<{ a: string; b: number }>({ a: 'a', b: 12 })).toEqual(true);
+    expect(is<{ a: string; b: number }>({ a: 'a', b: 'asd' })).toEqual(false);
 });
 
 test('function', () => {
@@ -289,11 +310,11 @@ test('object literal methods', () => {
 });
 
 test('multiple index signature', () => {
-    expect(is<{ [name: string]: string | number, [name: number]: string }>({})).toEqual(true);
-    expect(is<{ [name: string]: string | number, [name: number]: number }>({ a: 'abc' })).toEqual(true);
-    expect(is<{ [name: string]: string | number, [name: number]: number }>({ a: 123 })).toEqual(true);
-    expect(is<{ [name: string]: string | number, [name: number]: number }>({ 1: 123 })).toEqual(true);
-    expect(is<{ [name: string]: string | number, [name: number]: number }>({ 1: 'abc' })).toEqual(false);
+    expect(is<{ [name: string]: string | number; [name: number]: string }>({})).toEqual(true);
+    expect(is<{ [name: string]: string | number; [name: number]: number }>({ a: 'abc' })).toEqual(true);
+    expect(is<{ [name: string]: string | number; [name: number]: number }>({ a: 123 })).toEqual(true);
+    expect(is<{ [name: string]: string | number; [name: number]: number }>({ 1: 123 })).toEqual(true);
+    expect(is<{ [name: string]: string | number; [name: number]: number }>({ 1: 'abc' })).toEqual(false);
 });
 
 test('brands', () => {
@@ -428,18 +449,26 @@ test('union classes with generic', () => {
 
     const newGroup = cast<Group>({ id: 1, second: 'a' });
 
-    const a = cast<User>({
-        id: 1,
-        groups: [newGroup],
-    }, undefined, serializer);
+    const a = cast<User>(
+        {
+            id: 1,
+            groups: [newGroup],
+        },
+        undefined,
+        serializer,
+    );
 
     expect(a.groups[0]).toBeInstanceOf(Group);
     expect(isReferenceInstance(a.groups[0])).toBe(false);
 
-    const b = cast<User>({
-        id: 1,
-        groups: [1],
-    }, undefined, serializer);
+    const b = cast<User>(
+        {
+            id: 1,
+            groups: [1],
+        },
+        undefined,
+        serializer,
+    );
 
     expect(b.groups[0]).toBeInstanceOf(Group);
     expect(isReferenceInstance(b.groups[0])).toBe(true);
