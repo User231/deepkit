@@ -1,14 +1,56 @@
 # https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
+
+# Parallel execution for performance
+parallel: true
+
 commit-msg:
   commands:
     commitlint:
       run: npx commitlint --edit {1}
+
 pre-commit:
   commands:
-#    github-actions:
-#      glob: '*.{yaml,yml}'
-#      root: '.github'
-#      run: echo {staged_files} && actionlint
+    # Format staged files
     prettier:
       glob: '[*.{json,yml,yaml,html,ts,tsx,js,jsx},!./package-lock.json]'
       run: ./node_modules/.bin/prettier --write {staged_files} && git add {staged_files}
+
+    # Fast typecheck using tsgo (required - blocks commit on failure)
+    typecheck:
+      glob: '*.{ts,tsx}'
+      run: npm run typecheck
+      fail_text: |
+        ❌ TypeScript typecheck failed!
+        Fix type errors before committing.
+        Run: npm run typecheck
+
+    # Lint check (required - blocks commit on failure)
+    lint:
+      glob: '*.{ts,tsx,js,jsx}'
+      run: ./node_modules/.bin/prettier --check {staged_files}
+      fail_text: |
+        ❌ Lint check failed!
+        Run: ./node_modules/.bin/prettier --write <files>
+
+# Pre-push hooks for more thorough checks
+pre-push:
+  commands:
+    # Run tests for affected packages before pushing
+    # This is advisory - push proceeds but warns on failure
+    test-warning:
+      run: |
+        echo "⚠️  Remember to run tests for affected packages before pushing:"
+        echo "   npm run test packages/<affected-package>/"
+      skip: true  # Advisory only, enable when ready
+
+# Post-checkout hooks for maintaining build state
+post-checkout:
+  commands:
+    rebuild-compiler:
+      run: |
+        # Rebuild type-compiler if its source changed
+        if git diff --name-only HEAD@{1} HEAD | grep -q "packages/type-compiler/"; then
+          echo "🔨 Rebuilding type-compiler..."
+          npm run postinstall
+        fi
+      skip: true  # Enable when ready

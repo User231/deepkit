@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## When Working on Issues or Improvements
+
+If asked to fix bugs, improve packages, or work on GitHub issues:
+
+**Read `docs/todo.md` first.** It contains complete agent instructions including:
+- How to continue existing work
+- How to delegate to sub-agents (you are the orchestrator)
+- Rules for commits, tests, and documentation
+- Active work and prioritized backlog
+
+**Init prompt for new session**: `open docs/todo.md and continue the work`
+
 ## Project Overview
 
 Deepkit Framework is a high-performance, modular TypeScript framework for backend applications based on **runtime types**. The core innovation is the `@deepkit/type-compiler` which transforms TypeScript types into runtime-accessible metadata, enabling features like validation, serialization, and dependency injection to work directly with TypeScript types.
@@ -143,8 +155,40 @@ docs/
 ├── CONTRIBUTING.md   # Development workflow
 ├── PACKAGES.md       # Package reference guide
 ├── QUALITY.md        # QA processes
-└── ROADMAP.md        # Future plans
+├── ROADMAP.md        # Future plans
+│
+├── team/             # Team roles (pipeline-based workflow)
+│   ├── README.md     # Team intro & pipeline diagram
+│   ├── lead.md       # 🧑‍💼 Max - Orchestrator
+│   ├── perf.md       # 🏎️ Turbo - Performance guardian
+│   ├── security.md   # 🔒 Sam - Security reviewer
+│   ├── dx.md         # 🎨 Devon - DX advocate
+│   ├── docs.md       # 📝 Dana - Documentation keeper
+│   └── impact.md     # 🌊 River - Impact analyst
+│
+└── todo/             # Issue and task tracking
+    ├── todo.md       # Main tracker (GitHub issues, codebase issues)
+    ├── _ISSUE_TEMPLATE/
+    ├── packages/     # Per-package improvement checklists
+    └── <issue-id>/   # Issue-specific work folders
 ```
+
+## Task Tracking
+
+All task tracking and agent workflow instructions are in `docs/todo.md`.
+
+### Quick Reference
+
+- **Workflow**: `docs/todo.md` (pipeline & backlog)
+- **Team roles**: `docs/team/` (who does what)
+- **Issue tracking**: `docs/todo/<issue-id>/`
+
+### Pre-commit Hooks (lefthook.yml)
+
+Commits are automatically blocked if:
+- Typecheck fails (`npm run typecheck`)
+- Lint fails (prettier)
+- Commit message doesn't follow conventional format
 
 ## Working with This Codebase
 
