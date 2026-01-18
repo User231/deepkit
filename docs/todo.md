@@ -176,7 +176,6 @@ Issues affecting DX or edge cases.
 
 | Issue | Title | Package | Created |
 |-------|-------|---------|---------|
-| [#676](https://github.com/deepkit/deepkit-framework/issues/676) | [bson] Improve error message | bson | 2025-12-03 |
 | [#668](https://github.com/deepkit/deepkit-framework/issues/668) | query.count() throws error with pagination | orm | 2025-09-23 |
 | [#664](https://github.com/deepkit/deepkit-framework/issues/664) | function __types should be hoisted? | type-compiler | 2025-08-11 |
 | [#653](https://github.com/deepkit/deepkit-framework/issues/653) | HttpHeader case sensitive in TestingFacade | http | 2025-06-17 |
@@ -315,6 +314,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#612](https://github.com/deepkit/deepkit-framework/issues/612) | Optional chaining SyntaxError | 2026-01-16 | 02c2a6c9 |
 | [#598](https://github.com/deepkit/deepkit-framework/issues/598) | Missing shebang in bin/deepkit-sql.js | 2026-01-16 | 7bb2b6f1 |
 | [#573](https://github.com/deepkit/deepkit-framework/issues/573) | [bson] make sure NaN is serialized as 0 | 2026-01-18 | 8578bb4f |
+| [#676](https://github.com/deepkit/deepkit-framework/issues/676) | [bson] Improve error message | 2026-01-18 | 1367b606 |
 
 ---
 
