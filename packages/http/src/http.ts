@@ -697,6 +697,8 @@ export class HttpListener {
             }
         } catch (error) {
             this.logger.error('Could not resolve request', error);
+            // HttpError should bubble up with its proper status code (e.g., middleware throwing 403)
+            if (error instanceof HttpError) throw error;
             event.notFound();
         }
     }

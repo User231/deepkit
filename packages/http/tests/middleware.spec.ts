@@ -4,6 +4,7 @@ import { AppModule } from '@deepkit/app';
 import { sleep } from '@deepkit/core';
 
 import { http } from '../src/decorator.js';
+import { HttpAccessDeniedError, HttpUnauthorizedError } from '../src/http.js';
 import { HttpMiddleware, httpMiddleware } from '../src/middleware.js';
 import { HttpRequest, HttpResponse } from '../src/model.js';
 import { createHttpKernel } from './utils.js';
@@ -69,6 +70,41 @@ test('middleware async failed', async () => {
     const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
     expect(response.statusCode).toEqual(404);
     expect(response.bodyString).toEqual('Not found');
+});
+
+test('middleware throwing HttpError returns correct status code', async () => {
+    const httpKernel = createHttpKernel(
+        [Controller],
+        [],
+        [],
+        [
+            httpMiddleware.for((req, res, next) => {
+                throw new HttpAccessDeniedError('Access denied for this resource');
+            }),
+        ],
+    );
+
+    const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
+    expect(response.statusCode).toEqual(403);
+    expect(response.json).toEqual({ message: 'Access denied for this resource' });
+});
+
+test('middleware async throwing HttpError returns correct status code', async () => {
+    const httpKernel = createHttpKernel(
+        [Controller],
+        [],
+        [],
+        [
+            httpMiddleware.for(async (req, res, next) => {
+                await sleep(0.1);
+                throw new HttpUnauthorizedError('Invalid token');
+            }),
+        ],
+    );
+
+    const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
+    expect(response.statusCode).toEqual(401);
+    expect(response.json).toEqual({ message: 'Invalid token' });
 });
 
 test('middleware class async success', async () => {
