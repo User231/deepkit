@@ -33,6 +33,19 @@ pre-commit:
         ❌ Lint check failed!
         Run: ./node_modules/.bin/prettier --write <files>
 
+    # Block TODO/FIXME in newly added code (not existing code)
+    no-todo:
+      glob: '*.{ts,tsx,js,jsx}'
+      run: |
+        if git diff --cached --diff-filter=ACMR -U0 -- {staged_files} | grep -E '^\+.*(TODO|FIXME)' | grep -v '^+++'; then
+          echo ""
+          echo "❌ Found TODO/FIXME in added lines. Remove before committing."
+          exit 1
+        fi
+      fail_text: |
+        ❌ TODO/FIXME check failed!
+        Remove TODO/FIXME comments from your changes before committing.
+
 # Pre-push hooks for more thorough checks
 pre-push:
   commands:
