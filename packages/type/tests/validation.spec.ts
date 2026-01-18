@@ -1,10 +1,11 @@
 import { expect, jest, test } from '@jest/globals';
-import { Email, MaxLength, MinLength, Positive, Validate, validate, validates, ValidatorError } from '../src/validator.js';
-import { assert, is } from '../src/typeguard.js';
-import { AutoIncrement, Excluded, Group, integer, PrimaryKey, Type, Unique } from '../src/reflection/type.js';
+
 import { t } from '../src/decorator.js';
 import { ReflectionClass, typeOf } from '../src/reflection/reflection.js';
+import { AutoIncrement, Excluded, Group, PrimaryKey, Type, Unique, integer } from '../src/reflection/type.js';
 import { cast, castFunction, validatedDeserialize } from '../src/serializer-facade.js';
+import { assert, is } from '../src/typeguard.js';
+import { Email, MaxLength, MinLength, Positive, Validate, ValidatorError, validate, validates } from '../src/validator.js';
 
 test('primitives', () => {
     expect(validate<string>('Hello')).toEqual([]);
@@ -76,7 +77,7 @@ test('multiple custom validators with identical signatures', () => {
     type MyType = {
         a: string & Validate<typeof validator1>;
         b: string & Validate<typeof validator2>;
-    }
+    };
 
     expect(is<MyType>({ a: 'a', b: 'b' })).toEqual(true);
     expect(validator1).toHaveBeenCalledTimes(1);
@@ -112,7 +113,10 @@ test('simple interface', () => {
 
     expect(validate<User>(undefined)).toEqual([{ code: 'type', message: 'Not an object', path: '' }]);
     expect(is<User>({})).toEqual(false);
-    expect(validate<User>({})).toEqual([{ code: 'type', message: 'Not a number', path: 'id' }, { code: 'type', message: 'Not a string', path: 'username' }]);
+    expect(validate<User>({})).toEqual([
+        { code: 'type', message: 'Not a number', path: 'id' },
+        { code: 'type', message: 'Not a string', path: 'username' },
+    ]);
     expect(validate<User>({ id: 1 })).toEqual([{ code: 'type', message: 'Not a string', path: 'username' }]);
     expect(validate<User>({ id: 1, username: 'Peter' })).toEqual([]);
 });
@@ -124,7 +128,10 @@ test('simple class', () => {
     }
 
     expect(validate<User>(undefined)).toEqual([{ code: 'type', message: 'Not an object', path: '' }]);
-    expect(validate<User>({})).toEqual([{ code: 'type', message: 'Not a number', path: 'id' }, { code: 'type', message: 'Not a string', path: 'username' }]);
+    expect(validate<User>({})).toEqual([
+        { code: 'type', message: 'Not a number', path: 'id' },
+        { code: 'type', message: 'Not a string', path: 'username' },
+    ]);
     expect(validate<User>({ id: 1 })).toEqual([{ code: 'type', message: 'Not a string', path: 'username' }]);
     expect(validate<User>({ id: 1, username: 'Peter' })).toEqual([]);
 });
@@ -140,8 +147,7 @@ test('class', () => {
 
         logins: integer & Positive & Excluded<'json'> = 0;
 
-        constructor(public username: string & MinLength<3> & MaxLength<24> & Unique) {
-        }
+        constructor(public username: string & MinLength<3> & MaxLength<24> & Unique) {}
     }
 
     expect(is<User>({ id: 0, logins: 0, username: 'Peter' })).toBe(true);
@@ -163,12 +169,14 @@ test('path', () => {
 
     // expect(validate<Container1>({ configs: [{ name: 'a', value: 3 }] })).toEqual([]);
     expect(validate<Container1>({ configs: {} })).toEqual([{ code: 'type', message: 'Not an array', path: 'configs', value: {} }]);
-    expect(validate<Container1>({ configs: [{ name: 'a', value: 123 }, { name: '12' }] })).toEqual([{
-        code: 'type',
-        message: 'Not a number',
-        path: 'configs.1.value',
-        value: undefined,
-    }]);
+    expect(validate<Container1>({ configs: [{ name: 'a', value: 123 }, { name: '12' }] })).toEqual([
+        {
+            code: 'type',
+            message: 'Not a number',
+            path: 'configs.1.value',
+            value: undefined,
+        },
+    ]);
 
     class Container2 {
         configs: { [name: string]: Config } = {};
@@ -184,12 +192,14 @@ test('class with union literal', () => {
     }
 
     expect(validate<ConnectionOptions>({ readConcernLevel: 'majority' })).toEqual([]);
-    expect(validate<ConnectionOptions>({ readConcernLevel: 'invalid' })).toEqual([{
-        code: 'type',
-        message: 'No valid union member found. Valid: \'local\' | \'majority\' | \'linearizable\' | \'available\'',
-        path: 'readConcernLevel',
-        value: 'invalid',
-    }]);
+    expect(validate<ConnectionOptions>({ readConcernLevel: 'invalid' })).toEqual([
+        {
+            code: 'type',
+            message: "No valid union member found. Valid: 'local' | 'majority' | 'linearizable' | 'available'",
+            path: 'readConcernLevel',
+            value: 'invalid',
+        },
+    ]);
 });
 
 test('named tuple', () => {
@@ -261,7 +271,7 @@ test('inline object', () => {
     interface Post {
         tags: string[];
         collection: {
-            items: string[]
+            items: string[];
         };
     }
 
@@ -271,16 +281,20 @@ test('inline object', () => {
     });
 
     expect(errors).toEqual([{ path: 'collection.items', code: 'type', message: 'Not an array' }]);
-    expect(() => validatedDeserialize<Post>({
-        tags: [],
-        collection: {}, // This should make the validator throw an error
-    })).toThrow('collection.items(type): Not an array');
+    expect(() =>
+        validatedDeserialize<Post>({
+            tags: [],
+            collection: {}, // This should make the validator throw an error
+        }),
+    ).toThrow('collection.items(type): Not an array');
 });
 
 test('readonly constructor properties', () => {
     class Pilot {
-        constructor(readonly name: string, readonly age: number) {
-        }
+        constructor(
+            readonly name: string,
+            readonly age: number,
+        ) {}
     }
 
     expect(validate<Pilot>({ name: 'Peter', age: 32 })).toEqual([]);
@@ -291,8 +305,7 @@ test('class with statics', () => {
     class PilotId {
         public static readonly none: PilotId = new PilotId(0);
 
-        constructor(public readonly value: number) {
-        }
+        constructor(public readonly value: number) {}
 
         static from(value: number) {
             return new PilotId(value);
@@ -360,11 +373,113 @@ test('array with multiple errors', () => {
         level: number & Positive;
     }
 
-    const errors = validate<Array<Skill>>([{level: -1}, {level: -1}]);
+    const errors = validate<Array<Skill>>([{ level: -1 }, { level: -1 }]);
     console.log(errors);
 
     expect(errors).toEqual([
-        {code: 'positive', message: 'Number needs to be positive', path: '0.level', value: -1},
-        {code: 'positive', message: 'Number needs to be positive', path: '1.level', value: -1}
+        { code: 'positive', message: 'Number needs to be positive', path: '0.level', value: -1 },
+        { code: 'positive', message: 'Number needs to be positive', path: '1.level', value: -1 },
     ]);
+});
+
+test('union with constraints shows specific validation error (#577)', () => {
+    // Issue #577: When a union member fails validation due to constraints (like MinLength),
+    // the error should show the specific constraint violation, not "No valid union member found"
+
+    class MyClass {
+        code!: (string & MinLength<1> & MaxLength<2>) | null;
+    }
+
+    // Valid cases
+    expect(validate<MyClass>({ code: 'a' })).toEqual([]);
+    expect(validate<MyClass>({ code: 'ab' })).toEqual([]);
+    expect(validate<MyClass>({ code: null })).toEqual([]);
+
+    // Empty string fails MinLength<1> - should show minLength error, not "No valid union member found"
+    const emptyStringErrors = validate<MyClass>({ code: '' });
+    expect(emptyStringErrors.length).toBe(1);
+    expect(emptyStringErrors[0].path).toBe('code');
+    expect(emptyStringErrors[0].code).toBe('minLength');
+    expect(emptyStringErrors[0].message).toBe('Min length is 1');
+
+    // String too long fails MaxLength<2> - should show maxLength error
+    const tooLongErrors = validate<MyClass>({ code: 'abc' });
+    expect(tooLongErrors.length).toBe(1);
+    expect(tooLongErrors[0].path).toBe('code');
+    expect(tooLongErrors[0].code).toBe('maxLength');
+    expect(tooLongErrors[0].message).toBe('Max length is 2');
+});
+
+test('union with multiple constrained types shows correct constraint error (#577)', () => {
+    // When multiple union members have constraints, show the error from the matching base type
+
+    type Value = (string & MinLength<1>) | (number & Positive);
+
+    // Valid cases
+    expect(validate<Value>('hello')).toEqual([]);
+    expect(validate<Value>(42)).toEqual([]);
+
+    // Empty string - base type is string, so show string's constraint error
+    const emptyStringErrors = validate<Value>('');
+    expect(emptyStringErrors.length).toBe(1);
+    expect(emptyStringErrors[0].code).toBe('minLength');
+
+    // Negative number - base type is number, so show number's constraint error
+    const negativeErrors = validate<Value>(-5);
+    expect(negativeErrors.length).toBe(1);
+    expect(negativeErrors[0].code).toBe('positive');
+
+    // Boolean - no base type matches, show generic union error
+    const booleanErrors = validate<Value>(true as any);
+    expect(booleanErrors.length).toBe(1);
+    expect(booleanErrors[0].code).toBe('type');
+    expect(booleanErrors[0].message).toContain('No valid union member found');
+});
+
+test('union with nested objects shows deep constraint errors (#577)', () => {
+    // Test complex union with three object types and deep constraint failures
+
+    interface ClickEvent {
+        type: 'click';
+        x: number & Positive;
+        y: number & Positive;
+    }
+
+    interface ScrollEvent {
+        type: 'scroll';
+        offset: number;
+    }
+
+    interface InputEvent {
+        type: 'input';
+        value: string & MinLength<1>;
+    }
+
+    type Event = ClickEvent | ScrollEvent | InputEvent;
+
+    // Valid cases
+    expect(validate<Event>({ type: 'click', x: 10, y: 20 })).toEqual([]);
+    expect(validate<Event>({ type: 'scroll', offset: 100 })).toEqual([]);
+    expect(validate<Event>({ type: 'input', value: 'hello' })).toEqual([]);
+
+    // Deep constraint failure: x is negative in ClickEvent
+    const clickErrors = validate<Event>({ type: 'click', x: -5, y: 10 });
+    expect(clickErrors.length).toBeGreaterThanOrEqual(1);
+    // Should show the specific constraint error, not generic union error
+    const positiveError = clickErrors.find(e => e.code === 'positive');
+    expect(positiveError).toBeDefined();
+    expect(positiveError!.path).toBe('x');
+
+    // Deep constraint failure: value is empty in InputEvent
+    const inputErrors = validate<Event>({ type: 'input', value: '' });
+    expect(inputErrors.length).toBeGreaterThanOrEqual(1);
+    const minLengthError = inputErrors.find(e => e.code === 'minLength');
+    expect(minLengthError).toBeDefined();
+    expect(minLengthError!.path).toBe('value');
+
+    // Completely wrong discriminant - should show generic error
+    const wrongTypeErrors = validate<Event>({ type: 'unknown' } as any);
+    expect(wrongTypeErrors.length).toBe(1);
+    expect(wrongTypeErrors[0].code).toBe('type');
+    expect(wrongTypeErrors[0].message).toContain('No valid union member found');
 });
