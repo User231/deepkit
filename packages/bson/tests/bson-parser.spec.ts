@@ -2,7 +2,7 @@ import { expect, test } from '@jest/globals';
 import bson, { Binary } from 'bson';
 
 import { getClassName } from '@deepkit/core';
-import { BinaryBigInt, MinLength, MongoId, PrimaryKey, Reference, ReflectionKind, SerializedTypes, SignedBinaryBigInt, TypeObjectLiteral, UUID, copyAndSetParent, nodeBufferToArrayBuffer, typeOf, uuid } from '@deepkit/type';
+import { BinaryBigInt, MinLength, MongoId, Positive, PrimaryKey, Reference, ReflectionKind, SerializedTypes, SignedBinaryBigInt, TypeObjectLiteral, UUID, copyAndSetParent, nodeBufferToArrayBuffer, typeOf, uuid } from '@deepkit/type';
 
 import { deserializeBSON, getBSONDeserializer } from '../src/bson-deserializer.js';
 import { deserializeBSONWithoutOptimiser } from '../src/bson-parser';
@@ -1028,4 +1028,116 @@ test('improved error message for missing fields in union (#676)', () => {
     expect(() => deserialize(serialize(invalidData))).toThrow(/No union member matched.*Expected/);
     // The error should mention the expected union types
     expect(() => deserialize(serialize(invalidData))).toThrow(/MessageEvent|MessageUpdateEvent/);
+});
+
+test('union with constraints shows specific error in encoder (#577)', () => {
+    // Test that BSON encoder shows specific constraint errors, not generic union errors
+
+    // Simple union with constraint
+    {
+        type T = { code: (string & MinLength<1>) | null };
+        const encoder = getBsonEncoder(typeOf<T>());
+
+        // Valid cases
+        expect(() => encoder.encode({ code: 'a' })).not.toThrow();
+        expect(() => encoder.encode({ code: null })).not.toThrow();
+
+        // Empty string fails MinLength - should show specific error
+        expect(() => encoder.encode({ code: '' })).toThrow('Min length is 1');
+    }
+
+    // Union with multiple constrained types
+    {
+        type T = { value: (string & MinLength<1>) | (number & Positive) };
+        const encoder = getBsonEncoder(typeOf<T>());
+
+        // Valid cases
+        expect(() => encoder.encode({ value: 'hello' })).not.toThrow();
+        expect(() => encoder.encode({ value: 42 })).not.toThrow();
+
+        // Empty string - should show minLength error
+        expect(() => encoder.encode({ value: '' })).toThrow('Min length is 1');
+
+        // Negative number - should show positive error
+        expect(() => encoder.encode({ value: -5 })).toThrow('Number needs to be positive');
+    }
+});
+
+test('union with constraints shows specific error via getBsonEncoder decoder (#577)', () => {
+    // Test that getBsonEncoder decoder shows specific constraint errors
+    // Note: Raw getBSONDeserializer doesn't validate constraints - use getBsonEncoder for validation
+
+    // Simple union with constraint
+    {
+        type T = (string & MinLength<1>) | null;
+        const encoder = getBsonEncoder(typeOf<T>());
+
+        // Valid cases
+        expect(encoder.decode(encoder.encode('a'))).toEqual('a');
+        expect(encoder.decode(encoder.encode(null))).toEqual(null);
+
+        // Empty string fails MinLength - should show specific error
+        expect(() => encoder.decode(encoder.encode(''))).toThrow('Min length is 1');
+    }
+
+    // Union with multiple constrained types
+    {
+        type T = (string & MinLength<1>) | (number & Positive);
+        const encoder = getBsonEncoder(typeOf<T>());
+
+        // Valid cases
+        expect(encoder.decode(encoder.encode('hello'))).toEqual('hello');
+        expect(encoder.decode(encoder.encode(42))).toEqual(42);
+
+        // Empty string - should show minLength error
+        expect(() => encoder.decode(encoder.encode(''))).toThrow('Min length is 1');
+
+        // Negative number - should show positive error
+        expect(() => encoder.decode(encoder.encode(-5))).toThrow('Number needs to be positive');
+    }
+});
+
+test('nested union with deep constraint errors via getBsonEncoder (#577)', () => {
+    // Test that getBsonEncoder shows specific errors for deep constraint failures
+
+    interface ClickEvent {
+        type: 'click';
+        x: number & Positive;
+        y: number & Positive;
+    }
+
+    interface ScrollEvent {
+        type: 'scroll';
+        offset: number;
+    }
+
+    interface InputEvent {
+        type: 'input';
+        value: string & MinLength<1>;
+    }
+
+    type T = ClickEvent | ScrollEvent | InputEvent;
+    const encoder = getBsonEncoder(typeOf<T>());
+
+    // Valid cases
+    expect(encoder.decode(encoder.encode({ type: 'click', x: 10, y: 20 }))).toEqual({
+        type: 'click',
+        x: 10,
+        y: 20,
+    });
+    expect(encoder.decode(encoder.encode({ type: 'scroll', offset: 100 }))).toEqual({
+        type: 'scroll',
+        offset: 100,
+    });
+    expect(encoder.decode(encoder.encode({ type: 'input', value: 'hello' }))).toEqual({
+        type: 'input',
+        value: 'hello',
+    });
+
+    // Deep constraint failure: x is negative in ClickEvent
+    // Should show specific constraint error, not generic union error
+    expect(() => encoder.decode(encoder.encode({ type: 'click', x: -5, y: 10 }))).toThrow('Number needs to be positive');
+
+    // Deep constraint failure: value is empty in InputEvent
+    expect(() => encoder.decode(encoder.encode({ type: 'input', value: '' }))).toThrow('Min length is 1');
 });
