@@ -5,7 +5,7 @@ import { ReflectionClass, typeOf } from '../src/reflection/reflection.js';
 import { AutoIncrement, Excluded, Group, PrimaryKey, Type, Unique, integer } from '../src/reflection/type.js';
 import { cast, castFunction, validatedDeserialize } from '../src/serializer-facade.js';
 import { assert, is } from '../src/typeguard.js';
-import { Email, MaxLength, MinLength, Positive, Validate, ValidatorError, validate, validates } from '../src/validator.js';
+import { Email, MaxLength, MinLength, Positive, Validate, ValidationErrorItem, ValidatorError, validate, validates } from '../src/validator.js';
 
 test('primitives', () => {
     expect(validate<string>('Hello')).toEqual([]);
@@ -517,4 +517,19 @@ test('union with object structural errors shows specific field errors', () => {
     // Should indicate 'y' is missing with a specific path, not just generic union error
     const typoYError = typoErrors.find(e => e.path === 'ClickEvent.y');
     expect(typoYError).toBeDefined();
+});
+
+test('ValidationErrorItem.toString() handles circular references (#505)', () => {
+    // Create an object with a circular reference
+    const circularObj: any = { name: 'test' };
+    circularObj.self = circularObj;
+
+    // Creating a ValidationErrorItem with circular value should not throw
+    const errorItem = new ValidationErrorItem('path', 'type', 'Not valid', circularObj);
+
+    // toString() should not throw and should produce a meaningful string
+    expect(() => errorItem.toString()).not.toThrow();
+    const errorString = errorItem.toString();
+    expect(errorString).toContain('path(type): Not valid');
+    expect(errorString).toContain('caused by value');
 });

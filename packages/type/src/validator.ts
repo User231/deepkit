@@ -1,19 +1,29 @@
-import { ReceiveType } from './reflection/reflection.js';
-import { getValidatorFunction, is } from './typeguard.js';
-import { CustomError, TypeAnnotation } from '@deepkit/core';
-import { stringifyType, Type } from './reflection/type.js';
-import { entity } from './decorator.js';
-import { serializer, Serializer } from './serializer.js';
+import { CustomError, TypeAnnotation, stringifyValueWithType } from '@deepkit/core';
 
-export type ValidatorMeta<Name extends string, Args extends [...args: any[]] = []> = TypeAnnotation<'validator', [Name, Args]>;
+import { entity } from './decorator.js';
+import { ReceiveType } from './reflection/reflection.js';
+import { Type, stringifyType } from './reflection/type.js';
+import { Serializer, serializer } from './serializer.js';
+import { getValidatorFunction, is } from './typeguard.js';
+
+export type ValidatorMeta<Name extends string, Args extends [...args: any[]] = []> = TypeAnnotation<
+    'validator',
+    [Name, Args]
+>;
 
 export type ValidateFunction = (value: any, type: Type, options: any) => ValidatorError | void;
-export type Validate<T extends ValidateFunction, Options extends Parameters<T>[2] = unknown> = ValidatorMeta<'function', [T, Options]>;
+export type Validate<T extends ValidateFunction, Options extends Parameters<T>[2] = unknown> = ValidatorMeta<
+    'function',
+    [T, Options]
+>;
 export type Pattern<T extends RegExp> = ValidatorMeta<'pattern', [T]>;
 export type Alpha = ValidatorMeta<'alpha'>;
 export type Alphanumeric = ValidatorMeta<'alphanumeric'>;
 export type Ascii = ValidatorMeta<'ascii'>;
-export type Decimal<MinDigits extends number = 1, MaxDigits extends number = 100> = ValidatorMeta<'decimal', [MinDigits, MaxDigits]>;
+export type Decimal<MinDigits extends number = 1, MaxDigits extends number = 100> = ValidatorMeta<
+    'decimal',
+    [MinDigits, MaxDigits]
+>;
 export type MultipleOf<Num extends number> = ValidatorMeta<'multipleOf', [Num]>;
 export type MinLength<Length extends number> = ValidatorMeta<'minLength', [Length]>;
 export type MaxLength<Length extends number> = ValidatorMeta<'maxLength', [Length]>;
@@ -56,8 +66,7 @@ export class ValidatorError {
         public readonly code: string,
         public readonly message: string,
         public readonly path?: string,
-    ) {
-    }
+    ) {}
 }
 
 /**
@@ -94,7 +103,13 @@ export class ValidationErrorItem {
         let messagedCausedBy = '';
         if (this.value !== undefined) {
             //serialise the value and trim to 100 chars max
-            let serialisedValue = JSON.stringify(this.value);
+            let serialisedValue: string;
+            try {
+                serialisedValue = JSON.stringify(this.value);
+            } catch {
+                // Fallback for circular references or other JSON.stringify failures
+                serialisedValue = stringifyValueWithType(this.value);
+            }
             if (serialisedValue.length > 100) serialisedValue = serialisedValue.slice(0, 100) + '...';
             messagedCausedBy = ` caused by value ${serialisedValue}`;
         }
@@ -109,10 +124,12 @@ export class ValidationError extends CustomError {
         public readonly errors: ValidationErrorItem[],
         type?: Type,
     ) {
-        super(`Validation error${type ? ` for type ${stringifyType(type)}` : ''}:\n${errors.map(v => v.toString()).join(',\n')}`);
+        super(
+            `Validation error${type ? ` for type ${stringifyType(type)}` : ''}:\n${errors.map(v => v.toString()).join(',\n')}`,
+        );
     }
 
-    static from(errors: { path: string, message: string, code?: string, value?: any }[]) {
+    static from(errors: { path: string; message: string; code?: string; value?: any }[]) {
         return new ValidationError(errors.map(v => new ValidationErrorItem(v.path, v.code || '', v.message, v.value)));
     }
 }
@@ -128,7 +145,10 @@ export function validate<T>(data: any, type?: ReceiveType<T>): ValidationErrorIt
     return errors;
 }
 
-export function validateFunction<T>(serializerToUse: Serializer = serializer, type?: ReceiveType<T>): (data: T) => ValidationErrorItem[] {
+export function validateFunction<T>(
+    serializerToUse: Serializer = serializer,
+    type?: ReceiveType<T>,
+): (data: T) => ValidationErrorItem[] {
     const fn = getValidatorFunction(serializerToUse, type);
     return (data: T) => {
         const errors: ValidationErrorItem[] = [];
