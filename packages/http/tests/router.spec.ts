@@ -1190,6 +1190,32 @@ test('parameter from header', async () => {
     expect((await httpKernel.request(HttpRequest.GET('/second/2').header('group_id', 1))).json).toEqual([2, 1]);
 });
 
+test('parameter from header is case-insensitive', async () => {
+    class Controller {
+        @http.GET('/test')
+        handle(authorization: HttpHeader<string>) {
+            return { auth: authorization };
+        }
+
+        @http.GET('/test2')
+        handle2(xCustomHeader: HttpHeader<string, { name: 'X-Custom-Header' }>) {
+            return { value: xCustomHeader };
+        }
+    }
+
+    const httpKernel = createHttpKernel([Controller]);
+
+    // HTTP headers should be case-insensitive per RFC 7230
+    // Parameter name 'authorization' should match header 'Authorization'
+    expect((await httpKernel.request(HttpRequest.GET('/test').header('Authorization', 'token123'))).json).toEqual({ auth: 'token123' });
+    expect((await httpKernel.request(HttpRequest.GET('/test').header('authorization', 'token123'))).json).toEqual({ auth: 'token123' });
+    expect((await httpKernel.request(HttpRequest.GET('/test').header('AUTHORIZATION', 'token123'))).json).toEqual({ auth: 'token123' });
+
+    // Custom header name should also be case-insensitive
+    expect((await httpKernel.request(HttpRequest.GET('/test2').header('X-Custom-Header', 'value1'))).json).toEqual({ value: 'value1' });
+    expect((await httpKernel.request(HttpRequest.GET('/test2').header('x-custom-header', 'value1'))).json).toEqual({ value: 'value1' });
+});
+
 test('parameter in for listener', async () => {
     class HttpSession {
         groupId2?: number;
