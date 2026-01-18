@@ -49,6 +49,7 @@ import {
     TypeArray,
     TypeClass,
     TypeIndexSignature,
+    TypeLiteral,
     TypeObjectLiteral,
     TypeParameter,
     TypeProperty,
@@ -89,6 +90,13 @@ import {
 } from './reflection/type.js';
 import { ValidationError, ValidationErrorItem, validate } from './validator.js';
 import { validators } from './validators.js';
+
+/**
+ * Threshold for optimizing unions with only literal members.
+ * When a union has more than this many literal members, we use Set.has()
+ * instead of generating individual if-else statements to avoid stack overflow.
+ */
+const UNION_LITERAL_THRESHOLD = 1000;
 
 /**
  * Make sure to change the id when a custom naming strategy is implemented, since caches are based on it.
@@ -2025,6 +2033,38 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
     const accessor = state.accessor instanceof ContainerAccessor ? new ContainerAccessor('data', 'property') : 'data';
 
     typeGuards ||= state.registry.serializer.typeGuards;
+
+    // Optimization for large literal-only unions: use Set.has() instead of if-else chain
+    // This prevents stack overflow for unions with thousands of literal members (e.g., 86,400 seconds in a day)
+    const allLiterals = type.types.every(t => t.kind === ReflectionKind.literal);
+    if (allLiterals && type.types.length > UNION_LITERAL_THRESHOLD) {
+        const literalValues = type.types.map(t => (t as TypeLiteral).literal);
+        const setVar = state.setVariable('_unionLiterals', new Set(literalValues));
+
+        state.setContext({ ValidationErrorItem });
+        const errorMessage = JSON.stringify('No valid union member found. Valid: ' + stringifyResolvedType(type));
+
+        if (state.isValidation()) {
+            state.addCodeForSetter(`
+                if (${setVar}.has(${state.accessor})) {
+                    ${state.setter} = true;
+                } else {
+                    ${state.setter} = false;
+                    if (state.errors) state.errors.push(new ValidationErrorItem(${collapsePath(state.path)}, 'type', ${errorMessage}, ${state.originalAccessor}));
+                }
+            `);
+        } else {
+            state.addCodeForSetter(`
+                if (${setVar}.has(${state.accessor})) {
+                    ${state.setter} = ${state.accessor};
+                } else {
+                    ${state.throwCode(type)}
+                }
+            `);
+        }
+        return;
+    }
+
     const sortedTypeGuards = typeGuards.getSortedTemplateRegistries();
 
     for (const [specificality, typeGuard] of sortedTypeGuards) {

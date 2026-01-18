@@ -8,39 +8,41 @@
  * You should have received a copy of the MIT License along with this program.
  */
 import { expect, test } from '@jest/globals';
-import { reflect, ReflectionClass, typeOf } from '../src/reflection/reflection.js';
+
+import { TypeAnnotation, getClassName } from '@deepkit/core';
+
+import { entity, t } from '../src/decorator.js';
+import { isReferenceInstance } from '../src/reference.js';
+import { parametersToTuple } from '../src/reflection/extends.js';
+import { ReflectionClass, reflect, typeOf } from '../src/reflection/reflection.js';
 import {
-    assertType,
     AutoIncrement,
     BackReference,
     BinaryBigInt,
     Embedded,
     Excluded,
     Group,
-    int8,
-    integer,
-    isCustomTypeClass,
-    isTypeClassOf,
     MapName,
     PrimaryKey,
     Reference,
     ReflectionKind,
     SignedBinaryBigInt,
-    stringifyResolvedType,
     Type,
-    typeAnnotation,
     TypeProperty,
     TypePropertySignature,
+    assertType,
+    int8,
+    integer,
+    isCustomTypeClass,
+    isTypeClassOf,
+    stringifyResolvedType,
+    typeAnnotation,
 } from '../src/reflection/type.js';
-import { createSerializeFunction, getSerializeFunction, NamingStrategy, Serializer, serializer, underscoreNamingStrategy } from '../src/serializer.js';
 import { cast, deserialize, patch, serialize } from '../src/serializer-facade.js';
-import { getClassName, TypeAnnotation } from '@deepkit/core';
-import { entity, t } from '../src/decorator.js';
+import { NamingStrategy, Serializer, createSerializeFunction, getSerializeFunction, serializer, underscoreNamingStrategy } from '../src/serializer.js';
+import { is } from '../src/typeguard.js';
 import { Alphanumeric, MaxLength, MinLength, ValidationError } from '../src/validator.js';
 import { StatEnginePowerUnit, StatWeightUnit } from './types.js';
-import { parametersToTuple } from '../src/reflection/extends.js';
-import { is } from '../src/typeguard.js';
-import { isReferenceInstance } from '../src/reference.js';
 
 test('deserializer', () => {
     class User {
@@ -52,7 +54,7 @@ test('deserializer', () => {
     const o = fn({ username: 'Peter', created: '2021-10-19T00:22:58.257Z' });
     expect(o).toEqual({
         username: 'Peter',
-        created: new Date('2021-10-19T00:22:58.257Z')
+        created: new Date('2021-10-19T00:22:58.257Z'),
     });
 });
 
@@ -65,23 +67,22 @@ test('cast interface', () => {
     const user = cast<User>({ username: 'Peter', created: '2021-10-19T00:22:58.257Z' });
     expect(user).toEqual({
         username: 'Peter',
-        created: new Date('2021-10-19T00:22:58.257Z')
+        created: new Date('2021-10-19T00:22:58.257Z'),
     });
 });
 
 test('cast class', () => {
     class User {
-        created: Date = new Date;
+        created: Date = new Date();
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     const user = cast<User>({ username: 'Peter', created: '2021-10-19T00:22:58.257Z' });
     expect(user).toBeInstanceOf(User);
     expect(user).toEqual({
         username: 'Peter',
-        created: new Date('2021-10-19T00:22:58.257Z')
+        created: new Date('2021-10-19T00:22:58.257Z'),
     });
 });
 
@@ -94,11 +95,9 @@ test('groups', () => {
     class User {
         id: number = 0;
         password: string & Group<'b'> = '';
-        settings: Settings = new Settings;
+        settings: Settings = new Settings();
 
-        constructor(public username: string & Group<'a'>) {
-        }
-
+        constructor(public username: string & Group<'a'>) {}
     }
 
     const user = new User('peter');
@@ -119,14 +118,14 @@ test('default value', () => {
         const user = cast<User>({});
         expect(user).toBeInstanceOf(User);
         expect(user).toEqual({
-            logins: 0
+            logins: 0,
         });
     }
 
     {
         const user = cast<User>({ logins: 2 });
         expect(user).toEqual({
-            logins: 2
+            logins: 2,
         });
     }
 });
@@ -139,14 +138,14 @@ test('optional value', () => {
     {
         const user = cast<User>({});
         expect(user).toEqual({
-            logins: undefined
+            logins: undefined,
         });
     }
 
     {
         const user = cast<User>({ logins: 2 });
         expect(user).toEqual({
-            logins: 2
+            logins: 2,
         });
     }
 });
@@ -159,28 +158,28 @@ test('optional default value', () => {
     {
         const user = cast<User>({});
         expect(user).toEqual({
-            logins: 2
+            logins: 2,
         });
     }
 
     {
         const user = cast<User>({ logins: 2 });
         expect(user).toEqual({
-            logins: 2
+            logins: 2,
         });
     }
 
     {
         const user = cast<User>({ logins: null });
         expect(user).toEqual({
-            logins: undefined
+            logins: undefined,
         });
     }
 
     {
         const user = cast<User>({ logins: undefined });
         expect(user).toEqual({
-            logins: undefined
+            logins: undefined,
         });
     }
 });
@@ -193,14 +192,14 @@ test('optional literal', () => {
     {
         const input = cast<LoginInput>({});
         expect(input).toEqual({
-            mechanism: undefined
+            mechanism: undefined,
         });
     }
 
     {
         const input = cast<LoginInput>({ mechanism: 'cookie' });
         expect(input).toEqual({
-            mechanism: 'cookie'
+            mechanism: 'cookie',
         });
     }
 });
@@ -265,16 +264,43 @@ test('set', () => {
 
 test('map', () => {
     {
-        const value = cast<Map<string, number>>([['a', 1], ['a', 2], ['b', 3]]);
-        expect(value).toEqual(new Map([['a', 2], ['b', 3]]));
+        const value = cast<Map<string, number>>([
+            ['a', 1],
+            ['a', 2],
+            ['b', 3],
+        ]);
+        expect(value).toEqual(
+            new Map([
+                ['a', 2],
+                ['b', 3],
+            ]),
+        );
     }
     {
-        const value = cast<Map<string, number>>([['a', 1], [2, '2'], ['b', 3]]);
-        expect(value).toEqual(new Map([['a', 1], ['2', 2], ['b', 3]]));
+        const value = cast<Map<string, number>>([
+            ['a', 1],
+            [2, '2'],
+            ['b', 3],
+        ]);
+        expect(value).toEqual(
+            new Map([
+                ['a', 1],
+                ['2', 2],
+                ['b', 3],
+            ]),
+        );
     }
     {
-        const value = serialize<Map<string, number>>(new Map([['a', 2], ['b', 3]]));
-        expect(value).toEqual([['a', 2], ['b', 3]]);
+        const value = serialize<Map<string, number>>(
+            new Map([
+                ['a', 2],
+                ['b', 3],
+            ]),
+        );
+        expect(value).toEqual([
+            ['a', 2],
+            ['b', 3],
+        ]);
     }
 });
 
@@ -580,8 +606,7 @@ test('index signature with template literal', () => {
 
 test('class circular reference', () => {
     class User {
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
 
         manager?: User;
     }
@@ -596,8 +621,7 @@ test('class with reference', () => {
     class User {
         id: number & PrimaryKey = 0;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     interface Team {
@@ -636,8 +660,7 @@ test('class with back reference', () => {
     class User {
         id: number & PrimaryKey = 0;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     interface Team {
@@ -651,13 +674,14 @@ test('class with back reference', () => {
 
 test('embedded single', () => {
     class Price {
-        constructor(public amount: integer) {
-        }
+        constructor(public amount: integer) {}
     }
 
     class Product {
-        constructor(public title: string, public price: Embedded<Price>) {
-        }
+        constructor(
+            public title: string,
+            public price: Embedded<Price>,
+        ) {}
     }
 
     expect(serialize<Embedded<Price>>(new Price(34))).toEqual(34);
@@ -696,13 +720,11 @@ test('embedded single', () => {
     expect(deserialize<{ v: Embedded<Price, { prefix: '' }> | string }>({ v: '34' })).toEqual({ v: '34' });
     expect(deserialize<{ v: Embedded<Price, { prefix: 'price_' }> | string }>({ price_amount: 34 })).toEqual({ v: new Price(34) });
     expect(deserialize<{ v: Embedded<Price, { prefix: 'price_' }> | string }>({ v: '34' })).toEqual({ v: '34' });
-
 });
 
 test('embedded single optional', () => {
     class Price {
-        constructor(public amount: integer) {
-        }
+        constructor(public amount: integer) {}
     }
 
     expect(deserialize<{ v?: Embedded<Price> }>({ v: 34 })).toEqual({ v: new Price(34) });
@@ -713,13 +735,17 @@ test('embedded single optional', () => {
     expect(deserialize<{ v?: Embedded<Price, { prefix: 'price_' }> }>({})).toEqual({});
 
     class Product1 {
-        constructor(public title: string, public price: Embedded<Price> = new Price(15)) {
-        }
+        constructor(
+            public title: string,
+            public price: Embedded<Price> = new Price(15),
+        ) {}
     }
 
     class Product2 {
-        constructor(public title: string, public price?: Embedded<Price>) {
-        }
+        constructor(
+            public title: string,
+            public price?: Embedded<Price>,
+        ) {}
     }
 
     class Product3 {
@@ -747,13 +773,17 @@ test('embedded single optional', () => {
 
 test('embedded multi parameter', () => {
     class Price {
-        constructor(public amount: integer, public currency: string = 'EUR') {
-        }
+        constructor(
+            public amount: integer,
+            public currency: string = 'EUR',
+        ) {}
     }
 
     class Product {
-        constructor(public title: string, public price: Embedded<Price>) {
-        }
+        constructor(
+            public title: string,
+            public price: Embedded<Price>,
+        ) {}
     }
 
     expect(serialize<Embedded<Price>>(new Price(34))).toEqual({ amount: 34, currency: 'EUR' });
@@ -875,8 +905,7 @@ test('embedded with lots of properties', () => {
     }
 
     class A {
-        constructor(public options: Embedded<LotsOfIt, { prefix: '' }> = {}) {
-        }
+        constructor(public options: Embedded<LotsOfIt, { prefix: '' }> = {}) {}
     }
 
     const back1 = deserialize<A>({ a: 'abc', lot: 'string' });
@@ -895,10 +924,7 @@ test('embedded in super class', () => {
         public parentThreadId?: string;
         public senderOrder?: number;
 
-        constructor(
-            public id: string & MapName<'~thread'>
-        ) {
-        }
+        constructor(public id: string & MapName<'~thread'>) {}
     }
 
     class ComposedMessage {
@@ -943,8 +969,10 @@ test('disabled constructor', () => {
 
 test('readonly constructor properties', () => {
     class Pilot {
-        constructor(readonly name: string, readonly age: number) {
-        }
+        constructor(
+            readonly name: string,
+            readonly age: number,
+        ) {}
     }
 
     expect(cast<Pilot>({ name: 'Peter', age: 32 })).toEqual({ name: 'Peter', age: 32 });
@@ -973,29 +1001,59 @@ test('naming strategy prefix', () => {
     }
 
     {
-        const res = serialize<User>({ id: 2, posts: [{ id: 3, likesCount: 1 }, { id: 4, likesCount: 2 }] }, undefined, undefined, new MyNamingStrategy);
-        expect(res).toEqual({ _id: 2, _posts: [{ _id: 3, _likesCount: 1 }, { _id: 4, _likesCount: 2 }] });
+        const res = serialize<User>(
+            {
+                id: 2,
+                posts: [
+                    { id: 3, likesCount: 1 },
+                    { id: 4, likesCount: 2 },
+                ],
+            },
+            undefined,
+            undefined,
+            new MyNamingStrategy(),
+        );
+        expect(res).toEqual({
+            _id: 2,
+            _posts: [
+                { _id: 3, _likesCount: 1 },
+                { _id: 4, _likesCount: 2 },
+            ],
+        });
     }
 
     {
-        const res = deserialize<User>({ _id: 2, _posts: [{ _id: 3, _likesCount: 1 }, { _id: 4, _likesCount: 2 }] }, undefined, undefined, new MyNamingStrategy);
-        expect(res).toEqual({ id: 2, posts: [{ id: 3, likesCount: 1 }, { id: 4, likesCount: 2 }] });
+        const res = deserialize<User>(
+            {
+                _id: 2,
+                _posts: [
+                    { _id: 3, _likesCount: 1 },
+                    { _id: 4, _likesCount: 2 },
+                ],
+            },
+            undefined,
+            undefined,
+            new MyNamingStrategy(),
+        );
+        expect(res).toEqual({
+            id: 2,
+            posts: [
+                { id: 3, likesCount: 1 },
+                { id: 4, likesCount: 2 },
+            ],
+        });
     }
 });
 
 test('naming strategy camel case', () => {
-    const camelCaseToSnakeCase = (str: string) =>
-        str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    const camelCaseToSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
     class CamelCaseToSnakeCaseNamingStrategy extends NamingStrategy {
         constructor() {
             super('snake-case-to-camel-case');
         }
 
-        override getPropertyName(
-            type: TypeProperty | TypePropertySignature,
-            forSerializer: string
-        ): string | undefined {
+        override getPropertyName(type: TypeProperty | TypePropertySignature, forSerializer: string): string | undefined {
             const propertyName = super.getPropertyName(type, forSerializer);
             return propertyName ? camelCaseToSnakeCase(propertyName) : undefined;
         }
@@ -1012,13 +1070,47 @@ test('naming strategy camel case', () => {
     }
 
     {
-        const res = serialize<User>({ id: 2, posts: [{ id: 3, likesCount: 1 }, { id: 4, likesCount: 2 }] }, undefined, undefined, new CamelCaseToSnakeCaseNamingStrategy);
-        expect(res).toEqual({ id: 2, posts: [{ id: 3, likes_count: 1 }, { id: 4, likes_count: 2 }] });
+        const res = serialize<User>(
+            {
+                id: 2,
+                posts: [
+                    { id: 3, likesCount: 1 },
+                    { id: 4, likesCount: 2 },
+                ],
+            },
+            undefined,
+            undefined,
+            new CamelCaseToSnakeCaseNamingStrategy(),
+        );
+        expect(res).toEqual({
+            id: 2,
+            posts: [
+                { id: 3, likes_count: 1 },
+                { id: 4, likes_count: 2 },
+            ],
+        });
     }
 
     {
-        const res = deserialize<User>({ id: 2, posts: [{ id: 3, likes_count: 1 }, { id: 4, likes_count: 2 }] }, undefined, undefined, new CamelCaseToSnakeCaseNamingStrategy);
-        expect(res).toEqual({ id: 2, posts: [{ id: 3, likesCount: 1 }, { id: 4, likesCount: 2 }] });
+        const res = deserialize<User>(
+            {
+                id: 2,
+                posts: [
+                    { id: 3, likes_count: 1 },
+                    { id: 4, likes_count: 2 },
+                ],
+            },
+            undefined,
+            undefined,
+            new CamelCaseToSnakeCaseNamingStrategy(),
+        );
+        expect(res).toEqual({
+            id: 2,
+            posts: [
+                { id: 3, likesCount: 1 },
+                { id: 4, likesCount: 2 },
+            ],
+        });
     }
 });
 
@@ -1052,19 +1144,19 @@ test('onLoad call', () => {
         }
     }
 
-    const serializer = new class extends Serializer {
+    const serializer = new (class extends Serializer {
         override registerSerializers() {
             super.registerSerializers();
             this.deserializeRegistry.addDecorator(
                 (type: Type) => type.kind === ReflectionKind.class && type.classType === Target,
                 (type, state) => {
                     state.addCode(`${state.setter}.onLoad();`);
-                }
-            )
+                },
+            );
         }
-    }
+    })();
 
-    const target = cast<Target>({id: 1}, undefined, serializer);
+    const target = cast<Target>({ id: 1 }, undefined, serializer);
     expect(target.loaded).toBe(true);
 });
 
@@ -1078,19 +1170,16 @@ test('onLoad call2', () => {
         }
     }
 
-    const serializer = new class extends Serializer {
+    const serializer = new (class extends Serializer {
         override registerSerializers() {
             super.registerSerializers();
-            this.deserializeRegistry.addDecorator(
-                isTypeClassOf(Target),
-                (type, state) => {
-                    state.touch((target: Target) => target.onLoad())
-                }
-            )
+            this.deserializeRegistry.addDecorator(isTypeClassOf(Target), (type, state) => {
+                state.touch((target: Target) => target.onLoad());
+            });
         }
-    }
+    })();
 
-    const target = cast<Target>({id: 1}, undefined, serializer);
+    const target = cast<Target>({ id: 1 }, undefined, serializer);
     expect(target.loaded).toBe(true);
 });
 
@@ -1104,21 +1193,18 @@ test('onLoad call3', () => {
         }
     }
 
-    const serializer = new class extends Serializer {
+    const serializer = new (class extends Serializer {
         override registerSerializers() {
             super.registerSerializers();
-            this.deserializeRegistry.addDecorator(
-                isCustomTypeClass,
-                (type, state) => {
-                    state.touch((value) => {
-                        if ('onLoad' in value) value.onLoad();
-                    });
-                }
-            );
+            this.deserializeRegistry.addDecorator(isCustomTypeClass, (type, state) => {
+                state.touch(value => {
+                    if ('onLoad' in value) value.onLoad();
+                });
+            });
         }
-    }
+    })();
 
-    const target = cast<Target>({id: 1}, undefined, serializer);
+    const target = cast<Target>({ id: 1 }, undefined, serializer);
     expect(target.loaded).toBe(true);
 });
 
@@ -1188,14 +1274,14 @@ test('discriminated union with string date in type guard', () => {
     expect(is<number | (string | bigint)[]>([false])).toBe(false);
 
     {
-        type ModelB = { kind: 'b', date: Date };
+        type ModelB = { kind: 'b'; date: Date };
         const b1 = cast<ModelB>({ kind: 'b', date: '2020-08-05T00:00:00.000Z' });
         expect(b1).toEqual({ kind: 'b', date: new Date('2020-08-05T00:00:00.000Z') });
     }
 
     {
-        type ModelA = { id: number, title: string };
-        type ModelB = { id: number, date: Date };
+        type ModelA = { id: number; title: string };
+        type ModelB = { id: number; date: Date };
         type Union = ModelA | ModelB;
 
         const b2 = cast<Union>({ id: 1, date: '2020-08-05T00:00:00.000Z' });
@@ -1203,8 +1289,8 @@ test('discriminated union with string date in type guard', () => {
     }
 
     {
-        type ModelA = { kind: 'a', title: string };
-        type ModelB = { kind: 'b', date: Date };
+        type ModelA = { kind: 'a'; title: string };
+        type ModelB = { kind: 'b'; date: Date };
         type Union = ModelA | ModelB;
 
         const b2 = cast<Union>({ kind: 'b', date: '2020-08-05T00:00:00.000Z' });
@@ -1212,8 +1298,8 @@ test('discriminated union with string date in type guard', () => {
     }
 
     {
-        type ModelA = { kind: 'a', title: string };
-        type ModelB = { kind: 'b', date: number | Date };
+        type ModelA = { kind: 'a'; title: string };
+        type ModelB = { kind: 'b'; date: number | Date };
         type Union = ModelA | ModelB;
         const b2 = cast<Union>({ kind: 'b', date: '2020-08-05T00:00:00.000Z' });
         expect(b2).toEqual({ kind: 'b', date: new Date('2020-08-05T00:00:00.000Z') });
@@ -1224,7 +1310,6 @@ test('date format', () => {
     const date = cast<number | Date>('2020-07-02T12:00:00Z');
     expect(date).toEqual(new Date('2020-07-02T12:00:00Z'));
 });
-
 
 test('patch', () => {
     class Address {
@@ -1289,7 +1374,7 @@ test('extend with custom type', () => {
 test('issue-415: serialize literal types in union', () => {
     enum MyEnum {
         VALUE_0 = 0,
-        VALUE_180 = 180
+        VALUE_180 = 180,
     }
 
     class Data {
@@ -1304,7 +1389,7 @@ test('issue-415: serialize literal types in union', () => {
 });
 
 test('union with optional property', () => {
-    type A = { type: 'a', value?: string } | null;
+    type A = { type: 'a'; value?: string } | null;
 
     {
         const a = deserialize<A>({ type: 'a' });
@@ -1324,7 +1409,7 @@ test('union with optional property', () => {
     }
 });
 
-test("parcel search input deserialization", async () => {
+test('parcel search input deserialization', async () => {
     class GeoLocation {
         locality?: string;
         postalCode?: string;
@@ -1337,12 +1422,12 @@ test("parcel search input deserialization", async () => {
     interface AdTitleAndBasicAttributes {
         title: string;
         attributes: {
-            plotSurface?: number,
-            buildingSurface: number,
-            ges?: string,
-            energyRate?: string,
+            plotSurface?: number;
+            buildingSurface: number;
+            ges?: string;
+            energyRate?: string;
         };
-        location: GeoLocation,
+        location: GeoLocation;
     }
 
     class ParcelSearchParams {
@@ -1350,23 +1435,23 @@ test("parcel search input deserialization", async () => {
     }
 
     const data: any = {
-        "ad": {
-            "title": "Maison 4 pièces 92 m²",
-            "attributes": {
-                "buildingSurface": 92,
-                "energyRate": "D",
-                "ges": "E"
+        ad: {
+            title: 'Maison 4 pièces 92 m²',
+            attributes: {
+                buildingSurface: 92,
+                energyRate: 'D',
+                ges: 'E',
             },
-            "location": {
-                "locality": "Paris",
-                "postalCode": "75000"
-            }
-        }
+            location: {
+                locality: 'Paris',
+                postalCode: '75000',
+            },
+        },
     } as any;
 
     const location = cast<GeoLocation>(data.ad.location);
     expect(location).toBeInstanceOf(GeoLocation);
-    expect(location.locality).toBe("Paris");
+    expect(location.locality).toBe('Paris');
 
     const search = cast<ParcelSearchParams>(data);
     expect(search.ad).not.toBeUndefined();
@@ -1377,13 +1462,11 @@ test("parcel search input deserialization", async () => {
 
 test('skip parameter name resolving', () => {
     class Guest {
-        constructor(public id: number) {
-        }
+        constructor(public id: number) {}
     }
 
     class Vehicle {
-        constructor(public Guest: Guest) {
-        }
+        constructor(public Guest: Guest) {}
     }
 
     console.log(stringifyResolvedType(typeOf<Vehicle>()));
@@ -1392,7 +1475,7 @@ test('skip parameter name resolving', () => {
 });
 
 test('union with almost same member, additional properties', () => {
-    type T = { a: string } | { a: string, b: number };
+    type T = { a: string } | { a: string; b: number };
     const t1 = cast<T>({ a: '3' });
     expect(t1).toEqual({ a: '3' });
     const t2 = cast<T>({ a: '3', b: '4' });
@@ -1400,7 +1483,7 @@ test('union with almost same member, additional properties', () => {
 });
 
 test('union with almost same member, optional properties', () => {
-    type T = { a: string; c?: number } | { a: string, b?: number };
+    type T = { a: string; c?: number } | { a: string; b?: number };
     const t1 = cast<T>({ a: '3' });
     expect(t1).toEqual({ a: '3' });
     const t2 = cast<T>({ a: '3', b: 4 });
@@ -1416,11 +1499,148 @@ test('union with less specific last', () => {
 });
 
 test('union same member, optional', () => {
-    type T = { a: number, b?: number } | { a: number; b: string; };
+    type T = { a: number; b?: number } | { a: number; b: string };
     const t1 = serialize<T>({ a: 3 });
     expect(t1).toEqual({ a: 3 });
     const t2 = serialize<T>({ a: 3, b: '4' });
     expect(t2).toEqual({ a: 3, b: '4' });
     const t3 = serialize<T>({ a: 3, b: 4 });
     expect(t3).toEqual({ a: 3, b: 4 });
+});
+
+test('large literal union optimization', () => {
+    // Test that literal unions work correctly with serialization, deserialization, and validation
+    // The optimization for large literal unions (>1000 members) uses Set.has() instead of if-else
+    // but the behavior should be identical for both small and large unions
+
+    // Test with a union of number literals
+    type SmallLiteralUnion = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+    // Serialization - valid values pass through
+    expect(serialize<SmallLiteralUnion>(0)).toBe(0);
+    expect(serialize<SmallLiteralUnion>(5)).toBe(5);
+    expect(serialize<SmallLiteralUnion>(9)).toBe(9);
+
+    // Deserialization - valid values pass through
+    expect(deserialize<SmallLiteralUnion>(0)).toBe(0);
+    expect(deserialize<SmallLiteralUnion>(5)).toBe(5);
+    expect(deserialize<SmallLiteralUnion>(9)).toBe(9);
+
+    // Validation with is() - checks if value is valid
+    expect(is<SmallLiteralUnion>(0)).toBe(true);
+    expect(is<SmallLiteralUnion>(5)).toBe(true);
+    expect(is<SmallLiteralUnion>(9)).toBe(true);
+    expect(is<SmallLiteralUnion>(10)).toBe(false);
+    expect(is<SmallLiteralUnion>(-1)).toBe(false);
+
+    // cast() throws on invalid values
+    expect(() => cast<SmallLiteralUnion>(10)).toThrow('No valid union member found');
+    expect(() => cast<SmallLiteralUnion>(-1)).toThrow('No valid union member found');
+
+    // Test with string literals
+    type StringLiteralUnion = 'a' | 'b' | 'c' | 'd' | 'e';
+    expect(serialize<StringLiteralUnion>('a')).toBe('a');
+    expect(deserialize<StringLiteralUnion>('e')).toBe('e');
+    expect(is<StringLiteralUnion>('a')).toBe(true);
+    expect(is<StringLiteralUnion>('z')).toBe(false);
+    expect(() => cast<StringLiteralUnion>('z' as any)).toThrow('No valid union member found');
+
+    // Test with mixed number and string literals
+    type MixedLiteralUnion = 1 | 2 | 'a' | 'b';
+    expect(serialize<MixedLiteralUnion>(1)).toBe(1);
+    expect(serialize<MixedLiteralUnion>('a')).toBe('a');
+    expect(deserialize<MixedLiteralUnion>(2)).toBe(2);
+    expect(deserialize<MixedLiteralUnion>('b')).toBe('b');
+    expect(is<MixedLiteralUnion>(1)).toBe(true);
+    expect(is<MixedLiteralUnion>('a')).toBe(true);
+    expect(is<MixedLiteralUnion>(3)).toBe(false);
+    expect(is<MixedLiteralUnion>('c')).toBe(false);
+    expect(() => cast<MixedLiteralUnion>(3 as any)).toThrow('No valid union member found');
+});
+
+test('large template literal union does not cause stack overflow (#478)', () => {
+    // Regression test for https://github.com/deepkit/deepkit-framework/issues/478
+    // A template literal union with 24 × 60 × 60 = 86,400 members should not cause
+    // "Maximum call stack size exceeded" error during deserialization or validation.
+
+    type Hour24 = '00' | '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21' | '22' | '23';
+
+    type Minute =
+        | '00'
+        | '01'
+        | '02'
+        | '03'
+        | '04'
+        | '05'
+        | '06'
+        | '07'
+        | '08'
+        | '09'
+        | '10'
+        | '11'
+        | '12'
+        | '13'
+        | '14'
+        | '15'
+        | '16'
+        | '17'
+        | '18'
+        | '19'
+        | '20'
+        | '21'
+        | '22'
+        | '23'
+        | '24'
+        | '25'
+        | '26'
+        | '27'
+        | '28'
+        | '29'
+        | '30'
+        | '31'
+        | '32'
+        | '33'
+        | '34'
+        | '35'
+        | '36'
+        | '37'
+        | '38'
+        | '39'
+        | '40'
+        | '41'
+        | '42'
+        | '43'
+        | '44'
+        | '45'
+        | '46'
+        | '47'
+        | '48'
+        | '49'
+        | '50'
+        | '51'
+        | '52'
+        | '53'
+        | '54'
+        | '55'
+        | '56'
+        | '57'
+        | '58'
+        | '59';
+
+    type Second = Minute; // Same values as Minute
+
+    type ClockHour24 = `${Hour24}:${Minute}:${Second}`;
+
+    // Test 1: deserialize should not throw (no stack overflow)
+    const result = deserialize<ClockHour24>('01:01:59');
+    expect(result).toBe('01:01:59');
+
+    // Test 2: is() should return true for valid clock time
+    expect(is<ClockHour24>('01:01:59')).toBe(true);
+
+    // Test 3: is() should return false for invalid format
+    expect(is<ClockHour24>('invalid')).toBe(false);
+
+    // Test 4: is() should return false for invalid hour (25 is not valid)
+    expect(is<ClockHour24>('25:01:59')).toBe(false);
 });
