@@ -182,7 +182,6 @@ Issues affecting DX or edge cases.
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | type-compiler | 2024-11-12 |
 | [#590](https://github.com/deepkit/deepkit-framework/issues/590) | Ending response at middleware - no log entry | http | 2024-07-06 |
 | [#589](https://github.com/deepkit/deepkit-framework/issues/589) | Throwing at HTTP Middlewares | http | 2024-07-06 |
-| [#574](https://github.com/deepkit/deepkit-framework/issues/574) | BrokerKeyValue export not found | framework | 2024-06-19 |
 | [#565](https://github.com/deepkit/deepkit-framework/issues/565) | validate with generics and arrays | type | 2024-05-08 |
 | [#562](https://github.com/deepkit/deepkit-framework/issues/562) | serialize<T> circular import error | type | 2024-05-03 |
 | [#555](https://github.com/deepkit/deepkit-framework/issues/555) | No valid runtime type for external imports | type-compiler | 2024-02-16 |
@@ -315,6 +314,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#668](https://github.com/deepkit/deepkit-framework/issues/668) | query.count() throws error with pagination | 2026-01-18 | 86a8e7ec |
 | [#577](https://github.com/deepkit/deepkit-framework/issues/577) | Wrong error message in union validation | 2026-01-18 | 759326d9, 6500cf72 |
 | [#653](https://github.com/deepkit/deepkit-framework/issues/653) | HttpHeader case sensitive in TestingFacade | 2026-01-18 | 97f8991e |
+| [#574](https://github.com/deepkit/deepkit-framework/issues/574) | BrokerKeyValue export not found | 2025-04-24 | 5a58776 |
 
 ---
 
