@@ -1141,3 +1141,32 @@ test('nested union with deep constraint errors via getBsonEncoder (#577)', () =>
     // Deep constraint failure: value is empty in InputEvent
     expect(() => encoder.decode(encoder.encode({ type: 'input', value: '' }))).toThrow('Min length is 1');
 });
+
+test('union with structural errors shows specific field errors via getBsonEncoder', () => {
+    // Test that getBsonEncoder shows specific errors for missing/wrong fields in object unions
+
+    interface ClickEvent {
+        type: 'click';
+        x: number;
+        y: number;
+    }
+
+    interface ScrollEvent {
+        type: 'scroll';
+        offset: number;
+    }
+
+    type T = ClickEvent | ScrollEvent;
+    const encoder = getBsonEncoder(typeOf<T>());
+
+    // Valid cases
+    expect(encoder.decode(encoder.encode({ type: 'click', x: 5, y: 10 }))).toEqual({
+        type: 'click',
+        x: 5,
+        y: 10,
+    });
+
+    // Missing required field 'y' - should indicate which field is missing
+    // This tests structural error handling, not constraint validation
+    expect(() => encoder.decode(encoder.encode({ type: 'click', x: 5 } as any))).toThrow('Not a number');
+});

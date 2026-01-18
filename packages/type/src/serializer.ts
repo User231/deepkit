@@ -2062,10 +2062,20 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
                 linesObjects.push(`
                 //${debug}
                 if (${looseCheck} ${maxScore} > matching) {
+                    const _ueStart = state.errors ? state.errors.length : 0;
                     const score = ${guard}(${args});
+                    const _ueEnd = state.errors ? state.errors.length : 0;
+                    const _ueCount = _ueEnd - _ueStart;
                     if (score > matching) {
                         matching = score;
                         matchingIndex = ${actions.length - 1};
+                        _ueBestStart = _ueStart;
+                        _ueBestEnd = _ueEnd;
+                    } else if (!score && _ueCount > 0 && (_ueBestCount < 0 || _ueCount < _ueBestCount)) {
+                        // No match, but track the member with fewest errors as the "closest" match
+                        _ueBestStart = _ueStart;
+                        _ueBestEnd = _ueEnd;
+                        _ueBestCount = _ueCount;
                     }
                 }`);
             } else {
@@ -2089,16 +2099,30 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
 
     // When no union member matches, we need to decide which error to show:
     // - If constraint errors were collected (code !== 'type'), show those specific errors
-    // - If only type mismatch errors exist (code === 'type'), show generic "No valid union member found"
-    // Note: We push to state.errors which is now oldErrors after handleErrors runs
+    // - If structural errors from the closest-matching object member exist (fewest errors), show those
+    //   (e.g., missing property 'y' produces path='y', code='type', message='Not a number')
+    // - If only top-level type mismatch errors exist (code === 'type', path === ''), show generic "No valid union member found"
+    // For object unions, _ueBestStart/_ueBestEnd track which errors came from the closest member
     state.setContext({ ValidationErrorItem });
     const unionErrorMessage = JSON.stringify('No valid union member found. Valid: ' + stringifyResolvedType(type));
     const noMatchError = state.setter
         ? `
         if (state.errors) {
             const _uel = state.errors.length;
-            if (_ue) for (let i = 0; i < _ue.length; i++) {
-                if (_ue[i].code !== 'type') state.errors.push(_ue[i]);
+            if (_ue) {
+                // First pass: collect constraint errors from anywhere
+                for (let i = 0; i < _ue.length; i++) {
+                    if (_ue[i].code !== 'type') {
+                        state.errors.push(_ue[i]);
+                    }
+                }
+                // Second pass: if we have a closest-matching member and no constraint errors were found,
+                // show its structural errors (path-based type errors)
+                if (state.errors.length === _uel && _ueBestEnd > _ueBestStart) {
+                    for (let i = _ueBestStart; i < _ueBestEnd; i++) {
+                        if (_ue[i].path) state.errors.push(_ue[i]);
+                    }
+                }
             }
             if (state.errors.length === _uel) {
                 state.errors.push(new ValidationErrorItem(${collapsePath(state.path)}, 'type', ${unionErrorMessage}, ${state.originalAccessor}));
@@ -2118,6 +2142,9 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
             else {
                 let matchingIndex = -1;
                 let matching = 0;
+                let _ueBestStart = 0;
+                let _ueBestEnd = 0;
+                let _ueBestCount = -1;
                 ${linesObjects.join(' ')}
 
                 switch (matchingIndex) {
@@ -2132,6 +2159,7 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
                         }
                     }
                 }
+
             }
 
             state.errors = oldErrors;
