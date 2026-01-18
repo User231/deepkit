@@ -360,7 +360,7 @@ function actionProtocolFull(reply: RpcMessage, subject: RpcMessageSubject, state
                 (observableSubject as any).subscribe = function (this: Subject<any>, ...args: any[]) {
                     subscriptionCount++;
                     if (!subjectRef) subjectRef = this; // Keep strong reference using 'this'
-                    const subscription = originalSubscribe.apply(this, args);
+                    const subscription = originalSubscribe.apply(this, args as [any?, any?, any?]);
                     subscription.add(() => {
                         subscriptionCount--;
                         if (subscriptionCount === 0) subjectRef = undefined; // Allow GC when no subscriptions
@@ -422,7 +422,7 @@ function actionProtocolFull(reply: RpcMessage, subject: RpcMessageSubject, state
                 (observableSubject as any).subscribe = function (this: Subject<any>, ...args: any[]) {
                     subscriptionCount++;
                     if (!subjectRef) subjectRef = this;
-                    const subscription = originalSubscribe.apply(this, args);
+                    const subscription = originalSubscribe.apply(this, args as [any?, any?, any?]);
                     subscription.add(() => {
                         subscriptionCount--;
                         if (subscriptionCount === 0) subjectRef = undefined;
