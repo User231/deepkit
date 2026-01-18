@@ -185,7 +185,6 @@ Issues affecting DX or edge cases.
 | [#524](https://github.com/deepkit/deepkit-framework/issues/524) | conditional type inference unexpected | type | 2023-12-14 |
 | [#509](https://github.com/deepkit/deepkit-framework/issues/509) | Node InferType did not pass test 'isEntityName' | type-compiler | 2025-05-02 |
 | [#508](https://github.com/deepkit/deepkit-framework/issues/508) | Improve error "No valid runtime type" | type | 2023-11-16 |
-| [#505](https://github.com/deepkit/deepkit-framework/issues/505) | assert circular structure to json | type | 2023-11-10 |
 | [#478](https://github.com/deepkit/deepkit-framework/issues/478) | deserialize maximum call stack exceeded | type | 2023-09-29 |
 | [#458](https://github.com/deepkit/deepkit-framework/issues/458) | Body parameter in separate file controller | http | 2023-10-04 |
 | [#456](https://github.com/deepkit/deepkit-framework/issues/456) | Receive types in Vite from other file | type-compiler | 2023-06-13 |
@@ -315,6 +314,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#565](https://github.com/deepkit/deepkit-framework/issues/565) | validate with generics and arrays | 2024-10-xx | 4d24c8b3 |
 | [#590](https://github.com/deepkit/deepkit-framework/issues/590) | Ending response at middleware - no log entry | 2026-01-18 | 937781e5 |
 | [#589](https://github.com/deepkit/deepkit-framework/issues/589) | Throwing at HTTP Middlewares | 2026-01-18 | 9ee05a9a |
+| [#505](https://github.com/deepkit/deepkit-framework/issues/505) | assert circular structure to json | 2026-01-18 | 7b2fb424 |
 
 ---
 
