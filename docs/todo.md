@@ -177,7 +177,6 @@ Issues affecting DX or edge cases.
 | Issue | Title | Package | Created |
 |-------|-------|---------|---------|
 | [#664](https://github.com/deepkit/deepkit-framework/issues/664) | function __types should be hoisted? | type-compiler | 2025-08-11 |
-| [#653](https://github.com/deepkit/deepkit-framework/issues/653) | HttpHeader case sensitive in TestingFacade | http | 2025-06-17 |
 | [#634](https://github.com/deepkit/deepkit-framework/issues/634) | Named re-exports missing type representations | type-compiler | 2025-03-09 |
 | [#601](https://github.com/deepkit/deepkit-framework/issues/601) | exclude declare statements | type-compiler | 2024-07-11 |
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | type-compiler | 2024-11-12 |
@@ -315,6 +314,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#676](https://github.com/deepkit/deepkit-framework/issues/676) | [bson] Improve error message | 2026-01-18 | 1367b606 |
 | [#668](https://github.com/deepkit/deepkit-framework/issues/668) | query.count() throws error with pagination | 2026-01-18 | 86a8e7ec |
 | [#577](https://github.com/deepkit/deepkit-framework/issues/577) | Wrong error message in union validation | 2026-01-18 | 759326d9, 6500cf72 |
+| [#653](https://github.com/deepkit/deepkit-framework/issues/653) | HttpHeader case sensitive in TestingFacade | 2026-01-18 | 97f8991e |
 
 ---
 
