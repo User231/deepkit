@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 If asked to fix bugs, improve packages, or work on GitHub issues:
 
 **Read `docs/todo.md` first.** It contains complete agent instructions including:
+
 - How to continue existing work
 - How to delegate to sub-agents (you are the orchestrator)
 - Rules for commits, tests, and documentation
@@ -23,6 +24,7 @@ Deepkit Framework is a high-performance, modular TypeScript framework for backen
 ## Vision and Goals
 
 Deepkit aims to solve the **schema fragmentation problem** in TypeScript:
+
 - **One type definition** works everywhere: validation, serialization, database, HTTP, RPC, DI
 - **10-100x faster** than alternatives (class-validator, Zod, etc.)
 - **Zero-decorator DI**: Dependency injection works on pure TypeScript without `@Injectable()`
@@ -59,6 +61,8 @@ npm run clean        # Clean artifacts
 
 **Critical:** Always run `npm run postinstall` after cloning or when type-compiler changes.
 
+**Important:** After modifying TypeScript source files, run `tsc --build` (or `npm run tsc`) to compile the changes before running tests. Tests execute the compiled JavaScript in `dist/`, not the TypeScript source directly.
+
 ## Architecture Overview
 
 ### Type System Pipeline
@@ -93,11 +97,13 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 ## Code Standards
 
 **Formatting:** Prettier via lefthook pre-commit
+
 - 4-space indent for TypeScript
 - Single quotes, trailing commas
 - Import order: third-party → `@deepkit/*` → relative
 
 **Patterns:**
+
 - `ReceiveType<T>` + `resolveReceiveType()` for runtime type access
 - Type annotations via intersection: `string & MinLength<3>`
 - JIT compilation via `CompilerContext` for performance
@@ -105,24 +111,30 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 ## Key Patterns
 
 ### Runtime Type Reflection
+
 ```typescript
 function example<T>(type?: ReceiveType<T>): Type {
-    return resolveReceiveType(type);
+  return resolveReceiveType(type);
 }
 ```
 
 ### Type Annotations
+
 ```typescript
 class User {
-    id: number & PrimaryKey & AutoIncrement = 0;
-    email: string & Email = '';
+  id: number & PrimaryKey & AutoIncrement = 0;
+  email: string & Email = '';
 }
 ```
 
 ### Zero-Decorator DI
+
 ```typescript
 class Service {
-    constructor(private db: Database, private logger: Logger) {}
+  constructor(
+    private db: Database,
+    private logger: Logger,
+  ) {}
 }
 ```
 
@@ -131,13 +143,41 @@ class Service {
 - Jest with custom resolver for monorepo
 - Tests require type-compiler: `npm run postinstall`
 - Memory flags: `--expose-gc --max_old_space_size=3048`
-- External services needed for some tests: MongoDB, PostgreSQL, MySQL
+
+### Database Integration Tests
+
+Start the test databases with Docker Compose:
+
+```bash
+docker compose up -d   # Start PostgreSQL, MySQL, MongoDB (with replica set), Redis
+docker compose down    # Stop all services
+docker compose ps      # Check service status
+```
+
+Services started (alternative ports to avoid conflicts):
+
+- **PostgreSQL** (port 15432): user `postgres`, no password, trust auth
+- **MySQL** (port 13306): user `root`, no password, database `default`
+- **MongoDB** (port 27117): replica set `rs0` (required for transactions)
+- **MongoDB Auth** (port 27018): user `root`, password `root` (for auth tests)
+- **Redis** (port 16379): for broker-redis tests
+
+Configure test factories via environment variables:
+
+```bash
+export POSTGRES_PORT=15432
+export MYSQL_PORT=13306
+export MONGO_PORT=27117
+export REDIS_PORT=16379
+npm run test packages/postgres/   # Uses port 15432
+```
 
 See `docs/TESTING.md` for test strategy and edge cases.
 
 ## Performance
 
 Deepkit achieves extreme performance through JIT compilation:
+
 - **Serialization**: ~32M ops/sec (100x faster than class-transformer)
 - **Validation**: ~26M ops/sec (270x faster than class-validator)
 - **BSON**: 13x faster than official bson-js
@@ -186,9 +226,50 @@ All task tracking and agent workflow instructions are in `docs/todo.md`.
 ### Pre-commit Hooks (lefthook.yml)
 
 Commits are automatically blocked if:
+
 - Typecheck fails (`npm run typecheck`)
 - Lint fails (prettier)
 - Commit message doesn't follow conventional format
+
+### Git Commits
+
+**Important:** Changelog is auto-generated from commit messages. Use semantic commits with clear descriptions.
+
+**Format:** `type(scope): short description`
+
+**Types:**
+
+- `fix` - Bug fixes
+- `feat` - New features
+- `refactor` - Code changes that neither fix bugs nor add features
+- `test` - Adding or updating tests
+- `docs` - Documentation changes
+- `perf` - Performance improvements
+- `chore` - Maintenance tasks
+
+**Scopes:** Use package names without `@deepkit/` prefix (e.g., `rpc`, `type`, `orm`, `http`)
+
+**Rules:**
+
+- One logical change per commit (don't mix unrelated changes)
+- Split large changes by scope for clean history
+- Write meaningful descriptions explaining _why_, not just _what_
+- Reference issues when applicable: `fix(rpc): description (#123)`
+
+**Examples:**
+
+```
+fix(rpc): prevent premature GC of Subjects during active subscriptions
+
+V8's aggressive optimization can mark variables as "dead" during await,
+causing FinalizationRegistry to fire prematurely. Track active subscriptions
+and keep strong references while subscriptions exist.
+
+test(rpc): add comprehensive tests for Subject GC stability
+
+Cover edge cases: multiple subscriptions, partial unsubscribe, rapid cycles,
+concurrent subjects, error handling, and long-running subscriptions.
+```
 
 ## Working with This Codebase
 
@@ -201,20 +282,20 @@ Commits are automatically blocked if:
 
 ### Key Files
 
-| Area | Key Files |
-|------|-----------|
-| Type compiler | `packages/type-compiler/src/compiler.ts` |
+| Area              | Key Files                                   |
+| ----------------- | ------------------------------------------- |
+| Type compiler     | `packages/type-compiler/src/compiler.ts`    |
 | Runtime processor | `packages/type/src/reflection/processor.ts` |
-| Serialization | `packages/type/src/serializer.ts` |
-| DI container | `packages/injector/src/injector.ts` |
-| Query builder | `packages/orm/src/query.ts` |
-| HTTP kernel | `packages/http/src/kernel.ts` |
+| Serialization     | `packages/type/src/serializer.ts`           |
+| DI container      | `packages/injector/src/injector.ts`         |
+| Query builder     | `packages/orm/src/query.ts`                 |
+| HTTP kernel       | `packages/http/src/kernel.ts`               |
 
 ### Disabling Reflection
 
 ```typescript
 /** @reflection never */
-interface InternalType { }
+interface InternalType {}
 ```
 
 ## Project Context
@@ -228,6 +309,7 @@ interface InternalType { }
 ## Success Criteria
 
 When working on this project, optimize for:
+
 1. **Type safety**: Runtime must match compile-time guarantees
 2. **Performance**: No regressions, maintain benchmark leadership
 3. **Simplicity**: Prefer solutions using native TypeScript types
