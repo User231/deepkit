@@ -1,28 +1,10 @@
 import {
-    binaryBigIntAnnotation,
     BinaryBigIntType,
-    collapsePath,
     ContainerAccessor,
-    createTypeGuardFunction,
-    embeddedAnnotation,
     EmbeddedOptions,
-    excludedAnnotation,
-    executeTemplates,
-    extendTemplateLiteral,
-    getDeepConstructorProperties,
-    getIndexCheck,
-    getNameExpression,
-    getStaticDefaultCodeForProperty,
-    hasDefaultValue,
-    isCustomTypeClass,
-    isNullable,
-    isOptional,
-    isPropertyMemberType,
     ReflectionClass,
     ReflectionKind,
-    resolveTypeMembers,
     RuntimeCode,
-    sortSignatures,
     TemplateState,
     Type,
     TypeArray,
@@ -36,11 +18,31 @@ import {
     TypeTemplateLiteral,
     TypeTuple,
     TypeUnion,
+    binaryBigIntAnnotation,
+    collapsePath,
+    createTypeGuardFunction,
+    embeddedAnnotation,
+    excludedAnnotation,
+    executeTemplates,
+    extendTemplateLiteral,
+    getDeepConstructorProperties,
+    getIndexCheck,
+    getNameExpression,
+    getStaticDefaultCodeForProperty,
+    hasDefaultValue,
+    isCustomTypeClass,
+    isNullable,
+    isOptional,
+    isPropertyMemberType,
+    resolveTypeMembers,
+    sortSignatures,
+    stringifyType,
     uuidAnnotation,
 } from '@deepkit/type';
+
+import { BaseParser } from './bson-parser.js';
 import { seekElementSize } from './continuation.js';
 import { BSONType, digitByteSize, isSerializable } from './utils.js';
-import { BaseParser } from './bson-parser.js';
 
 function getNameComparator(name: string): string {
     //todo: support utf8 names
@@ -56,6 +58,14 @@ function getNameComparator(name: string): string {
 function throwInvalidBsonType(type: Type, state: TemplateState) {
     state.setContext({ BSONType });
     return state.throwCode(type, JSON.stringify('invalid BSON type'), `'bson type ' + BSONType[state.elementType]`);
+}
+
+function throwUnionMismatch(type: TypeUnion, state: TemplateState, originalPath: string) {
+    // For union types, provide a more helpful error message that lists expected members
+    // and uses the original path (before type guard checks modified it)
+    const typeStr = JSON.stringify(stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim());
+    state.setContext({ ValidationError: (state as any).compilerContext.context.get('ValidationError') });
+    return `throw ValidationError.from([{code: 'type', path: ${originalPath}, message: 'No union member matched. Expected: ' + ${typeStr}}])`;
 }
 
 export function deserializeBinary(type: Type, state: TemplateState) {
@@ -75,15 +85,18 @@ export function deserializeAny(type: Type, state: TemplateState) {
     `);
 }
 
-const numberParsers = createParserLookup(() => 0, [
-    [BSONType.INT, parser => parser.parseInt()],
-    [BSONType.NUMBER, parser => parser.parseNumber()],
-    [BSONType.LONG, parser => Number(parser.parseLong())],
-    [BSONType.TIMESTAMP, parser => Number(parser.parseLong())],
-    [BSONType.BOOLEAN, parser => parser.parseBoolean() ? 1 : 0],
-    [BSONType.BINARY, parser => Number(parser.parseBinaryBigInt())],
-    [BSONType.STRING, parser => Number(parser.parseString())],
-]);
+const numberParsers = createParserLookup(
+    () => 0,
+    [
+        [BSONType.INT, parser => parser.parseInt()],
+        [BSONType.NUMBER, parser => parser.parseNumber()],
+        [BSONType.LONG, parser => Number(parser.parseLong())],
+        [BSONType.TIMESTAMP, parser => Number(parser.parseLong())],
+        [BSONType.BOOLEAN, parser => (parser.parseBoolean() ? 1 : 0)],
+        [BSONType.BINARY, parser => Number(parser.parseBinaryBigInt())],
+        [BSONType.STRING, parser => Number(parser.parseString())],
+    ],
+);
 
 export function deserializeNumber(type: Type, state: TemplateState) {
     state.setContext({ numberParsers });
@@ -95,15 +108,18 @@ export function deserializeNumber(type: Type, state: TemplateState) {
     `);
 }
 
-const bigIntParsers = createParserLookup(() => 0n, [
-    [BSONType.INT, parser => BigInt(parser.parseInt())],
-    [BSONType.NUMBER, parser => BigInt(parser.parseNumber())],
-    [BSONType.LONG, parser => BigInt(parser.parseLong())],
-    [BSONType.TIMESTAMP, parser => BigInt(parser.parseLong())],
-    [BSONType.BOOLEAN, parser => BigInt(parser.parseBoolean() ? 1 : 0)],
-    [BSONType.BINARY, parser => parser.parseBinaryBigInt()],
-    [BSONType.STRING, parser => BigInt(parser.parseString())],
-]);
+const bigIntParsers = createParserLookup(
+    () => 0n,
+    [
+        [BSONType.INT, parser => BigInt(parser.parseInt())],
+        [BSONType.NUMBER, parser => BigInt(parser.parseNumber())],
+        [BSONType.LONG, parser => BigInt(parser.parseLong())],
+        [BSONType.TIMESTAMP, parser => BigInt(parser.parseLong())],
+        [BSONType.BOOLEAN, parser => BigInt(parser.parseBoolean() ? 1 : 0)],
+        [BSONType.BINARY, parser => parser.parseBinaryBigInt()],
+        [BSONType.STRING, parser => BigInt(parser.parseString())],
+    ],
+);
 
 export function deserializeBigInt(type: Type, state: TemplateState) {
     const binaryBigInt = binaryBigIntAnnotation.getFirst(type);
@@ -203,15 +219,31 @@ type Parse = (parser: BaseParser, elementType: BSONType) => any;
  * @note make sure any user of this code is tested in `createParserLookup from invalid object`
  */
 function createParserLookup(defaultReturn: () => any, parsers: [elementType: BSONType, fn: Parse][]): Parse[] {
-    const defaultParse = function(parser: BaseParser, elementType: BSONType) {
+    const defaultParse = function (parser: BaseParser, elementType: BSONType) {
         seekElementSize(elementType, parser);
         return defaultReturn();
     };
     const result = [
-        defaultParse, defaultParse, defaultParse, defaultParse, defaultParse,
-        defaultParse, defaultParse, defaultParse, defaultParse, defaultParse,
-        defaultParse, defaultParse, defaultParse, defaultParse, defaultParse,
-        defaultParse, defaultParse, defaultParse, defaultParse, defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
+        defaultParse,
     ];
     for (const [index, parse] of parsers) {
         result[index] = parse;
@@ -219,16 +251,19 @@ function createParserLookup(defaultReturn: () => any, parsers: [elementType: BSO
     return result;
 }
 
-const booleanParsers = createParserLookup(() => false, [
-    [BSONType.BOOLEAN, parser => parser.parseBoolean()],
-    [BSONType.NULL, parser => 0],
-    [BSONType.UNDEFINED, parser => 0],
-    [BSONType.INT, parser => !!parser.parseInt()],
-    [BSONType.NUMBER, parser => !!parser.parseNumber()],
-    [BSONType.LONG, parser => !!parser.parseLong()],
-    [BSONType.TIMESTAMP, parser => !!parser.parseLong()],
-    [BSONType.STRING, parser => !!Number(parser.parseString())],
-]);
+const booleanParsers = createParserLookup(
+    () => false,
+    [
+        [BSONType.BOOLEAN, parser => parser.parseBoolean()],
+        [BSONType.NULL, parser => 0],
+        [BSONType.UNDEFINED, parser => 0],
+        [BSONType.INT, parser => !!parser.parseInt()],
+        [BSONType.NUMBER, parser => !!parser.parseNumber()],
+        [BSONType.LONG, parser => !!parser.parseLong()],
+        [BSONType.TIMESTAMP, parser => !!parser.parseLong()],
+        [BSONType.STRING, parser => !!Number(parser.parseString())],
+    ],
+);
 
 export function deserializeBoolean(type: Type, state: TemplateState) {
     state.setContext({ booleanParsers });
@@ -271,6 +306,9 @@ export function deserializeUnion(typeGuards: TypeGuardRegistry, type: TypeUnion,
     const linesObjects: string[] = [];
     const actions: string[] = [];
 
+    // Store original path before type guards may modify it during checks
+    const originalPath = collapsePath(state.path);
+
     //see handleUnion from deepkit/type for more information
     const sortedTypeGuards = typeGuards.getSortedTemplateRegistries();
 
@@ -281,18 +319,18 @@ export function deserializeUnion(typeGuards: TypeGuardRegistry, type: TypeUnion,
 
             const validation = !state.validation ? 'loose' : state.validation;
 
-            const fn = createTypeGuardFunction(t,
-                state.fork()
-                    .forRegistry(typeGuard)
-                    .withValidation(validation),
-            );
+            const fn = createTypeGuardFunction(t, state.fork().forRegistry(typeGuard).withValidation(validation));
             if (!fn) continue;
             const guard = state.setVariable('guard' + t.kind, fn);
             const looseCheck = specificality <= 0 ? `state.loosely && ` : '';
             const isAlternativeCheck = specificality > 1;
 
-            const args = state.isValidation() ? `${state.accessor || 'undefined'}, state` : `${state.accessor || 'undefined'}, state, ${collapsePath(state.path)}`;
-            const action = state.isValidation() ? `${state.setter} = true;` : executeTemplates(state.fork(state.setter, state.accessor).forPropertyName(state.propertyName), t);
+            const args = state.isValidation()
+                ? `${state.accessor || 'undefined'}, state`
+                : `${state.accessor || 'undefined'}, state, ${collapsePath(state.path)}`;
+            const action = state.isValidation()
+                ? `${state.setter} = true;`
+                : executeTemplates(state.fork(state.setter, state.accessor).forPropertyName(state.propertyName), t);
 
             const debug = `type = ${ReflectionKind[t.kind]} ${t.typeName}, specificality=${specificality}, validation=${state.isValidation()}, ${String(state.propertyName)}`;
             if (isCustomTypeClass(t) || t.kind === ReflectionKind.objectLiteral) {
@@ -318,7 +356,7 @@ export function deserializeUnion(typeGuards: TypeGuardRegistry, type: TypeUnion,
     }
 
     const init = state.isValidation() ? `${state.setter} = false;` : '';
-    const invalidValue = state.isValidation() ? '' : `${throwInvalidBsonType(type, state)}`;
+    const invalidValue = state.isValidation() ? '' : `${throwUnionMismatch(type, state, originalPath)}`;
 
     state.addCodeForSetter(`
     {
@@ -326,7 +364,7 @@ export function deserializeUnion(typeGuards: TypeGuardRegistry, type: TypeUnion,
         if (!state.elementType) state.elementType = ${BSONType.OBJECT};
         const oldElementType = state.elementType;
         ${init}
-     
+
         //validation=${state.isValidation()}, path=${collapsePath(state.path)}
         if (false) {}
         ${linesPrimitives.join(' ')}
@@ -609,10 +647,13 @@ export function deserializeArray(type: TypeArray, state: TemplateState) {
     state.setContext({ digitByteSize });
 
     state.addCode(`
-        if (state.elementType && state.elementType !== ${BSONType.ARRAY}) ${throwInvalidBsonType({
-        kind: ReflectionKind.array,
-        type: elementType,
-    }, state)}
+        if (state.elementType && state.elementType !== ${BSONType.ARRAY}) ${throwInvalidBsonType(
+            {
+                kind: ReflectionKind.array,
+                type: elementType,
+            },
+            state,
+        )}
         {
             var ${result} = [];
             const end = state.parser.eatUInt32() + state.parser.offset;
@@ -683,9 +724,9 @@ export function bsonTypeGuardArray(type: TypeArray, state: TemplateState) {
     `);
 }
 
-export function getEmbeddedClassesForProperty(type: Type): { type: TypeClass, options: EmbeddedOptions }[] {
+export function getEmbeddedClassesForProperty(type: Type): { type: TypeClass; options: EmbeddedOptions }[] {
     if (type.kind === ReflectionKind.propertySignature || type.kind === ReflectionKind.property) type = type.type;
-    const res: { type: TypeClass, options: EmbeddedOptions }[] = [];
+    const res: { type: TypeClass; options: EmbeddedOptions }[] = [];
 
     if (type.kind === ReflectionKind.union) {
         for (const t of type.types) {
@@ -787,15 +828,24 @@ export function deserializeObjectLiteral(type: TypeClass | TypeObjectLiteral, st
         const staticDefault = getStaticDefaultCodeForProperty(member, setter, state);
         let throwInvalidTypeError = '';
         if (!isOptional(member) && !hasDefaultValue(member)) {
-            throwInvalidTypeError = state.fork().extendPath(member.name).throwCode(member.type as Type, '', `'undefined value'`);
+            throwInvalidTypeError = state
+                .fork()
+                .extendPath(member.name)
+                .throwCode(member.type as Type, '', `'undefined value'`);
         }
         setDefaults.push(`if (!${valueSetVar}) { ${staticDefault || throwInvalidTypeError} } `);
 
         let seekOnExplicitUndefined = '';
         //handle explicitly set `undefined`, by jumping over the registered deserializers. if `null` is given and the property has no null type, we treat it as undefined.
         if (isOptional(member) || hasDefaultValue(member)) {
-            const setUndefined = isOptional(member) ? `${setter} = undefined;` : hasDefaultValue(member) ? `` : `${setter} = undefined;`;
-            const check = isNullable(member) ? `elementType === ${BSONType.UNDEFINED}` : `elementType === ${BSONType.UNDEFINED} || elementType === ${BSONType.NULL}`;
+            const setUndefined = isOptional(member)
+                ? `${setter} = undefined;`
+                : hasDefaultValue(member)
+                  ? ``
+                  : `${setter} = undefined;`;
+            const check = isNullable(member)
+                ? `elementType === ${BSONType.UNDEFINED}`
+                : `elementType === ${BSONType.UNDEFINED} || elementType === ${BSONType.NULL}`;
             seekOnExplicitUndefined = `
             if (${check}) {
                 ${setUndefined}
@@ -967,7 +1017,9 @@ export function bsonTypeGuardObjectLiteral(type: TypeClass | TypeObjectLiteral, 
         let seekOnExplicitUndefined = '';
         //handle explicitly set `undefined`, by jumping over the registered deserializers. if `null` is given and the property has no null type, we treat it as undefined.
         if (isOptional(member) || hasDefaultValue(member)) {
-            const check = isNullable(member) ? `elementType === ${BSONType.UNDEFINED}` : `elementType === ${BSONType.UNDEFINED} || elementType === ${BSONType.NULL}`;
+            const check = isNullable(member)
+                ? `elementType === ${BSONType.UNDEFINED}`
+                : `elementType === ${BSONType.UNDEFINED} || elementType === ${BSONType.NULL}`;
             seekOnExplicitUndefined = `
             if (${check}) {
                 seekElementSize(elementType, state.parser);
@@ -1104,5 +1156,9 @@ export function bsonTypeGuardLiteral(type: TypeLiteral, state: TemplateState) {
 export function bsonTypeGuardTemplateLiteral(type: TypeTemplateLiteral, state: TemplateState) {
     state.setContext({ extendTemplateLiteral: extendTemplateLiteral });
     const typeVar = state.setVariable('type', type);
-    state.addSetterAndReportErrorIfInvalid('type', 'Invalid literal', `state.elementType === ${BSONType.STRING} && extendTemplateLiteral({kind: ${ReflectionKind.literal}, literal: state.parser.read(state.elementType)}, ${typeVar})`);
+    state.addSetterAndReportErrorIfInvalid(
+        'type',
+        'Invalid literal',
+        `state.elementType === ${BSONType.STRING} && extendTemplateLiteral({kind: ${ReflectionKind.literal}, literal: state.parser.read(state.elementType)}, ${typeVar})`,
+    );
 }

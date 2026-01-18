@@ -1,12 +1,14 @@
 import { expect, test } from '@jest/globals';
 import bson, { Binary } from 'bson';
-import { deserializeBSON, getBSONDeserializer } from '../src/bson-deserializer.js';
-import { BinaryBigInt, copyAndSetParent, MinLength, MongoId, nodeBufferToArrayBuffer, PrimaryKey, Reference, ReflectionKind, SerializedTypes, SignedBinaryBigInt, TypeObjectLiteral, typeOf, uuid, UUID } from '@deepkit/type';
+
 import { getClassName } from '@deepkit/core';
-import { getBSONSerializer, serializeBSON, serializeBSONWithoutOptimiser } from '../src/bson-serializer.js';
-import { BSONType } from '../src/utils';
+import { BinaryBigInt, MinLength, MongoId, PrimaryKey, Reference, ReflectionKind, SerializedTypes, SignedBinaryBigInt, TypeObjectLiteral, UUID, copyAndSetParent, nodeBufferToArrayBuffer, typeOf, uuid } from '@deepkit/type';
+
+import { deserializeBSON, getBSONDeserializer } from '../src/bson-deserializer.js';
 import { deserializeBSONWithoutOptimiser } from '../src/bson-parser';
+import { getBSONSerializer, serializeBSON, serializeBSONWithoutOptimiser } from '../src/bson-serializer.js';
 import { getBsonEncoder } from '../src/encoder.js';
+import { BSONType } from '../src/utils';
 
 const { deserialize, serialize } = bson;
 
@@ -15,7 +17,7 @@ test('basic number', () => {
     const bson = serialize(obj);
 
     const schema = typeOf<{
-        v: number
+        v: number;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: '123' }))).toEqual(obj);
@@ -30,7 +32,7 @@ test('basic bigint', () => {
     const bson = serialize({ v: 123 });
 
     const schema = typeOf<{
-        v: bigint
+        v: bigint;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: '123' }))).toEqual(obj);
@@ -41,7 +43,7 @@ test('basic bigint', () => {
 
 test('basic null', () => {
     const schema = typeOf<{
-        v: null
+        v: null;
     }>();
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: null }))).toEqual({ v: null });
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: undefined }))).toEqual({ v: null });
@@ -56,7 +58,7 @@ test('basic null', () => {
 
 test('basic undefined', () => {
     const schema = typeOf<{
-        v: undefined
+        v: undefined;
     }>();
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: null }))).toEqual({ v: undefined });
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: undefined }))).toEqual({ v: undefined });
@@ -82,7 +84,7 @@ test('basic optional', () => {
 });
 
 test('basic date', () => {
-    const date = new Date;
+    const date = new Date();
     expect(deserializeBSON<{ v: Date }>(serialize({ v: date }))).toEqual({ v: date });
     expect(deserializeBSON<{ v: Date }>(serialize({ v: date.toJSON() }))).toEqual({ v: date });
     expect(deserializeBSON<{ v: Date }>(serialize({ v: date.valueOf() }))).toEqual({ v: date });
@@ -92,8 +94,7 @@ test('basic class with constructor', () => {
     class User {
         id: number = 0;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     {
@@ -133,7 +134,7 @@ test('basic class no constructor', () => {
 });
 
 test('basic optional property with initializer', () => {
-    const defaultValue = new Date;
+    const defaultValue = new Date();
 
     class User {
         v: Date = defaultValue;
@@ -151,7 +152,7 @@ test('basic binary bigint', () => {
     const bson = serialize({ v: new Binary(buffer, Binary.SUBTYPE_DEFAULT) });
 
     const schema = typeOf<{
-        v: BinaryBigInt
+        v: BinaryBigInt;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: '123' }))).toEqual({ v: 123n });
@@ -167,7 +168,7 @@ test('basic signed binary bigint', () => {
     const bsonNegative = serialize({ v: new Binary(Buffer.from([255, 100]), Binary.SUBTYPE_DEFAULT) });
 
     const schema = typeOf<{
-        v: SignedBinaryBigInt
+        v: SignedBinaryBigInt;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(getBSONDeserializer(undefined, schema)(bsonNegative)).toEqual({ v: -100n });
@@ -182,7 +183,7 @@ test('basic string', () => {
     const bson = serialize(obj);
 
     const schema = typeOf<{
-        v: string
+        v: string;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: 123 }))).toEqual({ v: '123' });
@@ -194,7 +195,7 @@ test('basic boolean', () => {
     const bson = serialize(obj);
 
     const schema = typeOf<{
-        v: boolean
+        v: boolean;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(getBSONDeserializer(undefined, schema)(serialize({ v: 123 }))).toEqual({ v: true });
@@ -208,7 +209,7 @@ test('basic array buffer', () => {
     const bson = serialize({ v: new Binary(buffer, Binary.SUBTYPE_DEFAULT) });
 
     const schema = typeOf<{
-        v: ArrayBuffer
+        v: ArrayBuffer;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(() => getBSONDeserializer(undefined, schema)(serialize({ v: '123' }))).toThrow(`Cannot convert bson type STRING to ArrayBuffer`);
@@ -220,7 +221,7 @@ test('basic typed array', () => {
     const bson = serialize({ v: new Binary(buffer, Binary.SUBTYPE_DEFAULT) });
 
     const schema = typeOf<{
-        v: Uint8Array
+        v: Uint8Array;
     }>();
     expect(getBSONDeserializer(undefined, schema)(bson)).toEqual(obj);
     expect(() => getBSONDeserializer(undefined, schema)(serialize({ v: '123' }))).toThrow(`Cannot convert bson type STRING to Uint8Array`);
@@ -240,22 +241,28 @@ test('basic union two objects', () => {
 
 test('basic union with typed array', () => {
     const buffer = Buffer.allocUnsafe(16);
-    expect(deserializeBSON<{
-        v: string | Uint8Array
-    }>(serialize({ v: new Binary(buffer, Binary.SUBTYPE_DEFAULT) }))).toEqual({ v: new Uint8Array(buffer) });
+    expect(
+        deserializeBSON<{
+            v: string | Uint8Array;
+        }>(serialize({ v: new Binary(buffer, Binary.SUBTYPE_DEFAULT) })),
+    ).toEqual({ v: new Uint8Array(buffer) });
     expect(deserializeBSON<{ v: string | Uint8Array }>(serialize({ v: 'abc' }))).toEqual({ v: 'abc' });
-    expect(() => deserializeBSON<{ v: string | Uint8Array }>(serialize({ v: {} }))).toThrow('Cannot convert bson type OBJECT to string | Uint8Array');
+    expect(() => deserializeBSON<{ v: string | Uint8Array }>(serialize({ v: {} }))).toThrow('No union member matched. Expected: string | Uint8Array');
 });
 
 test('basic union with arraybuffer', () => {
     const buffer = Buffer.allocUnsafe(16);
-    expect(deserializeBSON<{
-        v: string | ArrayBuffer
-    }>(serialize({ v: new Binary(buffer, Binary.SUBTYPE_DEFAULT) }))).toEqual({ v: nodeBufferToArrayBuffer(buffer) });
+    expect(
+        deserializeBSON<{
+            v: string | ArrayBuffer;
+        }>(serialize({ v: new Binary(buffer, Binary.SUBTYPE_DEFAULT) })),
+    ).toEqual({ v: nodeBufferToArrayBuffer(buffer) });
     expect(deserializeBSON<{ v: string | ArrayBuffer }>(serialize({ v: 'abc' }))).toEqual({ v: 'abc' });
-    expect(() => deserializeBSON<{
-        v: string | ArrayBuffer
-    }>(serialize({ v: {} }))).toThrow('Cannot convert bson type OBJECT to string | ArrayBuffer');
+    expect(() =>
+        deserializeBSON<{
+            v: string | ArrayBuffer;
+        }>(serialize({ v: {} })),
+    ).toThrow('No union member matched. Expected: string | ArrayBuffer');
 });
 
 test('basic union ', () => {
@@ -282,7 +289,7 @@ test('basic union with literals', () => {
 
     expect(deserializeBSON<{ v: 'a' | 2 }>(serialize({ v: 'a' }))).toEqual({ v: 'a' });
     expect(deserializeBSON<{ v: 'a' | 2 }>(serialize({ v: 'a' }))).toEqual({ v: 'a' });
-    expect(deserializeBSON<{ v: 'a' | 2, num: number }>(serialize({ v: 2, num: 5 }))).toEqual({ v: 2, num: 5 });
+    expect(deserializeBSON<{ v: 'a' | 2; num: number }>(serialize({ v: 2, num: 5 }))).toEqual({ v: 2, num: 5 });
     expect(deserializeBSON<{ v: true | number }>(serialize({ v: 2 }))).toEqual({ v: 2 });
     expect(deserializeBSON<{ v: true | number }>(serialize({ v: true }))).toEqual({ v: true });
     expect(deserializeBSON<{ v: true | number }>(serialize({ v: false }))).toEqual({ v: 0 });
@@ -339,7 +346,7 @@ test('basic union with null | uuid', () => {
     const myUuid = uuid();
     expect(deserializeBSON<{ v: null | UUID }>(serialize({ v: myUuid }))).toEqual({ v: myUuid });
     expect(deserializeBSON<{ v: null | UUID }>(serialize({ v: null }))).toEqual({ v: null });
-    expect(() => deserializeBSON<{ v: null | UUID }>(serialize({ v: 'asdad' }))).toThrow('Cannot convert bson type STRING to null | UUID');
+    expect(() => deserializeBSON<{ v: null | UUID }>(serialize({ v: 'asdad' }))).toThrow('No union member matched. Expected: null | UUID');
 });
 
 test('basic union with uuid', () => {
@@ -351,7 +358,7 @@ test('basic union with uuid', () => {
 });
 
 test('basic union with Date', () => {
-    const value = new Date;
+    const value = new Date();
     expect(deserializeBSON<{ v: number | Date }>(serialize({ v: 23 }))).toEqual({ v: 23 });
     expect(deserializeBSON<{ v: number | Date }>(serialize({ v: value }))).toEqual({ v: value });
     expect(deserializeBSON<{ v: number | Date }>(serialize({ v: true }))).toEqual({ v: 1 });
@@ -359,7 +366,7 @@ test('basic union with Date', () => {
 });
 
 test('basic regexp', () => {
-    const myRegexp = /abc/gmi;
+    const myRegexp = /abc/gim;
     expect(deserializeBSON<{ v: RegExp }>(serialize({ v: myRegexp }))).toEqual({ v: myRegexp });
     expect(() => deserializeBSON<{ v: RegExp }>(serialize({ v: 'abc' }))).toThrow('Cannot convert bson type STRING to RegExp');
     expect(() => deserializeBSON<{ v: RegExp }>(serialize({ v: 23 }))).toThrow('Cannot convert bson type INT to RegExp');
@@ -367,10 +374,10 @@ test('basic regexp', () => {
 });
 
 test('basic union with regexp', () => {
-    const myRegexp = /abc/gmi;
+    const myRegexp = /abc/gim;
     expect(deserializeBSON<{ v: number | RegExp }>(serialize({ v: myRegexp }))).toEqual({ v: myRegexp });
     expect(deserializeBSON<{ v: number | RegExp }>(serialize({ v: 23 }))).toEqual({ v: 23 });
-    expect(() => deserializeBSON<{ v: number | RegExp }>(serialize({ v: {} }))).toThrow('Cannot convert bson type OBJECT to number | RegExp');
+    expect(() => deserializeBSON<{ v: number | RegExp }>(serialize({ v: {} }))).toThrow('No union member matched. Expected: number | RegExp');
     expect(() => deserializeBSON<{ v: number | RegExp }>(serialize({}))).toThrow('Cannot convert undefined value to number | RegExp');
 });
 
@@ -385,12 +392,16 @@ test('basic array', () => {
 test('basic array union', () => {
     const value = ['a', 'b', false, 'c', true];
     expect(deserializeBSON<{ v: (string | boolean)[] }>(serialize({ v: value }))).toEqual({ v: value });
-    expect(() => deserializeBSON<{
-        v: (string | boolean)[]
-    }>(serialize({ v: 123 }))).toThrow('Cannot convert bson type INT to Array<string | boolean>');
-    expect(() => deserializeBSON<{
-        v: (string | boolean)[]
-    }>(serialize({ v: ['a', {}] }))).toThrow('Cannot convert bson type OBJECT to string | boolean');
+    expect(() =>
+        deserializeBSON<{
+            v: (string | boolean)[];
+        }>(serialize({ v: 123 })),
+    ).toThrow('Cannot convert bson type INT to Array<string | boolean>');
+    expect(() =>
+        deserializeBSON<{
+            v: (string | boolean)[];
+        }>(serialize({ v: ['a', {}] })),
+    ).toThrow('No union member matched. Expected: string | boolean');
 });
 
 test('basic two array union', () => {
@@ -398,8 +409,8 @@ test('basic two array union', () => {
     type MyType = number[] | (string | boolean)[];
     expect(deserializeBSON<{ v: MyType }>(serialize({ v: value }))).toEqual({ v: value });
     expect(deserializeBSON<{ v: MyType }>(serialize({ v: [1, 2] }))).toEqual({ v: [1, 2] });
-    expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: 123 }))).toThrow('Cannot convert bson type INT to MyType');
-    expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: ['a', {}] }))).toThrow('Cannot convert bson type ARRAY to MyType');
+    expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: 123 }))).toThrow('No union member matched. Expected: MyType');
+    expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: ['a', {}] }))).toThrow('No union member matched. Expected: MyType');
 });
 
 test('basic loosely array union', () => {
@@ -410,7 +421,7 @@ test('basic loosely array union', () => {
     expect(deserializeBSON<{ v: MyType }>(serialize({ v: [1, 2] }))).toEqual({ v: ['1', '2'] });
 
     expect(deserializeBSON<{ v: MyType }>(serialize({ v: 123 }))).toEqual({ v: 123 });
-    expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: ['a', {}] }))).toThrow('Cannot convert bson type ARRAY to MyType');
+    expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: ['a', {}] }))).toThrow('No union member matched. Expected: MyType');
 });
 
 test('basic class array union', () => {
@@ -427,7 +438,7 @@ test('basic class array union', () => {
         c!: string;
     }
 
-    type MyType = (A)[] | (B)[] | (C)[];
+    type MyType = A[] | B[] | C[];
     {
         const items = deserializeBSON<{ v: MyType }>(serialize({ v: [{ type: 'a' }] }));
         expect(items.v[0]).toBeInstanceOf(A);
@@ -447,7 +458,7 @@ test('basic class array union', () => {
     }
 
     {
-        expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: [{ nope: 'no' }] }))).toThrow(`Cannot convert bson type ARRAY to MyType`);
+        expect(() => deserializeBSON<{ v: MyType }>(serialize({ v: [{ nope: 'no' }] }))).toThrow(`No union member matched. Expected: MyType`);
     }
 });
 
@@ -455,8 +466,7 @@ test('constructor parameters', () => {
     class A {
         id: number = 0;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     expect(deserializeBSON<{ v: A }>(serialize({ v: new A('Peter') }))).toEqual({ v: { id: 0, username: 'Peter' } });
@@ -466,8 +476,7 @@ test('reference', () => {
     class A {
         id: number & PrimaryKey = 0;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     {
@@ -489,8 +498,7 @@ test('reference in union', () => {
     class A {
         id: number & PrimaryKey = 0;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     type t = { v: (A & Reference) | string[] };
@@ -567,19 +575,19 @@ test('tuple on union', () => {
         expect(deserializeBSON<t>(serialize({ v: ['abc', 34] }))).toEqual({ v: ['abc', 34] });
         expect(deserializeBSON<t>(serialize({ v: [{ d: true }] }))).toEqual({ v: [{ d: true }] });
         expect(deserializeBSON<t>(serialize({ v: ['abc', 34, 55] }))).toEqual({ v: ['abc', 34] });
-        expect(() => deserializeBSON<t>(serialize({ v: ['abc', '44'] }))).toThrow('Cannot convert bson type ARRAY to [string, number] | [C]'); //union type guard are strict
+        expect(() => deserializeBSON<t>(serialize({ v: ['abc', '44'] }))).toThrow('No union member matched. Expected: [string, number] | [C]'); //union type guard are strict
     }
     {
         type t = { v: [number] | [C] };
         expect(deserializeBSON<t>(serialize({ v: [34] }))).toEqual({ v: [34] });
-        expect(() => deserializeBSON<t>(serialize({ v: ['44'] }))).toThrow('Cannot convert bson type ARRAY to [number]'); //union type guard are strict
+        expect(() => deserializeBSON<t>(serialize({ v: ['44'] }))).toThrow('No union member matched. Expected: [number] | [C]'); //union type guard are strict
     }
     {
         type t = { v: [...number[]] | [C] };
         expect(deserializeBSON<t>(serialize({ v: [34] }))).toEqual({ v: [34] });
-        expect(() => deserializeBSON<t>(serialize({ v: ['44'] }))).toThrow('Cannot convert bson type ARRAY to [...number[]] | [C]');
+        expect(() => deserializeBSON<t>(serialize({ v: ['44'] }))).toThrow('No union member matched. Expected: [...number[]] | [C]');
         expect(deserializeBSON<t>(serialize({ v: [34, 55] }))).toEqual({ v: [34, 55] });
-        expect(() => deserializeBSON<t>(serialize({ v: ['44', 55] }))).toThrow('Cannot convert bson type ARRAY to [...number[]] | [C]');
+        expect(() => deserializeBSON<t>(serialize({ v: ['44', 55] }))).toThrow('No union member matched. Expected: [...number[]] | [C]');
     }
     {
         type t = { v: [string, ...number[]] | [C] };
@@ -631,7 +639,21 @@ test('set in union', () => {
 test('map', () => {
     {
         type t = { v: Map<string, number> };
-        expect(deserializeBSON<t>(serialize({ v: [['a', 23], ['b', 34]] }))).toEqual({ v: new Map<any, any>([['a', 23], ['b', 34]]) });
+        expect(
+            deserializeBSON<t>(
+                serialize({
+                    v: [
+                        ['a', 23],
+                        ['b', 34],
+                    ],
+                }),
+            ),
+        ).toEqual({
+            v: new Map<any, any>([
+                ['a', 23],
+                ['b', 34],
+            ]),
+        });
     }
 });
 
@@ -642,7 +664,21 @@ test('map union', () => {
 
     {
         type t = { v: Map<string, number> | [C] };
-        expect(deserializeBSON<t>(serialize({ v: [['a', 23], ['b', 34]] }))).toEqual({ v: new Map<any, any>([['a', 23], ['b', 34]]) });
+        expect(
+            deserializeBSON<t>(
+                serialize({
+                    v: [
+                        ['a', 23],
+                        ['b', 34],
+                    ],
+                }),
+            ),
+        ).toEqual({
+            v: new Map<any, any>([
+                ['a', 23],
+                ['b', 34],
+            ]),
+        });
         expect(deserializeBSON<t>(serialize({ v: [{ d: true }] }))).toEqual({ v: [{ d: true }] });
     }
 });
@@ -705,7 +741,6 @@ test('index signature + object literal', () => {
     expect(deserializeBSON<t>(serialize({ abc: 'yes', 12: true, a23: 23 }))).toEqual({ abc: 'yes', 12: true, a23: 23 });
 });
 
-
 test('any', () => {
     const data = {
         lastErrorObject: { n: 1, updatedExisting: true },
@@ -714,7 +749,7 @@ test('any', () => {
             id: 'bdcfb3a0-034a-4f07-8aff-b78e2822a5a8',
         },
         ok: 1,
-        '$clusterTime': {
+        $clusterTime: {
             clusterTime: 7052500565351202817n,
             signature: {
                 hash: Buffer.alloc(16),
@@ -726,9 +761,7 @@ test('any', () => {
 
     const type: TypeObjectLiteral = copyAndSetParent({
         kind: ReflectionKind.objectLiteral,
-        types: [
-            { kind: ReflectionKind.propertySignature, name: 'value', type: { kind: ReflectionKind.any } },
-        ],
+        types: [{ kind: ReflectionKind.propertySignature, name: 'value', type: { kind: ReflectionKind.any } }],
     });
 
     const bson = serializeBSONWithoutOptimiser(data);
@@ -754,7 +787,6 @@ test('circular', () => {
     expect(back).toEqual({ items: [{ id: 0, child: { id: 2 } }] });
 });
 
-
 test('additional are ignored', () => {
     const data = {
         setVersion: 1,
@@ -773,9 +805,19 @@ test('additional are ignored', () => {
 
 test('invalid buffer, string parse', () => {
     const buffer = Buffer.from([
-        28, 0, 0, 0, //size
+        28,
+        0,
+        0,
+        0, //size
         BSONType.BINARY, //just some type
-        112, 111, 115, 105, 116, 105, 111, 110, // 0, /'/position\n' without ending
+        112,
+        111,
+        115,
+        105,
+        116,
+        105,
+        111,
+        110, // 0, /'/position\n' without ending
         // to simulate a buffer that is not correctly serialized
     ]);
 
@@ -790,28 +832,45 @@ test('invalid buffer, string parse', () => {
 
 test('complex union', () => {
     type T = {
-        [controllerName: string]: [actionName: string, action: number, mode: string, parameters: SerializedTypes, type: SerializedTypes][]
-    }
+        [controllerName: string]: [actionName: string, action: number, mode: string, parameters: SerializedTypes, type: SerializedTypes][];
+    };
 
     const serialize = getBSONSerializer<T>();
     const deserialize = getBSONDeserializer<T>();
 
     const buffer = serialize({
-        bla: [['actionName', 1, 'arbitrary',
-            [{ 'kind': 26, 'types': [{ 'kind': 27, 'name': 'value', 'type': 1 }] }, { 'kind': 5 }],
-            [{
-                kind: ReflectionKind.bigint,
-            }]]],
+        bla: [
+            [
+                'actionName',
+                1,
+                'arbitrary',
+                [{ kind: 26, types: [{ kind: 27, name: 'value', type: 1 }] }, { kind: 5 }],
+                [
+                    {
+                        kind: ReflectionKind.bigint,
+                    },
+                ],
+            ],
+        ],
     });
 
     const back = deserialize(buffer);
     expect(back).toEqual({
-        bla: [['actionName', 1, 'arbitrary',
-            [{
-                kind: ReflectionKind.tuple,
-                types: [{ kind: ReflectionKind.tupleMember, name: 'value', type: 1 }],
-            }, { kind: ReflectionKind.string }],
-            [{ kind: ReflectionKind.bigint }]]],
+        bla: [
+            [
+                'actionName',
+                1,
+                'arbitrary',
+                [
+                    {
+                        kind: ReflectionKind.tuple,
+                        types: [{ kind: ReflectionKind.tupleMember, name: 'value', type: 1 }],
+                    },
+                    { kind: ReflectionKind.string },
+                ],
+                [{ kind: ReflectionKind.bigint }],
+            ],
+        ],
     });
 });
 
@@ -866,7 +925,7 @@ test('Encoder', () => {
         expect(encoder.decode(encoder.encode([123, 'abc']))).toEqual([123, 'abc']);
     }
     {
-        type T = { a: number, b: string };
+        type T = { a: number; b: string };
         const encoder = getBsonEncoder(typeOf<T>());
         expect(encoder.decode(encoder.encode({ a: 123, b: 'abc' }))).toEqual({ a: 123, b: 'abc' });
     }
@@ -900,7 +959,7 @@ test('createParserLookup from invalid object', () => {
 });
 
 test('union almost same member', () => {
-    type T = { a: number } | { a: number; b: string; };
+    type T = { a: number } | { a: number; b: string };
     const serialize = getBSONSerializer<T>();
     const deserialize = getBSONDeserializer<T>();
     const data1: T = { a: 1 };
@@ -913,7 +972,7 @@ test('union almost same member', () => {
 });
 
 test('union same member, optional', () => {
-    type T = { a: number, b?: number } | { a: number; b: string; };
+    type T = { a: number; b?: number } | { a: number; b: string };
     const serialize = getBSONSerializer<T>();
     const deserialize = getBSONDeserializer<T>();
     const data1: T = { a: 1 };
@@ -928,4 +987,45 @@ test('union same member, optional', () => {
     expect(deserializeBSONWithoutOptimiser(bson3)).toEqual(data3);
     const back3 = deserialize(bson3);
     expect(back3).toEqual(data3);
+});
+
+test('improved error message for missing fields in union (#676)', () => {
+    // Reproduces issue #676: error messages should be helpful when fields are missing
+    interface ChatMessage {
+        id: string;
+        text: string;
+    }
+
+    type MessageEvent = { channel: string; type: 'message'; message: ChatMessage };
+    type MessageUpdateEvent = { channel: string; type: 'message-update'; message: ChatMessage };
+
+    type BusMessage<T> = { v: T };
+    type BusMessageEvent = BusMessage<MessageEvent | MessageUpdateEvent>;
+
+    const deserialize = getBSONDeserializer<BusMessageEvent>();
+
+    // Valid data works
+    const validData = {
+        v: {
+            channel: '123',
+            type: 'message' as const,
+            message: { id: '1', text: 'hello' },
+        },
+    };
+    expect(deserialize(serialize(validData))).toEqual(validData);
+
+    // Missing required field 'message' - should give helpful error
+    const invalidData = {
+        v: {
+            channel: '123',
+            type: 'message',
+            message: undefined,
+        },
+    };
+
+    // The error should say "No union member matched" and list expected types,
+    // not just "invalid BSON type"
+    expect(() => deserialize(serialize(invalidData))).toThrow(/No union member matched.*Expected/);
+    // The error should mention the expected union types
+    expect(() => deserialize(serialize(invalidData))).toThrow(/MessageEvent|MessageUpdateEvent/);
 });
