@@ -1,11 +1,13 @@
 import { expect, test } from '@jest/globals';
-import { AutoBuffer, getBSONSerializer, getBSONSizer, getValueSize, hexToByte, serializeBSONWithoutOptimiser, uuidStringToByte, wrapObjectId, wrapUUID, wrapValue } from '../src/bson-serializer.js';
-import { BinaryBigInt, createReference, Excluded, hasCircularReference, MongoId, nodeBufferToArrayBuffer, PrimaryKey, Reference, SignedBinaryBigInt, typeOf, uuid, UUID } from '@deepkit/type';
 import bson from 'bson';
 import { randomBytes } from 'crypto';
-import { BSON_BINARY_SUBTYPE_DEFAULT, BSONType } from '../src/utils.js';
-import { deserializeBSONWithoutOptimiser } from '../src/bson-parser.js';
+
+import { BinaryBigInt, Excluded, MongoId, PrimaryKey, Reference, SignedBinaryBigInt, UUID, createReference, hasCircularReference, nodeBufferToArrayBuffer, typeOf, uuid } from '@deepkit/type';
+
 import { deserializeBSON, getBSONDeserializer } from '../src/bson-deserializer.js';
+import { deserializeBSONWithoutOptimiser } from '../src/bson-parser.js';
+import { AutoBuffer, getBSONSerializer, getBSONSizer, getValueSize, hexToByte, serializeBSONWithoutOptimiser, uuidStringToByte, wrapObjectId, wrapUUID, wrapValue } from '../src/bson-serializer.js';
+import { BSONType, BSON_BINARY_SUBTYPE_DEFAULT } from '../src/utils.js';
 
 const { Binary, calculateObjectSize, deserialize, Long, ObjectId: OfficialObjectId, UUID: OfficialUUID, serialize } = bson;
 
@@ -40,20 +42,17 @@ test('basic string', () => {
     const object = { name: 'Peter' };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (string)
-            + 'name\0'.length
-            + (
-                4 //string size uint32
-                + 'Peter'.length + 1 //string content + null
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (string)
+        'name\0'.length +
+        (4 + //string size uint32
+            'Peter'.length +
+            1) + //string content + null
+        1; //object null
     expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        name: string,
+        name: string;
     }>();
 
     expect(getBSONSizer(undefined, schema)(object)).toBe(expectedSize);
@@ -65,19 +64,15 @@ test('basic number int', () => {
     const object = { position: 24 };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (number)
-            + 'position\0'.length
-            + (
-                4 //int uint32
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (number)
+        'position\0'.length +
+        4 + //int uint32
+        1; //object null
     expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        position: number,
+        position: number;
     }>();
 
     expect(getBSONSizer(undefined, schema)(object)).toBe(expectedSize);
@@ -90,18 +85,14 @@ test('basic long', () => {
 
     //23
     const expectedSize =
-            4 //size uint32
-            + 1 // type (number)
-            + 'position\0'.length
-            + (
-                4 //uint32 low bits
-                + 4 //uint32 high bits
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (number)
+        'position\0'.length +
+        (4 + //uint32 low bits
+            4) + //uint32 high bits
+        1; //object null
     const schema = typeOf<{
-        position: number,
+        position: number;
     }>();
 
     expect(getBSONSizer(undefined, schema)(object)).toBe(expectedSize);
@@ -129,18 +120,14 @@ test('basic bigint', () => {
     const object = { position: 3364367088039355000n };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (binary)
-            + 'position\0'.length
-            + (
-                4 //uint32 low bits
-                + 4 //uint32 high bits
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (binary)
+        'position\0'.length +
+        (4 + //uint32 low bits
+            4) + //uint32 high bits
+        1; //object null
     const schema = typeOf<{
-        position: bigint,
+        position: bigint;
     }>();
 
     const serializer = getBSONSerializer(undefined, schema);
@@ -167,26 +154,21 @@ test('basic bigint', () => {
     //
     // expect(deserializer(serializer({ position: 9223372036854775807n }))).toEqual({ position: 9223372036854775807n });
     // expect(deserializer(serializer({ position: -9223372036854775807n }))).toEqual({ position: -9223372036854775807n });
-
 });
 
 test('basic BinaryBigInt', () => {
     const object = { position: 3364367088039355000n };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (binary)
-            + 'position\0'.length
-            + (
-                4 //binary size
-                + 1 //binary type
-                + 8 //binary content
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (binary)
+        'position\0'.length +
+        (4 + //binary size
+            1 + //binary type
+            8) + //binary content
+        1; //object null
     const schema = typeOf<{
-        position: BinaryBigInt,
+        position: BinaryBigInt;
     }>();
 
     const serializer = getBSONSerializer(undefined, schema);
@@ -195,34 +177,80 @@ test('basic BinaryBigInt', () => {
 
     {
         const bson = serializer({ position: 9223372036854775810n }); //force binary format
-        expect(bson).toEqual(Buffer.from([
-            28, 0, 0, 0, //size
-            BSONType.BINARY, //type long
-            112, 111, 115, 105, 116, 105, 111, 110, 0, //position\n string
+        expect(bson).toEqual(
+            Buffer.from([
+                28,
+                0,
+                0,
+                0, //size
+                BSONType.BINARY, //type long
+                112,
+                111,
+                115,
+                105,
+                116,
+                105,
+                111,
+                110,
+                0, //position\n string
 
-            8, 0, 0, 0, //binary size, int32
-            BSON_BINARY_SUBTYPE_DEFAULT, //binary type
+                8,
+                0,
+                0,
+                0, //binary size, int32
+                BSON_BINARY_SUBTYPE_DEFAULT, //binary type
 
-            128, 0, 0, 0, 0, 0, 0, 2, //binary data
+                128,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                2, //binary data
 
-            0, //object null
-        ]));
+                0, //object null
+            ]),
+        );
     }
 
     {
         const bson = serializer({ position: -9223372036854775810n }); //force binary format
-        expect(bson).toEqual(Buffer.from([
-            28, 0, 0, 0, //size
-            BSONType.BINARY, //type long
-            112, 111, 115, 105, 116, 105, 111, 110, 0, //position\n string
+        expect(bson).toEqual(
+            Buffer.from([
+                28,
+                0,
+                0,
+                0, //size
+                BSONType.BINARY, //type long
+                112,
+                111,
+                115,
+                105,
+                116,
+                105,
+                111,
+                110,
+                0, //position\n string
 
-            8, 0, 0, 0, //binary size, int32
-            BSON_BINARY_SUBTYPE_DEFAULT, //binary type
+                8,
+                0,
+                0,
+                0, //binary size, int32
+                BSON_BINARY_SUBTYPE_DEFAULT, //binary type
 
-            128, 0, 0, 0, 0, 0, 0, 2, //binary data
+                128,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                2, //binary data
 
-            0, //object null
-        ]));
+                0, //object null
+            ]),
+        );
     }
 });
 
@@ -230,19 +258,15 @@ test('basic SignedBinaryBigInt', () => {
     const object = { position: 3364367088039355000n };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (binary)
-            + 'position\0'.length
-            + (
-                4 //binary size
-                + 1 //binary type
-                + 9 //binary content
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (binary)
+        'position\0'.length +
+        (4 + //binary size
+            1 + //binary type
+            9) + //binary content
+        1; //object null
     const schema = typeOf<{
-        position: SignedBinaryBigInt,
+        position: SignedBinaryBigInt;
     }>();
 
     const serializer = getBSONSerializer(undefined, schema);
@@ -251,36 +275,82 @@ test('basic SignedBinaryBigInt', () => {
 
     {
         const bson = serializer({ position: 9223372036854775810n }); //force binary format
-        expect(bson).toEqual(Buffer.from([
-            29, 0, 0, 0, //size
-            BSONType.BINARY, //type long
-            112, 111, 115, 105, 116, 105, 111, 110, 0, //position\n string
+        expect(bson).toEqual(
+            Buffer.from([
+                29,
+                0,
+                0,
+                0, //size
+                BSONType.BINARY, //type long
+                112,
+                111,
+                115,
+                105,
+                116,
+                105,
+                111,
+                110,
+                0, //position\n string
 
-            9, 0, 0, 0, //binary size, int32
-            BSON_BINARY_SUBTYPE_DEFAULT, //binary type
+                9,
+                0,
+                0,
+                0, //binary size, int32
+                BSON_BINARY_SUBTYPE_DEFAULT, //binary type
 
-            0, //signum
-            128, 0, 0, 0, 0, 0, 0, 2, //binary data
+                0, //signum
+                128,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                2, //binary data
 
-            0, //object null
-        ]));
+                0, //object null
+            ]),
+        );
     }
 
     {
         const bson = serializer({ position: -9223372036854775810n }); //force binary format
-        expect(bson).toEqual(Buffer.from([
-            29, 0, 0, 0, //size
-            BSONType.BINARY, //type long
-            112, 111, 115, 105, 116, 105, 111, 110, 0, //position\n string
+        expect(bson).toEqual(
+            Buffer.from([
+                29,
+                0,
+                0,
+                0, //size
+                BSONType.BINARY, //type long
+                112,
+                111,
+                115,
+                105,
+                116,
+                105,
+                111,
+                110,
+                0, //position\n string
 
-            9, 0, 0, 0, //binary size, int32
-            BSON_BINARY_SUBTYPE_DEFAULT, //binary type
+                9,
+                0,
+                0,
+                0, //binary size, int32
+                BSON_BINARY_SUBTYPE_DEFAULT, //binary type
 
-            255, //signum, 255 = -1
-            128, 0, 0, 0, 0, 0, 0, 2, //binary data
+                255, //signum, 255 = -1
+                128,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                2, //binary data
 
-            0, //object null
-        ]));
+                0, //object null
+            ]),
+        );
     }
 });
 
@@ -379,33 +449,24 @@ test('basic number double', () => {
     const object = { position: 149943944399 };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (number)
-            + 'position\0'.length
-            + (
-                8 //double, 64bit
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (number)
+        'position\0'.length +
+        8 + //double, 64bit
+        1; //object null
     const expectedSizeNull =
-            4 //size uint32
-            + 1 // type (number)
-            + 'position\0'.length
-            + (
-                0 //undefined
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (number)
+        'position\0'.length +
+        0 + //undefined
+        1; //object null
     expect(calculateObjectSize(object)).toBe(expectedSize);
     expect(calculateObjectSize({ position: null })).toBe(expectedSizeNull);
     expect(calculateObjectSize({ position: undefined })).toBe(5);
 
     const schema = typeOf<{
-        position?: number,
+        position?: number;
     }>();
-
 
     expect(getBSONSerializer(undefined, schema)(object).byteLength).toBe(expectedSize);
     expect(getBSONSizer(undefined, schema)(object)).toBe(expectedSize);
@@ -419,19 +480,15 @@ test('basic boolean', () => {
     const object = { valid: true };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (boolean)
-            + 'valid\0'.length
-            + (
-                1 //boolean
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (boolean)
+        'valid\0'.length +
+        1 + //boolean
+        1; //object null
     expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        valid: boolean,
+        valid: boolean;
     }>();
 
     expect(getBSONSerializer(undefined, schema)(object).byteLength).toBe(expectedSize);
@@ -440,22 +497,18 @@ test('basic boolean', () => {
 });
 
 test('basic date', () => {
-    const object = { created: new Date };
+    const object = { created: new Date() };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (date)
-            + 'created\0'.length
-            + (
-                8 //date
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (date)
+        'created\0'.length +
+        8 + //date
+        1; //object null
     expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        created: Date,
+        created: Date;
     }>();
 
     const serializer = getBSONSerializer(undefined, schema);
@@ -478,24 +531,20 @@ test('basic binary', () => {
     const object = { binary: new Uint16Array(32) };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (date)
-            + 'binary\0'.length
-            + (
-                4 //size of binary, uin32
-                + 1 //sub type
-                + 32 * 2 //size of data
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (date)
+        'binary\0'.length +
+        (4 + //size of binary, uin32
+            1 + //sub type
+            32 * 2) + //size of data
+        1; //object null
     expect(new Uint16Array(32).byteLength).toBe(32 * 2);
 
     //this doesn't support typed arrays
     // expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        binary: Uint16Array,
+        binary: Uint16Array;
     }>();
 
     expect(getBSONSerializer(undefined, schema)(object).byteLength).toBe(expectedSize);
@@ -506,7 +555,6 @@ test('basic binary', () => {
 
     // expect(getBSONDecoder(schema)(getBSONSerializer(undefined, schema)(object))).toEqual(object);
 });
-
 
 test('basic arrayBuffer', () => {
     const arrayBuffer = new ArrayBuffer(5);
@@ -519,21 +567,17 @@ test('basic arrayBuffer', () => {
     const object = { binary: arrayBuffer };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (date)
-            + 'binary\0'.length
-            + (
-                4 //size of binary, uin32
-                + 1 //sub type
-                + 5 //size of data
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (date)
+        'binary\0'.length +
+        (4 + //size of binary, uin32
+            1 + //sub type
+            5) + //size of data
+        1; //object null
     // expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        binary: ArrayBuffer,
+        binary: ArrayBuffer;
     }>();
 
     expect(getBSONSerializer(undefined, schema)(object).byteLength).toBe(expectedSize);
@@ -546,21 +590,17 @@ test('basic Buffer', () => {
     const object = { binary: new Uint8Array(32) };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (date)
-            + 'binary\0'.length
-            + (
-                4 //size of binary, uin32
-                + 1 //sub type
-                + 32 //size of data
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (date)
+        'binary\0'.length +
+        (4 + //size of binary, uin32
+            1 + //sub type
+            32) + //size of data
+        1; //object null
     // expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        binary: Uint8Array,
+        binary: Uint8Array;
     }>();
 
     expect(getBSONSerializer(undefined, schema)(object).byteLength).toBe(expectedSize);
@@ -579,29 +619,22 @@ test('basic Buffer', () => {
 });
 
 test('basic uuid', () => {
-    const uuidRandomBinary = new Binary(
-        Buffer.allocUnsafe(16),
-        Binary.SUBTYPE_UUID,
-    );
+    const uuidRandomBinary = new Binary(Buffer.allocUnsafe(16), Binary.SUBTYPE_UUID);
 
     const object = { uuid: '75ed2328-89f2-4b89-9c49-1498891d616d' };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type (date)
-            + 'uuid\0'.length
-            + (
-                4 //size of binary
-                + 1 //sub type
-                + 16 //content of uuid
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type (date)
+        'uuid\0'.length +
+        (4 + //size of binary
+            1 + //sub type
+            16) + //content of uuid
+        1; //object null
     expect(calculateObjectSize({ uuid: uuidRandomBinary })).toBe(expectedSize);
 
     const schema = typeOf<{
-        uuid: UUID,
+        uuid: UUID;
     }>();
 
     expect(getBSONSizer(undefined, schema)(object)).toBe(expectedSize);
@@ -625,20 +658,16 @@ test('basic objectId', () => {
     const object = { _id: '507f191e810c19729de860ea' };
 
     const expectedSize =
-            4 //size uint32
-            + 1 // type
-            + '_id\0'.length
-            + (
-                12 //size of objectId
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + // type
+        '_id\0'.length +
+        12 + //size of objectId
+        1; //object null
     const nativeBson = { _id: new OfficialObjectId('507f191e810c19729de860ea') };
     expect(calculateObjectSize(nativeBson)).toBe(expectedSize);
 
     const schema = typeOf<{
-        _id: MongoId,
+        _id: MongoId;
     }>();
 
     expect(getBSONSerializer(undefined, schema)(object).byteLength).toBe(expectedSize);
@@ -650,28 +679,23 @@ test('basic nested', () => {
     const object = { name: { anotherOne: 'Peter2' } };
 
     const expectedSize =
-            4 //size uint32
-            + 1 //type (object)
-            + 'name\0'.length
-            + (
-                4 //size uint32
-                + 1 //type (object)
-                + 'anotherOne\0'.length
-                + (
-                    4 //string size uint32
-                    + 'Peter2'.length + 1 //string content + null
-                )
-                + 1 //object null
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + //type (object)
+        'name\0'.length +
+        (4 + //size uint32
+            1 + //type (object)
+            'anotherOne\0'.length +
+            (4 + //string size uint32
+                'Peter2'.length +
+                1) + //string content + null
+            1) + //object null
+        1; //object null
     expect(calculateObjectSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
         name: {
-            anotherOne: string
-        },
+            anotherOne: string;
+        };
     }>();
 
     expect(getBSONSizer(undefined, schema)(object)).toBe(expectedSize);
@@ -682,38 +706,30 @@ test('basic map', () => {
     const object = { name: new Map([['abc', 'Peter']]) };
 
     const expectedSize =
-            4 //size uint32
-            + 1 //type (array)
-            + 'name\0'.length
-            + (
-                4 //size uint32 of array
-                + 1 //type (array)
-                + '0\0'.length //key
-                + (
-                    4 //size uint32 of array
-                    + 1 //type (string)
-                    + '0\0'.length //key
-                    + (
-                        4 //string size uint32
-                        + 'abc'.length + 1 //string content + null
-                    )
-                    + 1 //type (string)
-                    + '1\0'.length //key
-                    + (
-                        4 //string size uint32
-                        + 'Peter'.length + 1 //string content + null
-                    )
-                    + 1 //object null
-                )
-                + 1 //object null
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + //type (array)
+        'name\0'.length +
+        (4 + //size uint32 of array
+            1 + //type (array)
+            '0\0'.length + //key
+            (4 + //size uint32 of array
+                1 + //type (string)
+                '0\0'.length + //key
+                (4 + //string size uint32
+                    'abc'.length +
+                    1) + //string content + null
+                1 + //type (string)
+                '1\0'.length + //key
+                (4 + //string size uint32
+                    'Peter'.length +
+                    1) + //string content + null
+                1) + //object null
+            1) + //object null
+        1; //object null
     expect(calculateObjectSize({ name: [['abc', 'Peter']] })).toBe(expectedSize);
 
     const schema = typeOf<{
-        name: Map<string, string>
+        name: Map<string, string>;
     }>();
 
     const sizer = getBSONSizer(undefined, schema);
@@ -726,33 +742,27 @@ test('basic set', () => {
     const object = { name: new Set(['abc', 'Peter']) };
 
     const expectedSize =
-            4 //size uint32
-            + 1 //type (array)
-            + 'name\0'.length
-            + (
-                4 //size uint32 of array
-                + 1 //type (string)
-                + '0\0'.length //key
-                + (
-                    4 //string size uint32
-                    + 'abc'.length + 1 //string content + null
-                )
-                + 1 //type (string)
-                + '1\0'.length //key
-                + (
-                    4 //string size uint32
-                    + 'Peter'.length + 1 //string content + null
-                )
-                + 1 //object null
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + //type (array)
+        'name\0'.length +
+        (4 + //size uint32 of array
+            1 + //type (string)
+            '0\0'.length + //key
+            (4 + //string size uint32
+                'abc'.length +
+                1) + //string content + null
+            1 + //type (string)
+            '1\0'.length + //key
+            (4 + //string size uint32
+                'Peter'.length +
+                1) + //string content + null
+            1) + //object null
+        1; //object null
     expect(calculateObjectSize({ name: ['abc', 'Peter'] })).toBe(expectedSize);
     expect(getValueSize({ name: ['abc', 'Peter'] })).toBe(expectedSize);
 
     const schema = typeOf<{
-        name: Set<string>
+        name: Set<string>;
     }>();
 
     expect(getBSONSizer(undefined, schema)(object)).toBe(expectedSize);
@@ -764,27 +774,22 @@ test('basic array', () => {
     const object = { name: ['Peter3'] };
 
     const expectedSize =
-            4 //size uint32
-            + 1 //type (array)
-            + 'name\0'.length
-            + (
-                4 //size uint32 of array
-                + 1 //type (string)
-                + '0\0'.length //key
-                + (
-                    4 //string size uint32
-                    + 'Peter3'.length + 1 //string content + null
-                )
-                + 1 //object null
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + //type (array)
+        'name\0'.length +
+        (4 + //size uint32 of array
+            1 + //type (string)
+            '0\0'.length + //key
+            (4 + //string size uint32
+                'Peter3'.length +
+                1) + //string content + null
+            1) + //object null
+        1; //object null
     expect(calculateObjectSize(object)).toBe(expectedSize);
     expect(getValueSize(object)).toBe(expectedSize);
 
     const schema = typeOf<{
-        name: string[]
+        name: string[];
     }>();
 
     const sizer = getBSONSizer(undefined, schema);
@@ -814,12 +819,12 @@ test('all supported base types', () => {
     const object = { name: 'Peter4', tags: ['a', 'b', 'c'], priority: 15, position: 149943944399, valid: true, created: new Date() };
 
     const schema = typeOf<{
-        name: string,
-        tags: string[],
-        priority: number,
-        position: number,
-        valid: boolean,
-        created: Date
+        name: string;
+        tags: string[];
+        priority: number;
+        position: number;
+        valid: boolean;
+        created: Date;
     }>();
 
     expect(getBSONSizer(undefined, schema)(object)).toBe(calculateObjectSize(object));
@@ -853,10 +858,10 @@ test('all supported base types', () => {
 
 test('optional field', () => {
     const schema = typeOf<{
-        find: string,
-        batchSize: number,
-        limit?: number,
-        skip?: number,
+        find: string;
+        batchSize: number;
+        limit?: number;
+        skip?: number;
     }>();
 
     const findSerializer = getBSONSerializer(undefined, schema);
@@ -877,13 +882,13 @@ test('optional field', () => {
 
 test('complex', () => {
     const schema = typeOf<{
-        find: string,
-        batchSize: number,
-        limit?: number,
-        filter: any,
-        projection: any,
-        sort: any,
-        skip?: number,
+        find: string;
+        batchSize: number;
+        limit?: number;
+        filter: any;
+        projection: any;
+        sort: any;
+        skip?: number;
     }>();
 
     const findSerializer = getBSONSerializer(undefined, schema);
@@ -954,26 +959,21 @@ test('reference', () => {
     class Entity {
         public id: number & PrimaryKey = 0;
 
-        constructor(public title: string) {
-        }
+        constructor(public title: string) {}
     }
 
     const object = { v: createReference(Entity, { id: 5 }) };
 
     const expectedSize =
-            4 //size uint32
-            + 1 //type (number)
-            + 'v\0'.length
-            + (
-                4 //int uint32
-            )
-            + 1 //object null
-    ;
-
+        4 + //size uint32
+        1 + //type (number)
+        'v\0'.length +
+        4 + //int uint32
+        1; //object null
     expect(calculateObjectSize({ v: 5 })).toBe(expectedSize);
 
     const schema = typeOf<{
-        v: Entity & Reference
+        v: Entity & Reference;
     }>();
 
     const sizer = getBSONSizer(undefined, schema);
@@ -997,14 +997,13 @@ test('deep reference', () => {
     class Entity {
         public id: number & PrimaryKey = 0;
 
-        constructor(public title: string) {
-        }
+        constructor(public title: string) {}
     }
 
     const object = { v: { item: createReference(Entity, { id: 5 }) } };
 
     const schema = typeOf<{
-        v: { item: Entity & Reference }
+        v: { item: Entity & Reference };
     }>();
 
     const bson = getBSONSerializer(undefined, schema)(object);
@@ -1024,14 +1023,14 @@ test('bson length', () => {
     const nonce = randomBytes(24);
 
     const SaslStartCommand = typeOf<{
-        saslStart: 1,
-        $db: string,
-        mechanism: string,
-        payload: Uint8Array,
-        autoAuthorize: 1,
+        saslStart: 1;
+        $db: string;
+        mechanism: string;
+        payload: Uint8Array;
+        autoAuthorize: 1;
         options: {
-            skipEmptyExchange: true
-        }
+            skipEmptyExchange: true;
+        };
     }>();
 
     const message = {
@@ -1055,9 +1054,9 @@ test('bson length', () => {
 
 test('arrayBuffer', () => {
     const schema = typeOf<{
-        name: string,
-        secondId: MongoId,
-        preview: ArrayBuffer,
+        name: string;
+        secondId: MongoId;
+        preview: ArrayBuffer;
     }>();
 
     const message = {
@@ -1087,9 +1086,9 @@ test('arrayBuffer', () => {
 
 test('typed array', () => {
     const schema = typeOf<{
-        name: string,
-        secondId: MongoId,
-        preview: Uint16Array,
+        name: string;
+        secondId: MongoId;
+        preview: Uint16Array;
     }>();
 
     const message = {
@@ -1119,7 +1118,7 @@ test('typed array', () => {
 
 test('union string | number', () => {
     const schema = typeOf<{
-        v: string | number,
+        v: string | number;
     }>();
 
     expect(getBSONSizer(undefined, schema)({ v: 'abc' })).toBe(calculateObjectSize({ v: 'abc' }));
@@ -1135,7 +1134,7 @@ test('union number | class', () => {
     }
 
     const schema = typeOf<{
-        v: number | MyClass,
+        v: number | MyClass;
     }>();
 
     expect(getBSONSizer(undefined, schema)({ v: { id: 5 } })).toBe(calculateObjectSize({ v: { id: 5 } }));
@@ -1147,7 +1146,7 @@ test('union number | class', () => {
 
 test('index signature', () => {
     const schema = typeOf<{
-        [name: string]: number
+        [name: string]: number;
     }>();
 
     expect(getValueSize({ a: 5 })).toBe(calculateObjectSize({ a: 5 }));
@@ -1161,7 +1160,7 @@ test('index signature', () => {
 test('index signature + properties', () => {
     const schema = typeOf<{
         id: number;
-        [name: string]: number | string
+        [name: string]: number | string;
     }>();
 
     expect(getBSONSizer(undefined, schema)({ id: 1, a: 5 })).toBe(calculateObjectSize({ id: 1, a: 5 }));
@@ -1174,7 +1173,7 @@ test('index signature + properties', () => {
 test('exclude', () => {
     const schema = typeOf<{
         id: number;
-        password: string & Excluded
+        password: string & Excluded;
     }>();
 
     expect(getBSONSizer(undefined, schema)({ id: 1, password: 'asdasd' })).toBe(calculateObjectSize({ id: 1 }));
@@ -1192,7 +1191,7 @@ test('promise', () => {
 
 test('regepx', () => {
     const schema = typeOf<{
-        id: RegExp
+        id: RegExp;
     }>();
 
     expect(getBSONSizer(undefined, schema)({ id: /asd/g })).toBe(calculateObjectSize({ id: /asd/g }));
@@ -1201,7 +1200,7 @@ test('regepx', () => {
 
 test('typed any and undefined', () => {
     const schema = typeOf<{
-        data: any,
+        data: any;
     }>();
 
     const message = {
@@ -1233,8 +1232,7 @@ test('Excluded', () => {
 
         excludedForMongo: string & Excluded<'bson'> = 'excludedForMongo';
 
-        constructor(public name: string) {
-        }
+        constructor(public name: string) {}
     }
 
     const model = new Model('asd');
@@ -1259,10 +1257,7 @@ test('complex recursive', () => {
 
         imports: ModuleApi[] = [];
 
-        constructor(
-            public name: string,
-        ) {
-        }
+        constructor(public name: string) {}
     }
 
     const data = {
@@ -1402,7 +1397,6 @@ test('undefined for required number', () => {
     expect(deserialize(bson)).toEqual({ id: 0 });
 });
 
-
 test('undefined for required object', () => {
     type T = { set: { id: number } };
 
@@ -1538,10 +1532,61 @@ test('NaN roundtrip to 0', () => {
     }
 });
 
+test('NaN serialization with typed serializer (#573)', () => {
+    // Issue #573: NaN should be serialized as 0, not skipped
+    // Previously NaN was skipped entirely, causing the property to become undefined
+
+    interface Model {
+        value: number;
+    }
+
+    const serializer = getBSONSerializer<Model>();
+    const deserializer = getBSONDeserializer<Model>();
+
+    // Test that NaN is serialized (not skipped) and deserialized as 0
+    const obj: Model = { value: NaN };
+    const bson = serializer(obj);
+    const back = deserializer(bson);
+
+    // NaN should become 0, not undefined
+    expect(back.value).toBe(0);
+
+    // Verify the property exists in BSON (not skipped)
+    const rawBack = deserializeBSONWithoutOptimiser(bson);
+    expect('value' in rawBack).toBe(true);
+    expect(rawBack.value).toBe(0);
+});
+
+test('NaN in nested objects and arrays (#573)', () => {
+    interface NestedModel {
+        data: {
+            score: number;
+            values: number[];
+        };
+    }
+
+    const serializer = getBSONSerializer<NestedModel>();
+    const deserializer = getBSONDeserializer<NestedModel>();
+
+    const obj: NestedModel = {
+        data: {
+            score: NaN,
+            values: [1, NaN, 3],
+        },
+    };
+
+    const bson = serializer(obj);
+    const back = deserializer(bson);
+
+    expect(back.data.score).toBe(0);
+    expect(back.data.values).toEqual([1, 0, 3]);
+});
+
 test('utf8', () => {
     const messages = {
         '— feel free to": "— それまでご自由に': '— feel free to": "— それまでご自由に',
-        'Schoolismの1年間のサブスクリプションを勝つチャンスを得るために、ツアーを必ず完全に終了してください！ 体験は約10分で完了します': 'Schoolismの1年間のサブスクリプションを勝つチャンスを得るために、ツアーを必ず完全に終了してください！ 体験は約10分で完了します',
+        'Schoolismの1年間のサブスクリプションを勝つチャンスを得るために、ツアーを必ず完全に終了してください！ 体験は約10分で完了します':
+            'Schoolismの1年間のサブスクリプションを勝つチャンスを得るために、ツアーを必ず完全に終了してください！ 体験は約10分で完了します',
     };
 
     for (const [_, msg] of Object.entries(messages)) {
