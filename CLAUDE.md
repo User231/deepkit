@@ -144,32 +144,50 @@ class Service {
 - Tests require type-compiler: `npm run postinstall`
 - Memory flags: `--expose-gc --max_old_space_size=3048`
 
-### Database Integration Tests
-
-Start the test databases with Docker Compose:
+### Running the Full Test Suite
 
 ```bash
-docker compose up -d   # Start PostgreSQL, MySQL, MongoDB (with replica set), Redis
-docker compose down    # Stop all services
-docker compose ps      # Check service status
+# 1. Start Docker services (required for database tests)
+docker compose up -d
+
+# 2. Run all tests
+npm run test
+
+# 3. Stop Docker services when done
+docker compose down
 ```
+
+**Expected results:** All ~175 test suites and ~3200+ tests should pass.
+
+### Docker Compose Services
 
 Services started (alternative ports to avoid conflicts):
 
+**Databases:**
 - **PostgreSQL** (port 15432): user `postgres`, no password, trust auth
 - **MySQL** (port 13306): user `root`, no password, database `default`
 - **MongoDB** (port 27117): replica set `rs0` (required for transactions)
 - **MongoDB Auth** (port 27018): user `root`, password `root` (for auth tests)
 - **Redis** (port 16379): for broker-redis tests
 
-Configure test factories via environment variables:
+**Filesystem adapters:**
+- **SFTP** (port 10022): user `user`, password `123`
+- **FTP** (port 10021): user `user`, password `123`
+- **MinIO/S3** (port 10900): user `minioadmin`, password `minioadmin`, bucket `deepkit-test`
+- **Fake GCS** (port 10443): Google Cloud Storage emulator
 
 ```bash
-export POSTGRES_PORT=15432
-export MYSQL_PORT=13306
-export MONGO_PORT=27117
-export REDIS_PORT=16379
-npm run test packages/postgres/   # Uses port 15432
+docker compose up -d   # Start services
+docker compose down    # Stop services
+docker compose ps      # Check status
+```
+
+### Running Specific Package Tests
+
+```bash
+npm run test packages/type/                    # All type tests
+npm run test packages/postgres/                # PostgreSQL tests (needs Docker)
+node --expose-gc --max_old_space_size=3048 node_modules/jest/bin/jest.js packages/type/tests/serializer.spec.ts  # Single file
 ```
 
 See `docs/TESTING.md` for test strategy and edge cases.
