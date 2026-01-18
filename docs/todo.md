@@ -183,7 +183,6 @@ Issues affecting DX or edge cases.
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | type-compiler | 2024-11-12 |
 | [#590](https://github.com/deepkit/deepkit-framework/issues/590) | Ending response at middleware - no log entry | http | 2024-07-06 |
 | [#589](https://github.com/deepkit/deepkit-framework/issues/589) | Throwing at HTTP Middlewares | http | 2024-07-06 |
-| [#577](https://github.com/deepkit/deepkit-framework/issues/577) | Wrong error message in union validation | type | 2024-06-21 |
 | [#574](https://github.com/deepkit/deepkit-framework/issues/574) | BrokerKeyValue export not found | framework | 2024-06-19 |
 | [#565](https://github.com/deepkit/deepkit-framework/issues/565) | validate with generics and arrays | type | 2024-05-08 |
 | [#562](https://github.com/deepkit/deepkit-framework/issues/562) | serialize<T> circular import error | type | 2024-05-03 |
@@ -315,6 +314,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#573](https://github.com/deepkit/deepkit-framework/issues/573) | [bson] make sure NaN is serialized as 0 | 2026-01-18 | 8578bb4f |
 | [#676](https://github.com/deepkit/deepkit-framework/issues/676) | [bson] Improve error message | 2026-01-18 | 1367b606 |
 | [#668](https://github.com/deepkit/deepkit-framework/issues/668) | query.count() throws error with pagination | 2026-01-18 | 86a8e7ec |
+| [#577](https://github.com/deepkit/deepkit-framework/issues/577) | Wrong error message in union validation | 2026-01-18 | 759326d9 |
 
 ---
 
