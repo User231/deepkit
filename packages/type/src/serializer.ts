@@ -2058,6 +2058,7 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
 
             if (isCustomTypeClass(t) || t.kind === ReflectionKind.objectLiteral) {
                 const maxScore = t.types.length;
+                const typeName = t.typeName || (t.kind === ReflectionKind.class ? t.classType.name : '');
                 actions.push(action);
                 linesObjects.push(`
                 //${debug}
@@ -2071,11 +2072,13 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
                         matchingIndex = ${actions.length - 1};
                         _ueBestStart = _ueStart;
                         _ueBestEnd = _ueEnd;
+                        _ueBestTypeName = ${JSON.stringify(typeName)};
                     } else if (!score && _ueCount > 0 && (_ueBestCount < 0 || _ueCount < _ueBestCount)) {
                         // No match, but track the member with fewest errors as the "closest" match
                         _ueBestStart = _ueStart;
                         _ueBestEnd = _ueEnd;
                         _ueBestCount = _ueCount;
+                        _ueBestTypeName = ${JSON.stringify(typeName)};
                     }
                 }`);
             } else {
@@ -2117,10 +2120,15 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
                     }
                 }
                 // Second pass: if we have a closest-matching member and no constraint errors were found,
-                // show its structural errors (path-based type errors)
+                // show its structural errors (path-based type errors) with the type name prefix
                 if (state.errors.length === _uel && _ueBestEnd > _ueBestStart) {
                     for (let i = _ueBestStart; i < _ueBestEnd; i++) {
-                        if (_ue[i].path) state.errors.push(_ue[i]);
+                        if (_ue[i].path) {
+                            // Clone error and prefix path with type name for clarity
+                            const err = _ue[i];
+                            const prefixedPath = _ueBestTypeName ? _ueBestTypeName + '.' + err.path : err.path;
+                            state.errors.push(new ValidationErrorItem(prefixedPath, err.code, err.message, err.value));
+                        }
                     }
                 }
             }
@@ -2145,6 +2153,7 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
                 let _ueBestStart = 0;
                 let _ueBestEnd = 0;
                 let _ueBestCount = -1;
+                let _ueBestTypeName = '';
                 ${linesObjects.join(' ')}
 
                 switch (matchingIndex) {

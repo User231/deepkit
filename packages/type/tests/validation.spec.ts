@@ -482,8 +482,8 @@ test('union with nested objects shows deep constraint errors (#577)', () => {
     // what specifically was wrong (discriminator didn't match)
     const wrongTypeErrors = validate<Event>({ type: 'unknown' } as any);
     expect(wrongTypeErrors.length).toBeGreaterThanOrEqual(1);
-    // Should show the discriminator error from closest match
-    const typeError = wrongTypeErrors.find(e => e.path === 'type');
+    // Should show the discriminator error from closest match, prefixed with type name
+    const typeError = wrongTypeErrors.find(e => e.path.endsWith('.type') || e.path === 'type');
     expect(typeError).toBeDefined();
 });
 
@@ -506,8 +506,8 @@ test('union with object structural errors shows specific field errors', () => {
     const missingFieldErrors = validate<Event>({ type: 'click', x: 5 });
     expect(missingFieldErrors.length).toBeGreaterThanOrEqual(1);
     // We want a specific error about the missing 'y' field, not just generic "No valid union member found"
-    // The error should have path='y' indicating exactly which field is the problem
-    const yError = missingFieldErrors.find(e => e.path === 'y');
+    // The error should have path like 'ClickEvent.y' indicating exactly which field is the problem
+    const yError = missingFieldErrors.find(e => e.path === 'ClickEvent.y');
     expect(yError).toBeDefined();
     expect(yError!.code).toBe('type'); // 'y' is undefined, doesn't match number
 
@@ -515,6 +515,6 @@ test('union with object structural errors shows specific field errors', () => {
     const typoErrors = validate<Event>({ type: 'click', x: 5, Y: 10 } as any);
     expect(typoErrors.length).toBeGreaterThanOrEqual(1);
     // Should indicate 'y' is missing with a specific path, not just generic union error
-    const typoYError = typoErrors.find(e => e.path === 'y');
+    const typoYError = typoErrors.find(e => e.path === 'ClickEvent.y');
     expect(typoYError).toBeDefined();
 });
