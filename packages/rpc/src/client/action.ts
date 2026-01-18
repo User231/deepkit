@@ -12,7 +12,15 @@ import { skip } from 'rxjs/operators';
 
 import { ClassType, asyncOperation, toFastProperties } from '@deepkit/core';
 import { ProgressTracker, ProgressTrackerState } from '@deepkit/core-rxjs';
-import { ReflectionKind, Type, TypeObjectLiteral, assertType, deserializeType, typeOf } from '@deepkit/type';
+import {
+    ReflectionKind,
+    Type,
+    TypeObjectLiteral,
+    ValidationError,
+    assertType,
+    deserializeType,
+    typeOf,
+} from '@deepkit/type';
 
 import { Collection, CollectionQueryModelInterface, CollectionState } from '../collection.js';
 import {
@@ -532,27 +540,35 @@ export class RpcActionClient {
                 progress,
             };
 
-            this.client
-                .sendMessage(
-                    RpcTypes.Action,
-                    {
-                        controller: controller.controller,
-                        method: method,
-                        args,
-                    },
-                    types.callSchema,
-                    {
-                        peerId: controller.peerId,
-                        dontWaitForConnection: options.dontWaitForConnection,
-                        timeout: options.timeout,
-                    },
-                )
-                .onRejected(error => {
-                    rejectAction(state, error);
-                })
-                .onReply(function (reply: RpcMessage, subject: RpcMessageSubject) {
-                    actionProtocol(reply, subject, state);
-                });
+            try {
+                this.client
+                    .sendMessage(
+                        RpcTypes.Action,
+                        {
+                            controller: controller.controller,
+                            method: method,
+                            args,
+                        },
+                        types.callSchema,
+                        {
+                            peerId: controller.peerId,
+                            dontWaitForConnection: options.dontWaitForConnection,
+                            timeout: options.timeout,
+                        },
+                    )
+                    .onRejected(error => {
+                        rejectAction(state, error);
+                    })
+                    .onReply(function (reply: RpcMessage, subject: RpcMessageSubject) {
+                        actionProtocol(reply, subject, state);
+                    });
+            } catch (error: any) {
+                // Add action context to serialization errors
+                if (error instanceof ValidationError) {
+                    error.message = `Argument serialization error for ${state.action}: ${error.message}`;
+                }
+                reject(error);
+            }
         });
     }
 
