@@ -168,11 +168,7 @@ Issues blocking users or causing incorrect behavior.
 
 | Issue | Title | Package | Created |
 |-------|-------|---------|---------|
-| [#682](https://github.com/deepkit/deepkit-framework/issues/682) | remove const enum everywhere | core | 2025-11-29 |
-| [#614](https://github.com/deepkit/deepkit-framework/issues/614) | HttpQuery validator expression leaks to other parameters | http | 2024-09-25 |
-| [#612](https://github.com/deepkit/deepkit-framework/issues/612) | Optional chaining for provider with function call SyntaxError | injector | 2024-09-12 |
 | [#573](https://github.com/deepkit/deepkit-framework/issues/573) | [bson] make sure NaN is serialized as 0 | bson | 2024-06-07 |
-| [#598](https://github.com/deepkit/deepkit-framework/issues/598) | Bug: missing shebang in bin/deepkit-sql.js | sql | 2025-06-17 |
 
 ### Priority: Medium
 
@@ -312,9 +308,12 @@ Issues discovered through codebase analysis (not from GitHub).
 
 ## Completed
 
-| Issue | Title | Completed | PR |
-|-------|-------|-----------|-----|
-| - | - | - | - |
+| Issue | Title | Completed | PR/Commit |
+|-------|-------|-----------|-----------|
+| [#682](https://github.com/deepkit/deepkit-framework/issues/682) | remove const enum everywhere | 2025-11-29 | [#683](https://github.com/deepkit/deepkit-framework/pull/683) |
+| [#614](https://github.com/deepkit/deepkit-framework/issues/614) | HttpQuery validator expression leaks | 2025-02-15 | 4d1a13ec |
+| [#612](https://github.com/deepkit/deepkit-framework/issues/612) | Optional chaining SyntaxError | 2026-01-16 | 02c2a6c9 |
+| [#598](https://github.com/deepkit/deepkit-framework/issues/598) | Missing shebang in bin/deepkit-sql.js | 2026-01-16 | 7bb2b6f1 |
 
 ---
 
