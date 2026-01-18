@@ -314,7 +314,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#573](https://github.com/deepkit/deepkit-framework/issues/573) | [bson] make sure NaN is serialized as 0 | 2026-01-18 | 8578bb4f |
 | [#676](https://github.com/deepkit/deepkit-framework/issues/676) | [bson] Improve error message | 2026-01-18 | 1367b606 |
 | [#668](https://github.com/deepkit/deepkit-framework/issues/668) | query.count() throws error with pagination | 2026-01-18 | 86a8e7ec |
-| [#577](https://github.com/deepkit/deepkit-framework/issues/577) | Wrong error message in union validation | 2026-01-18 | 759326d9 |
+| [#577](https://github.com/deepkit/deepkit-framework/issues/577) | Wrong error message in union validation | 2026-01-18 | 759326d9, 6500cf72 |
 
 ---
 
