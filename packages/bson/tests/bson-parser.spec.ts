@@ -1168,5 +1168,7 @@ test('union with structural errors shows specific field errors via getBsonEncode
 
     // Missing required field 'y' - should indicate which field is missing
     // This tests structural error handling, not constraint validation
+    // Error should include the type name prefix: "ClickEvent.y"
+    expect(() => encoder.decode(encoder.encode({ type: 'click', x: 5 } as any))).toThrow('ClickEvent.y');
     expect(() => encoder.decode(encoder.encode({ type: 'click', x: 5 } as any))).toThrow('Not a number');
 });
