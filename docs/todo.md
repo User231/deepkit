@@ -180,7 +180,6 @@ Issues affecting DX or edge cases.
 | [#634](https://github.com/deepkit/deepkit-framework/issues/634) | Named re-exports missing type representations | type-compiler | 2025-03-09 |
 | [#601](https://github.com/deepkit/deepkit-framework/issues/601) | exclude declare statements | type-compiler | 2024-07-11 |
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | type-compiler | 2024-11-12 |
-| [#590](https://github.com/deepkit/deepkit-framework/issues/590) | Ending response at middleware - no log entry | http | 2024-07-06 |
 | [#589](https://github.com/deepkit/deepkit-framework/issues/589) | Throwing at HTTP Middlewares | http | 2024-07-06 |
 | [#562](https://github.com/deepkit/deepkit-framework/issues/562) | serialize<T> circular import error | type | 2024-05-03 |
 | [#555](https://github.com/deepkit/deepkit-framework/issues/555) | No valid runtime type for external imports | type-compiler | 2024-02-16 |
@@ -315,6 +314,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#653](https://github.com/deepkit/deepkit-framework/issues/653) | HttpHeader case sensitive in TestingFacade | 2026-01-18 | 97f8991e |
 | [#574](https://github.com/deepkit/deepkit-framework/issues/574) | BrokerKeyValue export not found | 2025-04-24 | 5a58776 |
 | [#565](https://github.com/deepkit/deepkit-framework/issues/565) | validate with generics and arrays | 2024-10-xx | 4d24c8b3 |
+| [#590](https://github.com/deepkit/deepkit-framework/issues/590) | Ending response at middleware - no log entry | 2026-01-18 | 937781e5 |
 
 ---
 
