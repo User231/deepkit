@@ -525,6 +525,15 @@ export class ReflectionTransformer implements CustomTransformer {
      */
     protected functionTypeAssignments: Statement[] = [];
 
+    /**
+     * Re-exports of __Ω symbols that need to be added when named re-exports are found.
+     * For `export { X } from './module'`, we also need to re-export `__ΩX` if it exists.
+     */
+    protected pendingReExports: Array<{
+        exportDeclaration: ExportDeclaration;
+        symbols: Array<{ originalName: string; exportedName: string }>;
+    }> = [];
+
     protected nodeConverter: NodeConverter;
     protected typeChecker?: TypeChecker;
     protected resolver: Resolver;
@@ -675,6 +684,7 @@ export class ReflectionTransformer implements CustomTransformer {
         this.embedAssignType = false;
         this.addImports = [];
         this.additionalImports.clear();
+        this.pendingReExports = [];
 
         const start = Date.now();
         const configResolver = this.getConfigResolver(sourceFile);
@@ -812,6 +822,25 @@ export class ReflectionTransformer implements CustomTransformer {
                         name: node.name,
                         sourceFile: this.sourceFile,
                     });
+                }
+            }
+
+            // Handle named re-exports: export { X, Y as Z } from './module'
+            // We need to also re-export __ΩX, __ΩY (as __ΩZ) if they exist in the source module
+            if (isExportDeclaration(node) && node.moduleSpecifier && isStringLiteral(node.moduleSpecifier) && node.exportClause && isNamedExports(node.exportClause)) {
+                const symbols: Array<{ originalName: string; exportedName: string }> = [];
+                for (const element of node.exportClause.elements) {
+                    // element.propertyName is the original name (if aliased), element.name is the exported name
+                    const originalName = element.propertyName ? getIdentifierName(element.propertyName) : getIdentifierName(element.name);
+                    const exportedName = getIdentifierName(element.name);
+                    // Check if the source module has a type declaration that would generate __Ω{originalName}
+                    const shouldReExport = this.shouldReExportOmegaSymbol(originalName, node, this.sourceFile);
+                    if (shouldReExport) {
+                        symbols.push({ originalName, exportedName });
+                    }
+                }
+                if (symbols.length > 0) {
+                    this.pendingReExports.push({ exportDeclaration: node, symbols });
                 }
             }
 
@@ -1254,6 +1283,24 @@ export class ReflectionTransformer implements CustomTransformer {
                 }
             }
             result.push(statement);
+            // Add __Ω re-exports after the original export declaration
+            if (isExportDeclaration(statement)) {
+                const pending = this.pendingReExports.find(p => p.exportDeclaration === statement);
+                if (pending && pending.symbols.length > 0) {
+                    // Create: export { __ΩX, __ΩY as __ΩZ } from './module'
+                    const exportSpecifiers = pending.symbols.map(sym => {
+                        const originalOmegaName = '__Ω' + sym.originalName;
+                        const exportedOmegaName = '__Ω' + sym.exportedName;
+                        if (originalOmegaName === exportedOmegaName) {
+                            return this.f.createExportSpecifier(false, undefined, this.f.createIdentifier(exportedOmegaName));
+                        } else {
+                            return this.f.createExportSpecifier(false, this.f.createIdentifier(originalOmegaName), this.f.createIdentifier(exportedOmegaName));
+                        }
+                    });
+                    const reExportDeclaration = this.f.createExportDeclaration(undefined, false, this.f.createNamedExports(exportSpecifiers), statement.moduleSpecifier);
+                    result.push(reExportDeclaration);
+                }
+            }
         }
         return result;
     }
@@ -2868,6 +2915,47 @@ export class ReflectionTransformer implements CustomTransformer {
             }
         }
         return;
+    }
+
+    /**
+     * Determines whether a named re-export should include the corresponding __Ω symbol.
+     *
+     * For `.ts` files: Check if the original symbol resolves to a type declaration
+     * (interface, type alias, enum, or class) - the compiler will generate __Ω for these.
+     *
+     * For `.d.ts` files: Check if the __Ω symbol is explicitly declared.
+     */
+    protected shouldReExportOmegaSymbol(originalName: string, exportDecl: ExportDeclaration, currentSourceFile: SourceFile): boolean {
+        // First, resolve the original symbol to see if it's a type declaration
+        const resolvedDeclaration = this.resolveImportSpecifier(originalName, exportDecl, currentSourceFile);
+        if (!resolvedDeclaration) return false;
+
+        // Get the source file where the symbol is defined
+        const declarationSourceFile = findSourceFile(resolvedDeclaration);
+        if (!declarationSourceFile) return false;
+
+        // If it's a .d.ts file, we need to check if __Ω is explicitly exported
+        if (declarationSourceFile.fileName.endsWith('.d.ts')) {
+            // The __Ω name needs to be escaped for lookup since TypeScript escapes
+            // identifiers starting with __ in the locals map
+            const omegaName = escapeLeadingUnderscores('__Ω' + originalName) as string;
+            const omegaDeclaration = this.resolveImportSpecifier(omegaName, exportDecl, currentSourceFile);
+            return !!omegaDeclaration;
+        }
+
+        // For .ts files, check if the resolved declaration is a type that will generate __Ω
+        if (isInterfaceDeclaration(resolvedDeclaration) || isTypeAliasDeclaration(resolvedDeclaration) || isEnumDeclaration(resolvedDeclaration) || isClassDeclaration(resolvedDeclaration)) {
+            // Check if the source file has reflection enabled
+            const reflection = this.getReflectionConfig(declarationSourceFile);
+            if (reflection.mode === 'never') return false;
+            // Also check explicit reflection mode on the declaration
+            const explicitMode = this.getExplicitReflectionMode(declarationSourceFile, resolvedDeclaration);
+            if (explicitMode === false) return false;
+            if (reflection.mode === 'explicit' && explicitMode !== true) return false;
+            return true;
+        }
+
+        return false;
     }
 
     protected getTypeOfType(type: Node | Declaration): Expression | undefined {

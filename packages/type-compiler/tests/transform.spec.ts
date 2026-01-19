@@ -273,3 +273,109 @@ test('reexport existing', () => {
     //make sure OP.typeName with its type name is emitted
     expect(res['app.ts']).toContain(`() => Cache`);
 });
+
+test('named re-export with __Ω symbol from .ts file', () => {
+    const res = transform({
+        'app.ts': `
+            import { User } from './index';
+            typeOf<User>();
+        `,
+        'index.ts': `
+            export { User } from './types';
+        `,
+        'types.ts': `
+            export interface User {
+                name: string;
+            }
+        `,
+    });
+
+    // The index.ts should re-export the __ΩUser symbol
+    expect(res['index.ts']).toContain('export { __ΩUser }');
+    expect(res['index.ts']).toContain("from './types'");
+});
+
+test('named re-export with __Ω symbol from .d.ts file', () => {
+    const res = transform({
+        'app.ts': `
+            import { User } from './index';
+            typeOf<User>();
+        `,
+        'index.ts': `
+            export { User } from './types';
+        `,
+        'types.d.ts': `
+            export interface User {
+                name: string;
+            }
+            export type __ΩUser = any[];
+        `,
+    });
+
+    // The index.ts should re-export the __ΩUser symbol
+    expect(res['index.ts']).toContain('export { __ΩUser }');
+    expect(res['index.ts']).toContain("from './types'");
+});
+
+test('named re-export with alias', () => {
+    const res = transform({
+        'app.ts': `
+            import { MyUser } from './index';
+            typeOf<MyUser>();
+        `,
+        'index.ts': `
+            export { User as MyUser } from './types';
+        `,
+        'types.ts': `
+            export interface User {
+                name: string;
+            }
+        `,
+    });
+
+    // The index.ts should re-export __ΩUser as __ΩMyUser
+    expect(res['index.ts']).toContain('export { __ΩUser as __ΩMyUser }');
+    expect(res['index.ts']).toContain("from './types'");
+});
+
+test('named re-export multiple symbols', () => {
+    const res = transform({
+        'app.ts': `
+            import { User, Post } from './index';
+            typeOf<User>();
+            typeOf<Post>();
+        `,
+        'index.ts': `
+            export { User, Post } from './types';
+        `,
+        'types.ts': `
+            export interface User {
+                name: string;
+            }
+            export interface Post {
+                title: string;
+            }
+        `,
+    });
+
+    // The index.ts should re-export both __ΩUser and __ΩPost
+    expect(res['index.ts']).toContain('__ΩUser');
+    expect(res['index.ts']).toContain('__ΩPost');
+});
+
+test('named re-export without __Ω symbol (no-op)', () => {
+    const res = transform({
+        'app.ts': `
+            import { config } from './index';
+        `,
+        'index.ts': `
+            export { config } from './config';
+        `,
+        'config.ts': `
+            export const config = { debug: true };
+        `,
+    });
+
+    // No __Ω re-export should be added since config is not a type
+    expect(res['index.ts']).not.toContain('__Ω');
+});
