@@ -2748,15 +2748,24 @@ export class ReflectionTransformer implements CustomTransformer {
                     //if deeply available?
                     let found = false;
                     const searchArgument = (node: Node): Node => {
-                        node = visitEachChild(node, searchArgument, this.context);
-
-                        if (isIdentifier(node) && node.escapedText === argumentName) {
-                            //transform to infer T
-                            found = true;
-                            node = this.f.createInferTypeNode(declaration);
+                        // Check if this is a TypeReferenceNode whose typeName is the target identifier
+                        // We must replace the ENTIRE TypeReferenceNode, not just the identifier inside it,
+                        // because TypeScript expects typeName to be an EntityName (Identifier or QualifiedName),
+                        // not an InferTypeNode. See GitHub issue #509.
+                        if (isTypeReferenceNode(node)) {
+                            if (isIdentifier(node.typeName) && node.typeName.escapedText === argumentName) {
+                                found = true;
+                                return this.f.createInferTypeNode(declaration);
+                            }
+                            // For qualified names like `Namespace.T`, check the right side
+                            if (isQualifiedName(node.typeName) && node.typeName.right.escapedText === argumentName) {
+                                found = true;
+                                return this.f.createInferTypeNode(declaration);
+                            }
                         }
 
-                        return node;
+                        // Recurse into children for other node types
+                        return visitEachChild(node, searchArgument, this.context);
                     };
 
                     if (isIdentifier(parameter.name)) {
