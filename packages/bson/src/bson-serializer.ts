@@ -14,6 +14,7 @@ import {
     isArray,
     isIterable,
     isObject,
+    stringifyValueWithType,
     toFastProperties,
 } from '@deepkit/core';
 import {
@@ -38,9 +39,12 @@ import {
     TypeLiteral,
     TypeObjectLiteral,
     TypeTuple,
+    TypeUnion,
     UUID,
     UnpopulatedCheck,
+    ValidationError,
     binaryBigIntAnnotation,
+    collapsePath,
     createReference,
     excludedAnnotation,
     executeTemplates,
@@ -68,6 +72,7 @@ import {
     resolveReceiveType,
     resolveTypeMembers,
     sortSignatures,
+    stringifyResolvedType,
     typeOf,
     typeSettings,
     unpopulatedSymbol,
@@ -118,6 +123,13 @@ export const JS_INT_MIN = -0x20000000000000; // Any integer down to -2^53 can be
 
 const LONG_MAX = 'undefined' !== typeof BigInt ? BigInt('9223372036854775807') : 9223372036854775807;
 const LONG_MIN = 'undefined' !== typeof BigInt ? BigInt('-9223372036854775807') : -9223372036854775807;
+
+/**
+ * Threshold for optimizing unions with literal members using Set.has().
+ * Must match the threshold in @deepkit/type serializer.
+ * Set to 1 to ensure all pure literal unions validate values (fixes #478).
+ */
+const BSON_UNION_LITERAL_THRESHOLD = 1;
 
 export function hexToByte(hex: string, index: number = 0, offset: number = 0): number {
     let code1 = hex.charCodeAt(index * 2 + offset) - 48;
@@ -1267,6 +1279,138 @@ function serializeLiteral(type: TypeLiteral, state: TemplateState) {
     }
 }
 
+/**
+ * BSON-specific union serialization handler.
+ * For large pure literal unions, uses Set.has() for O(1) validation then dispatches
+ * based on runtime typeof to the existing BSON serializers for correct byte layout.
+ * For other unions, falls back to the standard handleUnion.
+ */
+function bsonSerializeUnion(type: TypeUnion, state: TemplateState) {
+    const allLiterals = type.types.every(t => t.kind === ReflectionKind.literal);
+
+    if (allLiterals && type.types.length >= BSON_UNION_LITERAL_THRESHOLD) {
+        const literalValues = type.types.map(t => (t as TypeLiteral).literal);
+        const setVar = state.setVariable('_bsonUnionLiterals', new Set(literalValues));
+        const typeStr = JSON.stringify(stringifyResolvedType(type));
+
+        state.setContext({ ValidationError, stringifyValueWithType });
+
+        // Save accessor before addCodeForSetter changes it
+        const accessor = state.accessor;
+
+        // Step 1: Validate value is in the set with O(1) lookup
+        state.addCodeForSetter(`
+            if (!${setVar}.has(${accessor})) {
+                throw ValidationError.from([{code: 'type', path: ${collapsePath(state.path)}, message: 'Cannot convert ' + stringifyValueWithType(${accessor}) + ' to ' + ${typeStr}, value: ${accessor}}]);
+            }
+        `);
+
+        // Step 2: Generate typeof dispatch code that delegates to existing serializers
+        const hasStringLiterals = type.types.some(t => 'string' === typeof (t as TypeLiteral).literal);
+        const hasNumberLiterals = type.types.some(
+            t => 'number' === typeof (t as TypeLiteral).literal || 'bigint' === typeof (t as TypeLiteral).literal,
+        );
+        const hasBooleanLiterals = type.types.some(t => 'boolean' === typeof (t as TypeLiteral).literal);
+
+        let branches = '';
+        if (hasStringLiterals) {
+            const syntheticStringLiteral: TypeLiteral = { kind: ReflectionKind.literal, literal: '' };
+            const stringState = state.fork(state.setter, accessor);
+            serializeLiteral(syntheticStringLiteral, stringState);
+            const stringCode = stringState.template;
+            branches += `if ('string' === typeof ${accessor}) { ${stringCode} }`;
+        }
+
+        if (hasNumberLiterals) {
+            const syntheticNumberLiteral: TypeLiteral = { kind: ReflectionKind.literal, literal: 0 };
+            const numberState = state.fork(state.setter, accessor);
+            serializeLiteral(syntheticNumberLiteral, numberState);
+            const numberCode = numberState.template;
+            branches += `${branches ? ' else ' : ''}if ('number' === typeof ${accessor} || 'bigint' === typeof ${accessor}) { ${numberCode} }`;
+        }
+
+        if (hasBooleanLiterals) {
+            const syntheticBooleanLiteral: TypeLiteral = { kind: ReflectionKind.literal, literal: true };
+            const booleanState = state.fork(state.setter, accessor);
+            serializeLiteral(syntheticBooleanLiteral, booleanState);
+            const booleanCode = booleanState.template;
+            branches += `${branches ? ' else ' : ''}if ('boolean' === typeof ${accessor}) { ${booleanCode} }`;
+        }
+
+        state.addCode(branches);
+        return;
+    }
+
+    // Fall back to standard union handling for non-literal or small unions
+    handleUnion(type, state);
+}
+
+/**
+ * BSON-specific union sizer handler.
+ * For large pure literal unions, uses Set.has() for O(1) validation then dispatches
+ * based on runtime typeof to the existing BSON sizers for correct size calculation.
+ * For other unions, falls back to the standard handleUnion.
+ */
+function bsonSizerUnion(type: TypeUnion, state: TemplateState) {
+    const allLiterals = type.types.every(t => t.kind === ReflectionKind.literal);
+
+    if (allLiterals && type.types.length >= BSON_UNION_LITERAL_THRESHOLD) {
+        const literalValues = type.types.map(t => (t as TypeLiteral).literal);
+        const setVar = state.setVariable('_bsonUnionLiterals', new Set(literalValues));
+        const typeStr = JSON.stringify(stringifyResolvedType(type));
+
+        state.setContext({ ValidationError, stringifyValueWithType });
+
+        // Save accessor before addCodeForSetter changes it
+        const accessor = state.accessor;
+
+        // Step 1: Validate value is in the set with O(1) lookup
+        state.addCodeForSetter(`
+            if (!${setVar}.has(${accessor})) {
+                throw ValidationError.from([{code: 'type', path: ${collapsePath(state.path)}, message: 'Cannot convert ' + stringifyValueWithType(${accessor}) + ' to ' + ${typeStr}, value: ${accessor}}]);
+            }
+        `);
+
+        // Step 2: Generate typeof dispatch code that delegates to existing sizers
+        const hasStringLiterals = type.types.some(t => 'string' === typeof (t as TypeLiteral).literal);
+        const hasNumberLiterals = type.types.some(
+            t => 'number' === typeof (t as TypeLiteral).literal || 'bigint' === typeof (t as TypeLiteral).literal,
+        );
+        const hasBooleanLiterals = type.types.some(t => 'boolean' === typeof (t as TypeLiteral).literal);
+
+        let branches = '';
+        if (hasStringLiterals) {
+            const syntheticStringLiteral: TypeLiteral = { kind: ReflectionKind.literal, literal: '' };
+            const stringState = state.fork(state.setter, accessor);
+            sizerLiteral(syntheticStringLiteral, stringState);
+            const stringCode = stringState.template;
+            branches += `if ('string' === typeof ${accessor}) { ${stringCode} }`;
+        }
+
+        if (hasNumberLiterals) {
+            const syntheticNumberLiteral: TypeLiteral = { kind: ReflectionKind.literal, literal: 0 };
+            const numberState = state.fork(state.setter, accessor);
+            sizerLiteral(syntheticNumberLiteral, numberState);
+            const numberCode = numberState.template;
+            branches += `${branches ? ' else ' : ''}if ('number' === typeof ${accessor} || 'bigint' === typeof ${accessor}) { ${numberCode} }`;
+        }
+
+        if (hasBooleanLiterals) {
+            const syntheticBooleanLiteral: TypeLiteral = { kind: ReflectionKind.literal, literal: true };
+            const booleanState = state.fork(state.setter, accessor);
+            sizerLiteral(syntheticBooleanLiteral, booleanState);
+            const booleanCode = booleanState.template;
+            branches += `${branches ? ' else ' : ''}if ('boolean' === typeof ${accessor}) { ${booleanCode} }`;
+        }
+
+        state.addCode(branches);
+        return;
+    }
+
+    // Fall back to standard union handling for non-literal or small unions
+    handleUnion(type, state);
+}
+
 function sizerBinary(type: TypeClass, state: TemplateState) {
     state.setContext({ ArrayBuffer });
     sizerPropertyNameAware(
@@ -1536,7 +1680,7 @@ export class BSONBinarySerializer extends Serializer {
             sizerPropertyNameAware(type, state, `${state.accessor} === undefined || ${state.accessor} === null`, ``),
         );
         this.sizerRegistry.registerBinary(sizerBinary);
-        this.sizerRegistry.register(ReflectionKind.union, handleUnion);
+        this.sizerRegistry.register(ReflectionKind.union, bsonSizerUnion);
         this.sizerRegistry.register(ReflectionKind.promise, (type, state) => executeTemplates(state, type.type));
         this.sizerRegistry.register(ReflectionKind.enum, (type, state) => executeTemplates(state, type.indexType));
     }
@@ -1609,7 +1753,7 @@ export class BSONBinarySerializer extends Serializer {
             ),
         );
         this.bsonSerializeRegistry.registerBinary(serializeBinary);
-        this.bsonSerializeRegistry.register(ReflectionKind.union, handleUnion);
+        this.bsonSerializeRegistry.register(ReflectionKind.union, bsonSerializeUnion);
     }
 
     protected registerBsonTypeGuards() {
