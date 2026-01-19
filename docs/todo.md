@@ -179,7 +179,6 @@ Issues affecting DX or edge cases.
 | [#562](https://github.com/deepkit/deepkit-framework/issues/562) | serialize<T> circular import error | type | 2024-05-03 |
 | [#458](https://github.com/deepkit/deepkit-framework/issues/458) | Body parameter in separate file controller | http | 2023-10-04 |
 | [#456](https://github.com/deepkit/deepkit-framework/issues/456) | Receive types in Vite from other file | type-compiler | 2023-06-13 |
-| [#395](https://github.com/deepkit/deepkit-framework/issues/395) | custom identifier in crud routes | orm | 2023-04-13 |
 
 ### Enhancement Requests
 
@@ -313,6 +312,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#555](https://github.com/deepkit/deepkit-framework/issues/555) | No valid runtime type for external imports | 2026-01-19 | 1eba2ba1 |
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | 2026-01-19 | a554c90f |
 | [#509](https://github.com/deepkit/deepkit-framework/issues/509) | Node InferType did not pass test 'isEntityName' | 2026-01-19 | d70356d6 |
+| [#395](https://github.com/deepkit/deepkit-framework/issues/395) | custom identifier in crud routes | 2026-01-19 | 555b09c2 |
 | [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | already fixed | - |
 | [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | already fixed | - |
 
