@@ -192,14 +192,13 @@ test('class with union literal', () => {
     }
 
     expect(validate<ConnectionOptions>({ readConcernLevel: 'majority' })).toEqual([]);
-    expect(validate<ConnectionOptions>({ readConcernLevel: 'invalid' })).toEqual([
-        {
-            code: 'type',
-            message: "No valid union member found. Valid: 'local' | 'majority' | 'linearizable' | 'available'",
-            path: 'readConcernLevel',
-            value: 'invalid',
-        },
-    ]);
+    const errors = validate<ConnectionOptions>({ readConcernLevel: 'invalid' });
+    expect(errors.length).toBe(1);
+    expect(errors[0].code).toBe('type');
+    expect(errors[0].path).toBe('readConcernLevel');
+    expect(errors[0].value).toBe('invalid');
+    expect(errors[0].message).toContain('Cannot convert');
+    expect(errors[0].message).toContain("'local' | 'majority' | 'linearizable' | 'available'");
 });
 
 test('named tuple', () => {
@@ -433,7 +432,7 @@ test('union with multiple constrained types shows correct constraint error (#577
     const booleanErrors = validate<Value>(true as any);
     expect(booleanErrors.length).toBe(1);
     expect(booleanErrors[0].code).toBe('type');
-    expect(booleanErrors[0].message).toContain('No valid union member found');
+    expect(booleanErrors[0].message).toContain('Cannot convert');
 });
 
 test('union with nested objects shows deep constraint errors (#577)', () => {

@@ -41,7 +41,7 @@ import {
 import { cast, deserialize, patch, serialize } from '../src/serializer-facade.js';
 import { NamingStrategy, Serializer, createSerializeFunction, getSerializeFunction, serializer, underscoreNamingStrategy } from '../src/serializer.js';
 import { is } from '../src/typeguard.js';
-import { Alphanumeric, MaxLength, MinLength, ValidationError } from '../src/validator.js';
+import { Alphanumeric, MaxLength, MinLength, ValidationError, validate } from '../src/validator.js';
 import { StatEnginePowerUnit, StatWeightUnit } from './types.js';
 
 test('deserializer', () => {
@@ -859,12 +859,38 @@ test('class with union literal', () => {
 
     expect(cast<ConnectionOptions>({ readConcernLevel: 'majority' })).toEqual({ readConcernLevel: 'majority' });
     expect(cast<ConnectionOptions>({ readConcernLevel: 'linearizable' })).toEqual({ readConcernLevel: 'linearizable' });
-    expect(cast<ConnectionOptions>({ readConcernLevel: 'unknown' })).toEqual({ readConcernLevel: 'majority' });
+    // Invalid values should throw validation error (fix for #478)
+    expect(() => cast<ConnectionOptions>({ readConcernLevel: 'unknown' })).toThrow("Cannot convert unknown to 'local' | 'majority' | 'linearizable' | 'available'");
 });
 
 test('named tuple in error message', () => {
     expect(cast<[age: number]>([23])).toEqual([23]);
     expect(() => cast<{ v: [age: number] }>({ v: ['123abc'] })).toThrow('v.age(type): Cannot convert 123abc to number');
+});
+
+test('issue-478: small literal unions should validate values', () => {
+    // Small string unions (< 5 members) should validate values
+    // Using inline type to get expanded form in error message
+    expect(serialize<'a' | 'b' | 'c' | 'd'>('a')).toBe('a');
+    expect(serialize<'a' | 'b' | 'c' | 'd'>('d')).toBe('d');
+    expect(() => serialize<'a' | 'b' | 'c' | 'd'>('invalid' as any)).toThrow("Cannot convert invalid to 'a' | 'b' | 'c' | 'd'");
+    expect(() => deserialize<'a' | 'b' | 'c' | 'd'>('invalid')).toThrow("Cannot convert invalid to 'a' | 'b' | 'c' | 'd'");
+
+    // Small numeric unions should validate values
+    expect(serialize<1 | 2 | 3>(1)).toBe(1);
+    expect(serialize<1 | 2 | 3>(3)).toBe(3);
+    expect(() => serialize<1 | 2 | 3>(99 as any)).toThrow('Cannot convert 99 to 1 | 2 | 3');
+    expect(() => deserialize<1 | 2 | 3>(99)).toThrow('Cannot convert 99 to 1 | 2 | 3');
+
+    // Loose deserialization should still coerce strings to numbers for numeric unions
+    expect(deserialize<1 | 2 | 3>('1', { loosely: true })).toBe(1);
+    expect(deserialize<1 | 2 | 3>('3', { loosely: true })).toBe(3);
+    expect(() => deserialize<1 | 2 | 3>('99', { loosely: true })).toThrow('Cannot convert 99 to 1 | 2 | 3');
+
+    // Validate works for both small and large unions
+    expect(validate<'a' | 'b' | 'c' | 'd'>('a')).toEqual([]);
+    expect(validate<'a' | 'b' | 'c' | 'd'>('invalid')).toHaveLength(1);
+    expect(validate<'a' | 'b' | 'c' | 'd'>('invalid')[0].message).toContain('Cannot convert');
 });
 
 test('intersected mapped type key', () => {
@@ -1385,7 +1411,8 @@ test('issue-415: serialize literal types in union', () => {
     expect(deserialize<Data>({ rotate: '0' }, { loosely: true }).rotate).toBe(0);
     expect(deserialize<Data>({ rotate: 180 }, { loosely: true }).rotate).toBe(180);
     expect(deserialize<Data>({ rotate: '180' }, { loosely: true }).rotate).toBe(180);
-    expect(deserialize<Data>({ rotate: 123456 }, { loosely: true }).rotate).toBe(0);
+    // Invalid values should throw validation error (fix for #478)
+    expect(() => deserialize<Data>({ rotate: 123456 }, { loosely: true })).toThrow('Cannot convert 123456 to 180 | 0');
 });
 
 test('union with optional property', () => {
@@ -1510,8 +1537,8 @@ test('union same member, optional', () => {
 
 test('large literal union optimization', () => {
     // Test that literal unions work correctly with serialization, deserialization, and validation
-    // The optimization for large literal unions (>1000 members) uses Set.has() instead of if-else
-    // but the behavior should be identical for both small and large unions
+    // The optimization for literal unions (>=5 members) uses Set.has() instead of if-else
+    // but the behavior should be identical for both small and optimized unions
 
     // Test with a union of number literals
     type SmallLiteralUnion = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
@@ -1533,9 +1560,9 @@ test('large literal union optimization', () => {
     expect(is<SmallLiteralUnion>(10)).toBe(false);
     expect(is<SmallLiteralUnion>(-1)).toBe(false);
 
-    // cast() throws on invalid values
-    expect(() => cast<SmallLiteralUnion>(10)).toThrow('No valid union member found');
-    expect(() => cast<SmallLiteralUnion>(-1)).toThrow('No valid union member found');
+    // cast() throws on invalid values with descriptive error message
+    expect(() => cast<SmallLiteralUnion>(10)).toThrow(/Cannot convert/);
+    expect(() => cast<SmallLiteralUnion>(-1)).toThrow(/Cannot convert/);
 
     // Test with string literals
     type StringLiteralUnion = 'a' | 'b' | 'c' | 'd' | 'e';
@@ -1543,9 +1570,9 @@ test('large literal union optimization', () => {
     expect(deserialize<StringLiteralUnion>('e')).toBe('e');
     expect(is<StringLiteralUnion>('a')).toBe(true);
     expect(is<StringLiteralUnion>('z')).toBe(false);
-    expect(() => cast<StringLiteralUnion>('z' as any)).toThrow('No valid union member found');
+    expect(() => cast<StringLiteralUnion>('z' as any)).toThrow(/Cannot convert/);
 
-    // Test with mixed number and string literals
+    // Test with mixed number and string literals (4 members, below threshold, uses standard if-else)
     type MixedLiteralUnion = 1 | 2 | 'a' | 'b';
     expect(serialize<MixedLiteralUnion>(1)).toBe(1);
     expect(serialize<MixedLiteralUnion>('a')).toBe('a');
@@ -1555,7 +1582,8 @@ test('large literal union optimization', () => {
     expect(is<MixedLiteralUnion>('a')).toBe(true);
     expect(is<MixedLiteralUnion>(3)).toBe(false);
     expect(is<MixedLiteralUnion>('c')).toBe(false);
-    expect(() => cast<MixedLiteralUnion>(3 as any)).toThrow('No valid union member found');
+    // Below threshold uses standard path, now with consistent "Cannot convert" error
+    expect(() => cast<MixedLiteralUnion>(3 as any)).toThrow(/Cannot convert/);
 });
 
 test('large template literal union does not cause stack overflow (#478)', () => {
@@ -1643,4 +1671,699 @@ test('large template literal union does not cause stack overflow (#478)', () => 
 
     // Test 4: is() should return false for invalid hour (25 is not valid)
     expect(is<ClockHour24>('25:01:59')).toBe(false);
+});
+
+test('literal union error consistency', () => {
+    // Test that both small (<5 members) and large (>=5 members) literal unions
+    // have consistent error behavior for invalid values.
+    // Related to issue #478 UX improvements.
+
+    type SmallUnion = 'a' | 'b' | 'c' | 'd'; // 4 members - uses if-else chain
+    type LargeUnion = 'a' | 'b' | 'c' | 'd' | 'e'; // 5 members - uses Set.has() optimization
+
+    // 1. Valid values should work for both serialize and deserialize
+    expect(serialize<SmallUnion>('a')).toBe('a');
+    expect(serialize<SmallUnion>('d')).toBe('d');
+    expect(serialize<LargeUnion>('a')).toBe('a');
+    expect(serialize<LargeUnion>('e')).toBe('e');
+
+    expect(deserialize<SmallUnion>('a')).toBe('a');
+    expect(deserialize<SmallUnion>('d')).toBe('d');
+    expect(deserialize<LargeUnion>('a')).toBe('a');
+    expect(deserialize<LargeUnion>('e')).toBe('e');
+
+    // 2. is() should return false for invalid values in both
+    expect(is<SmallUnion>('invalid')).toBe(false);
+    expect(is<LargeUnion>('invalid')).toBe(false);
+    expect(is<SmallUnion>('z')).toBe(false);
+    expect(is<LargeUnion>('z')).toBe(false);
+
+    // 3. validate() should return errors for invalid values with consistent structure
+    const smallErrors = validate<SmallUnion>('invalid');
+    const largeErrors = validate<LargeUnion>('invalid');
+
+    // Both should have exactly one error
+    expect(smallErrors.length).toBe(1);
+    expect(largeErrors.length).toBe(1);
+
+    // Both should have the same error code ('type')
+    expect(smallErrors[0].code).toBe('type');
+    expect(largeErrors[0].code).toBe('type');
+
+    // Both should have empty path (root level)
+    expect(smallErrors[0].path).toBe('');
+    expect(largeErrors[0].path).toBe('');
+
+    // Both should include the invalid value
+    expect(smallErrors[0].value).toBe('invalid');
+    expect(largeErrors[0].value).toBe('invalid');
+
+    // 4. cast() should throw for invalid values in both
+    expect(() => cast<SmallUnion>('invalid' as any)).toThrow();
+    expect(() => cast<LargeUnion>('invalid' as any)).toThrow();
+
+    // Error messages should contain "Cannot convert"
+    expect(() => cast<SmallUnion>('invalid' as any)).toThrow(/Cannot convert/);
+    expect(() => cast<LargeUnion>('invalid' as any)).toThrow(/Cannot convert/);
+});
+
+test('literal union error consistency - numeric literals', () => {
+    // Test numeric literal unions for consistency
+    type SmallNumericUnion = 1 | 2 | 3 | 4; // 4 members
+    type LargeNumericUnion = 1 | 2 | 3 | 4 | 5; // 5 members
+
+    // Valid values work
+    expect(serialize<SmallNumericUnion>(1)).toBe(1);
+    expect(serialize<LargeNumericUnion>(5)).toBe(5);
+    expect(deserialize<SmallNumericUnion>(4)).toBe(4);
+    expect(deserialize<LargeNumericUnion>(5)).toBe(5);
+
+    // is() returns false for invalid
+    expect(is<SmallNumericUnion>(99)).toBe(false);
+    expect(is<LargeNumericUnion>(99)).toBe(false);
+
+    // validate() returns consistent errors
+    const smallErrors = validate<SmallNumericUnion>(99);
+    const largeErrors = validate<LargeNumericUnion>(99);
+
+    expect(smallErrors.length).toBe(1);
+    expect(largeErrors.length).toBe(1);
+    expect(smallErrors[0].code).toBe('type');
+    expect(largeErrors[0].code).toBe('type');
+    expect(smallErrors[0].value).toBe(99);
+    expect(largeErrors[0].value).toBe(99);
+
+    // cast() throws for invalid
+    expect(() => cast<SmallNumericUnion>(99 as any)).toThrow(/Cannot convert/);
+    expect(() => cast<LargeNumericUnion>(99 as any)).toThrow(/Cannot convert/);
+});
+
+test('literal union error consistency - mixed type literals', () => {
+    // Test mixed literal unions (string and number literals)
+    type SmallMixedUnion = 'a' | 'b' | 1 | 2; // 4 members
+    type LargeMixedUnion = 'a' | 'b' | 'c' | 1 | 2; // 5 members
+
+    // Valid values of different types work
+    expect(serialize<SmallMixedUnion>('a')).toBe('a');
+    expect(serialize<SmallMixedUnion>(1)).toBe(1);
+    expect(serialize<LargeMixedUnion>('c')).toBe('c');
+    expect(serialize<LargeMixedUnion>(2)).toBe(2);
+
+    expect(deserialize<SmallMixedUnion>('b')).toBe('b');
+    expect(deserialize<SmallMixedUnion>(2)).toBe(2);
+    expect(deserialize<LargeMixedUnion>('a')).toBe('a');
+    expect(deserialize<LargeMixedUnion>(1)).toBe(1);
+
+    // is() returns false for invalid values of both types
+    expect(is<SmallMixedUnion>('invalid')).toBe(false);
+    expect(is<SmallMixedUnion>(99)).toBe(false);
+    expect(is<LargeMixedUnion>('invalid')).toBe(false);
+    expect(is<LargeMixedUnion>(99)).toBe(false);
+
+    // validate() returns consistent errors
+    const smallStringErrors = validate<SmallMixedUnion>('invalid');
+    const largeStringErrors = validate<LargeMixedUnion>('invalid');
+    const smallNumErrors = validate<SmallMixedUnion>(99);
+    const largeNumErrors = validate<LargeMixedUnion>(99);
+
+    expect(smallStringErrors.length).toBe(1);
+    expect(largeStringErrors.length).toBe(1);
+    expect(smallNumErrors.length).toBe(1);
+    expect(largeNumErrors.length).toBe(1);
+
+    expect(smallStringErrors[0].code).toBe('type');
+    expect(largeStringErrors[0].code).toBe('type');
+    expect(smallNumErrors[0].code).toBe('type');
+    expect(largeNumErrors[0].code).toBe('type');
+});
+
+test('literal union error consistency - boundary threshold', () => {
+    // Test unions at exactly the threshold boundary (4 vs 5 members)
+    type Union4 = 'w' | 'x' | 'y' | 'z'; // 4 members - just below threshold
+    type Union5 = 'v' | 'w' | 'x' | 'y' | 'z'; // 5 members - exactly at threshold
+    type Union6 = 'u' | 'v' | 'w' | 'x' | 'y' | 'z'; // 6 members - just above threshold
+
+    // All valid values work
+    expect(serialize<Union4>('w')).toBe('w');
+    expect(serialize<Union5>('v')).toBe('v');
+    expect(serialize<Union6>('u')).toBe('u');
+
+    // All invalid values properly rejected
+    expect(is<Union4>('invalid')).toBe(false);
+    expect(is<Union5>('invalid')).toBe(false);
+    expect(is<Union6>('invalid')).toBe(false);
+
+    // Validation errors have consistent structure
+    const errors4 = validate<Union4>('invalid');
+    const errors5 = validate<Union5>('invalid');
+    const errors6 = validate<Union6>('invalid');
+
+    expect(errors4[0].code).toBe('type');
+    expect(errors5[0].code).toBe('type');
+    expect(errors6[0].code).toBe('type');
+
+    expect(errors4[0].value).toBe('invalid');
+    expect(errors5[0].value).toBe('invalid');
+    expect(errors6[0].value).toBe('invalid');
+
+    // cast() throws with consistent error pattern
+    expect(() => cast<Union4>('invalid' as any)).toThrow(/Cannot convert/);
+    expect(() => cast<Union5>('invalid' as any)).toThrow(/Cannot convert/);
+    expect(() => cast<Union6>('invalid' as any)).toThrow(/Cannot convert/);
+});
+
+describe('literal union - type varieties', () => {
+    test('pure boolean literals (true | false)', () => {
+        type BoolLiteral = true | false;
+
+        // Valid values work
+        expect(serialize<BoolLiteral>(true)).toBe(true);
+        expect(serialize<BoolLiteral>(false)).toBe(false);
+        expect(deserialize<BoolLiteral>(true)).toBe(true);
+        expect(deserialize<BoolLiteral>(false)).toBe(false);
+
+        // is() returns correct boolean
+        expect(is<BoolLiteral>(true)).toBe(true);
+        expect(is<BoolLiteral>(false)).toBe(true);
+        expect(is<BoolLiteral>('true')).toBe(false);
+        expect(is<BoolLiteral>(1)).toBe(false);
+        expect(is<BoolLiteral>(0)).toBe(false);
+        expect(is<BoolLiteral>(null)).toBe(false);
+        expect(is<BoolLiteral>(undefined)).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<BoolLiteral>(true)).toEqual([]);
+        expect(validate<BoolLiteral>(false)).toEqual([]);
+        const stringErrors = validate<BoolLiteral>('true');
+        expect(stringErrors.length).toBe(1);
+        expect(stringErrors[0].code).toBe('type');
+        const numErrors = validate<BoolLiteral>(1);
+        expect(numErrors.length).toBe(1);
+        expect(numErrors[0].code).toBe('type');
+    });
+
+    test('bigint literals', () => {
+        type BigIntLiteral = 1n | 2n | 3n;
+
+        // Valid values work
+        expect(serialize<BigIntLiteral>(1n)).toBe(1n);
+        expect(serialize<BigIntLiteral>(2n)).toBe(2n);
+        expect(serialize<BigIntLiteral>(3n)).toBe(3n);
+        expect(deserialize<BigIntLiteral>(1n)).toBe(1n);
+        expect(deserialize<BigIntLiteral>(2n)).toBe(2n);
+        expect(deserialize<BigIntLiteral>(3n)).toBe(3n);
+
+        // is() returns correct boolean
+        expect(is<BigIntLiteral>(1n)).toBe(true);
+        expect(is<BigIntLiteral>(2n)).toBe(true);
+        expect(is<BigIntLiteral>(3n)).toBe(true);
+        expect(is<BigIntLiteral>(4n)).toBe(false);
+        expect(is<BigIntLiteral>(0n)).toBe(false);
+        expect(is<BigIntLiteral>(1)).toBe(false); // number, not bigint
+        expect(is<BigIntLiteral>('1')).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<BigIntLiteral>(1n)).toEqual([]);
+        expect(validate<BigIntLiteral>(2n)).toEqual([]);
+        const invalidBigIntErrors = validate<BigIntLiteral>(4n);
+        expect(invalidBigIntErrors.length).toBe(1);
+        expect(invalidBigIntErrors[0].code).toBe('type');
+        const numErrors = validate<BigIntLiteral>(1);
+        expect(numErrors.length).toBe(1);
+        expect(numErrors[0].code).toBe('type');
+    });
+
+    test('single-member literal type', () => {
+        type SingleLiteral = 'only';
+
+        // Valid value works
+        expect(serialize<SingleLiteral>('only')).toBe('only');
+        expect(deserialize<SingleLiteral>('only')).toBe('only');
+
+        // For single literal types, serialize/deserialize treat it as a constant
+        // The value is always set to the literal value regardless of input
+        // This is by design - a single literal is a "constant type"
+        expect(serialize<SingleLiteral>('anything' as any)).toBe('only');
+        expect(deserialize<SingleLiteral>('anything' as any)).toBe('only');
+
+        // is() returns correct boolean - validates the actual value
+        expect(is<SingleLiteral>('only')).toBe(true);
+        expect(is<SingleLiteral>('other')).toBe(false);
+        expect(is<SingleLiteral>('')).toBe(false);
+        expect(is<SingleLiteral>(null)).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<SingleLiteral>('only')).toEqual([]);
+        const errors = validate<SingleLiteral>('other');
+        expect(errors.length).toBe(1);
+        expect(errors[0].code).toBe('type');
+        expect(errors[0].value).toBe('other');
+
+        // cast() for single literals uses the constant behavior (no throw)
+        // This is different from unions which perform validation
+        expect(cast<SingleLiteral>('other' as any)).toBe('only');
+    });
+
+    test('mixed string + boolean', () => {
+        type StringBoolMixed = 'yes' | 'no' | true | false;
+
+        // Valid values work
+        expect(serialize<StringBoolMixed>('yes')).toBe('yes');
+        expect(serialize<StringBoolMixed>('no')).toBe('no');
+        expect(serialize<StringBoolMixed>(true)).toBe(true);
+        expect(serialize<StringBoolMixed>(false)).toBe(false);
+        expect(deserialize<StringBoolMixed>('yes')).toBe('yes');
+        expect(deserialize<StringBoolMixed>(true)).toBe(true);
+
+        // is() returns correct boolean
+        expect(is<StringBoolMixed>('yes')).toBe(true);
+        expect(is<StringBoolMixed>('no')).toBe(true);
+        expect(is<StringBoolMixed>(true)).toBe(true);
+        expect(is<StringBoolMixed>(false)).toBe(true);
+        expect(is<StringBoolMixed>('true')).toBe(false); // string 'true' not in union
+        expect(is<StringBoolMixed>('false')).toBe(false);
+        expect(is<StringBoolMixed>(1)).toBe(false);
+        expect(is<StringBoolMixed>('maybe')).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<StringBoolMixed>('yes')).toEqual([]);
+        expect(validate<StringBoolMixed>(true)).toEqual([]);
+        const errors = validate<StringBoolMixed>('maybe');
+        expect(errors.length).toBe(1);
+        expect(errors[0].code).toBe('type');
+    });
+
+    test('mixed number + boolean', () => {
+        type NumBoolMixed = 0 | 1 | true | false;
+
+        // Valid values work
+        expect(serialize<NumBoolMixed>(0)).toBe(0);
+        expect(serialize<NumBoolMixed>(1)).toBe(1);
+        expect(serialize<NumBoolMixed>(true)).toBe(true);
+        expect(serialize<NumBoolMixed>(false)).toBe(false);
+        expect(deserialize<NumBoolMixed>(0)).toBe(0);
+        expect(deserialize<NumBoolMixed>(true)).toBe(true);
+
+        // is() returns correct boolean
+        expect(is<NumBoolMixed>(0)).toBe(true);
+        expect(is<NumBoolMixed>(1)).toBe(true);
+        expect(is<NumBoolMixed>(true)).toBe(true);
+        expect(is<NumBoolMixed>(false)).toBe(true);
+        expect(is<NumBoolMixed>(2)).toBe(false);
+        expect(is<NumBoolMixed>('0')).toBe(false);
+        expect(is<NumBoolMixed>('true')).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<NumBoolMixed>(0)).toEqual([]);
+        expect(validate<NumBoolMixed>(true)).toEqual([]);
+        const errors = validate<NumBoolMixed>(2);
+        expect(errors.length).toBe(1);
+        expect(errors[0].code).toBe('type');
+    });
+
+    test('mixed string + number + boolean', () => {
+        type FullMixed = 'a' | 'b' | 1 | 2 | true | false;
+
+        // Valid values work
+        expect(serialize<FullMixed>('a')).toBe('a');
+        expect(serialize<FullMixed>(1)).toBe(1);
+        expect(serialize<FullMixed>(true)).toBe(true);
+        expect(deserialize<FullMixed>('b')).toBe('b');
+        expect(deserialize<FullMixed>(2)).toBe(2);
+        expect(deserialize<FullMixed>(false)).toBe(false);
+
+        // is() returns correct boolean
+        expect(is<FullMixed>('a')).toBe(true);
+        expect(is<FullMixed>('b')).toBe(true);
+        expect(is<FullMixed>(1)).toBe(true);
+        expect(is<FullMixed>(2)).toBe(true);
+        expect(is<FullMixed>(true)).toBe(true);
+        expect(is<FullMixed>(false)).toBe(true);
+        expect(is<FullMixed>('c')).toBe(false);
+        expect(is<FullMixed>(3)).toBe(false);
+        expect(is<FullMixed>(null)).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<FullMixed>('a')).toEqual([]);
+        expect(validate<FullMixed>(1)).toEqual([]);
+        expect(validate<FullMixed>(true)).toEqual([]);
+        const stringErrors = validate<FullMixed>('c');
+        expect(stringErrors.length).toBe(1);
+        expect(stringErrors[0].code).toBe('type');
+        const numErrors = validate<FullMixed>(3);
+        expect(numErrors.length).toBe(1);
+        expect(numErrors[0].code).toBe('type');
+    });
+});
+
+describe('literal union - edge cases', () => {
+    test('empty string in union', () => {
+        type EmptyStringUnion = '' | 'a' | 'b';
+
+        // Valid values work, including empty string
+        expect(serialize<EmptyStringUnion>('')).toBe('');
+        expect(serialize<EmptyStringUnion>('a')).toBe('a');
+        expect(serialize<EmptyStringUnion>('b')).toBe('b');
+        expect(deserialize<EmptyStringUnion>('')).toBe('');
+        expect(deserialize<EmptyStringUnion>('a')).toBe('a');
+
+        // is() returns correct boolean
+        expect(is<EmptyStringUnion>('')).toBe(true);
+        expect(is<EmptyStringUnion>('a')).toBe(true);
+        expect(is<EmptyStringUnion>('b')).toBe(true);
+        expect(is<EmptyStringUnion>('c')).toBe(false);
+        expect(is<EmptyStringUnion>(null)).toBe(false);
+        expect(is<EmptyStringUnion>(undefined)).toBe(false);
+        expect(is<EmptyStringUnion>(0)).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<EmptyStringUnion>('')).toEqual([]);
+        expect(validate<EmptyStringUnion>('a')).toEqual([]);
+        const errors = validate<EmptyStringUnion>('c');
+        expect(errors.length).toBe(1);
+        expect(errors[0].code).toBe('type');
+    });
+
+    test('zero vs string zero (0 | "0" | 1 | "1")', () => {
+        type ZeroStringZero = 0 | '0' | 1 | '1';
+
+        // All four distinct values work
+        expect(serialize<ZeroStringZero>(0)).toBe(0);
+        expect(serialize<ZeroStringZero>('0')).toBe('0');
+        expect(serialize<ZeroStringZero>(1)).toBe(1);
+        expect(serialize<ZeroStringZero>('1')).toBe('1');
+        expect(deserialize<ZeroStringZero>(0)).toBe(0);
+        expect(deserialize<ZeroStringZero>('0')).toBe('0');
+        expect(deserialize<ZeroStringZero>(1)).toBe(1);
+        expect(deserialize<ZeroStringZero>('1')).toBe('1');
+
+        // is() distinguishes correctly between number and string
+        expect(is<ZeroStringZero>(0)).toBe(true);
+        expect(is<ZeroStringZero>('0')).toBe(true);
+        expect(is<ZeroStringZero>(1)).toBe(true);
+        expect(is<ZeroStringZero>('1')).toBe(true);
+        expect(is<ZeroStringZero>(2)).toBe(false);
+        expect(is<ZeroStringZero>('2')).toBe(false);
+        expect(is<ZeroStringZero>(false)).toBe(false);
+        expect(is<ZeroStringZero>('')).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<ZeroStringZero>(0)).toEqual([]);
+        expect(validate<ZeroStringZero>('0')).toEqual([]);
+        const errors = validate<ZeroStringZero>(2);
+        expect(errors.length).toBe(1);
+        expect(errors[0].code).toBe('type');
+    });
+
+    test('all-falsy union (false | 0 | "")', () => {
+        type AllFalsy = false | 0 | '';
+
+        // All falsy values work
+        expect(serialize<AllFalsy>(false)).toBe(false);
+        expect(serialize<AllFalsy>(0)).toBe(0);
+        expect(serialize<AllFalsy>('')).toBe('');
+        expect(deserialize<AllFalsy>(false)).toBe(false);
+        expect(deserialize<AllFalsy>(0)).toBe(0);
+        expect(deserialize<AllFalsy>('')).toBe('');
+
+        // is() returns correct boolean for all falsy values
+        expect(is<AllFalsy>(false)).toBe(true);
+        expect(is<AllFalsy>(0)).toBe(true);
+        expect(is<AllFalsy>('')).toBe(true);
+        expect(is<AllFalsy>(true)).toBe(false);
+        expect(is<AllFalsy>(1)).toBe(false);
+        expect(is<AllFalsy>('a')).toBe(false);
+        expect(is<AllFalsy>(null)).toBe(false);
+        expect(is<AllFalsy>(undefined)).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<AllFalsy>(false)).toEqual([]);
+        expect(validate<AllFalsy>(0)).toEqual([]);
+        expect(validate<AllFalsy>('')).toEqual([]);
+        const trueErrors = validate<AllFalsy>(true);
+        expect(trueErrors.length).toBe(1);
+        expect(trueErrors[0].code).toBe('type');
+        const oneErrors = validate<AllFalsy>(1);
+        expect(oneErrors.length).toBe(1);
+        expect(oneErrors[0].code).toBe('type');
+    });
+
+    test('negative number literals', () => {
+        type NegativeNums = -1 | -2 | -3;
+
+        // Valid negative values work
+        expect(serialize<NegativeNums>(-1)).toBe(-1);
+        expect(serialize<NegativeNums>(-2)).toBe(-2);
+        expect(serialize<NegativeNums>(-3)).toBe(-3);
+        expect(deserialize<NegativeNums>(-1)).toBe(-1);
+        expect(deserialize<NegativeNums>(-2)).toBe(-2);
+        expect(deserialize<NegativeNums>(-3)).toBe(-3);
+
+        // is() returns correct boolean
+        expect(is<NegativeNums>(-1)).toBe(true);
+        expect(is<NegativeNums>(-2)).toBe(true);
+        expect(is<NegativeNums>(-3)).toBe(true);
+        expect(is<NegativeNums>(1)).toBe(false);
+        expect(is<NegativeNums>(0)).toBe(false);
+        expect(is<NegativeNums>(-4)).toBe(false);
+        expect(is<NegativeNums>('-1')).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<NegativeNums>(-1)).toEqual([]);
+        expect(validate<NegativeNums>(-2)).toEqual([]);
+        const positiveErrors = validate<NegativeNums>(1);
+        expect(positiveErrors.length).toBe(1);
+        expect(positiveErrors[0].code).toBe('type');
+        const zeroErrors = validate<NegativeNums>(0);
+        expect(zeroErrors.length).toBe(1);
+        expect(zeroErrors[0].code).toBe('type');
+    });
+
+    test('float literals', () => {
+        type FloatLiterals = 1.5 | 2.5 | 3.5;
+
+        // Valid float values work
+        expect(serialize<FloatLiterals>(1.5)).toBe(1.5);
+        expect(serialize<FloatLiterals>(2.5)).toBe(2.5);
+        expect(serialize<FloatLiterals>(3.5)).toBe(3.5);
+        expect(deserialize<FloatLiterals>(1.5)).toBe(1.5);
+        expect(deserialize<FloatLiterals>(2.5)).toBe(2.5);
+        expect(deserialize<FloatLiterals>(3.5)).toBe(3.5);
+
+        // is() returns correct boolean
+        expect(is<FloatLiterals>(1.5)).toBe(true);
+        expect(is<FloatLiterals>(2.5)).toBe(true);
+        expect(is<FloatLiterals>(3.5)).toBe(true);
+        expect(is<FloatLiterals>(1)).toBe(false);
+        expect(is<FloatLiterals>(2)).toBe(false);
+        expect(is<FloatLiterals>(1.6)).toBe(false);
+        expect(is<FloatLiterals>(0)).toBe(false);
+        expect(is<FloatLiterals>('1.5')).toBe(false);
+
+        // validate() returns errors for invalid values
+        expect(validate<FloatLiterals>(1.5)).toEqual([]);
+        expect(validate<FloatLiterals>(2.5)).toEqual([]);
+        const intErrors = validate<FloatLiterals>(1);
+        expect(intErrors.length).toBe(1);
+        expect(intErrors[0].code).toBe('type');
+        const wrongFloatErrors = validate<FloatLiterals>(1.6);
+        expect(wrongFloatErrors.length).toBe(1);
+        expect(wrongFloatErrors[0].code).toBe('type');
+    });
+});
+
+describe('literal union - contexts', () => {
+    test('root level literal union (not wrapped in object)', () => {
+        // Direct use of literal union type at root level
+        type Status = 'active' | 'inactive' | 'pending';
+
+        // Valid values work
+        expect(serialize<Status>('active')).toBe('active');
+        expect(deserialize<Status>('pending')).toBe('pending');
+        expect(is<Status>('inactive')).toBe(true);
+
+        // Invalid values produce errors
+        expect(is<Status>('unknown')).toBe(false);
+        const errors = validate<Status>('unknown');
+        expect(errors.length).toBe(1);
+        expect(errors[0].path).toBe('');
+        expect(errors[0].code).toBe('type');
+        expect(errors[0].value).toBe('unknown');
+    });
+
+    test('arrays of literal unions', () => {
+        type Tags = ('a' | 'b' | 'c')[];
+
+        // Valid arrays work
+        expect(serialize<Tags>(['a', 'b'])).toEqual(['a', 'b']);
+        expect(deserialize<Tags>(['b', 'c', 'a'])).toEqual(['b', 'c', 'a']);
+        expect(is<Tags>(['a', 'c'])).toBe(true);
+
+        // Empty array is valid
+        expect(serialize<Tags>([])).toEqual([]);
+        expect(is<Tags>([])).toBe(true);
+
+        // Note: is() for arrays currently checks array type but may not deeply check elements
+        // Use validate() for full validation of array elements
+        const errors = validate<Tags>(['a', 'invalid', 'b']);
+        expect(errors.length).toBe(1);
+        expect(errors[0].path).toBe('1');
+        expect(errors[0].code).toBe('type');
+        expect(errors[0].value).toBe('invalid');
+    });
+
+    test('tuple with literal union', () => {
+        type NamedStatus = [string, 'active' | 'inactive'];
+
+        // Valid tuples work
+        expect(serialize<NamedStatus>(['item1', 'active'])).toEqual(['item1', 'active']);
+        expect(deserialize<NamedStatus>(['item2', 'inactive'])).toEqual(['item2', 'inactive']);
+        expect(is<NamedStatus>(['test', 'active'])).toBe(true);
+
+        // Invalid literal union element in tuple
+        expect(is<NamedStatus>(['test', 'unknown'])).toBe(false);
+        const errors = validate<NamedStatus>(['test', 'unknown']);
+        expect(errors.length).toBe(1);
+        expect(errors[0].path).toBe('1');
+        expect(errors[0].code).toBe('type');
+        expect(errors[0].value).toBe('unknown');
+    });
+
+    test('nested object property', () => {
+        type Config = { outer: { inner: 'a' | 'b' | 'c' } };
+
+        // Valid nested values work
+        expect(serialize<Config>({ outer: { inner: 'a' } })).toEqual({ outer: { inner: 'a' } });
+        expect(deserialize<Config>({ outer: { inner: 'b' } })).toEqual({ outer: { inner: 'b' } });
+        expect(is<Config>({ outer: { inner: 'c' } })).toBe(true);
+
+        // Invalid nested value produces error with correct path
+        expect(is<Config>({ outer: { inner: 'invalid' } })).toBe(false);
+        const errors = validate<Config>({ outer: { inner: 'invalid' } });
+        expect(errors.length).toBe(1);
+        expect(errors[0].path).toBe('outer.inner');
+        expect(errors[0].code).toBe('type');
+        expect(errors[0].value).toBe('invalid');
+    });
+
+    test('optional literal union property', () => {
+        type OptionalConfig = { prop?: 'x' | 'y' };
+
+        // Undefined/missing property is valid
+        expect(serialize<OptionalConfig>({})).toEqual({});
+        expect(deserialize<OptionalConfig>({})).toEqual({});
+        expect(is<OptionalConfig>({})).toBe(true);
+
+        // Valid values work
+        expect(serialize<OptionalConfig>({ prop: 'x' })).toEqual({ prop: 'x' });
+        expect(is<OptionalConfig>({ prop: 'y' })).toBe(true);
+
+        // Invalid value still produces error
+        expect(is<OptionalConfig>({ prop: 'invalid' as any })).toBe(false);
+        const errors = validate<OptionalConfig>({ prop: 'invalid' as any });
+        expect(errors.length).toBe(1);
+        expect(errors[0].path).toBe('prop');
+        expect(errors[0].code).toBe('type');
+        expect(errors[0].value).toBe('invalid');
+    });
+
+    test('multiple literal union properties in one object', () => {
+        type MultiUnion = {
+            status: 'active' | 'inactive';
+            priority: 1 | 2 | 3;
+            flag: true | false;
+        };
+
+        // All valid values work
+        expect(serialize<MultiUnion>({ status: 'active', priority: 1, flag: true })).toEqual({ status: 'active', priority: 1, flag: true });
+        expect(is<MultiUnion>({ status: 'inactive', priority: 3, flag: false })).toBe(true);
+
+        // Single invalid property
+        const errors1 = validate<MultiUnion>({ status: 'unknown' as any, priority: 1, flag: true });
+        expect(errors1.length).toBe(1);
+        expect(errors1[0].path).toBe('status');
+
+        // Multiple invalid properties produce multiple errors
+        const errors2 = validate<MultiUnion>({ status: 'unknown' as any, priority: 99 as any, flag: true });
+        expect(errors2.length).toBe(2);
+        const paths = errors2.map(e => e.path);
+        expect(paths).toContain('status');
+        expect(paths).toContain('priority');
+    });
+});
+
+describe('literal union - error messages', () => {
+    test('error path for nested property', () => {
+        type DeepConfig = { level1: { level2: { value: 'a' | 'b' } } };
+
+        const errors = validate<DeepConfig>({ level1: { level2: { value: 'invalid' } } });
+        expect(errors.length).toBe(1);
+        expect(errors[0].path).toBe('level1.level2.value');
+    });
+
+    test('error path for array element', () => {
+        type ArrayOfUnions = ('x' | 'y' | 'z')[];
+
+        // Error at first invalid element
+        const errors1 = validate<ArrayOfUnions>(['x', 'invalid', 'y']);
+        expect(errors1.length).toBe(1);
+        expect(errors1[0].path).toBe('1');
+
+        // Error at last element
+        const errors2 = validate<ArrayOfUnions>(['x', 'y', 'invalid']);
+        expect(errors2.length).toBe(1);
+        expect(errors2[0].path).toBe('2');
+
+        // Multiple invalid elements
+        const errors3 = validate<ArrayOfUnions>(['invalid1', 'x', 'invalid2']);
+        expect(errors3.length).toBe(2);
+        expect(errors3[0].path).toBe('0');
+        expect(errors3[1].path).toBe('2');
+    });
+
+    test('error message contains value with type (stringifyValueWithType format)', () => {
+        type Status = 'active' | 'inactive';
+
+        // String value - format is "Cannot convert string(value) to ..."
+        const errors1 = validate<Status>('unknown');
+        expect(errors1[0].message).toMatch(/Cannot convert string\(unknown\)/);
+
+        // Number value (wrong type entirely)
+        const errors2 = validate<Status>(123);
+        expect(errors2[0].message).toMatch(/Cannot convert number\(123\)/);
+
+        // Object value (wrong type entirely)
+        const errors3 = validate<Status>({});
+        expect(errors3[0].message).toMatch(/Cannot convert object/);
+
+        // Null value
+        const errors4 = validate<Status>(null);
+        expect(errors4[0].message).toMatch(/Cannot convert null/);
+
+        // Undefined value
+        const errors5 = validate<Status>(undefined);
+        expect(errors5[0].message).toMatch(/Cannot convert undefined/);
+    });
+
+    test('error includes actual value in error.value field', () => {
+        type Colors = 'red' | 'green' | 'blue';
+
+        // String value
+        const errors1 = validate<Colors>('purple');
+        expect(errors1[0].value).toBe('purple');
+
+        // Number value
+        const errors2 = validate<Colors>(42);
+        expect(errors2[0].value).toBe(42);
+
+        // Object value
+        const obj = { color: 'red' };
+        const errors3 = validate<Colors>(obj);
+        expect(errors3[0].value).toBe(obj);
+
+        // Nested property value
+        type Config = { color: 'red' | 'green' };
+        const errors4 = validate<Config>({ color: 'purple' });
+        expect(errors4[0].value).toBe('purple');
+    });
 });
