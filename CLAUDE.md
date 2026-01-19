@@ -371,6 +371,15 @@ concurrent subjects, error handling, and long-running subscriptions.
 3. **Update tests** for bug fixes (regression tests)
 4. **Consider edge cases** (null, undefined, unions, generics)
 
+**CRITICAL for type-compiler changes:** The type-compiler is the foundation of the entire framework. Changes to `packages/type-compiler/src/compiler.ts` affect all packages. Before committing ANY type-compiler change:
+
+```bash
+# MANDATORY: Run the full type test suite (1900+ tests)
+npm run tsc && node --expose-gc --max_old_space_size=3048 node_modules/jest/bin/jest.js --forceExit --no-cache "packages/type/"
+```
+
+Do NOT commit type-compiler changes based only on new test files you create - the existing test suite in `packages/type/` covers many edge cases for runtime type inference, generics, and conditional types that may not be obvious from isolated tests.
+
 ### Key Files
 
 | Area              | Key Files                                   |
