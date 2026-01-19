@@ -192,7 +192,6 @@ Issues affecting DX or edge cases.
 | [#492](https://github.com/deepkit/deepkit-framework/issues/492) | Deepkit Broker improvements | broker | 2024-05-22 |
 | [#488](https://github.com/deepkit/deepkit-framework/issues/488) | RPC with HTTP streams | rpc | 2023-10-11 |
 | [#439](https://github.com/deepkit/deepkit-framework/issues/439) | Better middleware handling | http | 2023-05-08 |
-| [#419](https://github.com/deepkit/deepkit-framework/issues/419) | Support for CUID and NanoId | type | 2023-03-07 |
 | [#390](https://github.com/deepkit/deepkit-framework/issues/390) | Simpler query for simple updates | orm | 2022-12-02 |
 | [#380](https://github.com/deepkit/deepkit-framework/issues/380) | Babel plugin for type-compiler | type-compiler | 2022-09-26 |
 
@@ -284,7 +283,8 @@ Issues discovered through codebase analysis (not from GitHub).
 
 | Issue | Title | Completed | PR/Commit |
 |-------|-------|-----------|-----------|
-| [#441](https://github.com/deepkit/deepkit-framework/issues/441) | CORS support | 2026-01-19 | - |
+| [#419](https://github.com/deepkit/deepkit-framework/issues/419) | NanoId type support | 2026-01-20 | 3d805f79 |
+| [#441](https://github.com/deepkit/deepkit-framework/issues/441) | CORS support | 2026-01-19 | 20d892ca |
 | [#682](https://github.com/deepkit/deepkit-framework/issues/682) | remove const enum everywhere | 2025-11-29 | [#683](https://github.com/deepkit/deepkit-framework/pull/683) |
 | [#614](https://github.com/deepkit/deepkit-framework/issues/614) | HttpQuery validator expression leaks | 2025-02-15 | 4d1a13ec |
 | [#612](https://github.com/deepkit/deepkit-framework/issues/612) | Optional chaining SyntaxError | 2026-01-16 | 02c2a6c9 |
