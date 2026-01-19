@@ -37,48 +37,46 @@ export function findFaker(types: FakerTypes, propertyName: string, type: Type): 
 
         return 'date.future';
     } else if (type.kind === ReflectionKind.number || type.kind === ReflectionKind.bigint) {
-        return findFakerForName(types, name, 'number') || 'random.number';
+        return findFakerForName(types, name, 'number') || 'number.int';
     } else if (type.kind === ReflectionKind.boolean) {
-        return 'random.boolean';
+        return 'datatype.boolean';
     } else if (type.kind === ReflectionKind.string) {
-        if (name.includes('first')) return 'name.firstName';
-        if (name.includes('last')) return 'name.lastName';
+        if (name.includes('first')) return 'person.firstName';
+        if (name.includes('last')) return 'person.lastName';
         if (name.includes('iban')) return 'finance.iban';
         if (name.includes('bic')) return 'finance.bic';
-        if (name.includes('name')) return 'internet.userName';
-        if (name.includes('image')) return 'image.imageUrl';
-        if (name.includes('mobile')) return 'phone.phoneNumber';
-        if (name.includes('phone')) return 'phone.phoneNumber';
+        if (name.includes('name')) return 'internet.username';
+        if (name.includes('image')) return 'image.url';
+        if (name.includes('mobile')) return 'phone.number';
+        if (name.includes('phone')) return 'phone.number';
 
-        return findFakerForName(types, name, 'string') || 'random.alphaNumeric';
+        return findFakerForName(types, name, 'string') || 'string.alphanumeric';
     }
 
     return '';
 }
 
+// @faker-js/faker v8 API
+// Migration: https://v8.fakerjs.dev/guide/upgrading.html
 export const fakerFunctions: string[] = [
-    'address.zipCode',
-    // 'address.zipCodeByState',
-    'address.city',
-    'address.cityPrefix',
-    'address.citySuffix',
-    'address.streetName',
-    'address.streetAddress',
-    'address.streetSuffix',
-    'address.streetPrefix',
-    'address.secondaryAddress',
-    'address.county',
-    'address.country',
-    'address.countryCode',
-    'address.state',
-    'address.stateAbbr',
-    'address.latitude',
-    'address.direction',
-    'address.cardinalDirection',
-    'address.ordinalDirection',
-    // 'address.nearbyGPSCoordinate',
-    'address.timeZone',
-    'commerce.color',
+    // location (was address)
+    'location.zipCode',
+    'location.city',
+    'location.streetAddress',
+    'location.secondaryAddress',
+    'location.county',
+    'location.country',
+    'location.countryCode',
+    'location.state',
+    'location.latitude',
+    'location.longitude',
+    'location.direction',
+    'location.cardinalDirection',
+    'location.ordinalDirection',
+    'location.timeZone',
+    // color (was commerce.color)
+    'color.human',
+    // commerce
     'commerce.department',
     'commerce.productName',
     'commerce.price',
@@ -86,33 +84,30 @@ export const fakerFunctions: string[] = [
     'commerce.productMaterial',
     'commerce.product',
     'commerce.productDescription',
-    'company.suffixes',
-    'company.companyName',
-    'company.companySuffix',
+    // company
+    'company.name',
     'company.catchPhrase',
-    'company.bs',
-    'company.catchPhraseAdjective',
-    'company.catchPhraseDescriptor',
-    'company.catchPhraseNoun',
-    'company.bsAdjective',
-    'company.bsBuzz',
-    'company.bsNoun',
+    'company.buzzPhrase',
+    'company.buzzAdjective',
+    'company.buzzNoun',
+    'company.buzzVerb',
+    // database
     'database.column',
     'database.type',
     'database.collation',
     'database.engine',
+    // date
     'date.past',
     'date.future',
-    'date.between',
-    'date.betweens',
     'date.recent',
     'date.soon',
     'date.month',
     'date.weekday',
-    'finance.account',
+    // finance
+    'finance.accountNumber',
     'finance.accountName',
     'finance.routingNumber',
-    'finance.mask',
+    'finance.maskedNumber',
     'finance.amount',
     'finance.transactionType',
     'finance.currencyCode',
@@ -126,38 +121,29 @@ export const fakerFunctions: string[] = [
     'finance.iban',
     'finance.bic',
     'finance.transactionDescription',
+    // git
     'git.branch',
     'git.commitEntry',
     'git.commitMessage',
     'git.commitSha',
-    'git.shortSha',
+    // hacker
     'hacker.abbreviation',
     'hacker.adjective',
     'hacker.noun',
     'hacker.verb',
     'hacker.ingverb',
     'hacker.phrase',
-    'image.image',
-    // 'image.avatar', //many generated links are 403
-    'image.imageUrl',
-    'image.abstract',
-    'image.animals',
-    'image.business',
-    'image.cats',
-    'image.city',
-    'image.food',
-    'image.nightlife',
-    'image.fashion',
-    'image.people',
-    'image.nature',
-    'image.sports',
-    'image.technics',
-    'image.transport',
+    // image
+    'image.url',
+    'image.urlLoremFlickr',
+    'image.urlPicsumPhotos',
     'image.dataUri',
-    'internet.avatar',
+    'image.avatar',
+    // internet
     'internet.email',
     'internet.exampleEmail',
-    'internet.userName',
+    'internet.username',
+    'internet.displayName',
     'internet.protocol',
     'internet.httpMethod',
     'internet.url',
@@ -165,12 +151,14 @@ export const fakerFunctions: string[] = [
     'internet.domainSuffix',
     'internet.domainWord',
     'internet.ip',
+    'internet.ipv4',
     'internet.ipv6',
     'internet.port',
     'internet.userAgent',
     'internet.color',
     'internet.mac',
     'internet.password',
+    // lorem
     'lorem.word',
     'lorem.words',
     'lorem.sentence',
@@ -180,36 +168,40 @@ export const fakerFunctions: string[] = [
     'lorem.paragraphs',
     'lorem.text',
     'lorem.lines',
+    // music
     'music.genre',
-    'name.firstName',
-    'name.lastName',
-    'name.middleName',
-    'name.findName',
-    'name.jobTitle',
-    'name.gender',
-    'name.prefix',
-    'name.suffix',
-    'name.title',
-    'name.jobDescriptor',
-    'name.jobArea',
-    'name.jobType',
-    'phone.phoneNumber',
-    'phone.phoneNumberFormat',
-    'phone.phoneFormats',
-    'random.number',
-    'random.float',
-    'random.arrayElement',
-    'random.arrayElements',
-    'random.objectElement',
-    'random.uuid',
-    'random.boolean',
-    'random.word',
-    'random.words',
-    'random.image',
-    'random.locale',
-    'random.alpha',
-    'random.alphaNumeric',
-    'random.hexaDecimal',
+    'music.songName',
+    // person (was name)
+    'person.firstName',
+    'person.lastName',
+    'person.middleName',
+    'person.fullName',
+    'person.jobTitle',
+    'person.sex',
+    'person.prefix',
+    'person.suffix',
+    'person.jobDescriptor',
+    'person.jobArea',
+    'person.jobType',
+    // phone
+    'phone.number',
+    'phone.imei',
+    // number (was random.number/float)
+    'number.int',
+    'number.float',
+    // string (was random)
+    'string.uuid',
+    'string.alpha',
+    'string.alphanumeric',
+    'string.hexadecimal',
+    'string.numeric',
+    'string.sample',
+    // datatype
+    'datatype.boolean',
+    // helpers (was random)
+    'helpers.arrayElement',
+    'helpers.arrayElements',
+    // system
     'system.fileName',
     'system.commonFileName',
     'system.mimeType',
@@ -220,7 +212,7 @@ export const fakerFunctions: string[] = [
     'system.directoryPath',
     'system.filePath',
     'system.semver',
-    'time.recent',
+    // vehicle
     'vehicle.vehicle',
     'vehicle.manufacturer',
     'vehicle.model',
@@ -229,4 +221,14 @@ export const fakerFunctions: string[] = [
     'vehicle.vin',
     'vehicle.color',
     'vehicle.vrm',
+    // word
+    'word.adjective',
+    'word.adverb',
+    'word.conjunction',
+    'word.interjection',
+    'word.noun',
+    'word.preposition',
+    'word.verb',
+    'word.sample',
+    'word.words',
 ];

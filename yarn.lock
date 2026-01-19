@@ -3159,7 +3159,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deepkit/core@npm:^1.0.1, @deepkit/core@npm:^1.0.19, @deepkit/core@workspace:packages/core":
+"@deepkit/core@npm:^1.0.1, @deepkit/core@npm:^1.0.1-alpha.153, @deepkit/core@npm:^1.0.19, @deepkit/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@deepkit/core@workspace:packages/core"
   dependencies:
@@ -3531,15 +3531,14 @@ __metadata:
     "@deepkit/template": "npm:^1.0.19"
     "@deepkit/type": "npm:^1.0.19"
     "@deepkit/workflow": "npm:^1.0.19"
+    "@faker-js/faker": "npm:^8.4.1"
     "@types/clone": "npm:^0.1.30"
-    "@types/faker": "npm:^5.1.6"
     "@types/fs-extra": "npm:^9.0.1"
     "@types/mime-types": "npm:^2.1.3"
     "@types/node": "npm:^22.13.1"
     "@types/ws": "npm:^7.4.0"
     buffer: "npm:^5.2.1"
     compression: "npm:^1.7.4"
-    faker: "npm:5.4.0"
     fs-extra: "npm:^9.0.1"
     jimp: "npm:^1.6.0"
     md5: "npm:^2.2.1"
@@ -3878,6 +3877,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deepkit/run@workspace:packages/run"
   dependencies:
+    "@deepkit/type-compiler": "npm:^1.0.1-alpha.158"
     tsconfig-paths: "npm:^4.2.0"
     typescript: "npm:~5.8.3"
   languageName: unknown
@@ -3977,6 +3977,8 @@ __metadata:
 "@deepkit/topsort@npm:^1.0.19, @deepkit/topsort@workspace:packages/topsort":
   version: 0.0.0-use.local
   resolution: "@deepkit/topsort@workspace:packages/topsort"
+  dependencies:
+    "@deepkit/core": "npm:^1.0.1-alpha.153"
   languageName: unknown
   linkType: soft
 
@@ -3997,10 +3999,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deepkit/type-compiler@npm:^1.0.1, @deepkit/type-compiler@npm:^1.0.19, @deepkit/type-compiler@npm:^1.0.2, @deepkit/type-compiler@workspace:packages/type-compiler":
+"@deepkit/type-compiler@npm:^1.0.1, @deepkit/type-compiler@npm:^1.0.1-alpha.158, @deepkit/type-compiler@npm:^1.0.19, @deepkit/type-compiler@npm:^1.0.2, @deepkit/type-compiler@workspace:packages/type-compiler":
   version: 0.0.0-use.local
   resolution: "@deepkit/type-compiler@workspace:packages/type-compiler"
   dependencies:
+    "@deepkit/core": "npm:^1.0.19"
     "@deepkit/type-spec": "npm:^1.0.19"
     "@marcj/ts-clone-node": "npm:^2.0.0"
     "@rollup/pluginutils": "npm:^5.1.0"
@@ -4401,6 +4404,13 @@ __metadata:
   version: 0.25.5
   resolution: "@esbuild/win32-x64@npm:0.25.5"
   conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@faker-js/faker@npm:^8.4.1":
+  version: 8.4.1
+  resolution: "@faker-js/faker@npm:8.4.1"
+  checksum: 10c0/4f2aecddcfdc2cc8b50b2d15d1e37302a7c7a5bbd184ae910a9d271bc11248533ca74dcdd4a9ccbe20410553e7af0f6a4d334c5b955635e09a32ddf4a64942d4
   languageName: node
   linkType: hard
 
@@ -9141,13 +9151,6 @@ __metadata:
     "@types/qs": "npm:*"
     "@types/serve-static": "npm:*"
   checksum: 10c0/60490cd4f73085007247e7d4fafad0a7abdafa34fa3caba2757512564ca5e094ece7459f0f324030a63d513f967bb86579a8682af76ae2fd718e889b0a2a4fe8
-  languageName: node
-  linkType: hard
-
-"@types/faker@npm:^5.1.6":
-  version: 5.5.9
-  resolution: "@types/faker@npm:5.5.9"
-  checksum: 10c0/2c1e2de0709a9eab249904a3fdf69ad2b2a8233187b9547ee1a081ae25867382bae5f47bbc6fc80929fd8464564783b783e77d1196d0111cc3773e0343005c66
   languageName: node
   linkType: hard
 
@@ -14592,13 +14595,6 @@ __metadata:
   version: 1.4.1
   resolution: "extsprintf@npm:1.4.1"
   checksum: 10c0/e10e2769985d0e9b6c7199b053a9957589d02e84de42832c295798cb422a025e6d4a92e0259c1fb4d07090f5bfde6b55fd9f880ac5855bd61d775f8ab75a7ab0
-  languageName: node
-  linkType: hard
-
-"faker@npm:5.4.0":
-  version: 5.4.0
-  resolution: "faker@npm:5.4.0"
-  checksum: 10c0/9af664eac6f97d3eaeffe8cdb6e172f410d7675d0573c2cfc1baf794817adba6717014b4aec157e256451bb36a8f0e11efbc95795749b7641cbeaaa5128a54b7
   languageName: node
   linkType: hard
 
