@@ -92,11 +92,12 @@ import { ValidationError, ValidationErrorItem, validate } from './validator.js';
 import { validators } from './validators.js';
 
 /**
- * Threshold for optimizing unions with only literal members.
- * When a union has more than this many literal members, we use Set.has()
- * instead of generating individual if-else statements to avoid stack overflow.
+ * Threshold for optimizing unions with literal members.
+ * When a union has this many or more literal members, we use Set.has()
+ * instead of generating individual if-else statements for better performance.
+ * Set to 1 to ensure all pure literal unions validate values (fixes #478).
  */
-const UNION_LITERAL_THRESHOLD = 1000;
+const UNION_LITERAL_THRESHOLD = 1;
 
 /**
  * Make sure to change the id when a custom naming strategy is implemented, since caches are based on it.
@@ -2034,15 +2035,21 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
 
     typeGuards ||= state.registry.serializer.typeGuards;
 
-    // Optimization for large literal-only unions: use Set.has() instead of if-else chain
-    // This prevents stack overflow for unions with thousands of literal members (e.g., 86,400 seconds in a day)
+    // Optimization for pure literal unions: use Set.has() instead of if-else chain
+    // This improves performance and prevents stack overflow for unions with many literal members
+    // Works for all modes: validation, serialization, and deserialization
+    // For JSON, literals pass through unchanged after validation
+    // Note: BSON must provide its own union handler if type dispatch is needed for binary encoding
     const allLiterals = type.types.every(t => t.kind === ReflectionKind.literal);
-    if (allLiterals && type.types.length > UNION_LITERAL_THRESHOLD) {
+
+    if (allLiterals && type.types.length >= UNION_LITERAL_THRESHOLD) {
         const literalValues = type.types.map(t => (t as TypeLiteral).literal);
         const setVar = state.setVariable('_unionLiterals', new Set(literalValues));
 
-        state.setContext({ ValidationErrorItem });
-        const errorMessage = JSON.stringify('No valid union member found. Valid: ' + stringifyResolvedType(type));
+        // Check if all literals are numeric (for loose deserialization: '0' -> 0)
+        const allNumeric = literalValues.every(v => typeof v === 'number' || typeof v === 'bigint');
+
+        state.setContext({ ValidationErrorItem, stringifyValueWithType });
 
         if (state.isValidation()) {
             state.addCodeForSetter(`
@@ -2050,17 +2057,35 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
                     ${state.setter} = true;
                 } else {
                     ${state.setter} = false;
-                    if (state.errors) state.errors.push(new ValidationErrorItem(${collapsePath(state.path)}, 'type', ${errorMessage}, ${state.originalAccessor}));
+                    if (state.errors) state.errors.push(new ValidationErrorItem(${collapsePath(state.path)}, 'type', 'Cannot convert ' + stringifyValueWithType(${state.originalAccessor}) + ' to ' + ${JSON.stringify(stringifyResolvedType(type))}, ${state.originalAccessor}));
                 }
             `);
         } else {
-            state.addCodeForSetter(`
-                if (${setVar}.has(${state.accessor})) {
+            // Serialization/Deserialization: validate and pass through
+            // JSON literals don't need transformation - they pass through unchanged
+            // For deserialization with loosely=true and numeric literals, try coercing strings to numbers
+            if (allNumeric && state.target === 'deserialize') {
+                state.addCodeForSetter(`
+                    let _v = ${state.accessor};
+                    if (state.loosely !== false && typeof _v === 'string') {
+                        const _n = +_v;
+                        if (!isNaN(_n) && ${setVar}.has(_n)) {
+                            _v = _n;
+                        }
+                    }
+                    if (!${setVar}.has(_v)) {
+                        ${state.throwCode(type)}
+                    }
+                    ${state.setter} = _v;
+                `);
+            } else {
+                state.addCodeForSetter(`
+                    if (!${setVar}.has(${state.accessor})) {
+                        ${state.throwCode(type)}
+                    }
                     ${state.setter} = ${state.accessor};
-                } else {
-                    ${state.throwCode(type)}
-                }
-            `);
+                `);
+            }
         }
         return;
     }
@@ -2144,10 +2169,10 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
     // - If constraint errors were collected (code !== 'type'), show those specific errors
     // - If structural errors from the closest-matching object member exist (fewest errors), show those
     //   (e.g., missing property 'y' produces path='y', code='type', message='Not a number')
-    // - If only top-level type mismatch errors exist (code === 'type', path === ''), show generic "No valid union member found"
+    // - If only top-level type mismatch errors exist (code === 'type', path === ''), show "Cannot convert X to Y"
     // For object unions, _ueBestStart/_ueBestEnd track which errors came from the closest member
-    state.setContext({ ValidationErrorItem });
-    const unionErrorMessage = JSON.stringify('No valid union member found. Valid: ' + stringifyResolvedType(type));
+    state.setContext({ ValidationErrorItem, stringifyValueWithType });
+    const unionTypeString = JSON.stringify(stringifyResolvedType(type));
     const noMatchError = state.setter
         ? `
         if (state.errors) {
@@ -2173,11 +2198,11 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
                 }
             }
             if (state.errors.length === _uel) {
-                state.errors.push(new ValidationErrorItem(${collapsePath(state.path)}, 'type', ${unionErrorMessage}, ${state.originalAccessor}));
+                state.errors.push(new ValidationErrorItem(${collapsePath(state.path)}, 'type', 'Cannot convert ' + stringifyValueWithType(${state.originalAccessor}) + ' to ' + ${unionTypeString}, ${state.originalAccessor}));
             }
         }
     `
-        : `${state.assignValidationError('type', 'No valid union member found. Valid: ' + stringifyResolvedType(type))}`;
+        : `${state.assignValidationError('type', `Cannot convert ' + stringifyValueWithType(${state.originalAccessor}) + ' to ${stringifyResolvedType(type)}`)}`;
 
     state.addCodeForSetter(`
         {
