@@ -86,7 +86,7 @@ export type ReceiveType<T> = Packed<T> | ClassType<T> | Type;
 export function resolveReceiveType(
     type?: Packed | Type | Function | ClassType | AbstractClassType | ReflectionClass<any>,
 ): Type {
-    if (!type) throw new NoTypeReceived();
+    if (!type) throw new NoTypeReceived('resolveReceiveType called with undefined type');
     let typeFn: Function | undefined = undefined;
 
     if (isArray(type)) {
@@ -105,9 +105,7 @@ export function resolveReceiveType(
                 | ReflectionClass<any>
                 | undefined;
             if (!type) {
-                throw new Error(
-                    `No type resolved for ${String(typeFn)}. Circular import or no runtime type available.`,
-                );
+                throw new NoTypeReceived(`type reference ${String(typeFn)} returned undefined`);
             }
         }
     }
