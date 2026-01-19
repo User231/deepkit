@@ -13,6 +13,7 @@ import {
     FakerTypes,
     QueryResult,
     SeedDatabase,
+    faker,
     fakerFunctions,
     getType,
 } from '@deepkit/orm-browser-api';
@@ -110,7 +111,6 @@ export class OrmBrowserController implements BrowserControllerInterface {
     async getFakerTypes(): Promise<FakerTypes> {
         const res: FakerTypes = {};
 
-        const { faker } = require('@faker-js/faker');
         for (const fn of fakerFunctions) {
             const [p1, p2] = fn.split('.');
             try {
@@ -148,8 +148,6 @@ export class OrmBrowserController implements BrowserControllerInterface {
                 reference: EntityPropertySeedReference;
                 callback: (v: any) => any;
             }[] = [];
-
-            const { faker } = require('@faker-js/faker');
 
             function fakerValue(path: string, fakerName: string): any {
                 const [p1, p2] = fakerName.split('.');
