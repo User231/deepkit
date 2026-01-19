@@ -202,7 +202,6 @@ Issues affecting DX or edge cases.
 | Issue | Title | Created |
 |-------|-------|---------|
 | [#641](https://github.com/deepkit/deepkit-framework/issues/641) | Migrations guide for Nest users | 2025-04-02 |
-| [#593](https://github.com/deepkit/deepkit-framework/issues/593) | DeepkitLoader setup guide | 2024-07-08 |
 | [#591](https://github.com/deepkit/deepkit-framework/issues/591) | Better next() usage docs | 2024-07-06 |
 | [#583](https://github.com/deepkit/deepkit-framework/issues/583) | Next.js working setup example | 2025-04-03 |
 
@@ -316,6 +315,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#458](https://github.com/deepkit/deepkit-framework/issues/458) | Body parameter in separate file controller | already fixed | 0173239d |
 | [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | already fixed | - |
 | [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | already fixed | - |
+| [#593](https://github.com/deepkit/deepkit-framework/issues/593) | DeepkitLoader setup guide | 2026-01-19 | - |
 
 ---
 
