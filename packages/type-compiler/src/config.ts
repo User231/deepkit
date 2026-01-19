@@ -31,7 +31,7 @@ const defaultMergeStrategy = 'merge';
  * These are the values that can be in the tsconfig.json file.
  */
 export interface TsConfigJson {
-    extends?: string;
+    extends?: string | string[];
     compilerOptions?: any;
 
     reflection?: RawMode;
@@ -111,7 +111,7 @@ export interface ReflectionConfig {
 export interface CurrentConfig extends ReflectionConfig {
     compilerOptions: ts.CompilerOptions;
     mergeStrategy?: 'merge' | 'replace';
-    extends?: string;
+    extends?: string | string[];
 }
 
 export interface ResolvedConfig extends ReflectionConfig {
@@ -135,6 +135,15 @@ function ensureStringArray(value: any): string[] {
     if (Array.isArray(value)) return value.map(v => '' + v);
     if ('string' === typeof value) return [value];
     return [];
+}
+
+/**
+ * Normalize extends to an array for consistent handling.
+ * TypeScript 5.0+ supports extends as an array.
+ */
+function normalizeExtends(extends_: string | string[] | undefined): string[] {
+    if (!extends_) return [];
+    return Array.isArray(extends_) ? extends_ : [extends_];
 }
 
 export function parseRawMode(mode: RawMode): string[] | Mode {
@@ -289,15 +298,31 @@ export function getConfigResolver(
         let currentConfig = config;
         const seen = new Set<string>();
         seen.add(tsConfigPath);
-        //iterate through all configs (this.config.extends) until we have all reflection options found.
-        while (currentConfig.extends) {
-            const path = join(basePath, currentConfig.extends);
-            if (seen.has(path)) break;
-            seen.add(path);
-            const nextConfig = ts.readConfigFile(path, (path: string) => host.readFile(path));
-            if (!nextConfig) break;
-            basePath = dirname(path);
-            applyConfigValues(currentConfig, nextConfig.config, basePath);
+
+        // Iterate through all configs (this.config.extends) until we have all reflection options found.
+        // TypeScript 5.0+ supports extends as an array, so we use a queue to process all extends paths.
+        let extendsQueue = normalizeExtends(currentConfig.extends);
+
+        while (extendsQueue.length > 0) {
+            const extendPath = extendsQueue.shift()!;
+            const resolvedPath = isAbsolute(extendPath) ? extendPath : join(basePath, extendPath);
+
+            if (seen.has(resolvedPath)) continue;
+            seen.add(resolvedPath);
+
+            const nextConfig = ts.readConfigFile(resolvedPath, (path: string) => host.readFile(path));
+            if (!nextConfig || !nextConfig.config) continue;
+
+            const nextBasePath = dirname(resolvedPath);
+            applyConfigValues(currentConfig, nextConfig.config, nextBasePath);
+
+            // Queue additional extends from this config (process depth-first by adding to front)
+            const additionalExtends = normalizeExtends(nextConfig.config.extends);
+            for (let i = additionalExtends.length - 1; i >= 0; i--) {
+                const e = additionalExtends[i];
+                const additionalPath = isAbsolute(e) ? e : join(nextBasePath, e);
+                extendsQueue.unshift(additionalPath);
+            }
         }
     } else {
         throw new DeepkitError(
