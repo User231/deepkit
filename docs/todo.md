@@ -315,7 +315,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#458](https://github.com/deepkit/deepkit-framework/issues/458) | Body parameter in separate file controller | already fixed | 0173239d |
 | [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | already fixed | - |
 | [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | already fixed | - |
-| [#593](https://github.com/deepkit/deepkit-framework/issues/593) | DeepkitLoader setup guide | 2026-01-19 | - |
+| [#593](https://github.com/deepkit/deepkit-framework/issues/593) | DeepkitLoader setup guide | 2026-01-19 | 15f3060e |
 
 ---
 
