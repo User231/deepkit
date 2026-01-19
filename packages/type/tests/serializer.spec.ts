@@ -383,8 +383,8 @@ test('union loose string boolean', () => {
 });
 
 test('union loose number boolean', () => {
-    expect(() => cast<number | boolean>('a')).toThrow('Validation error for type');
-    expect(deserialize<number | boolean>('a')).toEqual(undefined);
+    expect(() => cast<number | boolean>('a')).toThrow('Cannot convert a to number | boolean');
+    expect(() => deserialize<number | boolean>('a')).toThrow('Cannot convert a to number | boolean');
     expect(cast<string | boolean>(1)).toEqual(true);
     expect(cast<number | boolean>(1)).toEqual(1);
     expect(cast<string | boolean>('1')).toEqual(true);
@@ -396,9 +396,9 @@ test('union loose number boolean', () => {
     expect(cast<number | boolean>(2)).toEqual(2);
     expect(cast<number | boolean>('2')).toEqual(2);
     expect(cast<number | boolean>('true')).toEqual(true);
-    expect(() => cast<number | boolean>('true', { loosely: false })).toThrow('Validation error for type');
-    expect(() => cast<number | boolean>('true2', { loosely: false })).toThrow('Validation error for type');
-    expect(deserialize<number | boolean>('true2')).toEqual(undefined);
+    expect(() => cast<number | boolean>('true', { loosely: false })).toThrow('Cannot convert true to number | boolean');
+    expect(() => cast<number | boolean>('true2', { loosely: false })).toThrow('Cannot convert true2 to number | boolean');
+    expect(() => deserialize<number | boolean>('true2')).toThrow('Cannot convert true2 to number | boolean');
 });
 
 test('union string date', () => {
@@ -492,7 +492,7 @@ test('union primitive and class', () => {
     expect(cast<number | User>('2')).toEqual(2);
     expect(cast<number | User>({ id: 23 })).toEqual({ id: 23 });
     expect(cast<number | User>({ id: 23 })).toBeInstanceOf(User);
-    expect(() => cast<number | User>('2asd')).toThrow('Validation error for type');
+    expect(() => cast<number | User>('2asd')).toThrow('Cannot convert 2asd to number | User');
 
     expect(serialize<number | User>(2)).toEqual(2);
     expect(serialize<number | User>({ id: 23 })).toEqual({ id: 23 });
@@ -2047,17 +2047,27 @@ describe('literal union - edge cases', () => {
     test('zero vs string zero (0 | "0" | 1 | "1")', () => {
         type ZeroStringZero = 0 | '0' | 1 | '1';
 
-        // All four distinct values work
+        // Serialize preserves exact types (no loose coercion)
         expect(serialize<ZeroStringZero>(0)).toBe(0);
         expect(serialize<ZeroStringZero>('0')).toBe('0');
         expect(serialize<ZeroStringZero>(1)).toBe(1);
         expect(serialize<ZeroStringZero>('1')).toBe('1');
-        expect(deserialize<ZeroStringZero>(0)).toBe(0);
-        expect(deserialize<ZeroStringZero>('0')).toBe('0');
-        expect(deserialize<ZeroStringZero>(1)).toBe(1);
-        expect(deserialize<ZeroStringZero>('1')).toBe('1');
 
-        // is() distinguishes correctly between number and string
+        // Deserialize with loosely=false preserves exact types
+        expect(deserialize<ZeroStringZero>(0, { loosely: false })).toBe(0);
+        expect(deserialize<ZeroStringZero>('0', { loosely: false })).toBe('0');
+        expect(deserialize<ZeroStringZero>(1, { loosely: false })).toBe(1);
+        expect(deserialize<ZeroStringZero>('1', { loosely: false })).toBe('1');
+
+        // Deserialize with loose coercion (default): strings may convert to numbers
+        // when a number literal in the union matches the string representation
+        expect(deserialize<ZeroStringZero>(0)).toBe(0);
+        expect(deserialize<ZeroStringZero>(1)).toBe(1);
+        // '0' and '1' are coerced to 0 and 1 by loose type guards
+        expect(deserialize<ZeroStringZero>('0')).toBe(0);
+        expect(deserialize<ZeroStringZero>('1')).toBe(1);
+
+        // is() distinguishes correctly between number and string (uses exact matching)
         expect(is<ZeroStringZero>(0)).toBe(true);
         expect(is<ZeroStringZero>('0')).toBe(true);
         expect(is<ZeroStringZero>(1)).toBe(true);

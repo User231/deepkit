@@ -95,9 +95,12 @@ import { validators } from './validators.js';
  * Threshold for optimizing unions with literal members.
  * When a union has this many or more literal members, we use Set.has()
  * instead of generating individual if-else statements for better performance.
- * Set to 1 to ensure all pure literal unions validate values (fixes #478).
+ * This prevents stack overflow for large unions (like template literal types with 86,400 members).
+ *
+ * For validation mode: Always use Set optimization (fast O(1) lookup)
+ * For serialize/deserialize mode: Use standard path for small unions to support custom handlers
  */
-const UNION_LITERAL_THRESHOLD = 1;
+const UNION_LITERAL_THRESHOLD = 50;
 
 /**
  * Make sure to change the id when a custom naming strategy is implemented, since caches are based on it.
@@ -2037,12 +2040,19 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
 
     // Optimization for pure literal unions: use Set.has() instead of if-else chain
     // This improves performance and prevents stack overflow for unions with many literal members
-    // Works for all modes: validation, serialization, and deserialization
-    // For JSON, literals pass through unchanged after validation
-    // Note: BSON must provide its own union handler if type dispatch is needed for binary encoding
+    //
+    // For VALIDATION mode: Always use Set optimization (fast O(1) lookup)
+    // For SERIALIZE/DESERIALIZE mode: Only use for very large unions to preserve custom handler support
+    //   - Small unions use standard path which calls executeTemplates for each literal
+    //   - Large unions (>= UNION_LITERAL_THRESHOLD) use Set optimization to prevent stack overflow
+    //
+    // Note: BSON provides its own union handler for proper type dispatch
     const allLiterals = type.types.every(t => t.kind === ReflectionKind.literal);
 
-    if (allLiterals && type.types.length >= UNION_LITERAL_THRESHOLD) {
+    // Use Set optimization for validation (always), or for large unions in serialize/deserialize
+    const useSetOptimization = allLiterals && (state.isValidation() || type.types.length >= UNION_LITERAL_THRESHOLD);
+
+    if (useSetOptimization) {
         const literalValues = type.types.map(t => (t as TypeLiteral).literal);
         const setVar = state.setVariable('_unionLiterals', new Set(literalValues));
 
@@ -2156,7 +2166,7 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
         }
     }
 
-    const handleErrors = state.setter
+    const handleErrors = state.isValidation()
         ? `
         if (state.errors) {
             ${state.setter} = false;
@@ -2173,7 +2183,7 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
     // For object unions, _ueBestStart/_ueBestEnd track which errors came from the closest member
     state.setContext({ ValidationErrorItem, stringifyValueWithType });
     const unionTypeString = JSON.stringify(stringifyResolvedType(type));
-    const noMatchError = state.setter
+    const noMatchError = state.isValidation()
         ? `
         if (state.errors) {
             const _uel = state.errors.length;
@@ -2202,7 +2212,7 @@ export function handleUnion(type: TypeUnion, state: TemplateState, typeGuards?: 
             }
         }
     `
-        : `${state.assignValidationError('type', `Cannot convert ' + stringifyValueWithType(${state.originalAccessor}) + ' to ${stringifyResolvedType(type)}`)}`;
+        : `${state.throwCode(type)}`;
 
     state.addCodeForSetter(`
         {

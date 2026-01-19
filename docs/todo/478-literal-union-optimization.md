@@ -11,19 +11,26 @@ All work completed including comprehensive test coverage.
 ### 1. Performance Fix (Original Issue)
 - Set-based O(1) optimization for pure literal unions
 - Prevents stack overflow for unions with 86,400+ members
-- Threshold changed from 5 to 1 (ALL literal unions use optimization)
+- Threshold: 50 members for serialize/deserialize, always for validation
 
 ### 2. Validation Consistency Fix
-- Both small and large literal unions now validate during serialize/deserialize
-- No more silent pass-through of invalid values
+- All literal unions now validate during serialize/deserialize
+- Invalid values throw errors instead of silently passing through
+- Fixed `handleUnion` to use `isValidation()` check instead of `state.setter` check
 
-### 3. BSON Error Message Improvements
+### 3. Custom Handler Support Preserved
+- Small unions (< 50 members) use standard path for serialize/deserialize
+- This allows custom serializer handlers to be called for literals
+- Large unions use Set optimization to prevent stack overflow
+
+### 4. BSON Error Message Improvements
 - Added `value` parameter to ValidationError.from() calls
 - Use `stringifyValueWithType()` for clearer error messages
 - Format: `Cannot convert "hello" (string) to 'a' | 'b'`
 
-### 4. Loose Deserialization Support
+### 5. Loose Deserialization Support
 - String-to-number coercion for numeric literal unions when `{ loosely: true }`
+- For unions like `0 | '0'`, strings may be coerced to numbers with loose mode
 
 ---
 
@@ -66,7 +73,7 @@ Tests:       331 passed, 331 total
 ## Files Modified
 
 ### Source Files
-- `packages/type/src/serializer.ts` - Set optimization, threshold=1, loose coercion
+- `packages/type/src/serializer.ts` - Set optimization, threshold=50, loose coercion, isValidation() fix
 - `packages/bson/src/bson-serializer.ts` - BSON union handlers, error improvements
 
 ### Test Files
