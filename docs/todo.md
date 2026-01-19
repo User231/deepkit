@@ -176,13 +176,7 @@ Issues affecting DX or edge cases.
 
 | Issue | Title | Package | Created |
 |-------|-------|---------|---------|
-| [#664](https://github.com/deepkit/deepkit-framework/issues/664) | function __types should be hoisted? | type-compiler | 2025-08-11 |
-| [#634](https://github.com/deepkit/deepkit-framework/issues/634) | Named re-exports missing type representations | type-compiler | 2025-03-09 |
-| [#601](https://github.com/deepkit/deepkit-framework/issues/601) | exclude declare statements | type-compiler | 2024-07-11 |
-| [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | type-compiler | 2024-11-12 |
 | [#562](https://github.com/deepkit/deepkit-framework/issues/562) | serialize<T> circular import error | type | 2024-05-03 |
-| [#555](https://github.com/deepkit/deepkit-framework/issues/555) | No valid runtime type for external imports | type-compiler | 2024-02-16 |
-| [#509](https://github.com/deepkit/deepkit-framework/issues/509) | Node InferType did not pass test 'isEntityName' | type-compiler | 2025-05-02 |
 | [#458](https://github.com/deepkit/deepkit-framework/issues/458) | Body parameter in separate file controller | http | 2023-10-04 |
 | [#456](https://github.com/deepkit/deepkit-framework/issues/456) | Receive types in Vite from other file | type-compiler | 2023-06-13 |
 | [#395](https://github.com/deepkit/deepkit-framework/issues/395) | custom identifier in crud routes | orm | 2023-04-13 |
@@ -313,6 +307,12 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#478](https://github.com/deepkit/deepkit-framework/issues/478) | deserialize maximum call stack exceeded | 2026-01-18 | 2a41820e |
 | [#524](https://github.com/deepkit/deepkit-framework/issues/524) | conditional type inference unexpected | 2026-01-19 | - |
 | [#508](https://github.com/deepkit/deepkit-framework/issues/508) | Improve error "No valid runtime type" | 2026-01-19 | - |
+| [#664](https://github.com/deepkit/deepkit-framework/issues/664) | function __types should be hoisted | 2026-01-19 | 3d09fa28 |
+| [#634](https://github.com/deepkit/deepkit-framework/issues/634) | Named re-exports missing type representations | 2026-01-19 | 366ccdd2 |
+| [#601](https://github.com/deepkit/deepkit-framework/issues/601) | exclude declare statements | 2026-01-19 | 3d09fa28 |
+| [#555](https://github.com/deepkit/deepkit-framework/issues/555) | No valid runtime type for external imports | 2026-01-19 | 1eba2ba1 |
+| [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | 2026-01-19 | a554c90f |
+| [#509](https://github.com/deepkit/deepkit-framework/issues/509) | Node InferType did not pass test 'isEntityName' | 2026-01-19 | d70356d6 |
 | [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | already fixed | - |
 | [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | already fixed | - |
 
