@@ -519,6 +519,12 @@ export class ReflectionTransformer implements CustomTransformer {
     protected addImports: { importDeclaration: ImportDeclaration | JSDocImportTag; identifier: Identifier }[] = [];
     protected additionalImports = new Map<ImportDeclaration | JSDocImportTag, Statement>();
 
+    /**
+     * Module-level function __type assignments that should be hoisted to the top of the file.
+     * This allows ReflectionFunction.from(fn) to work when called before the function declaration.
+     */
+    protected functionTypeAssignments: Statement[] = [];
+
     protected nodeConverter: NodeConverter;
     protected typeChecker?: TypeChecker;
     protected resolver: Resolver;
@@ -699,6 +705,8 @@ export class ReflectionTransformer implements CustomTransformer {
         }
 
         const visitor = (node: Node): any => {
+            // Capture parent before transformation since visitEachChild may create new nodes without parent references
+            const originalParent = node.parent;
             node = visitEachChild(node, visitor, this.context);
 
             // Handle chain continuations on our optional chain transformation.
@@ -799,7 +807,7 @@ export class ReflectionTransformer implements CustomTransformer {
             }
 
             if (isInterfaceDeclaration(node) || isTypeAliasDeclaration(node) || isEnumDeclaration(node)) {
-                if (this.isWithReflection(sourceFile, node)) {
+                if (!hasModifier(node, SyntaxKind.DeclareKeyword) && this.isWithReflection(sourceFile, node)) {
                     this.compileDeclarations.set(node, {
                         name: node.name,
                         sourceFile: this.sourceFile,
@@ -866,7 +874,7 @@ export class ReflectionTransformer implements CustomTransformer {
             } else if (isFunctionExpression(node)) {
                 return this.decorateFunctionExpression(this.injectResetΩ(node));
             } else if (isFunctionDeclaration(node)) {
-                return this.decorateFunctionDeclaration(this.injectResetΩ(node));
+                return this.decorateFunctionDeclaration(this.injectResetΩ(node), originalParent);
             } else if (isMethodDeclaration(node) || isConstructorDeclaration(node)) {
                 return this.injectResetΩ(node);
             } else if (isArrowFunction(node)) {
@@ -1212,6 +1220,12 @@ export class ReflectionTransformer implements CustomTransformer {
 
         if (this.tempResultIdentifier) {
             newTopStatements.push(this.f.createVariableStatement(undefined, this.f.createVariableDeclarationList([this.f.createVariableDeclaration(this.tempResultIdentifier, undefined, undefined, undefined)], ts.NodeFlags.None)));
+        }
+
+        // Add hoisted function __type assignments
+        // This allows ReflectionFunction.from(fn) to work when called before the function declaration
+        if (this.functionTypeAssignments.length > 0) {
+            newTopStatements.push(...this.functionTypeAssignments);
         }
 
         // we want to keep "use strict", or "use client", etc at the very top
@@ -2499,6 +2513,12 @@ export class ReflectionTransformer implements CustomTransformer {
                         }
                     } else {
                         //it's a reference type inside the same file. Make sure its type is reflected
+                        // Skip declare statements - they have no implementation to compile
+                        if (hasModifier(declaration, SyntaxKind.DeclareKeyword)) {
+                            this.resolveTypeOnlyImport(typeName, program);
+                            return;
+                        }
+
                         const reflection = this.isWithReflection(program.sourceFile, declaration);
                         if (!reflection) {
                             this.resolveTypeOnlyImport(typeName, program);
@@ -2917,7 +2937,7 @@ export class ReflectionTransformer implements CustomTransformer {
      *
      * => function name() {}; name.__type = 34;
      */
-    protected decorateFunctionDeclaration(declaration: FunctionDeclaration) {
+    protected decorateFunctionDeclaration(declaration: FunctionDeclaration, originalParent?: Node) {
         const encodedType = this.getTypeOfType(declaration);
         if (!encodedType) return declaration;
 
@@ -2935,9 +2955,19 @@ export class ReflectionTransformer implements CustomTransformer {
             );
         }
 
-        const statements: Statement[] = [declaration];
-        statements.push(this.f.createExpressionStatement(this.f.createAssignment(this.f.createPropertyAccessExpression(serializeEntityNameAsExpression(this.f, declaration.name), '__type'), encodedType)));
-        return statements;
+        const typeAssignment = this.f.createExpressionStatement(this.f.createAssignment(this.f.createPropertyAccessExpression(serializeEntityNameAsExpression(this.f, declaration.name), '__type'), encodedType));
+
+        // Check if this is a module-level function (parent is SourceFile)
+        // Module-level functions should have their __type assignment hoisted
+        // so that ReflectionFunction.from(fn) works when called before the declaration
+        // Use originalParent since the transformed node may not have parent reference set
+        if (originalParent && isSourceFile(originalParent)) {
+            this.functionTypeAssignments.push(typeAssignment);
+            return declaration;
+        }
+
+        // Block-scoped functions keep their __type assignment inline
+        return [declaration, typeAssignment];
     }
 
     /**
@@ -3014,7 +3044,7 @@ export class DeclarationTransformer extends ReflectionTransformer {
         const visitor = (node: Node): any => {
             node = visitEachChild(node, visitor, this.context);
 
-            if ((isTypeAliasDeclaration(node) || isInterfaceDeclaration(node) || isEnumDeclaration(node)) && hasModifier(node, SyntaxKind.ExportKeyword)) {
+            if ((isTypeAliasDeclaration(node) || isInterfaceDeclaration(node) || isEnumDeclaration(node)) && hasModifier(node, SyntaxKind.ExportKeyword) && !hasModifier(node, SyntaxKind.DeclareKeyword)) {
                 const reflection = this.isWithReflection(sourceFile, node);
                 if (reflection) {
                     this.addExports.push({ identifier: getIdentifierName(this.getDeclarationVariableName(node.name)) });
