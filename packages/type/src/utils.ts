@@ -64,6 +64,27 @@ export function stringifyUuid(buffer: Uint8Array, offset: number = 0): string {
     return stringify(buffer, offset);
 }
 
+/**
+ * URL-safe alphabet for nanoid.
+ * Contains: A-Z, a-z, 0-9, _, -
+ */
+const nanoidAlphabet = 'useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict';
+
+/**
+ * Returns a new NanoId as string.
+ * Default size is 21 characters.
+ *
+ * Uses crypto.getRandomValues for secure random generation.
+ */
+export function nanoid(size: number = 21): string {
+    const bytes = crypto.getRandomValues(new Uint8Array(size));
+    let id = '';
+    for (let i = 0; i < size; i++) {
+        id += nanoidAlphabet[bytes[i] & 63];
+    }
+    return id;
+}
+
 export type Binary =
     | ArrayBuffer
     | Uint8Array

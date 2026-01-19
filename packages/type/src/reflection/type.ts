@@ -1760,6 +1760,19 @@ export type UUID = string & TypeAnnotation<'UUIDv4'>;
 export type MongoId = string & TypeAnnotation<'mongoId'>;
 
 /**
+ * NanoId, a URL-friendly unique identifier as string.
+ * Default length is 21 characters using URL-safe alphabet.
+ * Use `nanoid()` as handy initializer.
+ *
+ * ```typescript
+ * class Entity {
+ *     id: NanoId & PrimaryKey = nanoid();
+ * }
+ * ```
+ */
+export type NanoId = string & TypeAnnotation<'nanoid'>;
+
+/**
  * Same as `bigint` but serializes to unsigned binary with unlimited size (instead of 8 bytes in most databases).
  * Negative values will be converted to positive (abs(x)).
  *
@@ -1851,6 +1864,7 @@ export const validationAnnotation = new AnnotationDefinition<{ name: string; arg
 export const UUIDAnnotation = new AnnotationDefinition('UUID');
 export const mongoIdAnnotation = new AnnotationDefinition('mongoID');
 export const uuidAnnotation = new AnnotationDefinition('uuid');
+export const nanoidAnnotation = new AnnotationDefinition('nanoid');
 export const defaultAnnotation = new AnnotationDefinition<Type>('default');
 
 export function isUUIDType(type: Type): boolean {
@@ -1867,6 +1881,10 @@ export function isAutoIncrementType(type: Type): boolean {
 
 export function isMongoIdType(type: Type): boolean {
     return mongoIdAnnotation.getFirst(type) !== undefined;
+}
+
+export function isNanoIdType(type: Type): boolean {
+    return nanoidAnnotation.getFirst(type) !== undefined;
 }
 
 export function isBinaryBigIntType(type: Type): boolean {
@@ -2256,6 +2274,9 @@ export const typeDecorators: TypeDecorator[] = [
                 return true;
             case 'UUIDv4':
                 uuidAnnotation.register(annotations, true);
+                return true;
+            case 'nanoid':
+                nanoidAnnotation.register(annotations, true);
                 return true;
             case 'embedded': {
                 const optionsType = meta.options;

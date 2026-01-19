@@ -73,6 +73,7 @@ import {
     isBackReferenceType,
     isCustomTypeClass,
     isMongoIdType,
+    isNanoIdType,
     isNullable,
     isOptional,
     isPropertyMemberType,
@@ -2435,6 +2436,14 @@ export class Serializer {
             `);
         });
 
+        this.deserializeRegistry.addDecorator(isNanoIdType, (type, state) => {
+            // NanoId: 21 chars, URL-safe alphabet (A-Za-z0-9_-)
+            const v = state.accessor;
+            state.addCode(`
+                if (${v}.length !== 21) ${state.throwCode(type, JSON.stringify('Not a valid NanoId'))}
+            `);
+        });
+
         this.serializeRegistry.register(ReflectionKind.templateLiteral, (type, state) =>
             state.addSetter(state.accessor),
         );
@@ -2667,6 +2676,13 @@ export class Serializer {
                 'type',
                 'Not a MongoId (ObjectId)',
                 `${state.setter} && (${state.originalAccessor}.length === 24 || ${state.originalAccessor}.length === 0)`,
+            );
+        });
+        this.typeGuards.getRegistry(1).addDecorator(isNanoIdType, (type, state) => {
+            state.addSetterAndReportErrorIfInvalid(
+                'type',
+                'Not a valid NanoId',
+                `${state.setter} && ${state.originalAccessor}.length === 21`,
             );
         });
         this.typeGuards.register(50, ReflectionKind.string, (type, state) =>
