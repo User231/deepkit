@@ -1,6 +1,7 @@
 import { expect, test } from '@jest/globals';
-import { HttpRequest, HttpResponse, incomingMessageToHttpRequest, serverResponseToHttpResponse } from '../src/model.js';
 import { ServerResponse } from 'http';
+
+import { HttpRequest, HttpResponse, incomingMessageToHttpRequest, serverResponseToHttpResponse } from '../src/model.js';
 
 test('request model json', async () => {
     const request = HttpRequest.POST('/').json({ hello: 'world' }).build();
@@ -15,7 +16,7 @@ test('request model json', async () => {
 });
 
 test('request model body', async () => {
-    const request = HttpRequest.POST('/').body("hello").build();
+    const request = HttpRequest.POST('/').body('hello').build();
     const buffers = [];
 
     for await (const chunk of request) {

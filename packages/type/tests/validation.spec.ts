@@ -5,7 +5,7 @@ import { ReflectionClass, typeOf } from '../src/reflection/reflection.js';
 import { AutoIncrement, Excluded, Group, PrimaryKey, Type, Unique, integer } from '../src/reflection/type.js';
 import { cast, castFunction, validatedDeserialize } from '../src/serializer-facade.js';
 import { assert, is } from '../src/typeguard.js';
-import { Email, MaxLength, MinLength, Positive, Validate, ValidationErrorItem, ValidatorError, validate, validates } from '../src/validator.js';
+import { Email, MaxLength, MinLength, Positive, Validate, ValidationError, ValidationErrorItem, ValidatorError, validate, validates } from '../src/validator.js';
 
 test('primitives', () => {
     expect(validate<string>('Hello')).toEqual([]);
@@ -262,6 +262,14 @@ test('assert union', () => {
     expect(() => assert<'a' | 'b'>('a')).not.toThrow();
     expect(() => assert<'a' | 'b'>('b')).not.toThrow();
     expect(() => assert<'a' | 'b'>('c')).toThrow('Validation error');
+
+    // Verify error code for ValidationError
+    try {
+        assert<'a' | 'b'>('c');
+    } catch (error: any) {
+        expect(error).toBeInstanceOf(ValidationError);
+        expect(error.code).toBe('DK-T300'); // ValidationError error code
+    }
 });
 
 test('inline object', () => {
@@ -531,4 +539,15 @@ test('ValidationErrorItem.toString() handles circular references (#505)', () => 
     const errorString = errorItem.toString();
     expect(errorString).toContain('path(type): Not valid');
     expect(errorString).toContain('caused by value');
+});
+
+test('ValidationError has correct error code', () => {
+    // ValidationError should have error code DK-T300
+    const errors = [new ValidationErrorItem('field', 'type', 'Not valid')];
+    const validationError = new ValidationError(errors);
+
+    expect(validationError).toBeInstanceOf(ValidationError);
+    expect(validationError.code).toBe('DK-T300'); // ValidationError error code
+    expect(validationError.errors).toHaveLength(1);
+    expect(validationError.errors[0].path).toBe('field');
 });

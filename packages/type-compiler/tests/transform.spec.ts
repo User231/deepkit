@@ -1,17 +1,24 @@
-import * as ts from 'typescript';
-import { createSourceFile, ScriptKind, ScriptTarget } from 'typescript';
 import { expect, test } from '@jest/globals';
+import * as ts from 'typescript';
+import { ScriptKind, ScriptTarget, createSourceFile } from 'typescript';
+
 import { ReflectionTransformer } from '../src/compiler.js';
 import { transform } from './utils.js';
 
 test('transform simple TS', () => {
-    const sourceFile = createSourceFile('app.ts', `
+    const sourceFile = createSourceFile(
+        'app.ts',
+        `
         import { Logger } from './logger.js';
 
         function fn(logger: Logger) {}
-    `, ScriptTarget.ESNext, undefined, ScriptKind.TS);
+    `,
+        ScriptTarget.ESNext,
+        undefined,
+        ScriptKind.TS,
+    );
 
-    const res = ts.transform(sourceFile, [(context) => (node) => new ReflectionTransformer(context).withReflection({reflection: 'default'}).transformSourceFile(node)]);
+    const res = ts.transform(sourceFile, [context => node => new ReflectionTransformer(context).withReflection({ reflection: 'default' }).transformSourceFile(node)]);
     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
     const code = printer.printNode(ts.EmitHint.SourceFile, res.transformed[0], res.transformed[0]);
 
@@ -19,15 +26,21 @@ test('transform simple TS', () => {
 });
 
 test('transform simple JS', () => {
-    const sourceFile = createSourceFile('app.ts', `
+    const sourceFile = createSourceFile(
+        'app.ts',
+        `
         import { Logger } from './logger.js';
         const a = (v) => {
             return v + 1;
         }
         function fn(logger) {}
-    `, ScriptTarget.ESNext, undefined, ScriptKind.JS);
+    `,
+        ScriptTarget.ESNext,
+        undefined,
+        ScriptKind.JS,
+    );
 
-    const res = ts.transform(sourceFile, [(context) => (node) => new ReflectionTransformer(context).withReflection({reflection: 'default'}).transformSourceFile(node)]);
+    const res = ts.transform(sourceFile, [context => node => new ReflectionTransformer(context).withReflection({ reflection: 'default' }).transformSourceFile(node)]);
     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
     const code = printer.printNode(ts.EmitHint.SourceFile, res.transformed[0], res.transformed[0]);
 
@@ -41,11 +54,11 @@ test('transform util', () => {
 
 test('resolve import ts', () => {
     const res = transform({
-        'app': `
+        app: `
             import { Logger } from './logger.js';
             function fn(logger: Logger) {}
         `,
-        'logger': `export class Logger {}`
+        logger: `export class Logger {}`,
     });
 
     expect(res.app).toContain('() => Logger');
@@ -54,11 +67,11 @@ test('resolve import ts', () => {
 
 test('resolve import d.ts', () => {
     const res = transform({
-        'app': `
+        app: `
             import { Logger } from './logger.js';
             function fn(logger: Logger) {}
         `,
-        'logger.d.ts': `export declare class Logger {}`
+        'logger.d.ts': `export declare class Logger {}`,
     });
 
     expect(res.app).toContain('() => Logger');
@@ -66,11 +79,11 @@ test('resolve import d.ts', () => {
 
 test('resolve import node_modules', () => {
     const res = transform({
-        'app': `
+        app: `
             import { Logger } from 'logger';
             function fn(logger: Logger) {}
         `,
-        'node_modules/logger/index.d.ts': `export declare class Logger {}`
+        'node_modules/logger/index.d.ts': `export declare class Logger {}`,
     });
 
     expect(res.app).toContain('() => Logger');
@@ -78,12 +91,12 @@ test('resolve import node_modules', () => {
 
 test('pass type argument named function', () => {
     const res = transform({
-        'app': `
+        app: `
             function getType<T>(type?: ReceiveType<T>) {
             }
 
             getType<string>();
-        `
+        `,
     });
 
     expect(res.app).toContain(`(getType.Ω = `);
@@ -92,9 +105,9 @@ test('pass type argument named function', () => {
 
 test('pass type argument arrow function', () => {
     const res = transform({
-        'app': `
+        app: `
             (<T>(type?: ReceiveType<T>) => {})<string>();
-        `
+        `,
     });
 
     // compiles, but type does not receive anything
@@ -103,10 +116,10 @@ test('pass type argument arrow function', () => {
 
 test('globals', () => {
     const res = transform({
-        'app': `
+        app: `
             interface User {}
             export type a = Partial<User>;
-        `
+        `,
     });
 
     //we just make sure the global was detected and embedded
@@ -116,9 +129,9 @@ test('globals', () => {
 
 test('class expression', () => {
     const res = transform({
-        'app': `
+        app: `
             const a = class {};
-        `
+        `,
     });
 
     expect(res.app).toContain('static __type = [');
@@ -126,11 +139,11 @@ test('class expression', () => {
 
 test('export default function', () => {
     const res = transform({
-        'app': `
+        app: `
             export default function(bar: string) {
                 return bar;
             }
-        `
+        `,
     });
 
     expect(res.app).toContain('export default __assignType(function (bar: string');
@@ -138,11 +151,11 @@ test('export default function', () => {
 
 test('export default async function', () => {
     const res = transform({
-        'app': `
+        app: `
             export default async function(bar: string) {
                 return bar;
             }
-        `
+        `,
     });
 
     expect(res.app).toContain('export default __assignType(async function (bar: string');
@@ -150,14 +163,14 @@ test('export default async function', () => {
 
 test('default function name', () => {
     const res = transform({
-        'app': `
+        app: `
             const a = {
                 default(val: any): any {
                     console.log('default',val)
                     return 'default'
                 }
             };
-        `
+        `,
     });
 
     //`function default(` is invalid syntax.
@@ -175,10 +188,10 @@ test('declaration file', () => {
         'types.d.ts': `
             export type T = string;
             export type __ΩT = any[];
-        `
+        `,
     });
 
-    expect(res['app.ts']).toContain('import { __ΩT } from \'./types');
+    expect(res['app.ts']).toContain("import { __ΩT } from './types");
 });
 
 test('declaration file resolved export all', () => {
@@ -198,7 +211,7 @@ test('declaration file resolved export all', () => {
             export type T2 = string;
             export type __ΩT = any[];
             export type __ΩT2 = any[];
-        `
+        `,
     });
 
     // It's important to not put the __ΩT import before other imports
@@ -218,7 +231,7 @@ test('import typeOnly interface', () => {
         'module.d.ts': `
             export interface Cache {
             }
-        `
+        `,
     });
 
     //make sure OP.typeName with its type name is emitted
@@ -234,13 +247,12 @@ test('import typeOnly class', () => {
         'module.d.ts': `
             export declare class Cache {
             }
-        `
+        `,
     });
 
     //make sure OP.typeName with its type name is emitted
     expect(res['app.ts']).toContain(`['Cache',`);
 });
-
 
 test('reexport existing', () => {
     const res = transform({
@@ -255,7 +267,7 @@ test('reexport existing', () => {
         `,
         'class.ts': `
             export class Cache {}
-        `
+        `,
     });
 
     //make sure OP.typeName with its type name is emitted

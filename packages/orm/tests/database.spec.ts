@@ -4,6 +4,7 @@ import { PrimaryKey, ValidatorError, deserialize, entity, t, validate } from '@d
 
 import { Database } from '../src/database.js';
 import { MemoryDatabaseAdapter } from '../src/memory-db.js';
+import { DatabaseValidationError } from '../src/type.js';
 
 test('memory-db', async () => {
     function MinLength(minLength: number) {
@@ -33,6 +34,14 @@ test('memory-db', async () => {
 
     await database.persist(deserialize<s>({ id: 2, username: '123456' }));
     await expect(() => database.persist(deserialize<s>({ id: 2, username: '123' }))).rejects.toThrow('Validation error for class User:\nusername(length): Min length is 5');
+
+    // Verify error code for DatabaseValidationError
+    try {
+        await database.persist(deserialize<s>({ id: 5, username: '123' }));
+    } catch (error: any) {
+        expect(error).toBeInstanceOf(DatabaseValidationError);
+        expect(error.code).toBe('DK-O020'); // DatabaseValidationError error code
+    }
 
     await database.persist(deserialize<s>({ id: 3, username: 'Peter' }));
     await database.persist(deserialize<s>({ id: 4, username: 'JohnLong' }));

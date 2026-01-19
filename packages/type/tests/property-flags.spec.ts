@@ -1,6 +1,7 @@
 import { expect, test } from '@jest/globals';
-import { assertType, integer, ReflectionKind } from '../src/reflection/type.js';
+
 import { ReflectionClass, typeOf } from '../src/reflection/reflection.js';
+import { ReflectionKind, assertType, integer } from '../src/reflection/type.js';
 import { expectEqualType } from './utils.js';
 
 interface User {
@@ -10,10 +11,7 @@ interface User {
     readonly postcode: string;
 }
 
-type PartialUser = Pick<
-    User,
-    'id' | 'name'
->;
+type PartialUser = Pick<User, 'id' | 'name'>;
 
 test('the optional modifier should be retained after a mapped type', () => {
     // This has always worked: checking the optional property on the original type
@@ -27,7 +25,7 @@ test('the optional modifier should be retained after a mapped type', () => {
     expect(partialReflectionClass.getProperty('name').isOptional()).toBe(true);
 });
 
-type Test = {name: User['name'], address: User['address']};
+type Test = { name: User['name']; address: User['address'] };
 type Username = User['name'];
 type Username2 = Test['name'];
 
@@ -47,13 +45,10 @@ test('the optional property should not carry over when a property is mapped (con
     assertType(username2, ReflectionKind.string);
 });
 
-type UserNestedType = Omit<Pick<
-    User,
-    'id' | 'name' | 'address'
->, 'id'>;
+type UserNestedType = Omit<Pick<User, 'id' | 'name' | 'address'>, 'id'>;
 
 test('nested mapped types should work', () => {
-    type Test = {name: User['name'], address: User['address']};
+    type Test = { name: User['name']; address: User['address'] };
     const test = typeOf<Test>();
     assertType(test, ReflectionKind.objectLiteral);
     assertType(test.types[0], ReflectionKind.propertySignature);
@@ -77,4 +72,3 @@ test('nested mapped types should work', () => {
     expect(type.types[1].optional).toBe(undefined);
     expect(type.types[1].readonly).toBe(true);
 });
-

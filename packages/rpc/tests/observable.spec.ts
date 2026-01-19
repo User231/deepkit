@@ -934,7 +934,7 @@ test('Error handling with active subscriptions', async () => {
 
     expect(values).toEqual(['before-error']);
     expect(caughtError).toBeInstanceOf(Error);
-    expect(caughtError?.message).toBe('Test error');
+    expect(caughtError?.message).toContain('Test error');
 });
 
 test('Long-running subscription survives multiple GC cycles', async () => {

@@ -1,6 +1,7 @@
 import { expect, test } from '@jest/globals';
+
 import { typeOf } from '../src/reflection/reflection.js';
-import { assertType, ReflectionKind, stringifyResolvedType } from '../src/reflection/type.js';
+import { ReflectionKind, assertType, stringifyResolvedType } from '../src/reflection/type.js';
 
 test('Capitalize', () => {
     type A = Capitalize<'hello world'>;

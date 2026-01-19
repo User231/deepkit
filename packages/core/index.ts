@@ -9,6 +9,7 @@
  */
 
 export * from './src/core.js';
+export * from './src/error.js';
 export * from './src/decorators.js';
 export * from './src/enum.js';
 export * from './src/timer.js';

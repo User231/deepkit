@@ -1,8 +1,10 @@
 import { expect, test } from '@jest/globals';
+
+import { getClassTypeFromInstance } from '@deepkit/core';
+import { PrimaryKey, Reference, ReflectionClass, serializer } from '@deepkit/type';
+
 import { BaseQuery, Formatter, getInstanceStateFromItem, getNormalizedPrimaryKey } from '../index.js';
 import { getReference } from '../src/reference.js';
-import { PrimaryKey, Reference, ReflectionClass, serializer } from '@deepkit/type';
-import { getClassTypeFromInstance } from '@deepkit/core';
 
 test('getNormalizedPrimaryKey', () => {
     class User {
@@ -27,8 +29,7 @@ test('original schema', () => {
     class User {
         id!: number & PrimaryKey;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     const ref = getReference(ReflectionClass.from(User), { id: 2 });

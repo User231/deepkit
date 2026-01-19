@@ -1,6 +1,7 @@
 import { expect, test } from '@jest/globals';
+
 import { typeOf } from '../../src/reflection/reflection';
-import { assertType, findMember, ReflectionKind, stringifyResolvedType } from '../../src/reflection/type';
+import { ReflectionKind, assertType, findMember, stringifyResolvedType } from '../../src/reflection/type';
 
 test('basics', () => {
     class A {

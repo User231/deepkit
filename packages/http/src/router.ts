@@ -7,29 +7,52 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { ClassType, CompilerContext, getClassName, isArray, isClass, urlJoin } from '@deepkit/core';
-import { entity, ReflectionClass, ReflectionFunction, ReflectionKind, ReflectionParameter, SerializationOptions, serializer, Serializer, Type, ValidationError } from '@deepkit/type';
-import { getActions, HttpAction, httpClass, HttpController, HttpDecorator } from './decorator.js';
-import { HttpRequest, HttpRequestPositionedParameters, HttpRequestQuery, HttpRequestResolvedParameters } from './model.js';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
-import { Logger, LoggerInterface } from '@deepkit/logger';
-import { HttpControllers } from './controllers.js';
-import { MiddlewareRegistry, MiddlewareRegistryEntry } from '@deepkit/app';
-import { HttpMiddlewareConfig, HttpMiddlewareFn } from './middleware.js';
-
 //@ts-ignore
 import qs from 'qs';
-import { HtmlResponse, JSONResponse, Redirect, Response } from './http.js';
-import { getRequestParserCodeForParameters, ParameterForRequestParser, parseRoutePathToRegex } from './request-parser.js';
-import { HttpConfig } from './module.config.js';
 
-export type RouteParameterResolverForInjector = ((injector: InjectorContext) => HttpRequestPositionedParameters | Promise<HttpRequestPositionedParameters>);
+import { MiddlewareRegistry, MiddlewareRegistryEntry } from '@deepkit/app';
+import { ClassType, CompilerContext, DeepkitError, getClassName, isArray, isClass, urlJoin } from '@deepkit/core';
+import { InjectorContext, InjectorModule } from '@deepkit/injector';
+import { Logger, LoggerInterface } from '@deepkit/logger';
+import {
+    ReflectionClass,
+    ReflectionFunction,
+    ReflectionKind,
+    ReflectionParameter,
+    SerializationOptions,
+    Serializer,
+    Type,
+    ValidationError,
+    entity,
+    serializer,
+} from '@deepkit/type';
+
+import { HttpControllers } from './controllers.js';
+import { HttpAction, HttpController, HttpDecorator, getActions, httpClass } from './decorator.js';
+import { HtmlResponse, JSONResponse, Redirect, Response } from './http.js';
+import { HttpMiddlewareConfig, HttpMiddlewareFn } from './middleware.js';
+import {
+    HttpRequest,
+    HttpRequestPositionedParameters,
+    HttpRequestQuery,
+    HttpRequestResolvedParameters,
+} from './model.js';
+import { HttpConfig } from './module.config.js';
+import {
+    ParameterForRequestParser,
+    getRequestParserCodeForParameters,
+    parseRoutePathToRegex,
+} from './request-parser.js';
+
+export type RouteParameterResolverForInjector = (
+    injector: InjectorContext,
+) => HttpRequestPositionedParameters | Promise<HttpRequestPositionedParameters>;
 
 interface ResolvedController {
     parameters: RouteParameterResolverForInjector;
     routeConfig: RouteConfig;
     uploadedFiles: { [name: string]: UploadedFile };
-    middlewares?: (injector: InjectorContext) => { fn: HttpMiddlewareFn, timeout?: number }[];
+    middlewares?: (injector: InjectorContext) => { fn: HttpMiddlewareFn; timeout?: number }[];
 }
 
 export const UploadedFileSymbol = Symbol('UploadedFile');
@@ -75,7 +98,11 @@ export class UploadedFile {
 
 serializer.typeGuards.getRegistry(1).registerClass(UploadedFile, (type, state) => {
     state.setContext({ UploadedFileSymbol });
-    state.addSetterAndReportErrorIfInvalid('uploadSecurity', 'Not an uploaded file', `typeof ${state.accessor} === 'object' && ${state.accessor} !== null && ${state.accessor}.validator === UploadedFileSymbol`);
+    state.addSetterAndReportErrorIfInvalid(
+        'uploadSecurity',
+        'Not an uploaded file',
+        `typeof ${state.accessor} === 'object' && ${state.accessor} !== null && ${state.accessor}.validator === UploadedFileSymbol`,
+    );
 });
 
 export interface RouteFunctionControllerAction {
@@ -101,7 +128,7 @@ export function getRouteActionLabel(action: RouteClassControllerAction | RouteFu
 export class RouteConfig {
     public baseUrl: string = '';
 
-    public responses: { statusCode: number, description: string, type?: Type }[] = [];
+    public responses: { statusCode: number; description: string; type?: Type }[] = [];
 
     public description: string = '';
     public groups: string[] = [];
@@ -119,7 +146,7 @@ export class RouteConfig {
 
     resolverForToken: Map<any, ClassType> = new Map();
 
-    middlewares: { config: HttpMiddlewareConfig, module?: InjectorModule<any> }[] = [];
+    middlewares: { config: HttpMiddlewareConfig; module?: InjectorModule<any> }[] = [];
 
     resolverForParameterName: Map<string, ClassType> = new Map();
 
@@ -134,12 +161,11 @@ export class RouteConfig {
         public readonly path: string,
         public readonly action: RouteClassControllerAction | RouteFunctionControllerAction,
         public internal: boolean = false,
-    ) {
-    }
+    ) {}
 
     getReflectionFunction(): ReflectionFunction {
-        return this.action.type === 'controller' ?
-            ReflectionClass.from(this.action.controller).getMethod(this.action.methodName)
+        return this.action.type === 'controller'
+            ? ReflectionClass.from(this.action.controller).getMethod(this.action.methodName)
             : ReflectionFunction.from(this.action.fn);
     }
 
@@ -165,8 +191,7 @@ export class ParsedRoute {
 
     protected parameters: ParameterForRequestParser[] = [];
 
-    constructor(public routeConfig: RouteConfig) {
-    }
+    constructor(public routeConfig: RouteConfig) {}
 
     addParameter(property: ReflectionParameter): ParameterForRequestParser {
         const parameter = new ParameterForRequestParser(property);
@@ -182,7 +207,7 @@ export class ParsedRoute {
         for (const parameter of this.parameters) {
             if (parameter.getName() === name) return parameter;
         }
-        throw new Error(`No route parameter with name ${name} defined.`);
+        throw new DeepkitError('DK-H004', `No route parameter with name ${name} defined.`);
     }
 }
 
@@ -233,21 +258,33 @@ export interface RouteParameterResolverContext {
     type: ReflectionParameter;
 }
 
-function filterMiddlewaresForRoute(middlewareRawConfigs: MiddlewareRegistryEntry[], routeConfig: RouteConfig, fullPath: string): {
-    config: HttpMiddlewareConfig,
-    module: InjectorModule<any>
+function filterMiddlewaresForRoute(
+    middlewareRawConfigs: MiddlewareRegistryEntry[],
+    routeConfig: RouteConfig,
+    fullPath: string,
+): {
+    config: HttpMiddlewareConfig;
+    module: InjectorModule<any>;
 }[] {
     const middlewares = middlewareRawConfigs.slice(0);
-    middlewares.push(...routeConfig.middlewares as any[]);
+    middlewares.push(...(routeConfig.middlewares as any[]));
 
-    const middlewareConfigs = middlewares.filter((v) => {
+    const middlewareConfigs = middlewares.filter(v => {
         if (!(v.config instanceof HttpMiddlewareConfig)) return false;
 
-        if (v.config.controllers.length && routeConfig.action.type === 'controller' && !v.config.controllers.includes(routeConfig.action.controller)) {
+        if (
+            v.config.controllers.length &&
+            routeConfig.action.type === 'controller' &&
+            !v.config.controllers.includes(routeConfig.action.controller)
+        ) {
             return false;
         }
 
-        if (v.config.excludeControllers.length && routeConfig.action.type === 'controller' && v.config.excludeControllers.includes(routeConfig.action.controller)) {
+        if (
+            v.config.excludeControllers.length &&
+            routeConfig.action.type === 'controller' &&
+            v.config.excludeControllers.includes(routeConfig.action.controller)
+        ) {
             return false;
         }
 
@@ -298,13 +335,14 @@ function filterMiddlewaresForRoute(middlewareRawConfigs: MiddlewareRegistryEntry
             if (route.excludeGroup && routeConfig.groups.includes(route.excludeGroup)) return false;
 
             if (route.path || route.pathRegExp) {
-                if (!route.pathRegExp && route.path) route.pathRegExp = new RegExp('^' + route.path.replace(/\*/g, '.*') + '$');
+                if (!route.pathRegExp && route.path)
+                    route.pathRegExp = new RegExp('^' + route.path.replace(/\*/g, '.*') + '$');
                 if (route.pathRegExp && !route.pathRegExp.test(fullPath)) return false;
             }
         }
 
         return true;
-    }) as { config: HttpMiddlewareConfig, module: any }[];
+    }) as { config: HttpMiddlewareConfig; module: any }[];
 
     middlewareConfigs.sort((a, b) => {
         return a.config.order - b.config.order;
@@ -335,10 +373,14 @@ export interface HttpRouterFunctionOptions {
     resolverForToken?: Map<any, ClassType>;
     resolverForParameterName?: Map<string, ClassType>;
 
-    responses?: { statusCode: number, description: string, type?: Type }[];
+    responses?: { statusCode: number; description: string; type?: Type }[];
 }
 
-function convertOptions(methods: string[], pathOrOptions: string | HttpRouterFunctionOptions, defaultOptions: Partial<HttpRouterFunctionOptions>): HttpRouterFunctionOptions {
+function convertOptions(
+    methods: string[],
+    pathOrOptions: string | HttpRouterFunctionOptions,
+    defaultOptions: Partial<HttpRouterFunctionOptions>,
+): HttpRouterFunctionOptions {
     const options = 'string' === typeof pathOrOptions ? { path: pathOrOptions } : pathOrOptions;
     if (options.methods) return options;
     return { ...options, methods };
@@ -348,7 +390,11 @@ function convertOptions(methods: string[], pathOrOptions: string | HttpRouterFun
  * Annotated types like HTMLResponse/JSONResponse are not used for serialization.
  */
 function filterValidReturnType(type: Type): Type | undefined {
-    if (type.kind === ReflectionKind.class && (type.classType === HtmlResponse || type.classType === JSONResponse || type.classType === Response)) return;
+    if (
+        type.kind === ReflectionKind.class &&
+        (type.classType === HtmlResponse || type.classType === JSONResponse || type.classType === Response)
+    )
+        return;
     return type;
 }
 
@@ -374,13 +420,13 @@ export abstract class HttpRouterRegistryFunctionRegistrar {
      */
     forOptions(options: Partial<HttpRouterFunctionOptions>): HttpRouterRegistryFunctionRegistrar {
         const that = this;
-        return new class extends HttpRouterRegistryFunctionRegistrar {
+        return new (class extends HttpRouterRegistryFunctionRegistrar {
             defaultOptions = options;
 
             addRoute(routeConfig: RouteConfig) {
                 that.addRoute(routeConfig);
             }
-        };
+        })();
     }
 
     public any(pathOrOptions: string | HttpRouterFunctionOptions, callback: (...args: any[]) => any) {
@@ -390,13 +436,16 @@ export abstract class HttpRouterRegistryFunctionRegistrar {
     public add(decorator: HttpDecorator, callback: (...args: any[]) => any) {
         const data = decorator(Object, '_');
         const action = isArray(data) ? data.find(v => v instanceof HttpAction) : undefined;
-        if (!action) throw new Error('No HttpAction available');
+        if (!action) throw new DeepkitError('DK-H005', 'No HttpAction available');
 
         const fn = ReflectionFunction.from(callback);
-        const routeConfig = createRouteConfigFromHttpAction({
-            type: 'function',
-            fn: callback,
-        }, action);
+        const routeConfig = createRouteConfigFromHttpAction(
+            {
+                type: 'function',
+                fn: callback,
+            },
+            action,
+        );
         routeConfig.returnType = filterValidReturnType(fn.getReturnType());
         this.addRoute(routeConfig);
     }
@@ -433,14 +482,22 @@ export abstract class HttpRouterRegistryFunctionRegistrar {
         this.register(convertOptions(['HEAD'], pathOrOptions, this.defaultOptions), callback);
     }
 
-    public redirectCallback(pathOrOptions: string | HttpRouterFunctionOptions, callback: (request: HttpRequest) => string, redirectCode: number = 302) {
+    public redirectCallback(
+        pathOrOptions: string | HttpRouterFunctionOptions,
+        callback: (request: HttpRequest) => string,
+        redirectCode: number = 302,
+    ) {
         const options = convertOptions(['GET'], pathOrOptions, this.defaultOptions);
         this.register(options, (request: HttpRequest) => {
             return Redirect.toUrl(callback(request), redirectCode);
         });
     }
 
-    private register(options: HttpRouterFunctionOptions, callback: (...args: any[]) => any, module?: InjectorModule<any>) {
+    private register(
+        options: HttpRouterFunctionOptions,
+        callback: (...args: any[]) => any,
+        module?: InjectorModule<any>,
+    ) {
         const fn = ReflectionFunction.from(callback);
 
         const routeConfig = new RouteConfig(options.name || '', options.methods || [], options.path, {
@@ -480,7 +537,12 @@ export abstract class HttpRouterRegistryFunctionRegistrar {
     }
 }
 
-function createRouteConfigFromHttpAction(routeAction: RouteClassControllerAction | RouteFunctionControllerAction, action: HttpAction, module?: InjectorModule<any>, controller?: HttpController) {
+function createRouteConfigFromHttpAction(
+    routeAction: RouteClassControllerAction | RouteFunctionControllerAction,
+    action: HttpAction,
+    module?: InjectorModule<any>,
+    controller?: HttpController,
+) {
     const routeConfig = new RouteConfig(action.name, action.httpMethods, action.path, routeAction);
     routeConfig.responses = action.responses;
     routeConfig.description = action.description;
@@ -497,9 +559,11 @@ function createRouteConfigFromHttpAction(routeAction: RouteClassControllerAction
         routeConfig.resolverForParameterName = new Map(controller.resolverForParameterName);
     }
 
-    routeConfig.middlewares.push(...action.middlewares.map(v => {
-        return { config: v(), module };
-    }));
+    routeConfig.middlewares.push(
+        ...action.middlewares.map(v => {
+            return { config: v(), module };
+        }),
+    );
 
     for (const item of action.resolverForToken) routeConfig.resolverForToken.set(...item);
 
@@ -524,7 +588,11 @@ export class HttpRouterRegistry extends HttpRouterRegistryFunctionRegistrar {
 
     public addRouteForController(controller: ClassType, module: InjectorModule<any>) {
         const controllerData = httpClass._fetch(controller);
-        if (!controllerData) throw new Error(`Http controller class ${getClassName(controller)} has no @http.controller decorator.`);
+        if (!controllerData)
+            throw new DeepkitError(
+                'DK-H006',
+                `Http controller class ${getClassName(controller)} has no @http.controller decorator.`,
+            );
         const schema = ReflectionClass.from(controller);
 
         for (const action of getActions(controller)) {
@@ -538,7 +606,8 @@ export class HttpRouterRegistry extends HttpRouterRegistryFunctionRegistrar {
 
             routeConfig.module = module;
 
-            if (schema.hasMethod(action.methodName)) routeConfig.returnType = filterValidReturnType(schema.getMethod(action.methodName).getReturnType());
+            if (schema.hasMethod(action.methodName))
+                routeConfig.returnType = filterValidReturnType(schema.getMethod(action.methodName).getReturnType());
             this.addRoute(routeConfig);
         }
     }
@@ -558,8 +627,8 @@ export class HttpRouter {
         controllers: HttpControllers,
         private logger: LoggerInterface,
         private config: HttpConfig,
-        private middlewareRegistry: MiddlewareRegistry = new MiddlewareRegistry,
-        private registry: HttpRouterRegistry = new HttpRouterRegistry,
+        private middlewareRegistry: MiddlewareRegistry = new MiddlewareRegistry(),
+        private registry: HttpRouterRegistry = new HttpRouterRegistry(),
     ) {
         for (const controller of controllers.controllers) {
             this.addRouteForController(controller.controller, controller.module);
@@ -571,14 +640,21 @@ export class HttpRouter {
     }
 
     static forControllers(
-        controllers: (ClassType | { module: InjectorModule<any>, controller: ClassType })[],
+        controllers: (ClassType | { module: InjectorModule<any>; controller: ClassType })[],
         middlewareRegistry: MiddlewareRegistry = new MiddlewareRegistry(),
         module: InjectorModule<any> = new InjectorModule(),
         config: HttpConfig = new HttpConfig(),
     ): HttpRouter {
-        return new this(new HttpControllers(controllers.map(v => {
-            return isClass(v) ? { controller: v, module } : v;
-        })), new Logger([], []), config, middlewareRegistry);
+        return new this(
+            new HttpControllers(
+                controllers.map(v => {
+                    return isClass(v) ? { controller: v, module } : v;
+                }),
+            ),
+            new Logger([], []),
+            config,
+            middlewareRegistry,
+        );
     }
 
     protected getRouteCode(compiler: CompilerContext, routeConfig: RouteConfig): string {
@@ -608,14 +684,20 @@ export class HttpRouter {
         if (middlewareConfigs.length) {
             const middlewareItems: string[] = [];
             for (const middlewareConfig of middlewareConfigs) {
-                const moduleVar = middlewareConfig.module ? ', ' + compiler.reserveVariable('module', middlewareConfig.module) : '';
+                const moduleVar = middlewareConfig.module
+                    ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
+                    : '';
 
                 for (const middleware of middlewareConfig.config.middlewares) {
                     if (isClass(middleware)) {
                         const classVar = compiler.reserveVariable('middlewareClassType', middleware);
-                        middlewareItems.push(`{fn: function() {return _injector.get(${classVar}${moduleVar}).execute(...arguments) }, timeout: ${middlewareConfig.config.timeout}}`);
+                        middlewareItems.push(
+                            `{fn: function() {return _injector.get(${classVar}${moduleVar}).execute(...arguments) }, timeout: ${middlewareConfig.config.timeout}}`,
+                        );
                     } else {
-                        middlewareItems.push(`{fn: ${compiler.reserveVariable('middlewareFn', middleware)}, timeout: ${middlewareConfig.config.timeout}}`);
+                        middlewareItems.push(
+                            `{fn: ${compiler.reserveVariable('middlewareFn', middleware)}, timeout: ${middlewareConfig.config.timeout}}`,
+                        );
                     }
                 }
             }
@@ -637,9 +719,14 @@ export class HttpRouter {
 
         let methodCheck = '';
         if (routeConfig.httpMethods.length) {
-            methodCheck = '(' + routeConfig.httpMethods.map(v => {
-                return `_method === '${v.toUpperCase()}'`;
-            }).join(' || ') + ') && ';
+            methodCheck =
+                '(' +
+                routeConfig.httpMethods
+                    .map(v => {
+                        return `_method === '${v.toUpperCase()}'`;
+                    })
+                    .join(' || ') +
+                ') && ';
         }
 
         const routeConfigVar = compiler.reserveVariable('routeConfigVar', routeConfig);
@@ -662,17 +749,26 @@ export class HttpRouter {
         const modify: string[] = [];
         for (const parameter of parsedRoute.getParameters()) {
             if (parameter.query || parameter.queries) {
-                const queryPath = parameter.typePath === undefined && parameter.query ? parameter.parameter.name : parameter.typePath || '';
+                const queryPath =
+                    parameter.typePath === undefined && parameter.query
+                        ? parameter.parameter.name
+                        : parameter.typePath || '';
 
-                if (parameter.parameter.type.kind === ReflectionKind.class || parameter.parameter.type.kind === ReflectionKind.objectLiteral) {
+                if (
+                    parameter.parameter.type.kind === ReflectionKind.class ||
+                    parameter.parameter.type.kind === ReflectionKind.objectLiteral
+                ) {
                     for (const property of ReflectionClass.from(parameter.parameter.type).getProperties()) {
                         const accessor = `parameters.${parameter.getName()}?.${property.name}`;
                         const thisPath = queryPath ? queryPath + '.' + property.name : property.name;
-                        modify.push(`${accessor} !== undefined && query.push(${JSON.stringify(dotToUrlPath(thisPath))} + '=' + encodeURIComponent(${accessor}))`);
+                        modify.push(
+                            `${accessor} !== undefined && query.push(${JSON.stringify(dotToUrlPath(thisPath))} + '=' + encodeURIComponent(${accessor}))`,
+                        );
                     }
                 } else {
-                    modify.push(`parameters.${parameter.getName()} !== undefined && query.push(${JSON.stringify(dotToUrlPath(queryPath))} + '=' + encodeURIComponent(parameters.${parameter.getName()}))`);
-
+                    modify.push(
+                        `parameters.${parameter.getName()} !== undefined && query.push(${JSON.stringify(dotToUrlPath(queryPath))} + '=' + encodeURIComponent(parameters.${parameter.getName()}))`,
+                    );
                 }
             }
         }
@@ -697,7 +793,7 @@ export class HttpRouter {
 
     protected build(): (request: HttpRequest) => ResolvedController | undefined {
         this.buildId = this.registry.getBuildId();
-        const compiler = new CompilerContext;
+        const compiler = new CompilerContext();
         compiler.context.set('ValidationError', ValidationError);
         compiler.context.set('qs', qs);
 
@@ -707,7 +803,8 @@ export class HttpRouter {
             code.push(this.getRouteCode(compiler, route));
         }
 
-        return compiler.build(`
+        return compiler.build(
+            `
             let _match;
             const _method = request.method || 'GET';
             const _url = request.url || '/';
@@ -717,23 +814,29 @@ export class HttpRouter {
             const _path = _qPosition === -1 ? _url : _url.substr(0, _qPosition);
             const _query = _qPosition === -1 ? {} : qs.parse(_url.substr(_qPosition + 1));
             ${code.join('\n')}
-        `, 'request') as any;
+        `,
+            'request',
+        ) as any;
     }
 
     protected buildUrlResolver(): any {
-        const compiler = new CompilerContext;
+        const compiler = new CompilerContext();
         const code: string[] = [];
 
         for (const route of this.getRoutes()) {
             code.push(this.getRouteUrlResolveCode(compiler, route));
         }
 
-        return compiler.build(`
+        return compiler.build(
+            `
         switch (name) {
             ${code.join('\n')}
         }
-        throw new Error('No route for name ' + name + ' found');
-        `, 'name', 'parameters') as any;
+        throw new DeepkitError('DK-H007', 'No route for name ' + name + ' found');
+        `,
+            'name',
+            'parameters',
+        ) as any;
     }
 
     public resolveUrl(routeName: string, parameters: { [name: string]: any } = {}): string {

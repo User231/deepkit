@@ -2,6 +2,8 @@ import { dirname, isAbsolute, join } from 'path';
 import type { CompilerOptions, ParseConfigHost } from 'typescript';
 import ts from 'typescript';
 
+import { DeepkitError } from '@deepkit/core';
+
 import { debug, debug2, isDebug } from './debug.js';
 import { patternMatch } from './resolver.js';
 
@@ -251,7 +253,8 @@ export function getConfigResolver(
         compilerOptions: {},
     };
 
-    tsConfigPath = tsConfigPath || ('string' === typeof compilerOptions.configFilePath ? compilerOptions.configFilePath : '');
+    tsConfigPath =
+        tsConfigPath || ('string' === typeof compilerOptions.configFilePath ? compilerOptions.configFilePath : '');
 
     if (tsConfigPath) {
         if (cache[tsConfigPath]) return cache[tsConfigPath];
@@ -265,7 +268,9 @@ export function getConfigResolver(
                 path = isAbsolute(path) ? path : join(baseDir, path);
                 return host.fileExists(path);
             });
-            debug2(`No tsConfigPath|compilerOptions.configFilePath provided. Manually searching for tsconfig.json in ${baseDir} returned ${configPath}`);
+            debug2(
+                `No tsConfigPath|compilerOptions.configFilePath provided. Manually searching for tsconfig.json in ${baseDir} returned ${configPath}`,
+            );
             if (configPath) {
                 //configPath might be relative to passed basedir
                 tsConfigPath = isAbsolute(configPath) ? configPath : join(baseDir, configPath);
@@ -295,7 +300,10 @@ export function getConfigResolver(
             applyConfigValues(currentConfig, nextConfig.config, basePath);
         }
     } else {
-        throw new Error(`No tsconfig found for ${sourceFile?.fileName}, that is weird. Either provide a tsconfig or compilerOptions.configFilePath`);
+        throw new DeepkitError(
+            'DK-TC006',
+            `No tsconfig found for ${sourceFile?.fileName}. Either provide a tsconfig or compilerOptions.configFilePath`,
+        );
     }
 
     config.exclude = config.exclude ? [...defaultExcluded, ...config.exclude] : [...defaultExcluded];

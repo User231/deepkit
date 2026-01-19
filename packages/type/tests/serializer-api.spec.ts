@@ -1,17 +1,10 @@
 import { expect, test } from '@jest/globals';
-import {
-    EmptySerializer,
-    executeTemplates,
-    SerializationError,
-    serializer,
-    Serializer,
-    TemplateRegistry,
-    TemplateState,
-    TypeGuardRegistry,
-} from '../src/serializer.js';
-import { ReflectionKind, stringifyResolvedType } from '../src/reflection/type.js';
+
 import { CompilerContext } from '@deepkit/core';
+
+import { ReflectionKind, stringifyResolvedType } from '../src/reflection/type.js';
 import { cast, deserialize, serialize } from '../src/serializer-facade.js';
+import { EmptySerializer, SerializationError, Serializer, TemplateRegistry, TemplateState, TypeGuardRegistry, executeTemplates, serializer } from '../src/serializer.js';
 import { ValidationError } from '../src/validator';
 
 test('remove guard for string', () => {
@@ -26,11 +19,9 @@ test('TypeGuardRegistry', () => {
     const serializer = new Serializer();
     serializer.clear();
 
-    function number1() {
-    }
+    function number1() {}
 
-    function number2() {
-    }
+    function number2() {}
 
     serializer.typeGuards.register(2, ReflectionKind.number, number2);
     serializer.typeGuards.register(1, ReflectionKind.number, number1);
@@ -65,7 +56,7 @@ test('asd', () => {
 test('new serializer', () => {
     class User {
         name: string = '';
-        created: Date = new Date;
+        created: Date = new Date();
     }
 
     const mySerializer = new EmptySerializer('mySerializer');
@@ -85,17 +76,17 @@ test('new serializer', () => {
 test('new serializer easy mode', () => {
     class User {
         name: string = '';
-        created: Date = new Date;
+        created: Date = new Date();
     }
 
     const mySerializer = new EmptySerializer('mySerializer');
 
     mySerializer.deserializeRegistry.registerClass(Date, (type, state) => {
-        state.convert((v) => new Date(v));
+        state.convert(v => new Date(v));
     });
 
     mySerializer.serializeRegistry.registerClass(Date, (type, state) => {
-        state.convert((v) => v.toJSON());
+        state.convert(v => v.toJSON());
     });
 
     const user = deserialize<User>({ name: 'Peter', created: 0 }, undefined, mySerializer);
@@ -104,8 +95,10 @@ test('new serializer easy mode', () => {
 
 test('pointer example', () => {
     class Point {
-        constructor(public x: number, public y: number) {
-        }
+        constructor(
+            public x: number,
+            public y: number,
+        ) {}
     }
 
     // deserialize means from JSON to (class) instance.
@@ -134,7 +127,15 @@ test('pointer example', () => {
 
     {
         expect(() => deserialize<Point>(['vbb'])).toThrowError(ValidationError);
-        expect(() => deserialize<Point>(['vbb'])).toThrow('Expected array with two elements')
+        expect(() => deserialize<Point>(['vbb'])).toThrow('Expected array with two elements');
+
+        // Verify error code for ValidationError (which wraps SerializationError)
+        try {
+            deserialize<Point>(['vbb']);
+        } catch (error: any) {
+            expect(error).toBeInstanceOf(ValidationError);
+            expect(error.code).toBe('DK-T300'); // ValidationError error code
+        }
     }
 
     // serialize uses `serializer` by default
@@ -142,32 +143,40 @@ test('pointer example', () => {
     expect(json).toEqual([1, 2]);
 });
 
+test('SerializationError has correct error code', () => {
+    // SerializationError should have error code DK-T200
+    const error = new SerializationError('Test error message', 'testType', 'testPath');
+
+    expect(error).toBeInstanceOf(SerializationError);
+    expect(error.code).toBe('DK-T200'); // SerializationError error code
+    expect(error.originalMessage).toBe('Test error message');
+    expect(error.errorType).toBe('testType');
+    expect(error.path).toBe('testPath');
+});
+
 test('parent types', () => {
     type A = 'a' | 'b';
     type B = A | 'c';
-    type C = { a: A, b: B };
+    type C = { a: A; b: B };
 
     const serializer = new Serializer();
 
     const stacks: string[] = [];
     serializer.serializeRegistry.register(ReflectionKind.literal, (type, state) => {
-        stacks.push(state.parentTypes.map(v => {
-            if (v.typeName) return v.typeName;
-            if (v.kind === ReflectionKind.literal) return JSON.stringify(String(v.literal));
-            if (v.kind === ReflectionKind.propertySignature) return 'property=' + String(v.name);
-            return stringifyResolvedType(v);
-        }).join(', '));
+        stacks.push(
+            state.parentTypes
+                .map(v => {
+                    if (v.typeName) return v.typeName;
+                    if (v.kind === ReflectionKind.literal) return JSON.stringify(String(v.literal));
+                    if (v.kind === ReflectionKind.propertySignature) return 'property=' + String(v.name);
+                    return stringifyResolvedType(v);
+                })
+                .join(', '),
+        );
     });
 
     serialize<C>({ a: 'a', b: 'c' }, undefined, serializer);
 
     console.log(stacks);
-    expect(stacks).toEqual([
-        'C, property=a, A, "a"',
-        'C, property=a, A, "b"',
-
-        'C, property=b, B, "a"',
-        'C, property=b, B, "b"',
-        'C, property=b, B, "c"',
-    ]);
+    expect(stacks).toEqual(['C, property=a, A, "a"', 'C, property=a, A, "b"', 'C, property=b, B, "a"', 'C, property=b, B, "b"', 'C, property=b, B, "c"']);
 });

@@ -1,4 +1,5 @@
 import { expect, test } from '@jest/globals';
+
 import { typeOf } from '../../src/reflection/reflection';
 import { typeAnnotation } from '../../src/reflection/type';
 

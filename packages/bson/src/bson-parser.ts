@@ -7,28 +7,24 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
+import { ReflectionKind, SerializationError, Type, nodeBufferToArrayBuffer } from '@deepkit/type';
 
-import { BSON_BINARY_SUBTYPE_BYTE_ARRAY, BSON_BINARY_SUBTYPE_UUID, BSONType, digitByteSize, TWO_PWR_32_DBL_N } from './utils.js';
-import { decodeUTF8 } from './strings.js';
-import { nodeBufferToArrayBuffer, ReflectionKind, SerializationError, Type } from '@deepkit/type';
 import { hexTable } from './model.js';
+import { decodeUTF8 } from './strings.js';
+import {
+    BSONType,
+    BSON_BINARY_SUBTYPE_BYTE_ARRAY,
+    BSON_BINARY_SUBTYPE_UUID,
+    TWO_PWR_32_DBL_N,
+    digitByteSize,
+} from './utils.js';
 
 export function readUint32LE(buffer: Uint8Array, offset: number): number {
-    return (
-        buffer[offset] |
-        (buffer[offset + 1] << 8) |
-        (buffer[offset + 2] << 16) |
-        (buffer[offset + 3] << 24) >>> 0
-    );
+    return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16) | ((buffer[offset + 3] << 24) >>> 0);
 }
 
 export function readInt32LE(buffer: Uint8Array, offset: number): number {
-    return (
-        buffer[offset] |
-        (buffer[offset + 1] << 8) |
-        (buffer[offset + 2] << 16) |
-        (buffer[offset + 3] << 24)
-    );
+    return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16) | (buffer[offset + 3] << 24);
 }
 
 const float64Buffer = new ArrayBuffer(8);
@@ -36,16 +32,8 @@ const u32 = new Uint32Array(float64Buffer);
 const f64 = new Float64Array(float64Buffer);
 
 export function readFloat64LE(buffer: Uint8Array, offset: number): number {
-    u32[0] =
-        buffer[offset] |
-        (buffer[offset + 1] << 8) |
-        (buffer[offset + 2] << 16) |
-        (buffer[offset + 3] << 24);
-    u32[1] =
-        buffer[offset + 4] |
-        (buffer[offset + 5] << 8) |
-        (buffer[offset + 6] << 16) |
-        (buffer[offset + 7] << 24);
+    u32[0] = buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16) | (buffer[offset + 3] << 24);
+    u32[1] = buffer[offset + 4] | (buffer[offset + 5] << 8) | (buffer[offset + 6] << 16) | (buffer[offset + 7] << 24);
     return f64[0];
 }
 
@@ -129,7 +117,7 @@ export class BaseParser {
         const lowBits = this.eatInt32();
         const highBits = this.eatInt32();
 
-        return BigInt(highBits) * BigInt(TWO_PWR_32_DBL_N) + (BigInt(lowBits >>> 0));
+        return BigInt(highBits) * BigInt(TWO_PWR_32_DBL_N) + BigInt(lowBits >>> 0);
     }
 
     parseString() {
@@ -229,21 +217,21 @@ export class BaseParser {
     }
 
     parseOid(): string {
-        const offset = this.offset, b = this.buffer;
-        let o = hexTable[b[offset]]
-            + hexTable[b[offset + 1]]
-            + hexTable[b[offset + 2]]
-            + hexTable[b[offset + 3]]
-            + hexTable[b[offset + 4]]
-            + hexTable[b[offset + 5]]
-            + hexTable[b[offset + 6]]
-            + hexTable[b[offset + 7]]
-            + hexTable[b[offset + 8]]
-            + hexTable[b[offset + 9]]
-            + hexTable[b[offset + 10]]
-            + hexTable[b[offset + 11]]
-        ;
-
+        const offset = this.offset,
+            b = this.buffer;
+        let o =
+            hexTable[b[offset]] +
+            hexTable[b[offset + 1]] +
+            hexTable[b[offset + 2]] +
+            hexTable[b[offset + 3]] +
+            hexTable[b[offset + 4]] +
+            hexTable[b[offset + 5]] +
+            hexTable[b[offset + 6]] +
+            hexTable[b[offset + 7]] +
+            hexTable[b[offset + 8]] +
+            hexTable[b[offset + 9]] +
+            hexTable[b[offset + 10]] +
+            hexTable[b[offset + 11]];
         this.seek(12);
         return o;
     }
@@ -251,29 +239,29 @@ export class BaseParser {
     parseUUID(): string {
         //e.g. bef8de96-41fe-442f-b70c-c3a150f8c96c
         //         4      2    2    2       6
-        const offset = this.offset, b = this.buffer;
-        let o = hexTable[b[offset]]
-            + hexTable[b[offset + 1]]
-            + hexTable[b[offset + 2]]
-            + hexTable[b[offset + 3]]
-            + '-'
-            + hexTable[b[offset + 4]]
-            + hexTable[b[offset + 5]]
-            + '-'
-            + hexTable[b[offset + 6]]
-            + hexTable[b[offset + 7]]
-            + '-'
-            + hexTable[b[offset + 8]]
-            + hexTable[b[offset + 9]]
-            + '-'
-            + hexTable[b[offset + 10]]
-            + hexTable[b[offset + 11]]
-            + hexTable[b[offset + 12]]
-            + hexTable[b[offset + 13]]
-            + hexTable[b[offset + 14]]
-            + hexTable[b[offset + 15]]
-        ;
-
+        const offset = this.offset,
+            b = this.buffer;
+        let o =
+            hexTable[b[offset]] +
+            hexTable[b[offset + 1]] +
+            hexTable[b[offset + 2]] +
+            hexTable[b[offset + 3]] +
+            '-' +
+            hexTable[b[offset + 4]] +
+            hexTable[b[offset + 5]] +
+            '-' +
+            hexTable[b[offset + 6]] +
+            hexTable[b[offset + 7]] +
+            '-' +
+            hexTable[b[offset + 8]] +
+            hexTable[b[offset + 9]] +
+            '-' +
+            hexTable[b[offset + 10]] +
+            hexTable[b[offset + 11]] +
+            hexTable[b[offset + 12]] +
+            hexTable[b[offset + 13]] +
+            hexTable[b[offset + 14]] +
+            hexTable[b[offset + 15]];
         this.seek(16);
         return o;
     }
@@ -384,4 +372,3 @@ export function parseArray(parser: BaseParser): any[] {
 export function deserializeBSONWithoutOptimiser(buffer: Uint8Array, offset = 0) {
     return parseObject(new BaseParser(buffer, offset));
 }
-

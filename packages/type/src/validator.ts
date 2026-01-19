@@ -1,4 +1,4 @@
-import { CustomError, TypeAnnotation, stringifyValueWithType } from '@deepkit/core';
+import { DeepkitError, TypeAnnotation, stringifyValueWithType } from '@deepkit/core';
 
 import { entity } from './decorator.js';
 import { ReceiveType } from './reflection/reflection.js';
@@ -119,12 +119,13 @@ export class ValidationErrorItem {
 }
 
 @entity.name('@error:validation')
-export class ValidationError extends CustomError {
+export class ValidationError extends DeepkitError {
     constructor(
         public readonly errors: ValidationErrorItem[],
         type?: Type,
     ) {
         super(
+            'DK-T300',
             `Validation error${type ? ` for type ${stringifyType(type)}` : ''}:\n${errors.map(v => v.toString()).join(',\n')}`,
         );
     }

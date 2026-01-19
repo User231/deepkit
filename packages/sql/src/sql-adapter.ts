@@ -53,6 +53,7 @@ import {
     resolveReceiveType,
 } from '@deepkit/type';
 
+import { SqlError } from './error.js';
 import { DefaultPlatform, SqlPlaceholderStrategy } from './platform/default-platform.js';
 import { PreparedEntity, PreparedField, getPreparedEntity } from './prepare.js';
 import { DatabaseComparator, DatabaseModel } from './schema/table.js';
@@ -268,7 +269,8 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
     }
 
     async delete(model: SQLQueryModel<T>, deleteResult: DeleteResult<T>): Promise<void> {
-        if (model.hasJoins()) throw new Error('Delete with joins not supported. Fetch first the ids then delete.');
+        if (model.hasJoins())
+            throw new SqlError('DK-SQL010', 'Delete with joins not supported. Fetch first the ids then delete.');
 
         const sqlBuilderFrame = this.session.stopwatch ? this.session.stopwatch.start('SQL Builder') : undefined;
         const sqlBuilder = new SqlBuilder(this.adapter);
@@ -315,9 +317,13 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
             rows = await connection.execAndReturnAll(sql.sql, sql.params);
         } catch (error: any) {
             error = this.handleSpecificError(error);
-            throw new DatabaseError(`Could not query ${this.classSchema.getClassName()} due to SQL error ${error}`, {
-                cause: error,
-            });
+            throw new DatabaseError(
+                'DK-O001',
+                `Could not query ${this.classSchema.getClassName()} due to SQL error ${error}`,
+                {
+                    cause: error,
+                },
+            );
         } finally {
             connection.release();
         }

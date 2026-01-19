@@ -1,8 +1,10 @@
 import { expect, test } from '@jest/globals';
-import { createSerializeFunction, executeTypeArgumentAsArray, SerializeFunction, serializer, TemplateState } from '../src/serializer';
-import { deserialize, serialize } from '../src/serializer-facade';
+
 import { validate } from '@deepkit/type';
+
 import { TypeClass } from '../src/reflection/type';
+import { SerializeFunction, TemplateState, createSerializeFunction, executeTypeArgumentAsArray, serializer } from '../src/serializer';
+import { deserialize, serialize } from '../src/serializer-facade';
 
 class MyIterable<T> implements Iterable<T> {
     items: T[] = [];

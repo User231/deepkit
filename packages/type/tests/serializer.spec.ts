@@ -562,6 +562,14 @@ test('index signature ', () => {
     expect(() => cast<BagOfNumbers>({ a: 'b', b: 'c' })).toThrow(ValidationError as any);
     expect(() => cast<BagOfNumbers>({ a: 'b', b: 'c' })).toThrow('Cannot convert b to number');
 
+    // Verify error code for ValidationError
+    try {
+        cast<BagOfNumbers>({ a: 'b' });
+    } catch (error: any) {
+        expect(error).toBeInstanceOf(ValidationError);
+        expect(error.code).toBe('DK-T300'); // ValidationError error code
+    }
+
     expect(cast<BagOfStrings>({ a: 1 })).toEqual({ a: '1' });
     expect(cast<BagOfStrings>({ a: 1, b: 2 })).toEqual({ a: '1', b: '2' });
     expect(cast<BagOfStrings>({ a: 'b' })).toEqual({ a: 'b' });

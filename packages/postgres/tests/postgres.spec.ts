@@ -207,8 +207,11 @@ test('unique constraint 1', async () => {
             await database.persist(m1);
         } catch (error: any) {
             assertInstanceOf(error, UniqueConstraintFailure);
+            expect(error.code).toBe('DK-O100'); // UniqueConstraintFailure error code
             assertInstanceOf(error.cause, DatabaseInsertError);
+            expect(error.cause.code).toBe('DK-O010'); // DatabaseInsertError error code
             assertInstanceOf(error.cause.cause, DatabaseError);
+            expect(error.cause.cause.code).toBe('DK-O001'); // DatabaseError base code
             // error.cause.cause.cause is from the driver
             expect((error.cause.cause.cause as any).table).toBe('Model');
         }

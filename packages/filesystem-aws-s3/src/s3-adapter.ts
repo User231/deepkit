@@ -164,7 +164,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
                 }
             }
         } catch (error: any) {
-            throw new FilesystemError(`Could not list files ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not list files ${path}: ${error.message}`);
         }
 
         return files;
@@ -187,7 +187,10 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
             try {
                 await this.client.send(command);
             } catch (error: any) {
-                throw new FilesystemError(`Could not copy file ${source} to ${destination}: ${error.message}`);
+                throw new FilesystemError(
+                    'DK-FS001',
+                    `Could not copy file ${source} to ${destination}: ${error.message}`,
+                );
             }
         } else {
             //get all files, copy them
@@ -206,7 +209,10 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
                 try {
                     await this.client.send(command);
                 } catch (error: any) {
-                    throw new FilesystemError(`Could not copy file ${source} to ${destination}: ${error.message}`);
+                    throw new FilesystemError(
+                        'DK-FS001',
+                        `Could not copy file ${source} to ${destination}: ${error.message}`,
+                    );
                 }
             }
         }
@@ -308,10 +314,11 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
 
         try {
             const response = await this.client.send(command);
-            if (!response.Body) throw new FilesystemError(`Could not read file ${path}: No body in response`);
+            if (!response.Body)
+                throw new FilesystemError('DK-FS001', `Could not read file ${path}: No body in response`);
             return await response.Body.transformToByteArray();
         } catch (error: any) {
-            throw new FilesystemError(`Could not read file ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not read file ${path}: ${error.message}`);
         }
     }
 
@@ -331,7 +338,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
         try {
             await this.client.send(command);
         } catch (error: any) {
-            throw new FilesystemError(`Could not write file ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not write file ${path}: ${error.message}`);
         }
     }
 
@@ -346,7 +353,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
             const response = await this.client.send(aclCommand);
             return this.aclToVisibility(response.Grants || []);
         } catch (error: any) {
-            throw new FilesystemError(`Could not get visibility for ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not get visibility for ${path}: ${error.message}`);
         }
     }
 
@@ -361,7 +368,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
         try {
             await this.client.send(command);
         } catch (error: any) {
-            throw new FilesystemError(`Could not set visibility for ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not set visibility for ${path}: ${error.message}`);
         }
     }
 }

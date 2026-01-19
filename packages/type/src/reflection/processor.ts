@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { ClassType, isArray, isClass, isFunction, stringifyValueWithType } from '@deepkit/core';
+import { ClassType, DeepkitError, isArray, isClass, isFunction, stringifyValueWithType } from '@deepkit/core';
 import { MappedModifier, ReflectionOp, TypeIntrinsic } from '@deepkit/type-spec';
 
 import { debug } from '../debug.js';
@@ -137,7 +137,7 @@ export function resolveRuntimeType(
         return type as Type;
     }
 
-    throw new Error('No type returned from runtime type program');
+    throw new DeepkitError('DK-T003', 'No type returned from runtime type program');
 }
 
 interface Frame {
@@ -395,25 +395,7 @@ export class Processor {
                     return: { kind: ReflectionKind.any },
                 };
             }
-            throw new Error(
-                `No valid runtime type for ${stringifyValueWithType(object)} given.
-
-This error occurs when @deepkit/type cannot find runtime type information for a value.
-
-Common causes:
-  1. @deepkit/type-compiler is not installed or not configured correctly
-  2. TypeScript's "reflection" option is not enabled in tsconfig.json
-  3. The type was declared with "declare" keyword (ambient declaration)
-  4. Using a type from an external package without type compilation
-
-How to fix:
-  1. Install the type compiler: npm install @deepkit/type-compiler
-  2. Run: npx deepkit-type-install (patches TypeScript for reflection)
-  3. Add to tsconfig.json: { "compilerOptions": { "reflection": true } }
-  4. If using a bundler (Vite, webpack, etc.), ensure the transformer is configured
-
-For more information, see: https://deepkit.io/documentation/runtime-types`,
-            );
+            throw new DeepkitError('DK-T001', `No valid runtime type for ${stringifyValueWithType(object)} given.`);
         }
 
         for (let i = 0; i < inputs.length; i++) {

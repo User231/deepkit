@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { ClassType, EmitterEvent, EventEmitter, empty, formatError } from '@deepkit/core';
+import { ClassType, DeepkitError, EmitterEvent, EventEmitter, empty, formatError } from '@deepkit/core';
 import { EventToken } from '@deepkit/event';
 import { FrameCategory } from '@deepkit/stopwatch';
 import {
@@ -210,7 +210,11 @@ export class DatabaseQueryModel<
     }
 }
 
-export class ItemNotFound extends Error {}
+export class ItemNotFound extends DeepkitError {
+    constructor(message: string, options?: { cause?: Error }) {
+        super('DK-O200', message, options);
+    }
+}
 
 type FindEntity<T> = FlattenIfArray<NonNullable<T>> extends infer V ? (V extends OrmEntity ? V : OrmEntity) : OrmEntity;
 
@@ -378,7 +382,11 @@ export class BaseQuery<T extends OrmEntity> {
     select<K extends (keyof Resolve<this>)[]>(...select: K): Replace<this, Pick<Resolve<this>, K[number]>> {
         const c = this.clone();
         for (const field of select) {
-            if (!this.classSchema.hasProperty(field)) throw new Error(`Field ${String(field)} unknown`);
+            if (!this.classSchema.hasProperty(field))
+                throw new DeepkitError(
+                    'DK-O101',
+                    `Unknown field '${String(field)}' in ${this.classSchema.getClassName()}.`,
+                );
         }
         c.model.select = new Set([...(select as string[])]);
         return c as any;
@@ -543,8 +551,9 @@ export class BaseQuery<T extends OrmEntity> {
                     }
                 }
                 if (!found) {
-                    throw new Error(
-                        `Cannot order by ${field} because the relation '${relation}' is not joined. Use join('${relation}'), useJoin('${relation}'), or joinWith('${relation}') etc first.`,
+                    throw new DeepkitError(
+                        'DK-O102',
+                        `Cannot order by '${field}' because relation '${relation}' is not joined. Use join('${relation}') first.`,
                     );
                 }
             } else {
@@ -591,7 +600,10 @@ export class BaseQuery<T extends OrmEntity> {
     ): [thisQuery: this, joinQuery: BaseQuery<ENTITY>] {
         const propertySchema = this.classSchema.getProperty(field as string);
         if (!propertySchema.isReference() && !propertySchema.isBackReference()) {
-            throw new Error(`Field ${String(field)} is not marked as reference. Use Reference type`);
+            throw new DeepkitError(
+                'DK-O103',
+                `Field '${String(field)}' is not marked as reference. Use the Reference type annotation.`,
+            );
         }
         const c = this.clone();
 
@@ -652,7 +664,10 @@ export class BaseQuery<T extends OrmEntity> {
             if (join.propertySchema.name === field)
                 return new JoinDatabaseQuery(join.query.classSchema, join.query, this);
         }
-        throw new Error(`No join for reference ${String(field)} added.`);
+        throw new DeepkitError(
+            'DK-O104',
+            `No join for reference '${String(field)}' added. Use join('${String(field)}') first.`,
+        );
     }
 
     /**
@@ -1243,7 +1258,10 @@ export class Query<T extends OrmEntity> extends BaseQuery<T> {
     public async ids(singleKey: boolean = false): Promise<PrimaryKeyFields<T>[] | PrimaryKeyType<T>[]> {
         const pks: any = this.classSchema.getPrimaries().map(v => v.name) as FieldName<T>[];
         if (singleKey && pks.length > 1) {
-            throw new Error(`Entity ${this.classSchema.getClassName()} has more than one primary key`);
+            throw new DeepkitError(
+                'DK-O105',
+                `Entity ${this.classSchema.getClassName()} has a composite primary key. Use ids(false) to get all key fields.`,
+            );
         }
 
         const data = (await this.clone()

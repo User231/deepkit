@@ -7,17 +7,17 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
 import { expect, test } from '@jest/globals';
-import { assertType, AutoIncrement, Group, groupAnnotation, PrimaryKey, ReflectionKind } from '../src/reflection/type.js';
+
 import { typeOf } from '../src/reflection/reflection.js';
+import { AutoIncrement, Group, PrimaryKey, ReflectionKind, assertType, groupAnnotation } from '../src/reflection/type.js';
 import { cast } from '../src/serializer-facade.js';
 import { equalType } from './utils.js';
 
 test('group from enum', () => {
     enum Groups {
         Default = 'default',
-        Private = 'private'
+        Private = 'private',
     }
 
     type FieldGroupDefault = Group<Groups.Default>;
@@ -54,9 +54,7 @@ test('class base from fn', () => {
         createdAt!: Date & Group<'base'> & Group<'timestamps'>;
     }
 
-    class Clazz extends mixinPositions(Base) {
-
-    }
+    class Clazz extends mixinPositions(Base) {}
 
     const type = typeOf<Clazz>();
     assertType(type, ReflectionKind.class);
@@ -69,7 +67,6 @@ test('class base from fn', () => {
     expect(type.types[1].name).toBe('x');
     expect(groupAnnotation.getAnnotations(type.types[1].type)).toEqual(['position']);
 });
-
 
 test('complex recursive union type does not cause stack size exceeding 1', () => {
     type JSONValue = null | boolean | number | string | JSONObject | JSONArray;
@@ -151,7 +148,7 @@ test('function conditions', () => {
     type t3 = { a(a: string): void } extends { a: Function } ? true : false;
     type t4 = { a(a: string): void } extends { a(): void } ? true : false;
     console.log(typeOf<Function>());
-    console.log(typeOf<{ a: Function } >());
+    console.log(typeOf<{ a: Function }>());
     equalType<t1, true>();
     equalType<t2, true>();
     equalType<t3, true>();

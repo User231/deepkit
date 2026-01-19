@@ -2,7 +2,7 @@ import formidable, { Fields, Files, Options } from 'formidable';
 import type IncomingForm from 'formidable/Formidable.js';
 import qs from 'qs';
 
-import { ClassType, CompilerContext, asyncOperation, getClassName, isObject } from '@deepkit/core';
+import { ClassType, CompilerContext, DeepkitError, asyncOperation, getClassName, isObject } from '@deepkit/core';
 import { DependenciesUnmetError, InjectorModule } from '@deepkit/injector';
 import {
     ReflectionKind,
@@ -151,7 +151,7 @@ export class ParameterForRequestParser {
             assertType(this.parameter.type, ReflectionKind.class);
             const valueType = findMember('value', this.parameter.type.types);
             if (!valueType || valueType.kind !== ReflectionKind.property)
-                throw new Error(`No property value found at ${stringifyType(this.parameter.type)}`);
+                throw new DeepkitError('DK-H010', `No property value found at ${stringifyType(this.parameter.type)}`);
             return valueType.type as Type;
         }
         return this.parameter.type;
@@ -435,7 +435,8 @@ export function getRequestParserCodeForParameters(
 
             if (!resolverType && !parameter.isPartOfPath() && isTypeUnknown(parameter.parameter.type)) {
                 const label = config.routeConfig ? getRouteActionLabel(config.routeConfig?.action) + ' ' : '';
-                throw new Error(
+                throw new DeepkitError(
+                    'DK-H011',
                     `Parameter ${label}${JSON.stringify(parameter.parameter.name)} has no runtime type. Runtime types disabled or circular dependencies?`,
                 );
             }

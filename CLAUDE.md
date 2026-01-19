@@ -108,6 +108,79 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 - Type annotations via intersection: `string & MinLength<3>`
 - JIT compilation via `CompilerContext` for performance
 
+## Error Code System
+
+Deepkit uses inline error codes for consistent, documented errors. Each error has a unique code (e.g., `DK-T100`) linking to documentation.
+
+### Error Code Format
+
+```
+DK-T###  = @deepkit/type
+DK-O###  = @deepkit/orm
+DK-I###  = @deepkit/injector
+DK-H###  = @deepkit/http
+DK-R###  = @deepkit/rpc
+DK-B###  = @deepkit/bson
+DK-MG### = @deepkit/mongo
+DK-PG### = @deepkit/postgres
+DK-MY### = @deepkit/mysql
+DK-SQ### = @deepkit/sqlite
+```
+
+### Creating New Errors
+
+**Option 1: Inline throw** (for one-off errors):
+
+```typescript
+import { DeepkitError } from '@deepkit/core';
+
+throw new DeepkitError('DK-T100', `Class ${className} has no primary key`);
+```
+
+**Option 2: Named error class** (for catch-by-type):
+
+```typescript
+export class NoPrimaryKeyError extends DeepkitError {
+    constructor(className: string) {
+        super('DK-T100', `Class ${className} has no primary key`);
+    }
+}
+```
+
+**Option 3: Error hierarchy** (for packages with many errors):
+
+```typescript
+// Base error for the package
+export class DatabaseError extends DeepkitError {
+    constructor(message: string, options?: { cause?: Error }) {
+        super('DK-O001', message, options);
+    }
+}
+
+// Specific error overrides code
+export class UniqueConstraintFailure extends DatabaseError {
+    constructor(message: string, options?: { cause?: Error }) {
+        super(message, options);
+        this.code = 'DK-O100';  // Override parent code
+    }
+}
+```
+
+### Error Message Guidelines
+
+- Keep messages brief - detailed docs are linked via error code
+- Include relevant context (class name, property name, etc.)
+- Don't duplicate docs content in the message
+
+### Key Files
+
+| Package | Base Error | Example Usage |
+|---------|------------|---------------|
+| @deepkit/core | `DeepkitError` | Base class for all coded errors |
+| @deepkit/orm | `DatabaseError` | Extends DeepkitError (DK-O) |
+| @deepkit/injector | `InjectorError` | Extends DeepkitError (DK-I) |
+| @deepkit/mongo | `MongoError` | Extends DeepkitError (DK-MG) |
+
 ## Key Patterns
 
 ### Runtime Type Reflection

@@ -12,7 +12,7 @@ import stream from 'stream';
 
 import {
     ClassType,
-    CustomError,
+    DeepkitError,
     asyncOperation,
     getClassName,
     getClassTypeFromInstance,
@@ -79,19 +79,19 @@ export class Redirect {
     }
 }
 
-export class HttpError<T extends number> extends CustomError {
+export class HttpError<T extends number> extends DeepkitError {
     constructor(
-        public message: string,
+        public override message: string,
         public httpCode: T,
     ) {
-        super(message);
+        super('DK-H001', message);
     }
 }
 
-export function createHttpError<T extends number>(code: T, defaultMessage: string = ''): ClassType<HttpError<T>> {
+export function createHttpError<T extends number>(httpCode: T, defaultMessage: string = ''): ClassType<HttpError<T>> {
     return class extends HttpError<T> {
-        constructor(public message: string = defaultMessage) {
-            super(message, code);
+        constructor(public override message: string = defaultMessage) {
+            super(message, httpCode);
         }
     } as any;
 }

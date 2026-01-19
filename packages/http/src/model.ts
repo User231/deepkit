@@ -11,7 +11,7 @@ import { IncomingMessage, OutgoingHttpHeader, OutgoingHttpHeaders, ServerRespons
 import * as querystring from 'querystring';
 import { Writable } from 'stream';
 
-import { TypeAnnotation, asyncOperation, isArray } from '@deepkit/core';
+import { DeepkitError, TypeAnnotation, asyncOperation, isArray } from '@deepkit/core';
 import { ReflectionKind, Type, ValidationErrorItem, typeAnnotation } from '@deepkit/type';
 
 import { UploadedFile } from './router.js';
@@ -374,7 +374,7 @@ Content-Disposition: form-data; name="${item.name}"\r
                 );
                 return Buffer.concat([header, Buffer.from(item.value + '\r\n', 'utf8')]);
             } else {
-                throw new Error('Invalid multiPart item');
+                throw new DeepkitError('DK-H008', 'Invalid multiPart item');
             }
         });
         parts.push(Buffer.from(`--${boundary}--`, 'utf8'));
@@ -527,7 +527,7 @@ export class MemoryHttpResponse extends HttpResponse {
         try {
             return JSON.parse(json);
         } catch (error: any) {
-            throw new Error(`Could not parse JSON: ${error.message}, body: ${json}`);
+            throw new DeepkitError('DK-H009', `Could not parse JSON: ${error.message}, body: ${json}`);
         }
     }
 

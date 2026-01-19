@@ -1,9 +1,10 @@
 import { expect, test } from '@jest/globals';
+
 import { pathResolver } from '../src/path.js';
 import { ReflectionKind } from '../src/reflection/type.js';
 
 test('pathResolver object literal', () => {
-    type t = { a: string, b: number };
+    type t = { a: string; b: number };
 
     const resolver = pathResolver<t>();
 
@@ -13,7 +14,7 @@ test('pathResolver object literal', () => {
 });
 
 test('pathResolver array', () => {
-    type t = { a: string[], b: number[][] };
+    type t = { a: string[]; b: number[][] };
 
     const resolver = pathResolver<t>();
 
@@ -26,7 +27,7 @@ test('pathResolver array', () => {
 });
 
 test('pathResolver deep ', () => {
-    type t = { a: string, b: { c: boolean } };
+    type t = { a: string; b: { c: boolean } };
 
     const resolver = pathResolver<t>();
 
@@ -37,7 +38,7 @@ test('pathResolver deep ', () => {
 });
 
 test('pathResolver deep array object', () => {
-    type t = { a: string[], b: { c: boolean }[][] };
+    type t = { a: string[]; b: { c: boolean }[][] };
 
     const resolver = pathResolver<t>();
 
@@ -77,11 +78,10 @@ test('pathResolver deep class', () => {
 
         settings: Config[] = [];
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
-    type t = { a: string[], b: User };
+    type t = { a: string[]; b: User };
 
     const resolver = pathResolver<t>();
 

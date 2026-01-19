@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
-import { BsonStreamReader } from '../src/stream';
 
+import { BsonStreamReader } from '../src/stream';
 
 test('message reader', async () => {
     const messages: Buffer[] = [];
@@ -124,13 +124,12 @@ test('message reader', async () => {
     }
 });
 
-
 test('buffer read does not do copy', async () => {
     const data = Buffer.from('hello world');
     data.writeUint32LE(data.length, 0);
     let received: Uint8Array | undefined = undefined;
 
-    new BsonStreamReader((p) => {
+    new BsonStreamReader(p => {
         received = p;
     }).feed(data);
 
@@ -148,50 +147,46 @@ test('RpcBinaryBufferReader', () => {
 
     function test(cb: (reader: BsonStreamReader) => void) {
         const received: string[] = [];
-        const reader = new BsonStreamReader((p) => {
+        const reader = new BsonStreamReader(p => {
             received.push(Buffer.from(p).toString('hex'));
         });
         cb(reader);
-        expect(received).toEqual([
-            '0b00000001020304050607',
-            '0c0000000203040506070809',
-            '0a000000020304050607',
-        ]);
+        expect(received).toEqual(['0b00000001020304050607', '0c0000000203040506070809', '0a000000020304050607']);
     }
 
-    test((reader) => {
+    test(reader => {
         //all at once
         reader.feed(data, data.byteLength);
     });
 
-    test((reader) => {
+    test(reader => {
         reader.feed(a);
         reader.feed(b);
         reader.feed(c);
     });
 
-    test((reader) => {
+    test(reader => {
         reader.feed(a);
         reader.feed(b.subarray(0, 5));
         reader.feed(b.subarray(5));
         reader.feed(c);
     });
 
-    test((reader) => {
+    test(reader => {
         reader.feed(a);
         reader.feed(b.subarray(0, 4));
         reader.feed(b.subarray(4));
         reader.feed(c);
     });
 
-    test((reader) => {
+    test(reader => {
         reader.feed(a);
         reader.feed(b.subarray(0, 3));
         reader.feed(b.subarray(3));
         reader.feed(c);
     });
 
-    test((reader) => {
+    test(reader => {
         reader.feed(a);
         reader.feed(b.subarray(0, 3));
         reader.feed(b.subarray(3));
@@ -199,7 +194,7 @@ test('RpcBinaryBufferReader', () => {
         reader.feed(c.subarray(3));
     });
 
-    test((reader) => {
+    test(reader => {
         reader.feed(a.subarray(0, 3));
         reader.feed(a.subarray(3));
         reader.feed(b.subarray(0, 3));
@@ -207,10 +202,10 @@ test('RpcBinaryBufferReader', () => {
         reader.feed(c);
     });
 
-    const steps: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    const steps: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
     for (const step of steps) {
-        test((reader) => {
+        test(reader => {
             //step by step
             for (let i = 0; i < data.byteLength; i += step) {
                 reader.feed(data.subarray(i, i + step));

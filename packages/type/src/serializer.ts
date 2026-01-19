@@ -10,7 +10,7 @@
 import {
     ClassType,
     CompilerContext,
-    CustomError,
+    DeepkitError,
     getObjectKeysSize,
     hasProperty,
     isArray,
@@ -334,13 +334,14 @@ export function createTypeGuardFunction(
     return compiler.build(code, 'data', 'state', '_path', 'property');
 }
 
-export class SerializationError extends CustomError {
+export class SerializationError extends DeepkitError {
     constructor(
         public originalMessage: string,
-        public code: string = '',
+        public errorType: string = '',
         public path: string = '',
     ) {
         super(
+            'DK-T200',
             `Serialization failed. ${!path ? '' : (path && path.startsWith('.') ? path.slice(1) : path) + ': '}` +
                 originalMessage,
         );
@@ -393,7 +394,7 @@ export class JitStack {
         type: Type,
     ): { id: number; prepare: (fn: Function) => { fn: Function | undefined } } {
         if (this.getStack(registry).has(type)) {
-            throw new Error('Circular jit building detected: ' + stringifyType(type));
+            throw new DeepkitError('DK-T200', `Circular JIT building detected: ${stringifyType(type)}`);
         }
 
         const entry: { fn: Function | undefined; id: number } = { fn: undefined, id: this.id++ };

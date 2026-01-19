@@ -1,8 +1,9 @@
 import { bufferConcat } from '@deepkit/core';
+
 import { BSONError } from './model.js';
 
 function readUint32LE(buffer: Uint8Array, offset: number = 0): number {
-    return buffer[offset] + (buffer[offset + 1] * 2 ** 8) + (buffer[offset + 2] * 2 ** 16) + (buffer[offset + 3] * 2 ** 24);
+    return buffer[offset] + buffer[offset + 1] * 2 ** 8 + buffer[offset + 2] * 2 ** 16 + buffer[offset + 3] * 2 ** 24;
 }
 
 /**
@@ -12,10 +13,7 @@ export class BsonStreamReader {
     protected currentMessage?: Uint8Array;
     protected currentMessageSize: number = 0;
 
-    constructor(
-        protected readonly onMessage: (response: Uint8Array) => void,
-    ) {
-    }
+    constructor(protected readonly onMessage: (response: Uint8Array) => void) {}
 
     public emptyBuffer(): boolean {
         return this.currentMessage === undefined;
@@ -35,7 +33,10 @@ export class BsonStreamReader {
             this.currentMessage = data.byteLength === bytes ? data : data.subarray(0, bytes);
             this.currentMessageSize = readUint32LE(data);
         } else {
-            this.currentMessage = bufferConcat([this.currentMessage, data.byteLength === bytes ? data : data.subarray(0, bytes)]);
+            this.currentMessage = bufferConcat([
+                this.currentMessage,
+                data.byteLength === bytes ? data : data.subarray(0, bytes),
+            ]);
             if (!this.currentMessageSize) {
                 if (this.currentMessage.byteLength < 4) {
                     //not enough data to read the header. Wait for next onData
@@ -89,4 +90,3 @@ export class BsonStreamReader {
         }
     }
 }
-

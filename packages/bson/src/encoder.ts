@@ -1,4 +1,14 @@
-import { getTypeJitContainer, getValidatorFunction, ReflectionKind, Type, TypeObjectLiteral, TypePropertySignature, ValidationError, ValidationErrorItem } from '@deepkit/type';
+import {
+    ReflectionKind,
+    Type,
+    TypeObjectLiteral,
+    TypePropertySignature,
+    ValidationError,
+    ValidationErrorItem,
+    getTypeJitContainer,
+    getValidatorFunction,
+} from '@deepkit/type';
+
 import { getBSONDeserializer } from './bson-deserializer.js';
 import { BSONSerializer, BSONSerializerState, getBSONSerializer } from './bson-serializer.js';
 
@@ -24,43 +34,48 @@ export function getBsonEncoder(type: Type, options: Partial<Options> = {}): Bson
 
     options = Object.assign({ validation: true }, options) as Options;
 
-    const standaloneType = type.kind === ReflectionKind.objectLiteral || (type.kind === ReflectionKind.class && type.types.length);
+    const standaloneType =
+        type.kind === ReflectionKind.objectLiteral || (type.kind === ReflectionKind.class && type.types.length);
 
     const validator = getValidatorFunction(undefined, type);
-    const validate = options.validation ? (data: any) => {
-        const errors: ValidationErrorItem[] = [];
-        validator(data, { errors });
-        if (errors.length) {
-            throw new ValidationError(errors, type);
-        }
-        return data;
-    } : (data: any) => data;
+    const validate = options.validation
+        ? (data: any) => {
+              const errors: ValidationErrorItem[] = [];
+              validator(data, { errors });
+              if (errors.length) {
+                  throw new ValidationError(errors, type);
+              }
+              return data;
+          }
+        : (data: any) => data;
 
     if (!standaloneType) {
         // BSON only supports objects, so we wrap it into a {v: type} object.
         const wrappedType: TypeObjectLiteral = {
             kind: ReflectionKind.objectLiteral,
-            types: [{
-                kind: ReflectionKind.propertySignature,
-                name: 'v',
-                type: type,
-            } as TypePropertySignature],
+            types: [
+                {
+                    kind: ReflectionKind.propertySignature,
+                    name: 'v',
+                    type: type,
+                } as TypePropertySignature,
+            ],
         };
 
         const decoder = getBSONDeserializer<any>(undefined, wrappedType);
         const encoder = getBSONSerializer(undefined, wrappedType);
 
-        return container.bsonEncoder = {
+        return (container.bsonEncoder = {
             decode: (v: Uint8Array, offset: number = 0) => validate(decoder(v, offset).v),
             encode: (v: any, state?: BSONSerializerState) => encoder({ v: validate(v) }, state),
-        };
+        });
     }
 
     const decoder = getBSONDeserializer<any>(undefined, type);
     const encoder = getBSONSerializer(undefined, type);
 
-    return container.bsonEncoder = {
+    return (container.bsonEncoder = {
         decode: (v: Uint8Array, offset: number = 0) => validate(decoder(v, offset)),
         encode: (v: any, state?: BSONSerializerState) => encoder(validate(v), state),
-    };
+    });
 }

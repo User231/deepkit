@@ -10,6 +10,7 @@
 import {
     AbstractClassType,
     ClassType,
+    DeepkitError,
     arrayRemoveItem,
     getClassName,
     isArray,
@@ -186,7 +187,7 @@ export function typeOf<T>(args: any[] = [], p?: ReceiveType<T>): Type {
         return args.length > 0 ? resolveRuntimeType(p, args) : (resolveReceiveType(p) as Type);
     }
 
-    throw new Error('No type given');
+    throw new DeepkitError('DK-T002', 'No type information received.');
 }
 
 export function removeTypeName<T extends Type>(type: T): T {
@@ -1152,7 +1153,7 @@ export class ReflectionClass<T> {
 
     getPrimary(): ReflectionProperty {
         if (!this.primaries.length) {
-            throw new Error(`Class ${this.getClassName()} has no primary key.`);
+            throw new DeepkitError('DK-T100', `Class ${this.getClassName()} has no primary key`);
         }
         return this.primaries[0];
     }
@@ -1182,7 +1183,8 @@ export class ReflectionClass<T> {
 
     removeProperty(name: string | number | symbol) {
         const property = this.properties.find(v => v.getName() === name);
-        if (!property) throw new Error(`Property ${String(name)} not known in ${this.getClassName()}`);
+        if (!property)
+            throw new DeepkitError('DK-T102', `No property '${String(name)}' found in ${this.getClassName()}`);
 
         const stringName = memberNameToString(name);
         arrayRemoveItem(this.propertyNames, stringName);
@@ -1328,8 +1330,9 @@ export class ReflectionClass<T> {
             const discriminant = findCommonLiteral(this.subClasses);
 
             if (!discriminant) {
-                throw new Error(
-                    `Sub classes of ${this.getClassName()} single-table inheritance [${this.subClasses.map(v => v.getClassName())}] have no common discriminant or common literal. Please define one.`,
+                throw new DeepkitError(
+                    'DK-T105',
+                    `Sub classes of ${this.getClassName()} single-table inheritance [${this.subClasses.map(v => v.getClassName())}] have no common discriminant or common literal.`,
                 );
             }
             this.data.singleTableInheritanceProperty = this.getProperty(discriminant);
@@ -1360,7 +1363,7 @@ export class ReflectionClass<T> {
         classTypeIn?: ReceiveType<T> | AbstractClassType<T> | TypeClass | TypeObjectLiteral | ReflectionClass<any>,
         args: any[] = [],
     ): ReflectionClass<T> {
-        if (!classTypeIn) throw new Error(`No type given in ReflectionClass.from<T>`);
+        if (!classTypeIn) throw new DeepkitError('DK-T002', 'No type information received.');
         if (isArray(classTypeIn)) classTypeIn = resolveReceiveType(classTypeIn);
 
         if (classTypeIn instanceof ReflectionClass) return classTypeIn;
@@ -1374,7 +1377,10 @@ export class ReflectionClass<T> {
                 return (jit.reflectionClass = new ReflectionClass<T>(classTypeIn));
             }
             if (classTypeIn.kind !== ReflectionKind.class)
-                throw new Error(`TypeClass or TypeObjectLiteral expected, not ${ReflectionKind[classTypeIn.kind]}`);
+                throw new DeepkitError(
+                    'DK-T104',
+                    `TypeClass or TypeObjectLiteral expected, not ${ReflectionKind[classTypeIn.kind]}.`,
+                );
         }
 
         const classType = isType(classTypeIn)
@@ -1404,8 +1410,9 @@ export class ReflectionClass<T> {
                 } as TypeClass);
 
         if (type.kind !== ReflectionKind.class) {
-            throw new Error(
-                `Given class is not a class but kind ${ReflectionKind[type.kind]}. classType: ${stringifyValueWithType(classType)}`,
+            throw new DeepkitError(
+                'DK-T104',
+                `TypeClass or TypeObjectLiteral expected, not ${ReflectionKind[type.kind]}. classType: ${stringifyValueWithType(classType)}`,
             );
         }
 
@@ -1468,7 +1475,11 @@ export class ReflectionClass<T> {
 
     getProperty(name: string | number | symbol): ReflectionProperty {
         const property = this.getPropertyOrUndefined(name);
-        if (!property) throw new Error(`No property ${memberNameToString(name)} found in ${this.getClassName()}`);
+        if (!property)
+            throw new DeepkitError(
+                'DK-T102',
+                `No property '${memberNameToString(name)}' found in ${this.getClassName()}.`,
+            );
         return property;
     }
 
@@ -1486,7 +1497,11 @@ export class ReflectionClass<T> {
 
     getMethod(name: string | number | symbol): ReflectionMethod {
         const method = this.getMethodOrUndefined(name);
-        if (!method) throw new Error(`No method ${memberNameToString(name)} found in ${this.getClassName()}`);
+        if (!method)
+            throw new DeepkitError(
+                'DK-T103',
+                `No method '${memberNameToString(name)}' found in ${this.getClassName()}.`,
+            );
         return method;
     }
 
@@ -1568,15 +1583,18 @@ export class ReflectionClass<T> {
         }
 
         if (candidates.length > 1) {
-            throw new Error(
-                `Class ${this.getClassName()} has multiple potential reverse references [${candidates.map(v => v.name).join(', ')}] for ${fromReference.name} to class ${getClassName(toClassType)}. ` +
-                    `Please specify each back reference by using 'mappedBy', e.g. @t.backReference({mappedBy: 'fieldNameOnTheOtherSide'} so its not ambiguous anymore.`,
+            throw new DeepkitError(
+                'DK-T107',
+                `Class ${this.getClassName()} has multiple potential reverse references [${candidates.map(v => v.name).join(', ')}] for ${fromReference.name} to class ${getClassName(toClassType)}. Use 'mappedBy' to disambiguate.`,
             );
         }
 
         if (candidates.length === 1) return candidates[0];
 
-        throw new Error(`Class ${this.getClassName()} has no reference to class ${getClassName(toClassType)} defined.`);
+        throw new DeepkitError(
+            'DK-T106',
+            `Class ${this.getClassName()} has no reference to class ${getClassName(toClassType)} defined.`,
+        );
     }
 
     public extractPrimaryKey(item: object): Partial<T> {

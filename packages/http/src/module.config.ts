@@ -91,7 +91,6 @@ export interface HttpParserOptions extends FormidableOptions {
 }
 
 export class HttpConfig {
-
     debug: boolean = false;
 
     parser: HttpParserOptions = {};
