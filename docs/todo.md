@@ -182,13 +182,10 @@ Issues affecting DX or edge cases.
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | type-compiler | 2024-11-12 |
 | [#562](https://github.com/deepkit/deepkit-framework/issues/562) | serialize<T> circular import error | type | 2024-05-03 |
 | [#555](https://github.com/deepkit/deepkit-framework/issues/555) | No valid runtime type for external imports | type-compiler | 2024-02-16 |
-| [#524](https://github.com/deepkit/deepkit-framework/issues/524) | conditional type inference unexpected | type | 2023-12-14 |
 | [#509](https://github.com/deepkit/deepkit-framework/issues/509) | Node InferType did not pass test 'isEntityName' | type-compiler | 2025-05-02 |
 | [#508](https://github.com/deepkit/deepkit-framework/issues/508) | Improve error "No valid runtime type" | type | 2023-11-16 |
 | [#458](https://github.com/deepkit/deepkit-framework/issues/458) | Body parameter in separate file controller | http | 2023-10-04 |
 | [#456](https://github.com/deepkit/deepkit-framework/issues/456) | Receive types in Vite from other file | type-compiler | 2023-06-13 |
-| [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | orm | 2023-05-08 |
-| [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | type | 2023-04-12 |
 | [#395](https://github.com/deepkit/deepkit-framework/issues/395) | custom identifier in crud routes | orm | 2023-04-13 |
 
 ### Enhancement Requests
@@ -315,6 +312,9 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#589](https://github.com/deepkit/deepkit-framework/issues/589) | Throwing at HTTP Middlewares | 2026-01-18 | 9ee05a9a |
 | [#505](https://github.com/deepkit/deepkit-framework/issues/505) | assert circular structure to json | 2026-01-18 | 7b2fb424 |
 | [#478](https://github.com/deepkit/deepkit-framework/issues/478) | deserialize maximum call stack exceeded | 2026-01-18 | 2a41820e |
+| [#524](https://github.com/deepkit/deepkit-framework/issues/524) | conditional type inference unexpected | 2026-01-19 | - |
+| [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | already fixed | - |
+| [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | already fixed | - |
 
 ---
 
