@@ -187,7 +187,6 @@ Issues affecting DX or edge cases.
 | [#658](https://github.com/deepkit/deepkit-framework/issues/658) | TypeScript 7 support | type-compiler | 2025-06-25 |
 | [#636](https://github.com/deepkit/deepkit-framework/issues/636) | hydrate fetched objects in identity map | orm | 2025-03-11 |
 | [#609](https://github.com/deepkit/deepkit-framework/issues/609) | ORM adapter for PgLite | orm | 2024-09-05 |
-| [#582](https://github.com/deepkit/deepkit-framework/issues/582) | Replace faker with maintained version | core | 2024-06-27 |
 | [#575](https://github.com/deepkit/deepkit-framework/issues/575) | Batch mechanism in Message Queue | broker | 2024-06-17 |
 | [#572](https://github.com/deepkit/deepkit-framework/issues/572) | Add light theme in documentation | website | 2024-06-07 |
 | [#567](https://github.com/deepkit/deepkit-framework/issues/567) | Observability tools | framework | 2024-05-11 |
@@ -313,6 +312,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | 2026-01-19 | a554c90f |
 | [#509](https://github.com/deepkit/deepkit-framework/issues/509) | Node InferType did not pass test 'isEntityName' | 2026-01-19 | d70356d6 |
 | [#395](https://github.com/deepkit/deepkit-framework/issues/395) | custom identifier in crud routes | 2026-01-19 | 555b09c2 |
+| [#582](https://github.com/deepkit/deepkit-framework/issues/582) | Replace faker with maintained version | 2026-01-19 | 2803ca46 |
 | [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | already fixed | - |
 | [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | already fixed | - |
 
