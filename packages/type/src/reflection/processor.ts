@@ -395,6 +395,11 @@ export class Processor {
                     return: { kind: ReflectionKind.any },
                 };
             }
+            // Graceful degradation for external library classes without __type
+            // Returns TypeAny with typeName so DI can provide meaningful error messages
+            if (isClass(object)) {
+                return { kind: ReflectionKind.any, typeName: object.name };
+            }
             throw new DeepkitError('DK-T001', `No valid runtime type for ${stringifyValueWithType(object)} given.`);
         }
 
