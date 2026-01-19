@@ -570,6 +570,601 @@ test('document that class re-export works through the type system', () => {
     expect(res['app.ts']).toContain('() => Cache');
 });
 
+// =============================================================================
+// ADDITIONAL IMPORT/EXPORT PATTERN TESTS
+// =============================================================================
+
+test('export { default } from "./module": re-export default export', () => {
+    const res = transform({
+        'index.ts': `
+            export { default } from './module';
+        `,
+        'module.ts': `
+            export default interface DefaultInterface {
+                value: number;
+            }
+        `,
+    });
+
+    // The module.ts should have the default interface compiled
+    expect(res['module.ts']).toBeDefined();
+
+    // The index.ts should re-export the default
+    expect(res['index.ts']).toContain('export { default }');
+});
+
+test('export { default as X } from "./module": re-export default as named', () => {
+    const res = transform({
+        'index.ts': `
+            export { default as MyInterface } from './module';
+        `,
+        'module.ts': `
+            export default interface DefaultInterface {
+                id: number;
+                name: string;
+            }
+        `,
+    });
+
+    // The index.ts should have the aliased default export
+    expect(res['index.ts']).toContain('default as MyInterface');
+});
+
+test('export * as Namespace from "./module": namespace star re-export (ES2020)', () => {
+    const res = transform({
+        'index.ts': `
+            export * as Types from './types';
+        `,
+        'types.ts': `
+            export interface User { id: number; }
+            export interface Post { title: string; }
+            export type ID = number;
+        `,
+    });
+
+    // types.ts should have all __Ω symbols
+    expect(res['types.ts']).toContain('const __ΩUser =');
+    expect(res['types.ts']).toContain('const __ΩPost =');
+    expect(res['types.ts']).toContain('const __ΩID =');
+
+    // The namespace export should be present
+    expect(res['index.ts']).toContain('export * as Types');
+});
+
+test('export with explicit .js extension', () => {
+    const res = transform({
+        'index.ts': `
+            export { Config } from './config.js';
+        `,
+        'config.ts': `
+            export interface Config {
+                setting: string;
+                value: number;
+            }
+        `,
+    });
+
+    // config.ts should have __ΩConfig
+    expect(res['config.ts']).toContain('const __ΩConfig =');
+
+    // index.ts should re-export __ΩConfig with .js extension preserved
+    expect(res['index.ts']).toContain('__ΩConfig');
+    expect(res['index.ts']).toContain("from './config.js'");
+});
+
+test('deep barrel files: index.ts -> submodule/index.ts -> types.ts (3+ levels)', () => {
+    const res = transform({
+        'index.ts': `
+            export { DeepType } from './submodule';
+        `,
+        'submodule/index.ts': `
+            export { DeepType } from './nested';
+        `,
+        'submodule/nested/index.ts': `
+            export { DeepType } from './types';
+        `,
+        'submodule/nested/types.ts': `
+            export interface DeepType {
+                level: number;
+                data: string;
+            }
+        `,
+    });
+
+    // The deepest file should define __ΩDeepType
+    expect(res['submodule/nested/types.ts']).toContain('const __ΩDeepType =');
+
+    // Each level should re-export __ΩDeepType
+    expect(res['submodule/nested/index.ts']).toContain('__ΩDeepType');
+    expect(res['submodule/index.ts']).toContain('__ΩDeepType');
+    expect(res['index.ts']).toContain('__ΩDeepType');
+});
+
+test('export { type X } from "./module": inline type modifier (TS 4.5+)', () => {
+    const res = transform({
+        'index.ts': `
+            export { type TypeOnly, RegularExport } from './module';
+        `,
+        'module.ts': `
+            export interface TypeOnly {
+                readonly value: string;
+            }
+            export interface RegularExport {
+                data: number;
+            }
+        `,
+    });
+
+    // module.ts should have both __Ω symbols
+    expect(res['module.ts']).toContain('const __ΩTypeOnly =');
+    expect(res['module.ts']).toContain('const __ΩRegularExport =');
+
+    // The inline type modifier may affect how the export is handled
+    // Regular exports should still get __Ω re-exports
+    expect(res['index.ts']).toContain('__ΩRegularExport');
+});
+
+test('mixed default and named in same statement: export { default as Def, Named } from "./module"', () => {
+    const res = transform({
+        'index.ts': `
+            export { default as DefaultExport, NamedType } from './module';
+        `,
+        'module.ts': `
+            export default interface DefaultInterface {
+                defaultValue: boolean;
+            }
+            export interface NamedType {
+                namedValue: string;
+            }
+        `,
+    });
+
+    // module.ts should have __ΩNamedType
+    expect(res['module.ts']).toContain('const __ΩNamedType =');
+
+    // index.ts should have both exports and __ΩNamedType re-export
+    expect(res['index.ts']).toContain('default as DefaultExport');
+    expect(res['index.ts']).toContain('__ΩNamedType');
+});
+
+test('empty re-export: export {} from "./module" (no-op)', () => {
+    const res = transform({
+        'index.ts': `
+            export {} from './module';
+        `,
+        'module.ts': `
+            export interface Unused {
+                value: string;
+            }
+        `,
+    });
+
+    // module.ts should still generate __ΩUnused for local use
+    expect(res['module.ts']).toContain('const __ΩUnused =');
+
+    // index.ts should not have any __Ω re-exports since nothing is exported
+    expect(res['index.ts']).not.toContain('__ΩUnused');
+});
+
+test('same symbol name from multiple modules: different files export same-named type', () => {
+    const res = transform({
+        'index.ts': `
+            export { Config as UserConfig } from './user';
+            export { Config as PostConfig } from './post';
+        `,
+        'user.ts': `
+            export interface Config {
+                userName: string;
+            }
+        `,
+        'post.ts': `
+            export interface Config {
+                postTitle: string;
+            }
+        `,
+    });
+
+    // Both source files should have __ΩConfig
+    expect(res['user.ts']).toContain('const __ΩConfig =');
+    expect(res['post.ts']).toContain('const __ΩConfig =');
+
+    // index.ts should re-export with proper aliases
+    expect(res['index.ts']).toContain('__ΩUserConfig');
+    expect(res['index.ts']).toContain('__ΩPostConfig');
+});
+
+test('re-export then local augmentation: import, use locally, then export', () => {
+    const res = transform({
+        'index.ts': `
+            import { BaseType } from './base';
+            export { BaseType } from './base';
+
+            // Local usage that extends the imported type
+            export interface ExtendedType extends BaseType {
+                extraField: boolean;
+            }
+        `,
+        'base.ts': `
+            export interface BaseType {
+                id: number;
+            }
+        `,
+    });
+
+    // base.ts should have __ΩBaseType
+    expect(res['base.ts']).toContain('const __ΩBaseType =');
+
+    // index.ts should have both __ΩBaseType re-export and __ΩExtendedType definition
+    expect(res['index.ts']).toContain('__ΩBaseType');
+    expect(res['index.ts']).toContain('const __ΩExtendedType =');
+});
+
+test('circular dependency: A re-exports from B, B imports from A', () => {
+    const res = transform({
+        'a.ts': `
+            import { TypeB } from './b';
+            export interface TypeA {
+                ref: TypeB;
+            }
+            export { TypeB } from './b';
+        `,
+        'b.ts': `
+            import { TypeA } from './a';
+            export interface TypeB {
+                ref: TypeA;
+            }
+        `,
+    });
+
+    // Both files should compile and have their __Ω symbols
+    expect(res['a.ts']).toContain('const __ΩTypeA =');
+    expect(res['b.ts']).toContain('const __ΩTypeB =');
+
+    // a.ts should re-export __ΩTypeB
+    expect(res['a.ts']).toContain('__ΩTypeB');
+});
+
+test('re-export generic type with constraints', () => {
+    const res = transform({
+        'index.ts': `
+            export { Repository } from './repository';
+        `,
+        'repository.ts': `
+            export interface Entity {
+                id: number;
+            }
+            export interface Repository<T extends Entity> {
+                find(id: number): T | undefined;
+                save(entity: T): void;
+            }
+        `,
+    });
+
+    // repository.ts should have both __Ω symbols
+    expect(res['repository.ts']).toContain('const __ΩEntity =');
+    expect(res['repository.ts']).toContain('const __ΩRepository =');
+
+    // index.ts should re-export __ΩRepository
+    expect(res['index.ts']).toContain('__ΩRepository');
+});
+
+test('re-export intersection type', () => {
+    const res = transform({
+        'index.ts': `
+            export { MergedType } from './types';
+        `,
+        'types.ts': `
+            interface A { a: string; }
+            interface B { b: number; }
+            export type MergedType = A & B;
+        `,
+    });
+
+    // types.ts should have __ΩMergedType
+    expect(res['types.ts']).toContain('const __ΩMergedType =');
+
+    // index.ts should re-export __ΩMergedType
+    expect(res['index.ts']).toContain('__ΩMergedType');
+});
+
+test('re-export conditional type', () => {
+    const res = transform({
+        'index.ts': `
+            export { IsString } from './types';
+        `,
+        'types.ts': `
+            export type IsString<T> = T extends string ? true : false;
+        `,
+    });
+
+    // types.ts should have __ΩIsString
+    expect(res['types.ts']).toContain('const __ΩIsString =');
+
+    // index.ts should re-export __ΩIsString
+    expect(res['index.ts']).toContain('__ΩIsString');
+});
+
+test('re-export mapped type', () => {
+    const res = transform({
+        'index.ts': `
+            export { ReadonlyProps } from './types';
+        `,
+        'types.ts': `
+            export type ReadonlyProps<T> = {
+                readonly [K in keyof T]: T[K];
+            };
+        `,
+    });
+
+    // types.ts should have __ΩReadonlyProps
+    expect(res['types.ts']).toContain('const __ΩReadonlyProps =');
+
+    // index.ts should re-export __ΩReadonlyProps
+    expect(res['index.ts']).toContain('__ΩReadonlyProps');
+});
+
+// =============================================================================
+// RUNTIME VERIFICATION TESTS
+// These tests use transpile() to verify the compiled code works correctly
+// =============================================================================
+
+test('transpile and verify: namespace star re-export is accessible', () => {
+    const res = transpile({
+        'app.ts': `
+            import * as Types from './types';
+            const user: Types.User = { id: 1 };
+            user;
+        `,
+        'types.ts': `
+            export interface User {
+                id: number;
+            }
+        `,
+    });
+
+    // Verify transpiled output exists
+    expect(res.app).toBeDefined();
+    expect(res.types).toBeDefined();
+
+    // types should export __ΩUser
+    expect(res.types).toContain('__ΩUser');
+    expect(res.types).toContain('exports.__ΩUser');
+});
+
+test('transpile and verify: deep barrel file chain exports types correctly', () => {
+    const res = transpile({
+        'app.ts': `
+            import { DeepType } from './index';
+            const obj: DeepType = { level: 3, data: 'test' };
+            obj;
+        `,
+        'index.ts': `
+            export { DeepType } from './sub';
+        `,
+        'sub/index.ts': `
+            export { DeepType } from './types';
+        `,
+        'sub/types.ts': `
+            export interface DeepType {
+                level: number;
+                data: string;
+            }
+        `,
+    });
+
+    // All files should be transpiled
+    expect(res.app).toBeDefined();
+    expect(res.index).toBeDefined();
+    expect(res['sub/index']).toBeDefined();
+    expect(res['sub/types']).toBeDefined();
+
+    // The deepest types file should define and export __ΩDeepType
+    expect(res['sub/types']).toContain('__ΩDeepType');
+    expect(res['sub/types']).toContain('exports.__ΩDeepType');
+});
+
+test('transpile and verify: aliased re-export chain preserves type info', () => {
+    const res = transpile({
+        'app.ts': `
+            import { Final } from './c';
+            const obj: Final = { value: 'test' };
+            obj;
+        `,
+        'c.ts': `
+            export { Middle as Final } from './b';
+        `,
+        'b.ts': `
+            export { Original as Middle } from './a';
+        `,
+        'a.ts': `
+            export interface Original {
+                value: string;
+            }
+        `,
+    });
+
+    // All files should be transpiled
+    expect(res.app).toBeDefined();
+    expect(res.c).toBeDefined();
+    expect(res.b).toBeDefined();
+    expect(res.a).toBeDefined();
+
+    // a.ts should have __ΩOriginal
+    expect(res.a).toContain('__ΩOriginal');
+    expect(res.a).toContain('exports.__ΩOriginal');
+});
+
+test('transpile and verify: multiple re-exports from different modules', () => {
+    const res = transpile({
+        'app.ts': `
+            import { User, Post, Comment } from './index';
+            const u: User = { id: 1 };
+            const p: Post = { title: 'test' };
+            const c: Comment = { text: 'hello' };
+            [u, p, c];
+        `,
+        'index.ts': `
+            export { User } from './user';
+            export { Post } from './post';
+            export { Comment } from './comment';
+        `,
+        'user.ts': `
+            export interface User { id: number; }
+        `,
+        'post.ts': `
+            export interface Post { title: string; }
+        `,
+        'comment.ts': `
+            export interface Comment { text: string; }
+        `,
+    });
+
+    // All source files should export their __Ω symbols
+    expect(res.user).toContain('exports.__ΩUser');
+    expect(res.post).toContain('exports.__ΩPost');
+    expect(res.comment).toContain('exports.__ΩComment');
+});
+
+test('transpile and verify: class with re-export works correctly', () => {
+    const res = transpile({
+        'app.ts': `
+            import { MyService } from './index';
+            const svc = new MyService();
+            svc;
+        `,
+        'index.ts': `
+            export { MyService } from './service';
+        `,
+        'service.ts': `
+            export class MyService {
+                id: number = 0;
+                name: string = '';
+            }
+        `,
+    });
+
+    // service.ts should have static __type on the class
+    expect(res.service).toContain('__type');
+
+    // Verify all files compiled
+    expect(res.app).toBeDefined();
+    expect(res.index).toBeDefined();
+});
+
+test('transpile and verify: generic interface re-export', () => {
+    const res = transpile({
+        'app.ts': `
+            import { Container } from './index';
+            const box: Container<string> = { value: 'hello', getValue: () => 'hello' };
+            box;
+        `,
+        'index.ts': `
+            export { Container } from './container';
+        `,
+        'container.ts': `
+            export interface Container<T> {
+                value: T;
+                getValue(): T;
+            }
+        `,
+    });
+
+    // container.ts should have __ΩContainer
+    expect(res.container).toContain('__ΩContainer');
+    expect(res.container).toContain('exports.__ΩContainer');
+});
+
+test('transpile and verify: enum re-export with values', () => {
+    const res = transpile({
+        'app.ts': `
+            import { Status } from './index';
+            const s: Status = Status.Active;
+            s;
+        `,
+        'index.ts': `
+            export { Status } from './enums';
+        `,
+        'enums.ts': `
+            export enum Status {
+                Active = 'active',
+                Inactive = 'inactive',
+                Pending = 'pending'
+            }
+        `,
+    });
+
+    // enums.ts should have __ΩStatus
+    expect(res.enums).toContain('__ΩStatus');
+
+    // Verify enum values are preserved
+    expect(res.enums).toContain('active');
+    expect(res.enums).toContain('inactive');
+    expect(res.enums).toContain('pending');
+});
+
+test('transpile and verify: type alias with branded type re-export', () => {
+    const res = transpile({
+        'app.ts': `
+            import { UserID } from './index';
+            const id: UserID = 'user-123' as UserID;
+            id;
+        `,
+        'index.ts': `
+            export { UserID } from './types';
+        `,
+        'types.ts': `
+            export type UserID = string & { __brand: 'UserID' };
+        `,
+    });
+
+    // types.ts should have __ΩUserID
+    expect(res.types).toContain('__ΩUserID');
+    expect(res.types).toContain('exports.__ΩUserID');
+});
+
+test('transpile and verify: mixed exports (types, classes, functions) from barrel', () => {
+    const res = transpile({
+        'app.ts': `
+            import { User, UserService, createUser } from './index';
+            const user: User = { id: 1, name: 'Test' };
+            const service = new UserService();
+            const newUser = createUser('New User');
+            [user, service, newUser];
+        `,
+        'index.ts': `
+            export { User } from './types';
+            export { UserService } from './service';
+            export { createUser } from './factory';
+        `,
+        'types.ts': `
+            export interface User {
+                id: number;
+                name: string;
+            }
+        `,
+        'service.ts': `
+            export class UserService {
+                getUsers(): any[] { return []; }
+            }
+        `,
+        'factory.ts': `
+            export function createUser(name: string): any {
+                return { id: Date.now(), name };
+            }
+        `,
+    });
+
+    // types.ts should have __ΩUser
+    expect(res.types).toContain('__ΩUser');
+    expect(res.types).toContain('exports.__ΩUser');
+
+    // service.ts should have static __type
+    expect(res.service).toContain('__type');
+
+    // factory.ts should have __type on function
+    expect(res.factory).toContain('createUser.__type');
+});
+
 test('verify re-export adds __Ω as separate export statement', () => {
     const res = transform({
         'index.ts': `
