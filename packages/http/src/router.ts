@@ -37,7 +37,7 @@ import {
     HttpRequestQuery,
     HttpRequestResolvedParameters,
 } from './model.js';
-import { HttpConfig } from './module.config.js';
+import { CorsOptions, HttpConfig } from './module.config.js';
 import {
     ParameterForRequestParser,
     getRequestParserCodeForParameters,
@@ -550,7 +550,37 @@ function createRouteConfigFromHttpAction(
     routeConfig.description = action.description;
     routeConfig.category = action.category;
     routeConfig.groups = action.groups;
-    routeConfig.data = new Map(action.data);
+
+    // Build data map: controller settings first, then action overrides
+    routeConfig.data = new Map();
+    for (const [key, value] of action.data) {
+        routeConfig.data.set(key, value);
+    }
+
+    // Merge CORS config at registration time (not per-request)
+    // Priority: action.cors > controller.cors
+    const actionCors = action.data.get('cors') as Partial<CorsOptions> | false | undefined;
+    const controllerCors: Partial<CorsOptions> | false | undefined = controller?.cors;
+
+    if (actionCors === false) {
+        // Action explicitly disables CORS
+        routeConfig.data.set('cors', false);
+    } else if (actionCors && typeof actionCors === 'object') {
+        // Action has CORS config
+        if (controllerCors && typeof controllerCors === 'object') {
+            // Merge: controller base + action override (done once at registration)
+            routeConfig.data.set('cors', { ...controllerCors, ...actionCors });
+        } else {
+            routeConfig.data.set('cors', actionCors);
+        }
+    } else if (controllerCors === false) {
+        // Controller disables CORS, no action override
+        routeConfig.data.set('cors', false);
+    } else if (controllerCors && typeof controllerCors === 'object') {
+        // Only controller has config
+        routeConfig.data.set('cors', controllerCors);
+    }
+
     if (controller) {
         routeConfig.baseUrl = controller.baseUrl;
 

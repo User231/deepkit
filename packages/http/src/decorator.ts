@@ -28,6 +28,7 @@ import {
 } from '@deepkit/type';
 
 import { HttpMiddleware, HttpMiddlewareConfig, HttpMiddlewareFn, httpMiddleware } from './middleware.js';
+import { CorsOptions } from './module.config.js';
 import { RouteParameterResolver } from './router.js';
 
 type HttpActionMiddleware = (() => HttpMiddlewareConfig) | ClassType<HttpMiddleware> | HttpMiddlewareFn;
@@ -45,6 +46,11 @@ export class HttpController {
 
     resolverForToken: Map<any, ClassType> = new Map();
     resolverForParameterName: Map<string, ClassType> = new Map();
+
+    /**
+     * Controller-level CORS configuration. Applied to all routes unless overridden.
+     */
+    cors?: Partial<CorsOptions> | false;
 
     private actionsProcessed = new Set<HttpAction>();
 
@@ -128,6 +134,15 @@ export class HttpControllerDecorator {
 
     middleware(...middlewares: HttpActionMiddleware[]) {
         this.t.middlewares.push(...middlewares.map(v => (isMiddlewareClassTypeOrFn(v) ? httpMiddleware.for(v) : v)));
+    }
+
+    /**
+     * Configure CORS for all routes in this controller.
+     * Pass false to disable CORS for all routes in this controller.
+     * Individual routes can override with @http.GET().cors({...})
+     */
+    cors(config: Partial<CorsOptions> | false) {
+        this.t.cors = config;
     }
 
     /**
@@ -273,6 +288,15 @@ export class HttpActionDecorator {
      */
     data(name: string, value: any) {
         this.t.data.set(name, value);
+    }
+
+    /**
+     * Configure CORS for this route.
+     * Pass false to disable CORS for this route.
+     * Pass a partial CorsOptions to override global CORS settings.
+     */
+    cors(config: Partial<CorsOptions> | false) {
+        this.t.data.set('cors', config);
     }
 
     category(category: string) {

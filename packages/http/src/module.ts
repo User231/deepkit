@@ -7,6 +7,7 @@ import '@deepkit/type';
 import { ReflectionKind, ReflectionParameter, Type, typeAnnotation } from '@deepkit/type';
 
 import { HttpControllers } from './controllers.js';
+import { CorsListener } from './cors.js';
 import { httpClass } from './decorator.js';
 import { HttpRouterFilterResolver } from './filter.js';
 import { HttpListener, HttpResultFormatter, httpWorkflow } from './http.js';
@@ -61,6 +62,11 @@ export class HttpModule extends createModuleClass({
 
     process() {
         this.addProvider({ provide: HttpControllers, useValue: this.httpControllers });
+
+        // Register CORS listener if configured
+        if (this.config.cors) {
+            this.addListener(CorsListener);
+        }
     }
 
     protected patchEventsForHttpRequestAccess: EventToken<any>[] = [
