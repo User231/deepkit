@@ -242,7 +242,9 @@ export function buildRequestParser(
         pathParameterNames = parsedPath.parameterNames;
 
         for (const param of params) {
-            param.regexPosition = parsedPath.parameterNames[param.parameter.name];
+            // Use typePath (from httpPath annotation) if available, otherwise use parameter name
+            const pathName = param.typePath ?? param.parameter.name;
+            param.regexPosition = parsedPath.parameterNames[pathName];
         }
     }
 

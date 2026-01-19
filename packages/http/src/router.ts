@@ -221,7 +221,9 @@ export function parseRouteControllerAction(routeConfig: RouteConfig): ParsedRout
 
     for (const property of parameters) {
         const parsedParameter = parsedRoute.addParameter(property);
-        parsedParameter.regexPosition = parsedPath.parameterNames[property.name];
+        // Use typePath (from HttpPath name option) if available, otherwise use parameter name
+        const pathName = parsedParameter.typePath ?? property.name;
+        parsedParameter.regexPosition = parsedPath.parameterNames[pathName];
     }
 
     return parsedRoute;

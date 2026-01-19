@@ -8,8 +8,10 @@ import {
     Positive,
     ReflectionClass,
     ReflectionKind,
+    Type,
     TypeUnion,
     ValidationError,
+    typeAnnotation,
 } from '@deepkit/type';
 
 function applySelect(query: Query<any>, select: string[] | string): Query<any> {
@@ -149,6 +151,28 @@ function createController(schema: ReflectionClass<any>, options: AutoCrudOptions
     const identifierType = identifier.type;
     type IdentifierType = InlineRuntimeType<typeof identifierType>;
 
+    // Create identifier type with HttpPath annotation for path parameter binding
+    // This allows the HTTP framework to map the dynamic path parameter (e.g., :username) to the method parameter
+    const identifierPathType: Type = {
+        ...identifierType,
+        annotations: { ...identifierType.annotations },
+    };
+    // Build the httpPath options object literal with proper parent references
+    const httpPathOptions: Type = { kind: ReflectionKind.objectLiteral, types: [] } as Type;
+    (httpPathOptions as any).types = [
+        {
+            kind: ReflectionKind.propertySignature,
+            parent: httpPathOptions,
+            name: 'name',
+            type: { kind: ReflectionKind.literal, literal: identifier.name },
+        },
+    ];
+    typeAnnotation.registerType(identifierPathType, {
+        name: 'httpPath',
+        options: httpPathOptions,
+    });
+    type IdentifierPathType = InlineRuntimeType<typeof identifierPathType>;
+
     const maxLimit = options.maxLimit || 1000;
 
     interface ListQuery {
@@ -242,7 +266,7 @@ function createController(schema: ReflectionClass<any>, options: AutoCrudOptions
             .description(`Delete a single ${schema.name}.`)
             .response<ValidationError>(400, `When parameter validation failed`)
             .response<{ deleted: number }>(200, `When deletion was successful`))
-        async delete(id: IdentifierType) {
+        async delete(id: IdentifierPathType) {
             const result = await this.getDatabase()
                 .query(schema)
                 .filter({ [identifier.name]: id })
@@ -256,7 +280,7 @@ function createController(schema: ReflectionClass<any>, options: AutoCrudOptions
             .response<SchemaType>(200, `When ${schema.name} was found.`)
             .response<ValidationError>(400, `When parameter validation failed`)
             .response<ErrorMessage>(404, `When ${schema.name} was not found.`))
-        async read(id: IdentifierType, options: HttpQueries<GetQuery>) {
+        async read(id: IdentifierPathType, options: HttpQueries<GetQuery>) {
             let query = this.getDatabase()
                 .query(schema)
                 .filter({ [identifier.name]: id });
@@ -275,7 +299,7 @@ function createController(schema: ReflectionClass<any>, options: AutoCrudOptions
             .response<SchemaType>(200, `When ${schema.name} was successfully updated.`)
             .response<ValidationError>(400, `When parameter validation failed`)
             .response<ErrorMessage>(404, `When ${schema.name} was not found.`))
-        async update(id: IdentifierType, body: HttpBody<Partial<SchemaType>>) {
+        async update(id: IdentifierPathType, body: HttpBody<Partial<SchemaType>>) {
             let query = this.getDatabase()
                 .query(schema)
                 .filter({ [identifier.name]: id });
