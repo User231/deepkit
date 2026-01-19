@@ -1699,3 +1699,694 @@ test('optional MongoId in object', () => {
     const back = getBSONDeserializer<T>()(bson);
     expect(back.v).toBeUndefined();
 });
+
+describe('BSON literal union serialization', () => {
+    test('string literals only', () => {
+        type T = { v: 'a' | 'b' | 'c' };
+        const serialize = getBSONSerializer<T>();
+
+        const bsonA = serialize({ v: 'a' });
+        const bsonB = serialize({ v: 'b' });
+        const bsonC = serialize({ v: 'c' });
+
+        // Verify buffer is valid BSON
+        expect(bsonA).toBeInstanceOf(Uint8Array);
+        expect(bsonB).toBeInstanceOf(Uint8Array);
+        expect(bsonC).toBeInstanceOf(Uint8Array);
+
+        // Verify content is correct
+        expect(deserializeBSONWithoutOptimiser(bsonA)).toEqual({ v: 'a' });
+        expect(deserializeBSONWithoutOptimiser(bsonB)).toEqual({ v: 'b' });
+        expect(deserializeBSONWithoutOptimiser(bsonC)).toEqual({ v: 'c' });
+    });
+
+    test('number literals only', () => {
+        type T = { v: 1 | 2 | 3 };
+        const serialize = getBSONSerializer<T>();
+
+        const bson1 = serialize({ v: 1 });
+        const bson2 = serialize({ v: 2 });
+        const bson3 = serialize({ v: 3 });
+
+        // Verify buffer is valid BSON
+        expect(bson1).toBeInstanceOf(Uint8Array);
+        expect(bson2).toBeInstanceOf(Uint8Array);
+        expect(bson3).toBeInstanceOf(Uint8Array);
+
+        // Verify content is correct
+        expect(deserializeBSONWithoutOptimiser(bson1)).toEqual({ v: 1 });
+        expect(deserializeBSONWithoutOptimiser(bson2)).toEqual({ v: 2 });
+        expect(deserializeBSONWithoutOptimiser(bson3)).toEqual({ v: 3 });
+    });
+
+    test('boolean literals only', () => {
+        type T = { v: true | false };
+        const serialize = getBSONSerializer<T>();
+
+        const bsonTrue = serialize({ v: true });
+        const bsonFalse = serialize({ v: false });
+
+        // Verify buffer is valid BSON
+        expect(bsonTrue).toBeInstanceOf(Uint8Array);
+        expect(bsonFalse).toBeInstanceOf(Uint8Array);
+
+        // Verify content is correct
+        expect(deserializeBSONWithoutOptimiser(bsonTrue)).toEqual({ v: true });
+        expect(deserializeBSONWithoutOptimiser(bsonFalse)).toEqual({ v: false });
+    });
+
+    test('mixed string + number', () => {
+        type T = { v: 'a' | 1 };
+        const serialize = getBSONSerializer<T>();
+
+        const bsonA = serialize({ v: 'a' });
+        const bson1 = serialize({ v: 1 });
+
+        // Verify buffer is valid BSON
+        expect(bsonA).toBeInstanceOf(Uint8Array);
+        expect(bson1).toBeInstanceOf(Uint8Array);
+
+        // Verify content is correct
+        expect(deserializeBSONWithoutOptimiser(bsonA)).toEqual({ v: 'a' });
+        expect(deserializeBSONWithoutOptimiser(bson1)).toEqual({ v: 1 });
+    });
+
+    test('mixed string + number + boolean', () => {
+        type T = { v: 'a' | 1 | true };
+        const serialize = getBSONSerializer<T>();
+
+        const bsonA = serialize({ v: 'a' });
+        const bson1 = serialize({ v: 1 });
+        const bsonTrue = serialize({ v: true });
+
+        // Verify buffer is valid BSON
+        expect(bsonA).toBeInstanceOf(Uint8Array);
+        expect(bson1).toBeInstanceOf(Uint8Array);
+        expect(bsonTrue).toBeInstanceOf(Uint8Array);
+
+        // Verify content is correct
+        expect(deserializeBSONWithoutOptimiser(bsonA)).toEqual({ v: 'a' });
+        expect(deserializeBSONWithoutOptimiser(bson1)).toEqual({ v: 1 });
+        expect(deserializeBSONWithoutOptimiser(bsonTrue)).toEqual({ v: true });
+    });
+
+    test('getBSONSerializer works correctly', () => {
+        const serialize = getBSONSerializer<{ prop: 'a' | 'b' }>();
+        const buffer = serialize({ prop: 'a' });
+
+        // Verify buffer is valid BSON
+        expect(buffer).toBeInstanceOf(Uint8Array);
+        expect(buffer.byteLength).toBeGreaterThan(0);
+
+        // Verify content via official deserializer
+        const back = deserializeBSONWithoutOptimiser(buffer);
+        expect(back).toEqual({ prop: 'a' });
+    });
+
+    test('invalid value throws ValidationError', () => {
+        type T = { v: 'a' | 'b' | 'c' };
+        const serialize = getBSONSerializer<T>();
+
+        // Invalid string
+        expect(() => serialize({ v: 'invalid' as any })).toThrow();
+
+        // Invalid type (number instead of string)
+        expect(() => serialize({ v: 123 as any })).toThrow();
+
+        // Check error message format includes value info
+        try {
+            serialize({ v: 'invalid' as any });
+            fail('Expected error');
+        } catch (e: any) {
+            expect(e.message).toContain('Cannot convert');
+            expect(e.message).toContain('invalid');
+        }
+    });
+});
+
+describe('BSON literal union sizing', () => {
+    test('sizer output matches serializer output length - string literals', () => {
+        type T = { v: 'a' | 'b' | 'c' };
+        const sizer = getBSONSizer<T>();
+        const serialize = getBSONSerializer<T>();
+
+        const objA = { v: 'a' as const };
+        const objB = { v: 'b' as const };
+        const objC = { v: 'c' as const };
+
+        expect(sizer(objA)).toBe(serialize(objA).byteLength);
+        expect(sizer(objB)).toBe(serialize(objB).byteLength);
+        expect(sizer(objC)).toBe(serialize(objC).byteLength);
+    });
+
+    test('sizer output matches serializer output length - number literals', () => {
+        type T = { v: 1 | 2 | 3 };
+        const sizer = getBSONSizer<T>();
+        const serialize = getBSONSerializer<T>();
+
+        const obj1 = { v: 1 as const };
+        const obj2 = { v: 2 as const };
+        const obj3 = { v: 3 as const };
+
+        expect(sizer(obj1)).toBe(serialize(obj1).byteLength);
+        expect(sizer(obj2)).toBe(serialize(obj2).byteLength);
+        expect(sizer(obj3)).toBe(serialize(obj3).byteLength);
+    });
+
+    test('sizer output matches serializer output length - boolean literals', () => {
+        type T = { v: true | false };
+        const sizer = getBSONSizer<T>();
+        const serialize = getBSONSerializer<T>();
+
+        const objTrue = { v: true as const };
+        const objFalse = { v: false as const };
+
+        expect(sizer(objTrue)).toBe(serialize(objTrue).byteLength);
+        expect(sizer(objFalse)).toBe(serialize(objFalse).byteLength);
+    });
+
+    test('sizer output matches serializer output length - mixed literals', () => {
+        type T = { v: 'a' | 1 | true };
+        const sizer = getBSONSizer<T>();
+        const serialize = getBSONSerializer<T>();
+
+        expect(sizer({ v: 'a' })).toBe(serialize({ v: 'a' }).byteLength);
+        expect(sizer({ v: 1 })).toBe(serialize({ v: 1 }).byteLength);
+        expect(sizer({ v: true })).toBe(serialize({ v: true }).byteLength);
+    });
+
+    test('sizer throws for invalid value (same as serializer)', () => {
+        type T = { v: 'a' | 'b' | 'c' };
+        const sizer = getBSONSizer<T>();
+        const serialize = getBSONSerializer<T>();
+
+        // Both should throw for invalid value
+        expect(() => sizer({ v: 'invalid' as any })).toThrow();
+        expect(() => serialize({ v: 'invalid' as any })).toThrow();
+
+        // Both should throw with similar error message
+        let sizerError: Error | undefined;
+        let serializerError: Error | undefined;
+
+        try {
+            sizer({ v: 'invalid' as any });
+        } catch (e: any) {
+            sizerError = e;
+        }
+
+        try {
+            serialize({ v: 'invalid' as any });
+        } catch (e: any) {
+            serializerError = e;
+        }
+
+        expect(sizerError).toBeDefined();
+        expect(serializerError).toBeDefined();
+        expect(sizerError!.message).toContain('Cannot convert');
+        expect(serializerError!.message).toContain('Cannot convert');
+    });
+});
+
+describe('BSON literal union round-trip', () => {
+    test('string literal round-trip', () => {
+        type T = { status: 'active' | 'inactive' | 'pending' };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const data: T = { status: 'active' };
+        const buffer = serialize(data);
+        const result = deserialize(buffer);
+        expect(result).toEqual(data);
+
+        const data2: T = { status: 'inactive' };
+        const buffer2 = serialize(data2);
+        const result2 = deserialize(buffer2);
+        expect(result2).toEqual(data2);
+
+        const data3: T = { status: 'pending' };
+        const buffer3 = serialize(data3);
+        const result3 = deserialize(buffer3);
+        expect(result3).toEqual(data3);
+    });
+
+    test('number literal round-trip', () => {
+        type T = { level: 1 | 2 | 3 | 4 | 5 };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        for (const level of [1, 2, 3, 4, 5] as const) {
+            const data: T = { level };
+            const buffer = serialize(data);
+            const result = deserialize(buffer);
+            expect(result).toEqual(data);
+        }
+    });
+
+    test('boolean literal round-trip', () => {
+        type T = { flag: true | false };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const dataTrue: T = { flag: true };
+        const bufferTrue = serialize(dataTrue);
+        const resultTrue = deserialize(bufferTrue);
+        expect(resultTrue).toEqual(dataTrue);
+
+        const dataFalse: T = { flag: false };
+        const bufferFalse = serialize(dataFalse);
+        const resultFalse = deserialize(bufferFalse);
+        expect(resultFalse).toEqual(dataFalse);
+    });
+
+    test('mixed literals round-trip', () => {
+        type T = { value: 'a' | 'b' | 1 | 2 | true | false };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const testValues: ('a' | 'b' | 1 | 2 | true | false)[] = ['a', 'b', 1, 2, true, false];
+        for (const value of testValues) {
+            const data: T = { value };
+            const buffer = serialize(data);
+            const result = deserialize(buffer);
+            expect(result).toEqual(data);
+        }
+    });
+
+    test('array of literal unions round-trip', () => {
+        type T = { items: ('x' | 'y' | 'z')[] };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const data: T = { items: ['x', 'y', 'z', 'x', 'y'] };
+        const buffer = serialize(data);
+        const result = deserialize(buffer);
+        expect(result).toEqual(data);
+    });
+
+    test('empty string in literal union round-trip', () => {
+        type T = { value: '' | 'a' | 'b' };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const data: T = { value: '' };
+        const buffer = serialize(data);
+        const result = deserialize(buffer);
+        expect(result).toEqual(data);
+    });
+
+    test('negative number literals round-trip', () => {
+        type T = { value: -1 | 0 | 1 };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        for (const value of [-1, 0, 1] as const) {
+            const data: T = { value };
+            const buffer = serialize(data);
+            const result = deserialize(buffer);
+            expect(result).toEqual(data);
+        }
+    });
+});
+
+describe('BSON literal union errors', () => {
+    test('error uses stringifyValueWithType format', () => {
+        type T = { status: 'active' | 'inactive' };
+        const serialize = getBSONSerializer<T>();
+
+        // stringifyValueWithType produces format like "string(invalid)"
+        expect(() => serialize({ status: 'invalid' as any })).toThrow(/string\(invalid\)/);
+    });
+
+    test('error includes value field', () => {
+        type T = { status: 'active' | 'inactive' };
+        const serialize = getBSONSerializer<T>();
+
+        try {
+            serialize({ status: 'invalid' as any });
+            fail('Expected error to be thrown');
+        } catch (e: any) {
+            expect(e.errors).toBeDefined();
+            expect(e.errors[0].value).toBe('invalid');
+        }
+    });
+
+    test('nested property has correct error path', () => {
+        type T = { outer: { inner: { status: 'x' | 'y' } } };
+        const serialize = getBSONSerializer<T>();
+
+        try {
+            serialize({ outer: { inner: { status: 'invalid' as any } } });
+            fail('Expected error to be thrown');
+        } catch (e: any) {
+            expect(e.errors).toBeDefined();
+            expect(e.errors[0].path).toBe('outer.inner.status');
+        }
+    });
+
+    test('number value in string literal union shows correct format', () => {
+        type T = { status: 'active' | 'inactive' };
+        const serialize = getBSONSerializer<T>();
+
+        // stringifyValueWithType produces format like "number(123)"
+        expect(() => serialize({ status: 123 as any })).toThrow(/number\(123\)/);
+    });
+
+    test('sizer throws same error as serializer', () => {
+        type T = { status: 'active' | 'inactive' };
+        const serialize = getBSONSerializer<T>();
+        const sizer = getBSONSizer<T>();
+
+        const invalidData = { status: 'invalid' as any };
+
+        let serializerError: Error | undefined;
+        let sizerError: Error | undefined;
+
+        try {
+            serialize(invalidData);
+        } catch (e: any) {
+            serializerError = e;
+        }
+
+        try {
+            sizer(invalidData);
+        } catch (e: any) {
+            sizerError = e;
+        }
+
+        expect(serializerError).toBeDefined();
+        expect(sizerError).toBeDefined();
+        expect(serializerError!.message).toBe(sizerError!.message);
+    });
+});
+
+describe('BSON literal union contexts', () => {
+    test('literal union in array', () => {
+        type T = { items: ('a' | 'b')[] };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const data: T = { items: ['a', 'b', 'a', 'b'] };
+        const buffer = serialize(data);
+        const result = deserialize(buffer);
+        expect(result).toEqual(data);
+    });
+
+    test('literal union in array - invalid value throws', () => {
+        type T = { items: ('a' | 'b')[] };
+        const serialize = getBSONSerializer<T>();
+
+        expect(() => serialize({ items: ['a', 'invalid' as any, 'b'] })).toThrow();
+    });
+
+    test('literal union in nested object', () => {
+        type T = { outer: { status: 'x' | 'y' } };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const data: T = { outer: { status: 'x' } };
+        const buffer = serialize(data);
+        const result = deserialize(buffer);
+        expect(result).toEqual(data);
+    });
+
+    test('literal union in deeply nested object', () => {
+        type T = { level1: { level2: { level3: { value: 'a' | 'b' | 'c' } } } };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const data: T = { level1: { level2: { level3: { value: 'b' } } } };
+        const buffer = serialize(data);
+        const result = deserialize(buffer);
+        expect(result).toEqual(data);
+    });
+
+    test('multiple literal union properties', () => {
+        type T = {
+            status: 'active' | 'inactive';
+            priority: 1 | 2 | 3;
+            enabled: true | false;
+        };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        const data: T = { status: 'active', priority: 2, enabled: true };
+        const buffer = serialize(data);
+        const result = deserialize(buffer);
+        expect(result).toEqual(data);
+    });
+
+    test('optional literal union property', () => {
+        type T = { status?: 'active' | 'inactive' };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        // With value
+        const data1: T = { status: 'active' };
+        const buffer1 = serialize(data1);
+        const result1 = deserialize(buffer1);
+        expect(result1).toEqual(data1);
+
+        // Without value
+        const data2: T = {};
+        const buffer2 = serialize(data2);
+        const result2 = deserialize(buffer2);
+        expect(result2).toEqual(data2);
+    });
+
+    test('literal union as root type in object', () => {
+        // Wrapping in object since BSON serializes documents
+        type T = { value: 'a' | 'b' | 'c' };
+        const serialize = getBSONSerializer<T>();
+        const deserialize = getBSONDeserializer<T>();
+
+        for (const value of ['a', 'b', 'c'] as const) {
+            const data: T = { value };
+            const buffer = serialize(data);
+            const result = deserialize(buffer);
+            expect(result).toEqual(data);
+        }
+    });
+});
+
+describe('BSON literal union performance', () => {
+    test('large literal union (10+ members) does not cause stack overflow', () => {
+        // Test with a union of 15 string literals
+        type LargeStringUnion = { v: 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' };
+        const serializeString = getBSONSerializer<LargeStringUnion>();
+        const sizerString = getBSONSizer<LargeStringUnion>();
+
+        // Should not stack overflow
+        const bson = serializeString({ v: 'o' });
+        const size = sizerString({ v: 'o' });
+
+        expect(bson.byteLength).toBe(size);
+        expect(deserializeBSONWithoutOptimiser(bson)).toEqual({ v: 'o' });
+
+        // Test with a union of 15 number literals
+        type LargeNumberUnion = { v: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 };
+        const serializeNumber = getBSONSerializer<LargeNumberUnion>();
+        const sizerNumber = getBSONSizer<LargeNumberUnion>();
+
+        const bsonNum = serializeNumber({ v: 15 });
+        const sizeNum = sizerNumber({ v: 15 });
+
+        expect(bsonNum.byteLength).toBe(sizeNum);
+        expect(deserializeBSONWithoutOptimiser(bsonNum)).toEqual({ v: 15 });
+    });
+
+    test('very large literal union (100 members) does not cause stack overflow', () => {
+        // Create a type with 100 literal values
+        type HundredUnion = {
+            v:
+                | 1
+                | 2
+                | 3
+                | 4
+                | 5
+                | 6
+                | 7
+                | 8
+                | 9
+                | 10
+                | 11
+                | 12
+                | 13
+                | 14
+                | 15
+                | 16
+                | 17
+                | 18
+                | 19
+                | 20
+                | 21
+                | 22
+                | 23
+                | 24
+                | 25
+                | 26
+                | 27
+                | 28
+                | 29
+                | 30
+                | 31
+                | 32
+                | 33
+                | 34
+                | 35
+                | 36
+                | 37
+                | 38
+                | 39
+                | 40
+                | 41
+                | 42
+                | 43
+                | 44
+                | 45
+                | 46
+                | 47
+                | 48
+                | 49
+                | 50
+                | 51
+                | 52
+                | 53
+                | 54
+                | 55
+                | 56
+                | 57
+                | 58
+                | 59
+                | 60
+                | 61
+                | 62
+                | 63
+                | 64
+                | 65
+                | 66
+                | 67
+                | 68
+                | 69
+                | 70
+                | 71
+                | 72
+                | 73
+                | 74
+                | 75
+                | 76
+                | 77
+                | 78
+                | 79
+                | 80
+                | 81
+                | 82
+                | 83
+                | 84
+                | 85
+                | 86
+                | 87
+                | 88
+                | 89
+                | 90
+                | 91
+                | 92
+                | 93
+                | 94
+                | 95
+                | 96
+                | 97
+                | 98
+                | 99
+                | 100;
+        };
+
+        // This should complete without stack overflow
+        const serialize = getBSONSerializer<HundredUnion>();
+        const sizer = getBSONSizer<HundredUnion>();
+
+        // Test first value
+        const bson1 = serialize({ v: 1 });
+        expect(sizer({ v: 1 })).toBe(bson1.byteLength);
+        expect(deserializeBSONWithoutOptimiser(bson1)).toEqual({ v: 1 });
+
+        // Test middle value
+        const bson50 = serialize({ v: 50 });
+        expect(sizer({ v: 50 })).toBe(bson50.byteLength);
+        expect(deserializeBSONWithoutOptimiser(bson50)).toEqual({ v: 50 });
+
+        // Test last value
+        const bson100 = serialize({ v: 100 });
+        expect(sizer({ v: 100 })).toBe(bson100.byteLength);
+        expect(deserializeBSONWithoutOptimiser(bson100)).toEqual({ v: 100 });
+
+        // Invalid value should still throw
+        expect(() => serialize({ v: 101 as any })).toThrow();
+    });
+
+    test('large union sizer matches serializer for all test values', () => {
+        type LargeUnion = {
+            value:
+                | 1
+                | 2
+                | 3
+                | 4
+                | 5
+                | 6
+                | 7
+                | 8
+                | 9
+                | 10
+                | 11
+                | 12
+                | 13
+                | 14
+                | 15
+                | 16
+                | 17
+                | 18
+                | 19
+                | 20
+                | 21
+                | 22
+                | 23
+                | 24
+                | 25
+                | 26
+                | 27
+                | 28
+                | 29
+                | 30
+                | 31
+                | 32
+                | 33
+                | 34
+                | 35
+                | 36
+                | 37
+                | 38
+                | 39
+                | 40
+                | 41
+                | 42
+                | 43
+                | 44
+                | 45
+                | 46
+                | 47
+                | 48
+                | 49
+                | 50;
+        };
+
+        const serialize = getBSONSerializer<LargeUnion>();
+        const sizer = getBSONSizer<LargeUnion>();
+
+        // Test a few values from the large union
+        for (const value of [1, 25, 50] as const) {
+            const data: LargeUnion = { value };
+            const buffer = serialize(data);
+            const size = sizer(data);
+            expect(buffer.byteLength).toBe(size);
+        }
+    });
+});
