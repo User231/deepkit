@@ -187,7 +187,7 @@ export function typeOf<T>(args: any[] = [], p?: ReceiveType<T>): Type {
         return args.length > 0 ? resolveRuntimeType(p, args) : (resolveReceiveType(p) as Type);
     }
 
-    throw new DeepkitError('DK-T002', 'No type information received.');
+    throw new NoTypeReceived('typeOf<T>() called without type parameter');
 }
 
 export function removeTypeName<T extends Type>(type: T): T {
@@ -1363,7 +1363,7 @@ export class ReflectionClass<T> {
         classTypeIn?: ReceiveType<T> | AbstractClassType<T> | TypeClass | TypeObjectLiteral | ReflectionClass<any>,
         args: any[] = [],
     ): ReflectionClass<T> {
-        if (!classTypeIn) throw new DeepkitError('DK-T002', 'No type information received.');
+        if (!classTypeIn) throw new NoTypeReceived('ReflectionClass.from<T>() called without type parameter');
         if (isArray(classTypeIn)) classTypeIn = resolveReceiveType(classTypeIn);
 
         if (classTypeIn instanceof ReflectionClass) return classTypeIn;
