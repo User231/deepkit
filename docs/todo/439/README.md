@@ -64,12 +64,33 @@ All issues have been fixed and the middleware system has been optimized for bett
 - Use `.execute.bind(instance)` for direct method calls
 - Generate static middleware array when all middlewares are singletons
 - Replaced `...arguments` with explicit `(req, res, next)` parameters
+- Use pre-compiled resolvers (`injector.getResolver()`) for request-scoped middlewares
 
-**Impact:** Significant performance improvement for applications with many singleton middlewares.
+**Impact:** Significant performance improvement for applications with many middlewares.
 
 **Files:**
 - `packages/http/src/router.ts` - Middleware optimization logic added
 - `packages/http/src/http.ts` - Simplified middleware execution
+
+### 5. Improved Error Logging (DX)
+
+**Problem:** Middleware errors logged generic messages like "Could not resolve request" without context.
+
+**Solution:**
+- Log middleware name (class name or function name)
+- Include HTTP method and URL in error messages
+- Use named functions in generated code for better stack traces
+
+**Impact:** Much easier debugging when middleware fails.
+
+**Example output:**
+```
+Middleware AuthMiddleware threw on GET /api/users: Invalid token
+```
+
+**Files:**
+- `packages/http/src/http.ts` - Contextual error logging
+- `packages/http/src/router.ts` - Named function generation
 
 ## Implementation Details
 
@@ -186,9 +207,8 @@ No performance regression for routes with minimal middleware.
 
 ## Commits
 
-Key commits for this work:
-- `fix(http): remove broken timeout feature from middleware`
-- `fix(http): generic middleware errors now return 500 instead of 404`
-- `feat(http): add double-next guard for middleware`
-- `perf(http): pre-resolve singleton middlewares at router build time`
-- `test(http): comprehensive middleware tests`
+| Hash | Description |
+|------|-------------|
+| `6d6d5c28` | fix(http): improve middleware error handling and performance (#439) |
+| `3afe56b7` | fix(http): improve middleware error logging with context |
+| `493e2fd9` | perf(http): use pre-compiled resolvers for request-scoped middleware |
