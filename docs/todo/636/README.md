@@ -49,34 +49,38 @@ This approach:
 - Is 3.4x faster than using `Object.defineProperty` (benchmarked)
 - Results in faster property access after upgrade
 
-### Key Distinction: Joined Data vs Main Results
+### Object Identity Within a Query
 
-References are only upgraded when processing **joined data** (via `joinWith`, `useJoinWith`, etc.), not when the same entity simply appears as another row in the result set.
+References are upgraded whenever the full entity data is available within the same query - whether via explicit joins OR when the entity appears as a root result. This ensures consistent object identity: there is only ONE object representation per entity within a query.
 
 ```typescript
 // Joined data: book.author IS upgraded because user is joined
 Review.innerJoinWith('book').innerJoinWith('user')
 // → review.book.author === review.user (same object, upgraded)
 
-// Main result: block.previous is NOT upgraded
-Block.find()  // No joins
-// → block.previous remains a reference proxy
+// Root result: block.previous IS upgraded because Block#2 is also a root result
+Block.query().filter({ id: { $in: [1, 2] } }).find()
+// → block1.previous === block2 (same object, upgraded)
+
+// NOT upgraded: when the referenced entity is NOT in the result set
+Product.query().findOne()
+// → product.category remains a reference (Category was never loaded)
 ```
 
 ### Files Changed
 
 - `packages/orm/src/formatter.ts`
   - Added `upgradeReferenceToObject()` function using `Object.setPrototypeOf` + direct assignment
-  - Updated pool lookup to upgrade references only when `isJoinedData=true`
+  - Updated pool lookup to always upgrade references when full data is available
   - Updated identity map lookup with same logic
-  - Pass `isJoinedData=true` when processing `join.populate` relations
+  - Object identity is preserved: same entity = same object within a query
 
 ### Tests Added
 
 - `packages/orm/tests/identity-map.spec.ts`
   - `identity map hydrates references when full object is loaded via join`
   - `identity map reference upgrade with multiple overlapping references`
-  - `self-referencing entity: FK references remain as references when not joined`
+  - `self-referencing entity: FK references are upgraded when entity appears in same query`
   - `self-referencing entity: FK references ARE upgraded when joined`
 
 ## Tasks
@@ -84,11 +88,11 @@ Block.find()  // No joins
 - [x] Understand reference proxy internals (can it be upgraded in place?)
 - [x] Benchmark different upgrade approaches
 - [x] Implement `upgradeReferenceToObject` using Option E (setPrototypeOf + assign)
-- [x] Add `isJoinedData` flag to distinguish joined vs main result data
 - [x] Write explicit test cases for both scenarios
-- [x] Run full ORM test suite (41 tests pass)
-- [x] Run SQLite integration tests (90 tests pass)
+- [x] Run full ORM test suite
+- [x] Run SQLite integration tests
 - [x] Verify the bookstore test passes
+- [x] Ensure object identity for ALL queries (pool always upgrades references)
 
 ## Progress Log
 

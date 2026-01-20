@@ -6,6 +6,25 @@ This is the central task tracker for Deepkit development. Read this entire secti
 
 ---
 
+## Current Strategy: Local-First Development
+
+**Branch:** `feat/next`
+
+**Workflow:**
+1. All fixes are implemented and tested locally on `feat/next`
+2. **DO NOT** push to GitHub or close issues yet
+3. **DO NOT** sync back to GitHub until the big PR is merged
+4. Track completion status here in todo.md only
+5. Once all targeted issues are fixed locally → merge PR → then bulk-close issues on GitHub
+
+**Why:** We're accumulating a large set of fixes and improvements. Syncing incrementally would create noise. One big merge with comprehensive changelog is cleaner.
+
+**Status tracking:**
+- Issues in "Backlog" sections = not yet started
+- Issues in "Completed" section = fixed locally on feat/next, awaiting PR merge
+
+---
+
 ## Agent Instructions
 
 ### Your Role
@@ -174,9 +193,30 @@ Issues blocking users or causing incorrect behavior.
 
 Issues affecting DX or edge cases.
 
-| Issue | Title | Package | Created |
-|-------|-------|---------|---------|
-| - | - | - | - |
+| Issue | Title | Package | Created | Notes |
+|-------|-------|---------|---------|-------|
+| [#356](https://github.com/deepkit/deepkit-framework/issues/356) | Windows: backslash path delimiters not escaped | type-compiler | 2022-08-19 | Blocks Windows users when try-block require fails |
+| [#285](https://github.com/deepkit/deepkit-framework/issues/285) | Express middleware req.get() missing | http | 2022-07-02 | HttpRequest lacks Express-compatible methods |
+| [#220](https://github.com/deepkit/deepkit-framework/issues/220) | DI fails when type name duplicates DOM | type/injector | 2022-04-18 | Element, Node, Document from libs conflict with DOM globals |
+| [#375](https://github.com/deepkit/deepkit-framework/issues/375) | Nested joins on backrefs not deserialized | orm | 2022-09-10 | **VERIFY** - comment says "should be fixed" |
+
+### Priority: Low
+
+Minor bugs or narrow edge cases.
+
+| Issue | Title | Package | Created | Notes |
+|-------|-------|---------|---------|-------|
+| [#352](https://github.com/deepkit/deepkit-framework/issues/352) | External types produce broken output | type-compiler | 2022-08-16 | Should emit `any` instead of broken const |
+| [#241](https://github.com/deepkit/deepkit-framework/issues/241) | Debugger fails with Database subclass + generic | framework | 2022-05-27 | Edge case: Database token + generic entity |
+| [#227](https://github.com/deepkit/deepkit-framework/issues/227) | ORM serialization problem with table connection | orm | 2022-05-03 | **NEEDS REPRO** - unclear issue description |
+
+### DX / Tooling Issues
+
+| Issue | Title | Package | Created | Notes |
+|-------|-------|---------|---------|-------|
+| [#363](https://github.com/deepkit/deepkit-framework/issues/363) | type-compiler injection can't be updated | type-compiler | 2022-08-22 | Workaround: delete TS install first |
+| [#355](https://github.com/deepkit/deepkit-framework/issues/355) | pnpm install requires manual command | type-compiler | 2022-08-19 | Workaround: run `deepkit-type-install` manually |
+| [#357](https://github.com/deepkit/deepkit-framework/issues/357) | pnpm multiple TS versions issue | type-compiler | 2022-08-19 | Workaround: --preserve-symlinks |
 
 ### Enhancement Requests
 
@@ -192,6 +232,8 @@ Issues affecting DX or edge cases.
 | [#488](https://github.com/deepkit/deepkit-framework/issues/488) | RPC with HTTP streams | rpc | 2023-10-11 |
 | [#390](https://github.com/deepkit/deepkit-framework/issues/390) | Simpler query for simple updates | orm | 2022-12-02 |
 | [#380](https://github.com/deepkit/deepkit-framework/issues/380) | Babel plugin for type-compiler | type-compiler | 2022-09-26 |
+| [#379](https://github.com/deepkit/deepkit-framework/issues/379) | HttpQueries strict validation (reject unknown params) | http | 2022-09-16 |
+| [#246](https://github.com/deepkit/deepkit-framework/issues/246) | Support getter methods in typeOf<> | type | 2022-05-31 |
 
 ### Documentation
 
@@ -207,6 +249,8 @@ Issues affecting DX or edge cases.
 |-------|-------|--------|
 | [#666](https://github.com/deepkit/deepkit-framework/issues/666) | Thank you for @deepkit/type | Not an issue - appreciation |
 | [#665](https://github.com/deepkit/deepkit-framework/issues/665) | Deepki trademark concern | Off-topic |
+| [#261](https://github.com/deepkit/deepkit-framework/issues/261) | Windows installation difficulty | User missing VS build tools for node-gyp |
+| [#353](https://github.com/deepkit/deepkit-framework/issues/353) | dir named 'app' breaks DI | User error - missing type annotation on config |
 
 ---
 
@@ -304,6 +348,7 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#508](https://github.com/deepkit/deepkit-framework/issues/508) | Improve error "No valid runtime type" | 2026-01-19 | - |
 | [#664](https://github.com/deepkit/deepkit-framework/issues/664) | function __types should be hoisted | 2026-01-19 | 3d09fa28 |
 | [#634](https://github.com/deepkit/deepkit-framework/issues/634) | Named re-exports missing type representations | 2026-01-19 | 366ccdd2 |
+| [#318](https://github.com/deepkit/deepkit-framework/issues/318) | index.ts exports cause silent failures | 2026-01-19 | 366ccdd2 (via #634) |
 | [#601](https://github.com/deepkit/deepkit-framework/issues/601) | exclude declare statements | 2026-01-19 | 3d09fa28 |
 | [#555](https://github.com/deepkit/deepkit-framework/issues/555) | No valid runtime type for external imports | 2026-01-19 | 1eba2ba1 |
 | [#600](https://github.com/deepkit/deepkit-framework/issues/600) | Improve tsconfig extends handling | 2026-01-19 | a554c90f |
@@ -316,6 +361,134 @@ Issues discovered through codebase analysis (not from GitHub).
 | [#444](https://github.com/deepkit/deepkit-framework/issues/444) | mongodb BSONError for Array | already fixed | - |
 | [#430](https://github.com/deepkit/deepkit-framework/issues/430) | Incorrect narrowing of keyof functions | already fixed | - |
 | [#593](https://github.com/deepkit/deepkit-framework/issues/593) | DeepkitLoader setup guide | 2026-01-19 | 15f3060e |
+
+---
+
+## Breaking Changes
+
+Track breaking changes for the next major release. Use `!` after scope in commit message to trigger changelog generation.
+
+**Commit format**: `feat(scope)!: description` + `BREAKING CHANGE:` footer
+
+| Change | Package | Description | Commit |
+|--------|---------|-------------|--------|
+| Reference serialization | type, bson | `& Reference` now ALWAYS serializes as FK (primary key only), regardless of runtime object state. Previously, serialization depended on `isReferenceInstance()` which was unpredictable. Use new `& Inline` annotation for nested serialization. | 4b8e3102 |
+
+---
+
+## Design Decision: Type-Driven Reference Serialization
+
+### Principle: Type Annotation = Serialization Output. No Magic.
+
+The type definition determines serialization behavior. No runtime state inspection. No query tracking. Fully predictable.
+
+### The Rules
+
+```typescript
+class Post {
+    // Rule 1: & Reference → FK only (always)
+    author: User & Reference;              // → { author: 2 }
+
+    // Rule 2: & Reference & Inline → Nested object (always)
+    // Throws SerializationError if not loaded
+    editor: User & Reference & Inline;     // → { editor: { id: 3, name: "..." } }
+
+    // Rule 3: No & Reference → Embedded object (existing behavior)
+    metadata: Metadata;                    // → { metadata: { ... } }
+}
+```
+
+### Behavior Matrix
+
+| Type Annotation | JSON Serialization | BSON Serialization | MongoDB Storage |
+|-----------------|-------------------|-------------------|-----------------|
+| `& Reference` | FK only | FK only | FK only |
+| `& Reference & Inline` | Nested object | Nested object | FK only (always) |
+| `& Reference & Inline<{only:['json']}>` | Nested object | FK only | FK only |
+
+**MongoDB special case**: Database storage NEVER includes nested objects for Reference fields, regardless of `& Inline`. This is enforced at the adapter level.
+
+### Different Output Shapes
+
+If you need different serialization outputs for the same entity, use TypeScript types:
+
+```typescript
+// Detailed view with nested author
+type PostDetail = Post & { author: User & Reference & Inline };
+
+// List view with FK only
+type PostSummary = Post & { author: User & Reference };
+
+serialize<PostDetail>(post);  // { author: { id: 1, name: "..." } }
+serialize<PostSummary>(post); // { author: 1 }
+```
+
+This is more explicit and type-safe than runtime options.
+
+### How joinWith() Works
+
+`joinWith()` is purely for **loading data**, not for controlling serialization:
+
+```typescript
+// joinWith loads the data
+const post = await db.query(Post).joinWith('author').findOne();
+
+// Serialization follows the TYPE, not the query
+serialize<Post>(post);  // { author: 2 } - because & Reference means FK
+
+// If you want nested, change the schema:
+// author: User & Reference & Inline
+```
+
+### Error Handling
+
+```typescript
+class Post {
+    editor: User & Reference & Inline;  // Must be loaded for serialization
+}
+
+// Query WITHOUT loading editor
+const post = await db.query(Post).findOne();
+
+// Serialization throws because editor is not loaded
+serialize<Post>(post);
+// Error: Cannot serialize Post.editor: Inline reference not loaded.
+// Use joinWith('editor') to load the relation.
+```
+
+### Why This Design?
+
+| Aspect | Type-Driven (chosen) | Query-Driven (rejected) |
+|--------|---------------------|------------------------|
+| Predictability | Read type → know output | Must trace query path |
+| Debugging | Look at schema | "Why is output different?" |
+| Mental overhead | Low | High |
+| Hidden state | None | Join tracking metadata |
+| Agent-friendly | ✓ Clear rules | ✗ Context-dependent |
+
+### Implementation Status ✅ COMPLETE
+
+1. ✅ **Add `Inline` type annotation** to `@deepkit/type` (4b8e3102)
+   - `Inline` marker type
+   - `Inline<{ only?: string[], except?: string[] }>` for serializer-specific
+
+2. ✅ **Update JSON serializer** (`packages/type/src/serializer.ts`)
+   - `& Reference` → always serialize FK (ignore runtime state)
+   - `& Reference & Inline` → serialize nested (throw if not loaded)
+
+3. ✅ **Update BSON serializer** (`packages/bson/src/bson-serializer.ts`)
+   - Same logic as JSON serializer
+   - Respect `Inline<{ only: [...] }>` context options
+
+4. ✅ **MongoDB always uses FK** (ignore Inline) - enforced in BSON serializer
+
+5. ✅ **ORM formatter** - No changes needed (object identity fix preserved)
+
+6. ✅ **Tests updated** - All 2226+ tests passing
+
+7. ✅ **Error handling** - Uses proper SerializationError/BSONError classes (867e41f8)
+
+**Note:** `expand`/`collapse` runtime options were considered but rejected - they would reintroduce unpredictability. Use different types/DTOs instead for different serialization shapes.
 
 ---
 
@@ -333,6 +506,13 @@ docs/todo/<issue-id>/
 
 ## Sync Information
 
-- **Last GitHub sync**: 2026-01-16
-- **Open issues**: 50
-- **Tracked here**: 48 (excluding non-issues)
+- **Last GitHub issue review**: 2026-01-20
+- **GitHub open issues**: 85 (many already fixed locally, not yet closed)
+- **Strategy**: Local-first on `feat/next` branch, no GitHub sync until PR merge
+
+### Local Tracking
+- **Bugs to fix**: 7 (4 Medium, 3 Low)
+- **Enhancements**: 12
+- **DX/tooling**: 3
+- **Documentation**: 3
+- **Completed locally**: 35+ (see Completed section)
