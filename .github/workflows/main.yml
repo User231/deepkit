@@ -196,9 +196,14 @@ jobs:
     services:
       # Main MongoDB with replica set (required for transactions)
       mongo-replica:
-        image: ghcr.io/deepkit/mongo-replica:${{ matrix.mongo-version }}
+        image: bitnami/mongodb:${{ matrix.mongo-version }}
         ports:
           - 27017:27017
+        env:
+          MONGODB_REPLICA_SET_MODE: primary
+          MONGODB_REPLICA_SET_NAME: rs0
+          MONGODB_ADVERTISED_HOSTNAME: localhost
+          ALLOW_EMPTY_PASSWORD: 'yes'
       # MongoDB with auth for simple-auth tests
       mongo-auth:
         image: mongo:5.0.10
