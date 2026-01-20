@@ -107,7 +107,7 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - '5432:5432'
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        options: --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -121,6 +121,8 @@ jobs:
 
       - name: Test
         run: npm run test:coverage packages/postgres/
+        env:
+          POSTGRES_PORT: 5432
 
 # this is broken at the moment
 #      - name: Send coverage
@@ -155,6 +157,8 @@ jobs:
 
       - name: Test
         run: npm run test:coverage packages/mysql/
+        env:
+          MYSQL_PORT: 3306
 
 # this is broken at the moment
 #      - name: Send coverage
@@ -220,6 +224,8 @@ jobs:
 
       - name: Test
         run: npm run test:coverage packages/mongo/
+        env:
+          MONGO_PORT: 27017
 
 # this is broken at the moment
 #      - name: Send coverage
