@@ -7,8 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import { Maximum, Negative, guard } from '@deepkit/type';
 
 /**
@@ -33,7 +32,7 @@ interface Model {
         foo: string;
         num: number;
         bool: boolean;
-    }
+    };
 }
 
 // Sample valid data for benchmarking
@@ -48,8 +47,8 @@ const validData = {
     deeplyNested: {
         foo: 'bar',
         num: 1,
-        bool: false
-    }
+        bool: false,
+    },
 };
 
 // Sample invalid data for benchmarking invalid case
@@ -58,7 +57,7 @@ const invalidData = {
     negNumber: 100, // Should be negative
 };
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('type/validation');
 
     // Pre-compile the guard function

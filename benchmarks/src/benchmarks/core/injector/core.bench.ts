@@ -7,8 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import { asyncOperation } from '@deepkit/core';
 
 /**
@@ -23,20 +22,19 @@ import { asyncOperation } from '@deepkit/core';
  * and improved debugging capabilities for async operations.
  */
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('core/async');
 
-    suite.add('empty async', async () => {
-    });
+    suite.add('empty async', async () => {});
 
     suite.add('new Promise', async () => {
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
             resolve(undefined);
         });
     });
 
     suite.add('asyncOperation', async () => {
-        await asyncOperation((resolve) => {
+        await asyncOperation(resolve => {
             resolve(undefined);
         });
     });

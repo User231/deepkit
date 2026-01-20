@@ -7,10 +7,11 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
+import type { BenchResult, BenchSuiteResult } from '@deepkit/bench';
+import { formatHz, formatMean } from '@deepkit/bench';
 
-import { BenchSuiteResult, BenchResult, formatHz, formatMean } from '../bench';
-import { BenchmarkReport, BenchmarkMetadata } from './json';
 import { BenchmarkComparison, SuiteComparison, compareReports } from './comparison';
+import { BenchmarkMetadata, BenchmarkReport } from './json';
 
 /**
  * Progress bar characters for visual representation
@@ -42,7 +43,7 @@ export interface MarkdownOptions {
 function generateProgressBar(value: number, width: number = 20): string {
     const normalizedValue = Math.max(0, Math.min(1, value));
     const fullBlocks = Math.floor(normalizedValue * width);
-    const remainder = (normalizedValue * width) - fullBlocks;
+    const remainder = normalizedValue * width - fullBlocks;
     const partialBlockIndex = Math.round(remainder * (PROGRESS_BLOCKS.length - 1));
 
     let bar = '\u2588'.repeat(fullBlocks);
@@ -103,7 +104,7 @@ function generateSuiteTable(
     suiteName: string,
     results: BenchSuiteResult,
     options: MarkdownOptions,
-    baseline?: BenchSuiteResult
+    baseline?: BenchSuiteResult,
 ): string {
     const entries = Object.entries(results)
         .map(([name, result]) => ({ name, ...result }))
@@ -114,10 +115,7 @@ function generateSuiteTable(
     }
 
     const fastest = entries[0];
-    const lines: string[] = [
-        `### ${suiteName}`,
-        '',
-    ];
+    const lines: string[] = [`### ${suiteName}`, ''];
 
     // Table header
     const headers = ['Name', 'ops/sec', 'ms/op', 'RME'];
@@ -137,12 +135,7 @@ function generateSuiteTable(
         const factor = fastest.hz / entry.hz;
         const normalizedPerformance = entry.hz / fastest.hz;
 
-        const row: string[] = [
-            entry.name,
-            formatHz(entry.hz),
-            formatMean(entry.mean),
-            `\xb1${entry.rme.toFixed(2)}%`,
-        ];
+        const row: string[] = [entry.name, formatHz(entry.hz), formatMean(entry.mean), `\xb1${entry.rme.toFixed(2)}%`];
 
         if (options.includeProgressBars) {
             const bar = generateProgressBar(normalizedPerformance, options.progressBarWidth || 15);
@@ -178,9 +171,10 @@ function generateComparisonSummary(comparisons: SuiteComparison[]): string {
     ];
 
     for (const suite of comparisons) {
-        const statusEmoji = suite.status === 'pass' ? '\u2705' :
-                           suite.status === 'warn' ? '\u26a0\ufe0f' : '\u274c';
-        lines.push(`| ${suite.suiteName} | ${suite.regressionCount} | ${suite.improvementCount} | ${statusEmoji} ${suite.status.toUpperCase()} |`);
+        const statusEmoji = suite.status === 'pass' ? '\u2705' : suite.status === 'warn' ? '\u26a0\ufe0f' : '\u274c';
+        lines.push(
+            `| ${suite.suiteName} | ${suite.regressionCount} | ${suite.improvementCount} | ${statusEmoji} ${suite.status.toUpperCase()} |`,
+        );
     }
 
     const totalRegressions = comparisons.reduce((sum, s) => sum + s.regressionCount, 0);
@@ -204,7 +198,7 @@ function generateComparisonSummary(comparisons: SuiteComparison[]): string {
 export function generateMarkdownSummary(
     results: { [suiteName: string]: BenchSuiteResult },
     baseline?: { [suiteName: string]: BenchSuiteResult },
-    options: MarkdownOptions = {}
+    options: MarkdownOptions = {},
 ): string {
     const opts: MarkdownOptions = {
         includeMetadata: options.includeMetadata ?? false,
@@ -214,10 +208,7 @@ export function generateMarkdownSummary(
         showComparison: options.showComparison ?? !!baseline,
     };
 
-    const lines: string[] = [
-        '# Benchmark Results',
-        '',
-    ];
+    const lines: string[] = ['# Benchmark Results', ''];
 
     // Generate suite tables
     for (const [suiteName, suiteResults] of Object.entries(results)) {
@@ -238,7 +229,7 @@ export function generateMarkdownSummary(
 export function generateMarkdownReport(
     report: BenchmarkReport,
     baseline?: BenchmarkReport,
-    options: MarkdownOptions = {}
+    options: MarkdownOptions = {},
 ): string {
     const opts: MarkdownOptions = {
         includeMetadata: options.includeMetadata ?? true,
@@ -248,10 +239,7 @@ export function generateMarkdownReport(
         showComparison: options.showComparison ?? !!baseline,
     };
 
-    const lines: string[] = [
-        '# Benchmark Results',
-        '',
-    ];
+    const lines: string[] = ['# Benchmark Results', ''];
 
     // Metadata section
     if (opts.includeMetadata) {
@@ -297,7 +285,9 @@ export function generateTextSummary(results: { [suiteName: string]: BenchSuiteRe
         for (const entry of entries) {
             const factor = fastest.hz / entry.hz;
             const marker = factor === 1 ? '*' : ' ';
-            lines.push(`${marker} ${formatHz(entry.hz).padStart(15)} ops/sec  x${factor.toFixed(2).padStart(5)}  ${entry.name}`);
+            lines.push(
+                `${marker} ${formatHz(entry.hz).padStart(15)} ops/sec  x${factor.toFixed(2).padStart(5)}  ${entry.name}`,
+            );
         }
 
         lines.push('');

@@ -7,9 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
-import { getBSONSerializer, getBSONDeserializer, createBSONSizer } from '@deepkit/bson';
+import { BenchSuite } from '@deepkit/bench';
+import { createBSONSizer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 /**
  * BSON Serialization/Deserialization Benchmark
@@ -193,7 +192,7 @@ function createComplexDocument(): ComplexDocument {
 // Benchmark
 // ============================================================================
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('bson/serialization');
 
     // ------------------------------------------------------------------------

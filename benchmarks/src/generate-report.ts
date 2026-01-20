@@ -7,12 +7,12 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
 import * as fs from 'fs';
 import * as path from 'path';
-import { readReport, BenchmarkReport, getLatestReport } from './reporter/json';
-import { generateMarkdownReport, generateMarkdownSummary, MarkdownOptions } from './reporter/markdown';
-import { generateBarChart, generateComparisonChart, generateSummaryChart, BarChartOptions } from './reporter/svg';
+
+import { BenchmarkReport, getLatestReport, readReport } from './reporter/json';
+import { MarkdownOptions, generateMarkdownReport, generateMarkdownSummary } from './reporter/markdown';
+import { BarChartOptions, generateBarChart, generateComparisonChart, generateSummaryChart } from './reporter/svg';
 
 /**
  * CLI options for report generation
@@ -246,8 +246,10 @@ async function generateReports(options: GenerateReportOptions): Promise<void> {
         fs.writeFileSync(chartPath, svg, 'utf-8');
 
         if (options.verbose) {
-            const totalBenchmarks = Object.values(report.suites)
-                .reduce((sum, suite) => sum + Object.keys(suite).length, 0);
+            const totalBenchmarks = Object.values(report.suites).reduce(
+                (sum, suite) => sum + Object.keys(suite).length,
+                0,
+            );
             console.log(`  - Included ${totalBenchmarks} benchmark(s)`);
         }
     }

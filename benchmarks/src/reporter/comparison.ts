@@ -7,11 +7,13 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
 import * as fs from 'fs';
 import * as path from 'path';
-import { BenchSuiteResult, BenchResult, formatHz } from '../bench';
-import { BenchmarkReport, readReport, listReports, getLatestReport } from './json';
+
+import type { BenchSuiteResult } from '@deepkit/bench';
+import { formatHz } from '@deepkit/bench';
+
+import { BenchmarkReport, getLatestReport, listReports, readReport } from './json';
 
 // ANSI color codes
 const Reset = '\x1b[0m';
@@ -97,7 +99,7 @@ export interface ComparisonOptions {
 export function compareReports(
     baseline: BenchmarkReport,
     current: BenchmarkReport,
-    options: ComparisonOptions = {}
+    options: ComparisonOptions = {},
 ): SuiteComparison[] {
     const threshold = options.threshold ?? 5;
     const comparisons: SuiteComparison[] = [];
@@ -183,7 +185,7 @@ export class ComparisonReporter {
      */
     compareWithBaseline(
         baselinePath: string,
-        currentResults: { [suiteName: string]: BenchSuiteResult }
+        currentResults: { [suiteName: string]: BenchSuiteResult },
     ): SuiteComparison[] {
         const baseline = readReport(baselinePath);
         const current: BenchmarkReport = {
@@ -205,7 +207,7 @@ export class ComparisonReporter {
      */
     compareWithLatestBaseline(
         baselineDir: string,
-        currentResults: { [suiteName: string]: BenchSuiteResult }
+        currentResults: { [suiteName: string]: BenchSuiteResult },
     ): SuiteComparison[] | null {
         const baseline = getLatestReport(baselineDir);
         if (!baseline) {
@@ -232,15 +234,13 @@ export class ComparisonReporter {
      */
     printComparison(comparisons: SuiteComparison[]): void {
         console.log();
-        console.log(this.options.colors
-            ? bold('='.repeat(80))
-            : '='.repeat(80));
-        console.log(this.options.colors
-            ? bold('                      BASELINE COMPARISON')
-            : '                      BASELINE COMPARISON');
-        console.log(this.options.colors
-            ? bold('='.repeat(80))
-            : '='.repeat(80));
+        console.log(this.options.colors ? bold('='.repeat(80)) : '='.repeat(80));
+        console.log(
+            this.options.colors
+                ? bold('                      BASELINE COMPARISON')
+                : '                      BASELINE COMPARISON',
+        );
+        console.log(this.options.colors ? bold('='.repeat(80)) : '='.repeat(80));
         console.log();
 
         for (const suite of comparisons) {
@@ -284,9 +284,8 @@ export class ComparisonReporter {
      * Prints comparison for a single benchmark
      */
     private printBenchmarkComparison(bench: BenchmarkComparison): void {
-        const changeStr = bench.changePercent >= 0
-            ? `+${bench.changePercent.toFixed(2)}%`
-            : `${bench.changePercent.toFixed(2)}%`;
+        const changeStr =
+            bench.changePercent >= 0 ? `+${bench.changePercent.toFixed(2)}%` : `${bench.changePercent.toFixed(2)}%`;
 
         let changeDisplay: string;
         if (bench.regression) {
@@ -309,8 +308,8 @@ export class ComparisonReporter {
 
         console.log(
             `  ${arrow} ${changeDisplay.padStart(12)}  ` +
-            `${formatHz(bench.baselineHz).padStart(15)} -> ${formatHz(bench.currentHz).padStart(15)} ops/sec  ` +
-            `${bench.name}`
+                `${formatHz(bench.baselineHz).padStart(15)} -> ${formatHz(bench.currentHz).padStart(15)} ops/sec  ` +
+                `${bench.name}`,
         );
     }
 
@@ -332,19 +331,17 @@ export class ComparisonReporter {
 
         if (failedSuites > 0) {
             console.log();
-            console.log(this.options.colors
-                ? red(bold('BENCHMARK COMPARISON FAILED'))
-                : 'BENCHMARK COMPARISON FAILED');
+            console.log(this.options.colors ? red(bold('BENCHMARK COMPARISON FAILED')) : 'BENCHMARK COMPARISON FAILED');
         } else if (warnedSuites > 0) {
             console.log();
-            console.log(this.options.colors
-                ? yellow('Benchmark comparison passed with warnings')
-                : 'Benchmark comparison passed with warnings');
+            console.log(
+                this.options.colors
+                    ? yellow('Benchmark comparison passed with warnings')
+                    : 'Benchmark comparison passed with warnings',
+            );
         } else {
             console.log();
-            console.log(this.options.colors
-                ? green('Benchmark comparison passed')
-                : 'Benchmark comparison passed');
+            console.log(this.options.colors ? green('Benchmark comparison passed') : 'Benchmark comparison passed');
         }
         console.log();
     }
@@ -365,7 +362,7 @@ export class ComparisonReporter {
 export function saveBaseline(
     results: { [suiteName: string]: BenchSuiteResult },
     baselineDir: string,
-    filename?: string
+    filename?: string,
 ): string {
     const { JsonReporter } = require('./json');
     const reporter = new JsonReporter();
@@ -374,9 +371,7 @@ export function saveBaseline(
         reporter.addSuiteResults(name, result);
     }
 
-    const filePath = filename
-        ? path.join(baselineDir, filename)
-        : reporter.generateFilename(baselineDir);
+    const filePath = filename ? path.join(baselineDir, filename) : reporter.generateFilename(baselineDir);
 
     reporter.writeToFile(filePath);
     return filePath;
@@ -388,7 +383,7 @@ export function saveBaseline(
 export function compareWithBaseline(
     currentResults: { [suiteName: string]: BenchSuiteResult },
     baselineDir: string,
-    options?: ComparisonOptions
+    options?: ComparisonOptions,
 ): number {
     const reporter = new ComparisonReporter(options);
     const comparisons = reporter.compareWithLatestBaseline(baselineDir, currentResults);

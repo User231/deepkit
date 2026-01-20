@@ -7,14 +7,13 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 
 /**
  * Function creation and invocation benchmark - compares various function patterns
  */
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('debug/language-fn');
 
     interface Session {

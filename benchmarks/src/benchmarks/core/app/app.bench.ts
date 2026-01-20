@@ -7,9 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
 import { App, AppModule, createModule, createModuleClass } from '@deepkit/app';
+import { BenchSuite } from '@deepkit/bench';
 
 /**
  * App framework benchmark - tests Deepkit's App and module system performance
@@ -54,7 +53,7 @@ class ProviderModule extends createModuleClass({
     exports: [SimpleService, AnotherService],
 }) {}
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('app/module');
 
     // Test 1: Create simple module
@@ -182,9 +181,12 @@ export default async function() {
     // Test 14: AppModule direct instantiation
     {
         suite.add('AppModule direct instantiation', () => {
-            new AppModule({}, {
-                providers: [SimpleService],
-            });
+            new AppModule(
+                {},
+                {
+                    providers: [SimpleService],
+                },
+            );
         });
     }
 

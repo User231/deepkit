@@ -7,21 +7,20 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import { Database } from '@deepkit/orm';
+import { getClassState, getInstanceState } from '@deepkit/orm';
 import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
 import {
     AutoIncrement,
-    cast,
-    entity,
     PrimaryKey,
     Reference,
     ReflectionClass,
+    cast,
     deserialize,
+    entity,
     serialize,
 } from '@deepkit/type';
-import { getClassState, getInstanceState } from '@deepkit/orm';
 
 /**
  * ORM benchmark - tests Deepkit ORM performance
@@ -58,7 +57,10 @@ class Post {
     content: string = '';
     createdAt: Date = new Date();
 
-    constructor(public author: User & Reference, title?: string) {
+    constructor(
+        public author: User & Reference,
+        title?: string,
+    ) {
         if (title) this.title = title;
     }
 }
@@ -162,7 +164,8 @@ export default async function () {
 
     // Benchmark: Query with multiple filters
     suite.add('query with multiple filters', () => {
-        database.query(User)
+        database
+            .query(User)
             .filter({ active: true })
             .filter({ age: { $gte: 25 } })
             .orderBy('username', 'asc')

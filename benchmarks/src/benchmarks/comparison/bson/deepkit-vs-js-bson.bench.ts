@@ -7,8 +7,7 @@
  * This benchmark compares Deepkit's JIT-compiled BSON serializer/deserializer
  * against the official MongoDB js-bson library.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 // Try to import official bson package for comparison
@@ -41,7 +40,7 @@ interface MongoResponse {
 // Benchmark
 // ============================================================================
 
-export default async function() {
+export default async function () {
     if (!officialBson) {
         console.log('Skipping BSON benchmark: bson package not installed');
         return new BenchSuite('comparison/bson (skipped)');

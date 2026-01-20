@@ -7,16 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
-import {
-    ReflectionClass,
-    ReflectionFunction,
-    typeOf,
-    reflect,
-    resolveReceiveType,
-    ReceiveType,
-} from '@deepkit/type';
+import { BenchSuite } from '@deepkit/bench';
+import { ReceiveType, ReflectionClass, ReflectionFunction, reflect, resolveReceiveType, typeOf } from '@deepkit/type';
 import { ReflectionKind } from '@deepkit/type';
 
 /**
@@ -156,7 +148,7 @@ function getType<T>(type?: ReceiveType<T>) {
     return resolveReceiveType(type);
 }
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('type/reflection');
 
     // ========================================================================
@@ -362,7 +354,7 @@ export default async function() {
     function complexFunction(
         name: string,
         age: number,
-        options?: { verbose: boolean; limit: number }
+        options?: { verbose: boolean; limit: number },
     ): Promise<User[]> {
         return Promise.resolve([]);
     }

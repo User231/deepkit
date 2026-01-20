@@ -7,9 +7,15 @@
  * These benchmarks help profile internal BSON operations for optimization.
  * Not intended for public comparison.
  */
-
-import { BenchSuite } from '../../../bench';
-import { BaseParser, getBSONDeserializer, getBSONSerializer, parseObject, decodeUTF8, createBSONSizer } from '@deepkit/bson';
+import { BenchSuite } from '@deepkit/bench';
+import {
+    BaseParser,
+    createBSONSizer,
+    decodeUTF8,
+    getBSONDeserializer,
+    getBSONSerializer,
+    parseObject,
+} from '@deepkit/bson';
 
 // Try to import official bson package
 let officialBson: typeof import('bson') | undefined;
@@ -28,7 +34,7 @@ function randomString(length: number): string {
     return result;
 }
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('debug/bson-internals');
 
     interface Item {
@@ -111,9 +117,18 @@ export default async function() {
         });
 
         suite.add('Lookup table hex', () => {
-            hexTable[b[0]] + hexTable[b[1]] + hexTable[b[2]] + hexTable[b[3]] +
-            hexTable[b[4]] + hexTable[b[5]] + hexTable[b[6]] + hexTable[b[7]] +
-            hexTable[b[8]] + hexTable[b[9]] + hexTable[b[10]] + hexTable[b[11]];
+            hexTable[b[0]] +
+                hexTable[b[1]] +
+                hexTable[b[2]] +
+                hexTable[b[3]] +
+                hexTable[b[4]] +
+                hexTable[b[5]] +
+                hexTable[b[6]] +
+                hexTable[b[7]] +
+                hexTable[b[8]] +
+                hexTable[b[9]] +
+                hexTable[b[10]] +
+                hexTable[b[11]];
         });
     }
 

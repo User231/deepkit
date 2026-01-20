@@ -7,8 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import { InjectorContext, InjectorModule } from '@deepkit/injector';
 
 /**
@@ -24,7 +23,7 @@ import { InjectorContext, InjectorModule } from '@deepkit/injector';
  * Uses 200+ providers to simulate a real-world application.
  */
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('injector/di');
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -47,12 +46,7 @@ export default async function() {
     // MODULE SETUP (with 200+ providers to simulate real-world app)
     // ═══════════════════════════════════════════════════════════════════════════
 
-    const providers: any[] = [
-        Database,
-        Repository,
-        Service,
-        { provide: ScopedService, scope: 'http' },
-    ];
+    const providers: any[] = [Database, Repository, Service, { provide: ScopedService, scope: 'http' }];
 
     // Add 200 dummy providers to simulate a real application
     for (let i = 0; i < 200; i++) {

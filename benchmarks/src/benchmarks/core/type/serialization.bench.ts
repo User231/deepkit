@@ -7,9 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
-import { deserialize, serialize, Excluded } from '@deepkit/type';
+import { BenchSuite } from '@deepkit/bench';
+import { Excluded, deserialize, serialize } from '@deepkit/type';
 
 /**
  * Serialization benchmark - compares Deepkit type serialization performance
@@ -30,7 +29,7 @@ class SmallModel {
 
     constructor(
         public id: number,
-        public name: string
+        public name: string,
     ) {}
 }
 
@@ -81,11 +80,11 @@ const mediumPlainData = {
     type: 2,
     plan: Plan.ENTERPRISE,
     children: [{ label: 'label' }],
-    childrenMap: { 'sub': { label: 'label' } },
-    types: ['a', 'b', 'c']
+    childrenMap: { sub: { label: 'label' } },
+    types: ['a', 'b', 'c'],
 };
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('type/serialization');
 
     // ========================================================================

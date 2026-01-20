@@ -7,14 +7,13 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 
 /**
  * String operations benchmark - compares various string creation and type checking methods
  */
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('debug/language-string');
 
     const literal = 'a';
@@ -24,7 +23,7 @@ export default async function() {
     const escaped = new EscapedString('a');
 
     const escapedS = Symbol('escaped');
-    const FakeString = {[Symbol.toStringTag]: 'a', [escapedS]: true};
+    const FakeString = { [Symbol.toStringTag]: 'a', [escapedS]: true };
 
     function myTag(strings: TemplateStringsArray) {
         return strings[0];
@@ -74,7 +73,12 @@ export default async function() {
     });
 
     suite.add('FakeString creation', () => {
-        const s = {toString() { return 'a'}, [escapedS]: true};
+        const s = {
+            toString() {
+                return 'a';
+            },
+            [escapedS]: true,
+        };
     });
 
     suite.add('typeof literal', () => {

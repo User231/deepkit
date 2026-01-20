@@ -7,11 +7,10 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
-import { http, httpClass, HttpRouter, HttpRouterRegistry, HttpRequest, httpMiddleware } from '@deepkit/http';
-import { serialize, deserialize } from '@deepkit/type';
+import { BenchSuite } from '@deepkit/bench';
+import { HttpRequest, HttpRouter, HttpRouterRegistry, http, httpClass, httpMiddleware } from '@deepkit/http';
 import { InjectorModule } from '@deepkit/injector';
+import { deserialize, serialize } from '@deepkit/type';
 
 /**
  * HTTP router benchmark - tests Deepkit's HTTP routing and request handling performance
@@ -61,22 +60,54 @@ class SimpleController {
 // Controller with many routes for route matching benchmark
 @http.controller('/v1')
 class ManyRoutesController {
-    @http.GET('/users') users() { return []; }
-    @http.GET('/users/:id') user(id: number) { return { id }; }
-    @http.GET('/posts') posts() { return []; }
-    @http.GET('/posts/:id') post(id: number) { return { id }; }
-    @http.GET('/comments') comments() { return []; }
-    @http.GET('/comments/:id') comment(id: number) { return { id }; }
-    @http.GET('/tags') tags() { return []; }
-    @http.GET('/tags/:id') tag(id: number) { return { id }; }
-    @http.GET('/categories') categories() { return []; }
-    @http.GET('/categories/:id') category(id: number) { return { id }; }
-    @http.GET('/products') products() { return []; }
-    @http.GET('/products/:id') product(id: number) { return { id }; }
-    @http.GET('/orders') orders() { return []; }
-    @http.GET('/orders/:id') order(id: number) { return { id }; }
-    @http.GET('/invoices') invoices() { return []; }
-    @http.GET('/invoices/:id') invoice(id: number) { return { id }; }
+    @http.GET('/users') users() {
+        return [];
+    }
+    @http.GET('/users/:id') user(id: number) {
+        return { id };
+    }
+    @http.GET('/posts') posts() {
+        return [];
+    }
+    @http.GET('/posts/:id') post(id: number) {
+        return { id };
+    }
+    @http.GET('/comments') comments() {
+        return [];
+    }
+    @http.GET('/comments/:id') comment(id: number) {
+        return { id };
+    }
+    @http.GET('/tags') tags() {
+        return [];
+    }
+    @http.GET('/tags/:id') tag(id: number) {
+        return { id };
+    }
+    @http.GET('/categories') categories() {
+        return [];
+    }
+    @http.GET('/categories/:id') category(id: number) {
+        return { id };
+    }
+    @http.GET('/products') products() {
+        return [];
+    }
+    @http.GET('/products/:id') product(id: number) {
+        return { id };
+    }
+    @http.GET('/orders') orders() {
+        return [];
+    }
+    @http.GET('/orders/:id') order(id: number) {
+        return { id };
+    }
+    @http.GET('/invoices') invoices() {
+        return [];
+    }
+    @http.GET('/invoices/:id') invoice(id: number) {
+        return { id };
+    }
 }
 
 // Types for serialization benchmarks
@@ -141,9 +172,7 @@ export default async function () {
     const multiParamRequest = HttpRequest.GET('/api/items/electronics/456').build();
     const queryRequest = HttpRequest.GET('/api/search').query({ query: 'test', limit: '20' }).build();
     const queriesRequest = HttpRequest.GET('/api/filter').query({ page: '2', sort: 'name', order: 'asc' }).build();
-    const postRequest = HttpRequest.POST('/api/users')
-        .json({ name: 'John Doe', email: 'john@example.com' })
-        .build();
+    const postRequest = HttpRequest.POST('/api/users').json({ name: 'John Doe', email: 'john@example.com' }).build();
 
     // Requests for many routes router
     const manyRoutesFirstRequest = HttpRequest.GET('/v1/users').build();
@@ -299,8 +328,10 @@ export default async function () {
     // Create router with named routes
     const namedRegistry = new HttpRouterRegistry();
     namedRegistry.get({ path: '/users/:id', name: 'user.show' }, (id: number) => ({ id }));
-    namedRegistry.get({ path: '/posts/:postId/comments/:commentId', name: 'post.comment' },
-        (postId: number, commentId: number) => ({ postId, commentId }));
+    namedRegistry.get(
+        { path: '/posts/:postId/comments/:commentId', name: 'post.comment' },
+        (postId: number, commentId: number) => ({ postId, commentId }),
+    );
     const namedRouter = HttpRouter.forControllers([], undefined, module);
     for (const route of namedRegistry.getRoutes()) {
         namedRouter.addRoute(route);

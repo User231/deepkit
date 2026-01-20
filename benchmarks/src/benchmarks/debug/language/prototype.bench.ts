@@ -7,19 +7,18 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 
 /**
  * Prototype chain performance benchmark - compares Object.getPrototypeOf and object creation patterns
  */
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('debug/language-prototype');
 
-    class Peter { }
+    class Peter {}
 
-    const sub = class extends Peter { };
+    const sub = class extends Peter {};
 
     suite.add('Object.getPrototypeOf', () => {
         const same = Object.getPrototypeOf(sub) === Peter;

@@ -7,9 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
-import { EventDispatcher, EventToken, EventTokenSync, BaseEvent, DataEvent } from '@deepkit/event';
+import { BenchSuite } from '@deepkit/bench';
+import { BaseEvent, DataEvent, EventDispatcher, EventToken, EventTokenSync } from '@deepkit/event';
 
 /**
  * Event system benchmark - tests Deepkit's EventDispatcher performance
@@ -28,7 +27,7 @@ const onSyncEvent = new EventTokenSync('benchmark.sync');
 const onDataEvent = new EventToken<DataEvent<{ value: number }>>('benchmark.data');
 const onMultiListenerEvent = new EventToken('benchmark.multi');
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('event/dispatcher');
 
     // Test 1: Sync event with single listener
@@ -98,7 +97,7 @@ export default async function() {
     {
         const dispatcher = new EventDispatcher();
         let sum = 0;
-        dispatcher.listen(onDataEvent, (event) => {
+        dispatcher.listen(onDataEvent, event => {
             sum += event.data.value;
         });
 
@@ -125,7 +124,7 @@ export default async function() {
     {
         const dispatcher = new EventDispatcher();
         let counter = 0;
-        dispatcher.listen(onSyncEvent, (event) => {
+        dispatcher.listen(onSyncEvent, event => {
             counter++;
             event.stopImmediatePropagation();
         });

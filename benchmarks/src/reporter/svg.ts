@@ -7,16 +7,17 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
+import type { BenchResult, BenchSuiteResult } from '@deepkit/bench';
+import { formatHz } from '@deepkit/bench';
 
-import { BenchSuiteResult, BenchResult, formatHz } from '../bench';
 import { BenchmarkReport } from './json';
 
 /**
  * SVG color palette
  */
 const COLORS = {
-    deepkit: '#4CAF50',      // Green for Deepkit
-    competitor: '#9E9E9E',   // Gray for competitors
+    deepkit: '#4CAF50', // Green for Deepkit
+    competitor: '#9E9E9E', // Gray for competitors
     background: '#ffffff',
     text: '#333333',
     textLight: '#666666',
@@ -113,7 +114,7 @@ function generateStyles(fontFamily: string): string {
  */
 export function generateBarChart(
     results: { [suiteName: string]: BenchSuiteResult },
-    options: BarChartOptions = {}
+    options: BarChartOptions = {},
 ): string {
     const opts: Required<BarChartOptions> = {
         width: options.width ?? 800,
@@ -167,7 +168,8 @@ export function generateBarChart(
     const groupTitleHeight = 25;
     const titleHeight = 50;
 
-    const chartHeight = titleHeight +
+    const chartHeight =
+        titleHeight +
         totalBars * (opts.barHeight + opts.barPadding) +
         numSuites * (opts.groupPadding + groupTitleHeight) +
         opts.padding * 2;
@@ -198,8 +200,12 @@ export function generateBarChart(
     for (let i = 0; i <= numGridLines; i++) {
         const x = gridX + (gridWidth / numGridLines) * i;
         const value = (maxHz / numGridLines) * i;
-        elements.push(`<line x1="${x}" y1="${titleHeight}" x2="${x}" y2="${chartHeight - opts.padding}" class="grid-line"/>`);
-        elements.push(`<text x="${x}" y="${titleHeight - 5}" class="axis-label" text-anchor="middle">${formatNumber(value)}</text>`);
+        elements.push(
+            `<line x1="${x}" y1="${titleHeight}" x2="${x}" y2="${chartHeight - opts.padding}" class="grid-line"/>`,
+        );
+        elements.push(
+            `<text x="${x}" y="${titleHeight - 5}" class="axis-label" text-anchor="middle">${formatNumber(value)}</text>`,
+        );
     }
 
     // Bars
@@ -207,7 +213,9 @@ export function generateBarChart(
 
     for (const [suiteName, entries] of suiteGroups) {
         // Suite title
-        elements.push(`<text x="${opts.padding}" y="${currentY + 15}" class="group-title">${escapeXml(suiteName)}</text>`);
+        elements.push(
+            `<text x="${opts.padding}" y="${currentY + 15}" class="group-title">${escapeXml(suiteName)}</text>`,
+        );
         currentY += groupTitleHeight;
 
         const suiteMax = Math.max(...entries.map(e => e.hz));
@@ -219,13 +227,19 @@ export function generateBarChart(
             const factorText = factor === 1 ? 'fastest' : `x${factor.toFixed(2)}`;
 
             // Label
-            elements.push(`<text x="${opts.padding + opts.labelWidth - 10}" y="${currentY + opts.barHeight / 2 + 4}" class="label" text-anchor="end">${escapeXml(entry.name)}</text>`);
+            elements.push(
+                `<text x="${opts.padding + opts.labelWidth - 10}" y="${currentY + opts.barHeight / 2 + 4}" class="label" text-anchor="end">${escapeXml(entry.name)}</text>`,
+            );
 
             // Bar
-            elements.push(`<rect x="${gridX}" y="${currentY}" width="${barWidth}" height="${opts.barHeight}" class="${barClass}" rx="2"/>`);
+            elements.push(
+                `<rect x="${gridX}" y="${currentY}" width="${barWidth}" height="${opts.barHeight}" class="${barClass}" rx="2"/>`,
+            );
 
             // Value
-            elements.push(`<text x="${gridX + barWidth + 5}" y="${currentY + opts.barHeight / 2 + 4}" class="value">${formatNumber(entry.hz)} ops/s (${factorText})</text>`);
+            elements.push(
+                `<text x="${gridX + barWidth + 5}" y="${currentY + opts.barHeight / 2 + 4}" class="value">${formatNumber(entry.hz)} ops/s (${factorText})</text>`,
+            );
 
             currentY += opts.barHeight + opts.barPadding;
         }
@@ -258,7 +272,7 @@ ${elements.join('\n')}
 export function generateComparisonChart(
     current: { [suiteName: string]: BenchSuiteResult },
     baseline: { [suiteName: string]: BenchSuiteResult },
-    options: ComparisonChartOptions = {}
+    options: ComparisonChartOptions = {},
 ): string {
     const opts: Required<ComparisonChartOptions> = {
         width: options.width ?? 800,
@@ -312,9 +326,7 @@ export function generateComparisonChart(
 
     // Calculate dimensions
     const titleHeight = 50;
-    const chartHeight = titleHeight +
-        comparisons.length * (opts.barHeight + opts.barPadding) +
-        opts.padding * 2;
+    const chartHeight = titleHeight + comparisons.length * (opts.barHeight + opts.barPadding) + opts.padding * 2;
 
     const chartWidth = opts.width;
     const barAreaWidth = (chartWidth - opts.labelWidth - opts.valueWidth - opts.padding * 2) / 2;
@@ -336,7 +348,9 @@ export function generateComparisonChart(
     elements.push(`<text x="${opts.padding}" y="${opts.padding + 20}" class="title">${escapeXml(opts.title)}</text>`);
 
     // Center line
-    elements.push(`<line x1="${centerX}" y1="${titleHeight}" x2="${centerX}" y2="${chartHeight - opts.padding}" stroke="${COLORS.text}" stroke-width="2"/>`);
+    elements.push(
+        `<line x1="${centerX}" y1="${titleHeight}" x2="${centerX}" y2="${chartHeight - opts.padding}" stroke="${COLORS.text}" stroke-width="2"/>`,
+    );
 
     // Grid lines and labels
     const gridIntervals = [-50, -25, 0, 25, 50];
@@ -345,15 +359,21 @@ export function generateComparisonChart(
 
         const x = centerX + (pct / maxAbsChange) * barAreaWidth;
         if (pct !== 0) {
-            elements.push(`<line x1="${x}" y1="${titleHeight}" x2="${x}" y2="${chartHeight - opts.padding}" class="grid-line" stroke-dasharray="4"/>`);
+            elements.push(
+                `<line x1="${x}" y1="${titleHeight}" x2="${x}" y2="${chartHeight - opts.padding}" class="grid-line" stroke-dasharray="4"/>`,
+            );
         }
         const label = pct >= 0 ? `+${pct}%` : `${pct}%`;
         elements.push(`<text x="${x}" y="${titleHeight - 5}" class="axis-label" text-anchor="middle">${label}</text>`);
     }
 
     // Axis labels
-    elements.push(`<text x="${centerX - barAreaWidth / 2}" y="${titleHeight - 20}" class="subtitle" text-anchor="middle">Slower</text>`);
-    elements.push(`<text x="${centerX + barAreaWidth / 2}" y="${titleHeight - 20}" class="subtitle" text-anchor="middle">Faster</text>`);
+    elements.push(
+        `<text x="${centerX - barAreaWidth / 2}" y="${titleHeight - 20}" class="subtitle" text-anchor="middle">Slower</text>`,
+    );
+    elements.push(
+        `<text x="${centerX + barAreaWidth / 2}" y="${titleHeight - 20}" class="subtitle" text-anchor="middle">Faster</text>`,
+    );
 
     // Bars
     let currentY = titleHeight + opts.padding;
@@ -372,16 +392,22 @@ export function generateComparisonChart(
         }
 
         // Label
-        elements.push(`<text x="${opts.padding + opts.labelWidth - 10}" y="${currentY + opts.barHeight / 2 + 4}" class="label" text-anchor="end">${escapeXml(comparison.name)}</text>`);
+        elements.push(
+            `<text x="${opts.padding + opts.labelWidth - 10}" y="${currentY + opts.barHeight / 2 + 4}" class="label" text-anchor="end">${escapeXml(comparison.name)}</text>`,
+        );
 
         // Bar
-        elements.push(`<rect x="${barX}" y="${currentY}" width="${barWidth}" height="${opts.barHeight}" class="${barClass}" rx="2"/>`);
+        elements.push(
+            `<rect x="${barX}" y="${currentY}" width="${barWidth}" height="${opts.barHeight}" class="${barClass}" rx="2"/>`,
+        );
 
         // Value
         const sign = comparison.changePercent >= 0 ? '+' : '';
         const valueX = comparison.changePercent >= 0 ? centerX + barWidth + 5 : centerX - barWidth - 5;
         const anchor = comparison.changePercent >= 0 ? 'start' : 'end';
-        elements.push(`<text x="${valueX}" y="${currentY + opts.barHeight / 2 + 4}" class="value" text-anchor="${anchor}">${sign}${comparison.changePercent.toFixed(1)}%</text>`);
+        elements.push(
+            `<text x="${valueX}" y="${currentY + opts.barHeight / 2 + 4}" class="value" text-anchor="${anchor}">${sign}${comparison.changePercent.toFixed(1)}%</text>`,
+        );
 
         currentY += opts.barHeight + opts.barPadding;
     }
@@ -413,12 +439,15 @@ ${elements.join('\n')}
 export function generateSuiteBarChart(
     suiteName: string,
     results: BenchSuiteResult,
-    options: BarChartOptions = {}
+    options: BarChartOptions = {},
 ): string {
-    return generateBarChart({ [suiteName]: results }, {
-        ...options,
-        title: options.title ?? suiteName,
-    });
+    return generateBarChart(
+        { [suiteName]: results },
+        {
+            ...options,
+            title: options.title ?? suiteName,
+        },
+    );
 }
 
 /**
@@ -429,7 +458,7 @@ export function generateSuiteBarChart(
  */
 export function generateSummaryChart(
     results: { [suiteName: string]: BenchSuiteResult },
-    options: BarChartOptions = {}
+    options: BarChartOptions = {},
 ): string {
     const opts: Required<BarChartOptions> = {
         width: options.width ?? 600,
@@ -470,9 +499,7 @@ export function generateSummaryChart(
 
     // Calculate dimensions
     const titleHeight = 50;
-    const chartHeight = titleHeight +
-        summaryEntries.length * (opts.barHeight + opts.barPadding) +
-        opts.padding * 2;
+    const chartHeight = titleHeight + summaryEntries.length * (opts.barHeight + opts.barPadding) + opts.padding * 2;
 
     const chartWidth = opts.width;
     const barAreaWidth = chartWidth - opts.labelWidth - opts.valueWidth - opts.padding * 2;
@@ -502,13 +529,19 @@ export function generateSummaryChart(
         const barClass = entry.isDeepkit ? 'bar-deepkit' : 'bar-competitor';
 
         // Suite name as label
-        elements.push(`<text x="${opts.padding + opts.labelWidth - 10}" y="${currentY + opts.barHeight / 2 + 4}" class="label" text-anchor="end">${escapeXml(entry.suiteName)}</text>`);
+        elements.push(
+            `<text x="${opts.padding + opts.labelWidth - 10}" y="${currentY + opts.barHeight / 2 + 4}" class="label" text-anchor="end">${escapeXml(entry.suiteName)}</text>`,
+        );
 
         // Bar
-        elements.push(`<rect x="${gridX}" y="${currentY}" width="${barWidth}" height="${opts.barHeight}" class="${barClass}" rx="3"/>`);
+        elements.push(
+            `<rect x="${gridX}" y="${currentY}" width="${barWidth}" height="${opts.barHeight}" class="${barClass}" rx="3"/>`,
+        );
 
         // Winner name and value
-        elements.push(`<text x="${gridX + barWidth + 5}" y="${currentY + opts.barHeight / 2 + 4}" class="value">${escapeXml(entry.name)} (${formatNumber(entry.hz)} ops/s)</text>`);
+        elements.push(
+            `<text x="${gridX + barWidth + 5}" y="${currentY + opts.barHeight / 2 + 4}" class="value">${escapeXml(entry.name)} (${formatNumber(entry.hz)} ops/s)</text>`,
+        );
 
         currentY += opts.barHeight + opts.barPadding;
     }

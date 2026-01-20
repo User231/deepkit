@@ -7,13 +7,15 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
 import * as fs from 'fs';
-import * as path from 'path';
 import { glob } from 'glob';
-import { BenchSuite, BenchSuiteResult } from './bench';
+import * as path from 'path';
+
+import { BenchSuite } from '@deepkit/bench';
+import type { BenchSuiteResult } from '@deepkit/bench';
+
+import { compareWithBaseline, saveBaseline } from './reporter/comparison';
 import { JsonReporter } from './reporter/json';
-import { saveBaseline, compareWithBaseline } from './reporter/comparison';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -56,10 +58,18 @@ const FgGreen = '\x1b[32m';
 const FgCyan = '\x1b[36m';
 const FgGray = '\x1b[90m';
 
-function green(text: string): string { return `${FgGreen}${text}${Reset}`; }
-function cyan(text: string): string { return `${FgCyan}${text}${Reset}`; }
-function gray(text: string): string { return `${FgGray}${text}${Reset}`; }
-function bold(text: string): string { return `${Bold}${text}${Reset}`; }
+function green(text: string): string {
+    return `${FgGreen}${text}${Reset}`;
+}
+function cyan(text: string): string {
+    return `${FgCyan}${text}${Reset}`;
+}
+function gray(text: string): string {
+    return `${FgGray}${text}${Reset}`;
+}
+function bold(text: string): string {
+    return `${Bold}${text}${Reset}`;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // BENCHMARK RUNNER
@@ -117,7 +127,7 @@ export class BenchmarkRunner {
                 (global as any).gc();
             }
 
-            const module = await import(filePath) as BenchmarkModule;
+            const module = (await import(filePath)) as BenchmarkModule;
 
             if (module.default && typeof module.default === 'function') {
                 const result = await module.default();
@@ -324,8 +334,8 @@ async function main(): Promise<void> {
 }
 
 // Exports
-export { BenchSuite } from './bench';
-export type { BenchSuiteResult } from './bench';
+export { BenchSuite } from '@deepkit/bench';
+export type { BenchSuiteResult } from '@deepkit/bench';
 export * from './reporter/json';
 export * from './reporter/comparison';
 export * from './reporter/markdown';

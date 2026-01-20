@@ -7,14 +7,13 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 
 /**
  * Array type checking benchmark - compares different methods to check if a value is an array
  */
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('debug/language-is-array');
 
     const array = ['a', 'b', 'c'];

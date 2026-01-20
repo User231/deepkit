@@ -7,8 +7,7 @@
  * This benchmark compares Deepkit's runtime type serialization against class-transformer,
  * a popular TypeScript serialization library.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import { deserialize, serialize } from '@deepkit/type';
 
 // Try to import class-transformer for comparison
@@ -132,7 +131,7 @@ function createClassTransformerModels() {
 // Benchmark
 // ============================================================================
 
-export default async function() {
+export default async function () {
     if (!classTransformer) {
         console.log('Skipping class-transformer benchmark: class-transformer package not installed');
         return new BenchSuite('comparison/serialization (skipped)');

@@ -7,17 +7,16 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import {
-    Logger,
-    LoggerLevel,
-    MemoryLogger,
-    LoggerTransport,
-    LogMessage,
-    LoggerFormatter,
     ColorFormatter,
     DefaultFormatter,
+    LogMessage,
+    Logger,
+    LoggerFormatter,
+    LoggerLevel,
+    LoggerTransport,
+    MemoryLogger,
     ScopeFormatter,
 } from '@deepkit/logger';
 
@@ -56,7 +55,7 @@ class CountingTransport implements LoggerTransport {
     }
 }
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('logger/core');
 
     // Test 1: Simple log with no-op transport (minimal overhead)
@@ -183,10 +182,7 @@ export default async function() {
 
     // Test 11: Multiple transports
     {
-        const logger = new Logger(
-            [new NoopTransport(), new NoopTransport(), new NoopTransport()],
-            []
-        );
+        const logger = new Logger([new NoopTransport(), new NoopTransport(), new NoopTransport()], []);
         logger.level = LoggerLevel.info;
 
         suite.add('log info - 3 transports', () => {

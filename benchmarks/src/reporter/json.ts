@@ -7,10 +7,10 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
 import * as fs from 'fs';
 import * as path from 'path';
-import { BenchSuiteResult, BenchResult } from '../bench';
+
+import type { BenchResult, BenchSuiteResult } from '@deepkit/bench';
 
 /**
  * Metadata about the benchmark run environment
@@ -154,7 +154,8 @@ export function listReports(dirPath: string): string[] {
         return [];
     }
 
-    return fs.readdirSync(dirPath)
+    return fs
+        .readdirSync(dirPath)
         .filter(file => file.endsWith('.json'))
         .map(file => path.join(dirPath, file))
         .sort();

@@ -7,14 +7,13 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 
 /**
  * Map vs Object performance benchmark - compares Map, Object, Set, and Array data structures
  */
 
-export default async function() {
+export default async function () {
     const suite = new BenchSuite('debug/language-map');
 
     const map = new Map<number, number>();
@@ -66,7 +65,7 @@ export default async function() {
     });
 
     const hashmapSize = 1000;
-    const hashmap: { key: number, value: number }[][] = Array(hashmapSize);
+    const hashmap: { key: number; value: number }[][] = Array(hashmapSize);
 
     function hashFn(num: number) {
         return num % hashmapSize;
@@ -75,7 +74,7 @@ export default async function() {
     suite.add('Hashmap set (1000 items)', () => {
         for (let i = 0; i < count; i++) {
             const v = Math.random();
-            const bucket = hashmap[hashFn(i)] ||= [];
+            const bucket = (hashmap[hashFn(i)] ||= []);
             let found = false;
             for (const b of bucket) {
                 if (b.key === i) {

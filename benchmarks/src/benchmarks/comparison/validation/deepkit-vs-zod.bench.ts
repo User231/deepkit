@@ -7,8 +7,7 @@
  * This benchmark compares Deepkit's runtime type validation against Zod,
  * one of the most popular TypeScript validation libraries.
  */
-
-import { BenchSuite } from '../../../bench';
+import { BenchSuite } from '@deepkit/bench';
 import { guard, validate } from '@deepkit/type';
 
 // Try to import zod for comparison
@@ -106,7 +105,7 @@ const invalidUser = {
 // Benchmark
 // ============================================================================
 
-export default async function() {
+export default async function () {
     if (!zod) {
         console.log('Skipping Zod benchmark: zod package not installed');
         return new BenchSuite('comparison/validation (skipped)');
