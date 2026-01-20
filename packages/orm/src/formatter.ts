@@ -40,6 +40,62 @@ export function setHydratedDatabaseSession(item: any, hydrator: (item: any) => P
     if (info) info.hydrator = hydrator;
 }
 
+/**
+ * Upgrades a reference proxy to a full object in place.
+ * This preserves object identity - all existing holders of the reference
+ * will see the upgraded object with all properties accessible.
+ *
+ * The upgrade is done by:
+ * 1. Changing the prototype from ReferenceClass to EntityClass (removes proxy getters,
+ *    makes isReferenceInstance return false)
+ * 2. Assigning properties directly (faster than Object.defineProperty)
+ */
+function upgradeReferenceToObject(
+    item: any,
+    classSchema: ReflectionClass<any>,
+    dbRecord: DBRecord,
+    serializer: Serializer,
+    getRef: (
+        classSchema: ReflectionClass<any>,
+        dbRecord: DBRecord,
+        property: ReflectionProperty,
+        isPartial: boolean,
+    ) => object | undefined | null,
+    isPartial: boolean,
+): void {
+    // Change prototype first - this removes the reference proxy getters and makes
+    // isReferenceInstance return false. Must be done BEFORE property assignment
+    // for optimal V8 performance.
+    const entityPrototype = classSchema.getClassType().prototype;
+    Object.setPrototypeOf(item, entityPrototype);
+
+    const converted: any = deserialize(dbRecord, undefined, serializer, undefined, classSchema.type);
+
+    for (const propName of classSchema.getPropertyNames()) {
+        const property = classSchema.getProperty(propName);
+        if (property.isPrimaryKey()) continue;
+
+        // Skip properties already set on the instance
+        if (Object.prototype.hasOwnProperty.call(item, propName)) continue;
+
+        if (property.isReference() || property.isBackReference()) {
+            // Skip array references/back-references - they need separate loading
+            if (property.isArray()) continue;
+            // Skip non-array back-references too - they can't be hydrated from current dbRecord
+            if (property.isBackReference()) continue;
+
+            // Direct assignment is faster than Object.defineProperty
+            item[propName] = getRef(classSchema, dbRecord, property, isPartial);
+            continue;
+        }
+
+        // Direct assignment for regular properties
+        item[propName] = converted[propName];
+    }
+
+    markAsHydrated(item);
+}
+
 type DBRecord = { [name: string]: any };
 
 /**
@@ -207,6 +263,7 @@ export class Formatter {
         model: DatabaseQueryModel<any, any, any>,
         classSchema: ReflectionClass<any>,
         dbRecord: DBRecord,
+        isJoinedData: boolean = false,
     ) {
         let pool: Map<PKHash, any> | undefined = undefined;
         let pkHash: any = undefined;
@@ -236,16 +293,29 @@ export class Formatter {
             pool = this.getInstancePoolForClass(classSchema.getClassType());
 
             const found = pool.get(pkHash);
-            //When in a record is a reference found, it will be put into the pool.
-            //If a subsequent record has the same PK as that reference, it would return that
-            //reference instead of the full record - which is wrong. This makes sure
-            //that references are excluded from the pool. However, that also breaks for
-            //references the identity. We could improve that with a more complex resolution algorithm,
-            //that involves changing already populated objects.
-            if (found && !isReferenceInstance(found)) {
-                //it could be that the found item was created as joined object, which could mean it was not yet fully populated.
-                this.assignJoins(model, classSchema, dbRecord, found);
-                return found;
+            if (found) {
+                // Only upgrade references when processing joined data.
+                // This ensures FK fields remain as references unless explicitly joined.
+                // Example: review.book.author should be upgraded when review.user is joined
+                // (same User), but block.previous should stay a reference even if the
+                // same Block appears as another row in the result set.
+                if (isJoinedData && isReferenceInstance(found) && !isReferenceHydrated(found)) {
+                    upgradeReferenceToObject(
+                        found,
+                        classSchema,
+                        dbRecord,
+                        this.serializer,
+                        (cs, rec, prop, partial) => this.getReference(cs, rec, prop, partial),
+                        partial,
+                    );
+                }
+                // Return found object if it's a full object or if we just upgraded it.
+                // For main results, skip references and create a new full object below.
+                if (!isReferenceInstance(found) || isJoinedData) {
+                    this.assignJoins(model, classSchema, dbRecord, found);
+                    return found;
+                }
+                // Fall through to create a new full object for main results
             }
         }
 
@@ -260,52 +330,38 @@ export class Formatter {
 
             if (item) {
                 const fromDatabase = getInstanceState(classState, item).isFromDatabase();
+                const isReference = isReferenceInstance(item);
 
-                //if its proxy a unhydrated proxy then we update property values
-                if (fromDatabase && !isReferenceHydrated(item)) {
-                    //we automatically hydrate proxy object once someone fetches them from the database.
-                    //or we update a stale instance
-                    const converted: any = deserialize(
+                // Only upgrade references when processing joined data
+                if (isJoinedData && isReference && !isReferenceHydrated(item)) {
+                    upgradeReferenceToObject(
+                        item,
+                        classSchema,
                         dbRecord,
-                        undefined,
                         this.serializer,
-                        undefined,
-                        classSchema.type,
+                        (cs, rec, prop, partial) => this.getReference(cs, rec, prop, partial),
+                        partial,
                     );
+                } else if (fromDatabase && !isReferenceHydrated(item) && !isReference) {
+                    // Stale non-reference instance from database - update with fresh data
+                    upgradeReferenceToObject(
+                        item,
+                        classSchema,
+                        dbRecord,
+                        this.serializer,
+                        (cs, rec, prop, partial) => this.getReference(cs, rec, prop, partial),
+                        partial,
+                    );
+                }
 
-                    for (const propName of classSchema.getPropertyNames()) {
-                        const property = classSchema.getProperty(propName);
-                        if (property.isPrimaryKey()) continue;
-
-                        if (propName in item) continue;
-
-                        if (property.isReference() || property.isBackReference()) {
-                            if (property.isArray()) continue;
-
-                            Object.defineProperty(item, propName, {
-                                enumerable: true,
-                                configurable: true,
-                                value: this.getReference(classSchema, dbRecord, property, partial),
-                            });
-                            continue;
-                        }
-
-                        Object.defineProperty(item, propName, {
-                            enumerable: true,
-                            configurable: true,
-                            value: converted[propName],
-                        });
+                // Return if it's not a reference, or if we're processing joined data
+                if (!isReference || isJoinedData) {
+                    if (fromDatabase || (isReference && isJoinedData)) {
+                        this.assignJoins(model, classSchema, dbRecord, item);
                     }
-
-                    markAsHydrated(item);
+                    return item;
                 }
-
-                if (fromDatabase) {
-                    //check if we got new reference data we can apply to the instance
-                    this.assignJoins(model, classSchema, dbRecord, item);
-                }
-
-                return item;
+                // Fall through to create new object for main results with references
             }
         }
 
@@ -344,20 +400,24 @@ export class Formatter {
                 if (join.propertySchema.isBackReference() && join.propertySchema.isArray()) {
                     if (hasValue) {
                         item[join.propertySchema.name] = dbRecord[refName].map((item: any) => {
+                            // isJoinedData=true enables reference upgrade for joined relations
                             return this.hydrateModel(
                                 join.query.model,
                                 resolveForeignReflectionClass(join.propertySchema),
                                 item,
+                                true,
                             );
                         });
                     } else if (!item[join.propertySchema.name]) {
                         item[join.propertySchema.name] = [];
                     }
                 } else if (hasValue) {
+                    // isJoinedData=true enables reference upgrade for joined relations
                     item[join.propertySchema.name] = this.hydrateModel(
                         join.query.model,
                         resolveForeignReflectionClass(join.propertySchema),
                         dbRecord[refName],
+                        true,
                     );
                 } else {
                     item[join.propertySchema.name] = undefined;
