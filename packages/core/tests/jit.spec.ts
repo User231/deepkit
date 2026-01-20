@@ -121,6 +121,33 @@ describe('jit', () => {
             });
             expect(f({ id: 1, name: 'Test', extra: 'ignored' })).toEqual({ id: 1, name: 'Test' });
         });
+
+        testBothModes('creates object with objFrom() using string keys', fn => {
+            const f = fn(jit.arg<any>(), (ctx, input) => {
+                return ctx.objFrom([
+                    ['id', ctx.get(input, 'id')],
+                    ['name', ctx.get(input, 'name')],
+                ]);
+            });
+            expect(f({ id: 1, name: 'Test', extra: 'ignored' })).toEqual({ id: 1, name: 'Test' });
+        });
+
+        testBothModes('creates object with objFrom() using non-identifier keys', fn => {
+            const f = fn(jit.arg<any>(), (ctx, input) => {
+                return ctx.objFrom([
+                    ['weird-key', ctx.get(input, 'a')],
+                    ['123start', ctx.get(input, 'b')],
+                ]);
+            });
+            expect(f({ a: 'valueA', b: 'valueB' })).toEqual({ 'weird-key': 'valueA', '123start': 'valueB' });
+        });
+
+        testBothModes('creates object with objFrom() using dynamic slot keys', fn => {
+            const f = fn(jit.arg<any>(), jit.arg<string>(), (ctx, input, keyName) => {
+                return ctx.objFrom([[keyName, ctx.get(input, 'value')]]);
+            });
+            expect(f({ value: 42 }, 'dynamic')).toEqual({ dynamic: 42 });
+        });
     });
 
     describe('array operations', () => {
@@ -593,7 +620,7 @@ describe('jit', () => {
             const code = ctx.getCode();
 
             expect(code).toContain('var s1={};');
-            expect(code).toContain('s1["name"]=s2;');
+            expect(code).toContain('s1.name=s2;'); // Uses dot notation for valid identifiers
         });
 
         test('compile produces working function', () => {

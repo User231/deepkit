@@ -51,6 +51,7 @@ export type Arg<T> = { __brand: 'arg'; __type?: T };
 export interface Context {
     // Create values
     obj<T>(): Slot<T>;
+    objFrom<T>(entries: Array<[string | Slot<string>, Slot]>): Slot<T>;
     arr<T>(): Slot<T[]>;
     lit<T>(value: T): Slot<T>;
 
@@ -91,6 +92,19 @@ export interface Context {
     // Control flow
     loop(arr: Slot, fn: (elem: Slot, idx: Slot) => void): void;
     when(cond: Slot<boolean>, then: () => Slot | void, else_?: () => Slot | void): void;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+const identifierRegex = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+
+/**
+ * Check if a string is a valid JavaScript identifier (can use dot notation).
+ */
+function isValidIdentifier(key: string): boolean {
+    return identifierRegex.test(key);
 }
 
 // ============================================================================
@@ -181,6 +195,24 @@ export class JITContext implements Context {
         return s as Slot<T>;
     }
 
+    objFrom<T>(entries: Array<[string | Slot<string>, Slot]>): Slot<T> {
+        const s = this.nextSlot();
+        const props: string[] = [];
+        for (const [key, value] of entries) {
+            if (typeof key === 'string') {
+                if (isValidIdentifier(key)) {
+                    props.push(`${key}:s${value}`);
+                } else {
+                    props.push(`${JSON.stringify(key)}:s${value}`);
+                }
+            } else {
+                props.push(`[s${key}]:s${value}`);
+            }
+        }
+        this.code += `var s${s}={${props.join(',')}};\n`;
+        return s as Slot<T>;
+    }
+
     arr<T>(): Slot<T[]> {
         const s = this.nextSlot();
         this.code += `var s${s}=[];\n`;
@@ -197,14 +229,28 @@ export class JITContext implements Context {
     // Access
     get<T>(target: Slot, key: string | Slot<string>): Slot<T> {
         const s = this.nextSlot();
-        const k = typeof key === 'string' ? JSON.stringify(key) : `s${key}`;
-        this.code += `var s${s}=s${target}[${k}];\n`;
+        if (typeof key === 'string') {
+            if (isValidIdentifier(key)) {
+                this.code += `var s${s}=s${target}.${key};\n`;
+            } else {
+                this.code += `var s${s}=s${target}[${JSON.stringify(key)}];\n`;
+            }
+        } else {
+            this.code += `var s${s}=s${target}[s${key}];\n`;
+        }
         return s as Slot<T>;
     }
 
     set(target: Slot, key: string | Slot<string>, value: Slot): void {
-        const k = typeof key === 'string' ? JSON.stringify(key) : `s${key}`;
-        this.code += `s${target}[${k}]=s${value};\n`;
+        if (typeof key === 'string') {
+            if (isValidIdentifier(key)) {
+                this.code += `s${target}.${key}=s${value};\n`;
+            } else {
+                this.code += `s${target}[${JSON.stringify(key)}]=s${value};\n`;
+            }
+        } else {
+            this.code += `s${target}[s${key}]=s${value};\n`;
+        }
     }
 
     at<T>(arr: Slot, index: Slot<number>): Slot<T> {
@@ -385,6 +431,16 @@ export class ExecContext implements Context {
     obj<T>(): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
         return {} as Slot<T>;
+    }
+
+    objFrom<T>(entries: Array<[string | Slot<string>, Slot]>): Slot<T> {
+        if (this.hasEarlyReturn) return undefined as any;
+        const result: any = {};
+        for (const [key, value] of entries) {
+            const k = typeof key === 'string' ? key : (key as unknown as string);
+            result[k] = value;
+        }
+        return result as Slot<T>;
     }
 
     arr<T>(): Slot<T[]> {

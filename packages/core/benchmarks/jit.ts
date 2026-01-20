@@ -73,13 +73,18 @@ const arrayOfObjects = Array.from({ length: 100 }, (_, i) => ({
 
 const simpleProps = ['id', 'name', 'email'];
 
-// JIT mode
+// JIT mode (obj + set)
 const simpleSerializerJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
     const output = ctx.obj();
     for (const prop of simpleProps) {
         ctx.set(output, prop, ctx.get(input, prop));
     }
     return output;
+});
+
+// JIT mode with objFrom (object literal)
+const simpleSerializerJITObjFrom = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
+    return ctx.objFrom(simpleProps.map(prop => [prop, ctx.get(input, prop)]));
 });
 
 // Exec mode
@@ -468,7 +473,8 @@ async function main() {
     // Simple serialization
     const simple = new BenchSuite('Simple Object (3 props)', 1, true);
     simple.add('baseline (hand-written)', () => simpleSerializerBaseline(simpleObject));
-    simple.add('jit.fnJIT', () => simpleSerializerJIT(simpleObject));
+    simple.add('jit.fnJIT (obj+set)', () => simpleSerializerJIT(simpleObject));
+    simple.add('jit.fnJIT (objFrom)', () => simpleSerializerJITObjFrom(simpleObject));
     simple.add('jit.fnExec', () => simpleSerializerExec(simpleObject));
     await simple.runAsync();
 
