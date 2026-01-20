@@ -126,6 +126,8 @@ export class HttpKernel {
             frame.data({ url: req.getUrl(), method: req.getMethod(), clientIp: req.getRemoteAddress() });
             await frame.run(() => workflow.apply('request', new HttpRequestEvent(httpInjectorContext, req, res)));
         } catch (error: any) {
+            this.logger.error('HTTP kernel request failed', error);
+
             if (!res.headersSent) {
                 const resultFormatter = httpInjectorContext.get(HttpResultFormatter);
                 if (error instanceof ValidationError) {
@@ -157,9 +159,8 @@ export class HttpKernel {
                 }
 
                 res.status(500);
+                res.end('Internal error');
             }
-
-            this.logger.error('HTTP kernel request failed', error);
         } finally {
             for (const file of Object.values(req.uploadedFiles || [])) {
                 unlink(file.path, () => {});

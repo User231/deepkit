@@ -36,8 +36,6 @@ export class HttpMiddlewareConfig {
     routeNames: string[] = [];
     excludeRouteNames: string[] = [];
 
-    timeout?: number;
-
     modules: InjectorModule<any>[] = [];
 
     selfModule: boolean = false;
@@ -77,14 +75,6 @@ export class HttpMiddlewareApi {
 
     excludeRouteNames(...names: string[]) {
         this.t.excludeRouteNames = names;
-    }
-
-    /**
-     * When the middleware does not respond (either calling next() or sending headers) withing <timeout> milliseconds,
-     * automatically the next is executed and warning printed.
-     */
-    timeout(timeout: number) {
-        this.t.timeout = timeout;
     }
 
     forControllers(...controllers: ClassType[]) {

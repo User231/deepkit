@@ -12,7 +12,7 @@ import qs from 'qs';
 
 import { MiddlewareRegistry, MiddlewareRegistryEntry } from '@deepkit/app';
 import { ClassType, CompilerContext, DeepkitError, getClassName, isArray, isClass, urlJoin } from '@deepkit/core';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
+import { InjectorContext, InjectorModule, getScope } from '@deepkit/injector';
 import { Logger, LoggerInterface } from '@deepkit/logger';
 import {
     ReflectionClass,
@@ -52,7 +52,7 @@ interface ResolvedController {
     parameters: RouteParameterResolverForInjector;
     routeConfig: RouteConfig;
     uploadedFiles: { [name: string]: UploadedFile };
-    middlewares?: (injector: InjectorContext) => { fn: HttpMiddlewareFn; timeout?: number }[];
+    middlewares?: (injector: InjectorContext) => HttpMiddlewareFn[];
 }
 
 export const UploadedFileSymbol = Symbol('UploadedFile');
@@ -650,6 +650,49 @@ export class HttpRouterRegistry extends HttpRouterRegistryFunctionRegistrar {
     }
 }
 
+/**
+ * Checks if a middleware class is request-scoped (scope: 'http', 'rpc', etc.)
+ * by looking up its provider in the module hierarchy.
+ *
+ * A middleware is considered request-scoped if:
+ * 1. It has an explicit scope like 'http' in its provider definition
+ * 2. It's registered with transient: true
+ *
+ * By default, middleware classes without explicit scope are singletons.
+ */
+function isRequestScopedMiddleware(middlewareClass: ClassType, module: InjectorModule<any> | undefined): boolean {
+    if (!module) return false;
+
+    // Walk up the module hierarchy to find the provider
+    let currentModule: InjectorModule<any> | undefined = module;
+    while (currentModule) {
+        for (const provider of currentModule.getProviders()) {
+            if (isClass(provider)) {
+                if (provider === middlewareClass) {
+                    // Class registered directly without config - it's a singleton
+                    return false;
+                }
+            } else if (provider && typeof provider === 'object' && 'provide' in provider) {
+                if (provider.provide === middlewareClass) {
+                    const scope = getScope(provider);
+                    // Check if it has http/rpc/cli scope or transient
+                    if (scope === 'http' || scope === 'rpc' || scope === 'cli') {
+                        return true;
+                    }
+                    if ('transient' in provider && provider.transient === true) {
+                        return true;
+                    }
+                    return false;
+                }
+            }
+        }
+        currentModule = currentModule.getParent();
+    }
+
+    // Not found in providers - treat as singleton (will be auto-provided)
+    return false;
+}
+
 export class HttpRouter {
     protected fn?: (request: HttpRequest) => ResolvedController | undefined;
     protected buildId: number = 0;
@@ -661,6 +704,7 @@ export class HttpRouter {
         private config: HttpConfig,
         private middlewareRegistry: MiddlewareRegistry = new MiddlewareRegistry(),
         private registry: HttpRouterRegistry = new HttpRouterRegistry(),
+        private injectorContext?: InjectorContext,
     ) {
         for (const controller of controllers.controllers) {
             this.addRouteForController(controller.controller, controller.module);
@@ -715,30 +759,77 @@ export class HttpRouter {
         let middlewares = 'undefined';
         if (middlewareConfigs.length) {
             const middlewareItems: string[] = [];
-            for (const middlewareConfig of middlewareConfigs) {
-                const moduleVar = middlewareConfig.module
-                    ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
-                    : '';
+            // Track if all middlewares can be pre-resolved (all singletons)
+            let allStatic = true;
+            // Pre-resolved middleware functions for static array optimization
+            const staticMiddlewareFns: ((...args: any[]) => any)[] = [];
 
+            for (const middlewareConfig of middlewareConfigs) {
                 for (const middleware of middlewareConfig.config.middlewares) {
                     if (isClass(middleware)) {
-                        const classVar = compiler.reserveVariable('middlewareClassType', middleware);
-                        middlewareItems.push(
-                            `{fn: function() {return _injector.get(${classVar}${moduleVar}).execute(...arguments) }, timeout: ${middlewareConfig.config.timeout}}`,
-                        );
+                        const isRequestScoped = isRequestScopedMiddleware(middleware, middlewareConfig.module);
+
+                        if (isRequestScoped) {
+                            // Request-scoped middleware: resolve per-request with explicit parameters
+                            allStatic = false;
+                            const classVar = compiler.reserveVariable('middlewareClassType', middleware);
+                            const moduleVar = middlewareConfig.module
+                                ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
+                                : '';
+                            middlewareItems.push(
+                                `(req, res, next) => _injector.get(${classVar}${moduleVar}).execute(req, res, next)`,
+                            );
+                        } else if (this.injectorContext) {
+                            // Singleton middleware with injector available: pre-resolve at build time
+                            try {
+                                const instance = this.injectorContext.get(middleware, middlewareConfig.module);
+                                const boundExecute = instance.execute.bind(instance);
+                                const boundVar = compiler.reserveVariable('mwBound', boundExecute);
+                                middlewareItems.push(boundVar);
+                                staticMiddlewareFns.push(boundExecute);
+                            } catch {
+                                // Fallback if pre-resolution fails (e.g., dependencies not available)
+                                allStatic = false;
+                                const classVar = compiler.reserveVariable('middlewareClassType', middleware);
+                                const moduleVar = middlewareConfig.module
+                                    ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
+                                    : '';
+                                middlewareItems.push(
+                                    `(req, res, next) => _injector.get(${classVar}${moduleVar}).execute(req, res, next)`,
+                                );
+                            }
+                        } else {
+                            // No injector context available: use explicit parameters (no ...arguments)
+                            allStatic = false;
+                            const classVar = compiler.reserveVariable('middlewareClassType', middleware);
+                            const moduleVar = middlewareConfig.module
+                                ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
+                                : '';
+                            middlewareItems.push(
+                                `(req, res, next) => _injector.get(${classVar}${moduleVar}).execute(req, res, next)`,
+                            );
+                        }
                     } else {
-                        middlewareItems.push(
-                            `{fn: ${compiler.reserveVariable('middlewareFn', middleware)}, timeout: ${middlewareConfig.config.timeout}}`,
-                        );
+                        // Function middleware: always static
+                        const fnVar = compiler.reserveVariable('middlewareFn', middleware);
+                        middlewareItems.push(fnVar);
+                        staticMiddlewareFns.push(middleware);
                     }
                 }
             }
 
-            middlewares = `
-                function(_injector) {
-                    return [${middlewareItems.join(', ')}];
-                }
-            `;
+            if (allStatic && staticMiddlewareFns.length > 0) {
+                // All middlewares are singletons - use pre-built static array
+                const staticArrayVar = compiler.reserveVariable('staticMiddlewares', staticMiddlewareFns);
+                middlewares = `function() { return ${staticArrayVar}; }`;
+            } else {
+                // Mixed or all request-scoped: build array per request
+                middlewares = `
+                    function(_injector) {
+                        return [${middlewareItems.join(', ')}];
+                    }
+                `;
+            }
         }
 
         const parametersLoader = getRequestParserCodeForParameters(compiler, this.config.parser, parameters, {

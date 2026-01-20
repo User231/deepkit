@@ -587,7 +587,7 @@ test('invalid route definition', async () => {
     }
 
     const httpKernel = createHttpKernel([Controller]);
-    expect((await httpKernel.request(HttpRequest.GET('/'))).bodyString).toEqual('Not found');
+    expect((await httpKernel.request(HttpRequest.GET('/'))).bodyString).toEqual('Internal error');
 });
 
 test('inject request storage ClassType', async () => {
@@ -1727,7 +1727,7 @@ test('dependency injection unknown', async () => {
     }
 
     const httpKernel = createHttpKernel([Controller], [provide<A>(Service)]);
-    expect((await httpKernel.request(HttpRequest.GET('/user/peter'))).text).toEqual('Not found');
+    expect((await httpKernel.request(HttpRequest.GET('/user/peter'))).text).toEqual('Internal error');
 });
 
 test('disabled reflection', async () => {

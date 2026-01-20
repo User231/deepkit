@@ -627,10 +627,7 @@ export class HttpListener {
                     const middlewares = resolved.middlewares(event.injectorContext);
                     if (middlewares.length) {
                         await asyncOperation(async (resolve, reject) => {
-                            let lastTimer: any = undefined;
-
                             function finish() {
-                                clearTimeout(lastTimer);
                                 resolve(undefined);
                                 //middleware finished the request. We end the workflow transition
                             }
@@ -647,19 +644,17 @@ export class HttpListener {
                                     return;
                                 }
 
-                                const timeout = middlewares[i].timeout;
-                                if (timeout !== undefined && timeout > 0) {
-                                    lastTimer = setTimeout(() => {
-                                        logger.warn(
-                                            `Middleware timed out. Increase the timeout or fix the middleware. (${middlewares[i].fn})`,
-                                        );
-                                        next();
-                                    }, timeout);
-                                }
+                                let nextCalled = false;
 
                                 try {
-                                    await middlewares[i].fn(event.request, event.response, (error?: any) => {
-                                        if (lastTimer) clearTimeout(lastTimer);
+                                    await middlewares[i](event.request, event.response, (error?: any) => {
+                                        if (nextCalled) {
+                                            logger.warn(
+                                                `Middleware called next() multiple times. This is likely a bug in the middleware.`,
+                                            );
+                                            return;
+                                        }
+                                        nextCalled = true;
                                         if (error) {
                                             event.response.off('finish', finish);
                                             reject(error);
@@ -668,6 +663,7 @@ export class HttpListener {
                                         }
                                     });
                                 } catch (error) {
+                                    event.response.off('finish', finish);
                                     reject(error);
                                 }
                             }
@@ -697,9 +693,7 @@ export class HttpListener {
             }
         } catch (error) {
             this.logger.error('Could not resolve request', error);
-            // HttpError should bubble up with its proper status code (e.g., middleware throwing 403)
-            if (error instanceof HttpError) throw error;
-            event.notFound();
+            throw error; // Let kernel handle all errors consistently (500 for generic, httpCode for HttpError)
         }
     }
 

@@ -17,9 +17,9 @@ import { ReflectionKind, Type, ValidationErrorItem, typeAnnotation } from '@deep
 import { UploadedFile } from './router.js';
 
 export class HttpResponse extends ServerResponse {
-    status(code: number) {
-        this.writeHead(code);
-        this.end();
+    status(code: number): this {
+        this.statusCode = code;
+        return this;
     }
 }
 

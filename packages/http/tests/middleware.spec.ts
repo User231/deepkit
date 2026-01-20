@@ -2,6 +2,7 @@ import { expect, test } from '@jest/globals';
 
 import { AppModule } from '@deepkit/app';
 import { sleep } from '@deepkit/core';
+import { InjectorContext } from '@deepkit/injector';
 
 import { http } from '../src/decorator.js';
 import { HttpAccessDeniedError, HttpUnauthorizedError } from '../src/http.js';
@@ -22,11 +23,9 @@ test('middleware empty', async () => {
         [],
         [],
         [
-            httpMiddleware
-                .for((req, res, next) => {
-                    next();
-                })
-                .timeout(100),
+            httpMiddleware.for((req, res, next) => {
+                next();
+            }),
         ],
     );
 
@@ -68,8 +67,8 @@ test('middleware async failed', async () => {
     );
 
     const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
-    expect(response.statusCode).toEqual(404);
-    expect(response.bodyString).toEqual('Not found');
+    expect(response.statusCode).toEqual(500);
+    expect(response.bodyString).toEqual('Internal error');
 });
 
 test('middleware throwing HttpError returns correct status code', async () => {
@@ -133,8 +132,8 @@ test('middleware class async failed', async () => {
     const httpKernel = createHttpKernel([Controller], [MyMiddleware], [], [httpMiddleware.for(MyMiddleware)]);
 
     const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
-    expect(response.statusCode).toEqual(404);
-    expect(response.bodyString).toEqual('Not found');
+    expect(response.statusCode).toEqual(500);
+    expect(response.bodyString).toEqual('Internal error');
 });
 
 test('middleware direct response', async () => {
@@ -386,25 +385,6 @@ test('middleware for routes', async () => {
     }
 });
 
-test('middleware timeout', async () => {
-    const httpKernel = createHttpKernel(
-        [Controller],
-        [],
-        [],
-        [
-            httpMiddleware
-                .for((req, res, next) => {
-                    //do nothing
-                })
-                .timeout(1000),
-        ],
-    );
-
-    const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
-    expect(response.statusCode).toEqual(200);
-    expect(response.bodyString).toEqual('"name1"');
-});
-
 test('middleware keep content type', async () => {
     const httpKernel = createHttpKernel(
         [Controller],
@@ -618,4 +598,162 @@ test('middleware on http controller', async () => {
         expect(response.getHeader('middleware_a')).toEqual('1');
         expect(response.getHeader('middleware_b')).toEqual('1');
     }
+});
+
+test('singleton middleware is reused across requests', async () => {
+    let instanceCount = 0;
+
+    class SingletonMiddleware implements HttpMiddleware {
+        id: number;
+        constructor() {
+            instanceCount++;
+            this.id = instanceCount;
+        }
+        execute(req: HttpRequest, res: HttpResponse, next: (err?: any) => void): void {
+            res.setHeader('middleware-instance', String(this.id));
+            next();
+        }
+    }
+
+    const httpKernel = createHttpKernel(
+        [Controller],
+        [SingletonMiddleware], // Singleton by default
+        [],
+        [httpMiddleware.for(SingletonMiddleware)],
+    );
+
+    // Make multiple requests
+    const response1 = await httpKernel.request(HttpRequest.GET('/user/name1'));
+    const response2 = await httpKernel.request(HttpRequest.GET('/user/name2'));
+    const response3 = await httpKernel.request(HttpRequest.GET('/user/name3'));
+
+    // All responses should be from the same singleton instance
+    expect(response1.statusCode).toEqual(200);
+    expect(response2.statusCode).toEqual(200);
+    expect(response3.statusCode).toEqual(200);
+
+    expect(response1.getHeader('middleware-instance')).toEqual('1');
+    expect(response2.getHeader('middleware-instance')).toEqual('1');
+    expect(response3.getHeader('middleware-instance')).toEqual('1');
+
+    // Only one instance should have been created
+    expect(instanceCount).toEqual(1);
+});
+
+test('request-scoped middleware creates new instance per request', async () => {
+    let instanceCount = 0;
+
+    class RequestScopedMiddleware implements HttpMiddleware {
+        id: number;
+        constructor() {
+            instanceCount++;
+            this.id = instanceCount;
+        }
+        execute(req: HttpRequest, res: HttpResponse, next: (err?: any) => void): void {
+            res.setHeader('middleware-instance', String(this.id));
+            next();
+        }
+    }
+
+    const httpKernel = createHttpKernel(
+        [Controller],
+        [{ provide: RequestScopedMiddleware, scope: 'http' }], // Request-scoped
+        [],
+        [httpMiddleware.for(RequestScopedMiddleware)],
+    );
+
+    // Make multiple requests
+    const response1 = await httpKernel.request(HttpRequest.GET('/user/name1'));
+    const response2 = await httpKernel.request(HttpRequest.GET('/user/name2'));
+    const response3 = await httpKernel.request(HttpRequest.GET('/user/name3'));
+
+    // All responses should be from different instances
+    expect(response1.statusCode).toEqual(200);
+    expect(response2.statusCode).toEqual(200);
+    expect(response3.statusCode).toEqual(200);
+
+    expect(response1.getHeader('middleware-instance')).toEqual('1');
+    expect(response2.getHeader('middleware-instance')).toEqual('2');
+    expect(response3.getHeader('middleware-instance')).toEqual('3');
+
+    // Three instances should have been created
+    expect(instanceCount).toEqual(3);
+});
+
+test('middleware with injected dependencies', async () => {
+    class Logger {
+        log(msg: string) {
+            return msg;
+        }
+    }
+
+    class LoggingMiddleware implements HttpMiddleware {
+        constructor(private logger: Logger) {}
+
+        execute(req: HttpRequest, res: HttpResponse, next: (err?: any) => void): void {
+            res.setHeader('logged', this.logger.log('request logged'));
+            next();
+        }
+    }
+
+    const httpKernel = createHttpKernel([Controller], [Logger, LoggingMiddleware], [], [httpMiddleware.for(LoggingMiddleware)]);
+
+    const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
+    expect(response.statusCode).toEqual(200);
+    expect(response.getHeader('logged')).toEqual('request logged');
+});
+
+test('request-scoped middleware can access http-scoped services', async () => {
+    class RequestScopedMiddleware implements HttpMiddleware {
+        constructor(private injectorContext: InjectorContext) {}
+
+        execute(req: HttpRequest, res: HttpResponse, next: (err?: any) => void): void {
+            // Can access the request-scoped injector context
+            res.setHeader('has-injector', this.injectorContext ? 'yes' : 'no');
+            next();
+        }
+    }
+
+    const httpKernel = createHttpKernel([Controller], [{ provide: RequestScopedMiddleware, scope: 'http' }], [], [httpMiddleware.for(RequestScopedMiddleware)]);
+
+    const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
+    expect(response.statusCode).toEqual(200);
+    expect(response.getHeader('has-injector')).toEqual('yes');
+});
+
+test('mixed singleton and function middlewares', async () => {
+    let callOrder: string[] = [];
+
+    class SingletonMiddleware implements HttpMiddleware {
+        execute(req: HttpRequest, res: HttpResponse, next: (err?: any) => void): void {
+            callOrder.push('singleton');
+            next();
+        }
+    }
+
+    const httpKernel = createHttpKernel(
+        [Controller],
+        [SingletonMiddleware],
+        [],
+        [
+            httpMiddleware.for((req, res, next) => {
+                callOrder.push('fn1');
+                next();
+            }),
+            httpMiddleware.for(SingletonMiddleware),
+            httpMiddleware.for((req, res, next) => {
+                callOrder.push('fn2');
+                next();
+            }),
+        ],
+    );
+
+    const response = await httpKernel.request(HttpRequest.GET('/user/name1'));
+    expect(response.statusCode).toEqual(200);
+    expect(callOrder).toEqual(['fn1', 'singleton', 'fn2']);
+
+    // Reset for second request
+    callOrder = [];
+    await httpKernel.request(HttpRequest.GET('/user/name2'));
+    expect(callOrder).toEqual(['fn1', 'singleton', 'fn2']);
 });
