@@ -20,9 +20,6 @@
   "references": [
     {
       "path": "../type-spec/tsconfig.json"
-    },
-    {
-      "path": "../core/tsconfig.json"
     }
   ]
 }
