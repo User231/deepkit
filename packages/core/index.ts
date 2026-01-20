@@ -17,6 +17,7 @@ export * from './src/process-locker.js';
 export * from './src/network.js';
 export * from './src/perf.js';
 export * from './src/compiler.js';
+export * from './src/jit.js';
 export * from './src/string.js';
 export * from './src/emitter.js';
 export * from './src/reactive.js';
