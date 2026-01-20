@@ -645,25 +645,30 @@ export class HttpListener {
                                 }
 
                                 let nextCalled = false;
+                                const middlewareName = middlewares[i].name || `#${i + 1}`;
 
                                 try {
                                     await middlewares[i](event.request, event.response, (error?: any) => {
                                         if (nextCalled) {
-                                            logger.warn(
-                                                `Middleware called next() multiple times. This is likely a bug in the middleware.`,
-                                            );
+                                            logger.warn(`Middleware ${middlewareName} called next() multiple times`);
                                             return;
                                         }
                                         nextCalled = true;
                                         if (error) {
                                             event.response.off('finish', finish);
+                                            logger.error(
+                                                `Middleware ${middlewareName} error on ${event.request.method} ${event.request.url}: ${error?.message || error}`,
+                                            );
                                             reject(error);
                                         } else {
                                             next();
                                         }
                                     });
-                                } catch (error) {
+                                } catch (error: any) {
                                     event.response.off('finish', finish);
+                                    logger.error(
+                                        `Middleware ${middlewareName} threw on ${event.request.method} ${event.request.url}: ${error?.message || error}`,
+                                    );
                                     reject(error);
                                 }
                             }
@@ -692,8 +697,8 @@ export class HttpListener {
                 event.routeFound(resolved.routeConfig, resolved.parameters);
             }
         } catch (error) {
-            this.logger.error('Could not resolve request', error);
-            throw error; // Let kernel handle all errors consistently (500 for generic, httpCode for HttpError)
+            // Middleware errors are already logged with context above, just re-throw
+            throw error;
         }
     }
 

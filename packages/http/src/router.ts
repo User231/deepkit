@@ -767,6 +767,7 @@ export class HttpRouter {
             for (const middlewareConfig of middlewareConfigs) {
                 for (const middleware of middlewareConfig.config.middlewares) {
                     if (isClass(middleware)) {
+                        const middlewareName = middleware.name || 'Middleware';
                         const isRequestScoped = isRequestScopedMiddleware(middleware, middlewareConfig.module);
 
                         if (isRequestScoped) {
@@ -776,14 +777,17 @@ export class HttpRouter {
                             const moduleVar = middlewareConfig.module
                                 ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
                                 : '';
+                            // Use named function for better debugging
                             middlewareItems.push(
-                                `(req, res, next) => _injector.get(${classVar}${moduleVar}).execute(req, res, next)`,
+                                `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
                             );
                         } else if (this.injectorContext) {
                             // Singleton middleware with injector available: pre-resolve at build time
                             try {
                                 const instance = this.injectorContext.get(middleware, middlewareConfig.module);
                                 const boundExecute = instance.execute.bind(instance);
+                                // Set function name for debugging
+                                Object.defineProperty(boundExecute, 'name', { value: middlewareName });
                                 const boundVar = compiler.reserveVariable('mwBound', boundExecute);
                                 middlewareItems.push(boundVar);
                                 staticMiddlewareFns.push(boundExecute);
@@ -795,7 +799,7 @@ export class HttpRouter {
                                     ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
                                     : '';
                                 middlewareItems.push(
-                                    `(req, res, next) => _injector.get(${classVar}${moduleVar}).execute(req, res, next)`,
+                                    `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
                                 );
                             }
                         } else {
@@ -806,7 +810,7 @@ export class HttpRouter {
                                 ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
                                 : '';
                             middlewareItems.push(
-                                `(req, res, next) => _injector.get(${classVar}${moduleVar}).execute(req, res, next)`,
+                                `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
                             );
                         }
                     } else {
