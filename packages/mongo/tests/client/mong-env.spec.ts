@@ -100,7 +100,10 @@ describe('mongo-env', () => {
         }
 
         mongo.closeConnections();
-        await sleep(0);
+        // Wait for close event to propagate (may take a few event loop ticks under load)
+        for (let i = 0; i < 100 && client.pool.isConnected(); i++) {
+            await sleep(0.01);
+        }
         expect(client.pool.isConnected()).toBe(false);
 
         {
