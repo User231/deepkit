@@ -203,7 +203,6 @@ Minor bugs or narrow edge cases.
 
 | Issue | Title | Package | Created | Notes |
 |-------|-------|---------|---------|-------|
-| [#352](https://github.com/deepkit/deepkit-framework/issues/352) | External types produce broken output | type-compiler | 2022-08-16 | Should emit `any` instead of broken const |
 | [#241](https://github.com/deepkit/deepkit-framework/issues/241) | Debugger fails with Database subclass + generic | framework | 2022-05-27 | Edge case: Database token + generic entity |
 | [#227](https://github.com/deepkit/deepkit-framework/issues/227) | ORM serialization problem with table connection | orm | 2022-05-03 | **NEEDS REPRO** - unclear issue description |
 
@@ -322,6 +321,7 @@ Issues discovered through codebase analysis (not from GitHub).
 
 | Issue | Title | Completed | PR/Commit |
 |-------|-------|-----------|-----------|
+| [#352](https://github.com/deepkit/deepkit-framework/issues/352) | External types produce broken output | 2026-01-20 | 5d1b47ed |
 | [#220](https://github.com/deepkit/deepkit-framework/issues/220) | DI fails when type name duplicates DOM | 2026-01-20 | already fixed |
 | [#285](https://github.com/deepkit/deepkit-framework/issues/285) | Express middleware req.get() missing | 2026-01-20 | 699dca13 |
 | [#356](https://github.com/deepkit/deepkit-framework/issues/356) | Windows backslash path delimiters | 2026-01-20 | fd8fda2f |
