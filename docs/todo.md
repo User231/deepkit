@@ -158,7 +158,7 @@ See `docs/team/README.md` for the full team intro and pipeline diagram.
 
 | Issue | Title | Folder | Status |
 |-------|-------|--------|--------|
-| [#636](https://github.com/deepkit/deepkit-framework/issues/636) | Hydrate fetched objects in identity map | `docs/todo/636/` | In Progress |
+| - | - | - | - |
 
 ## Backlog
 
@@ -183,7 +183,6 @@ Issues affecting DX or edge cases.
 | Issue | Title | Package | Created |
 |-------|-------|---------|---------|
 | [#658](https://github.com/deepkit/deepkit-framework/issues/658) | TypeScript 7 support | type-compiler | 2025-06-25 | **BLOCKED** - TS7 switched to Go (tsgo), our transformer is TS-based. Solution in progress (not public). |
-| [#636](https://github.com/deepkit/deepkit-framework/issues/636) | hydrate fetched objects in identity map | orm | 2025-03-11 |
 | [#609](https://github.com/deepkit/deepkit-framework/issues/609) | ORM adapter for PgLite | orm | 2024-09-05 |
 | [#575](https://github.com/deepkit/deepkit-framework/issues/575) | Batch mechanism in Message Queue | broker | 2024-06-17 |
 | [#572](https://github.com/deepkit/deepkit-framework/issues/572) | Add light theme in documentation | website | 2024-06-07 |
@@ -283,6 +282,7 @@ Issues discovered through codebase analysis (not from GitHub).
 
 | Issue | Title | Completed | PR/Commit |
 |-------|-------|-----------|-----------|
+| [#636](https://github.com/deepkit/deepkit-framework/issues/636) | Hydrate fetched objects in identity map | 2026-01-20 | f98ea7b6 |
 | [#419](https://github.com/deepkit/deepkit-framework/issues/419) | NanoId type support | 2026-01-20 | 3d805f79 |
 | [#441](https://github.com/deepkit/deepkit-framework/issues/441) | CORS support | 2026-01-19 | 20d892ca |
 | [#682](https://github.com/deepkit/deepkit-framework/issues/682) | remove const enum everywhere | 2025-11-29 | [#683](https://github.com/deepkit/deepkit-framework/pull/683) |
