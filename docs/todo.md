@@ -190,7 +190,6 @@ Issues affecting DX or edge cases.
 | [#548](https://github.com/deepkit/deepkit-framework/issues/548) | API SDK extraction | framework | 2024-08-08 |
 | [#492](https://github.com/deepkit/deepkit-framework/issues/492) | Deepkit Broker improvements | broker | 2024-05-22 |
 | [#488](https://github.com/deepkit/deepkit-framework/issues/488) | RPC with HTTP streams | rpc | 2023-10-11 |
-| [#439](https://github.com/deepkit/deepkit-framework/issues/439) | Better middleware handling | http | 2023-05-08 |
 | [#390](https://github.com/deepkit/deepkit-framework/issues/390) | Simpler query for simple updates | orm | 2022-12-02 |
 | [#380](https://github.com/deepkit/deepkit-framework/issues/380) | Babel plugin for type-compiler | type-compiler | 2022-09-26 |
 
@@ -282,6 +281,7 @@ Issues discovered through codebase analysis (not from GitHub).
 
 | Issue | Title | Completed | PR/Commit |
 |-------|-------|-----------|-----------|
+| [#439](https://github.com/deepkit/deepkit-framework/issues/439) | Better middleware handling | 2026-01-20 | 6d6d5c28 |
 | [#636](https://github.com/deepkit/deepkit-framework/issues/636) | Hydrate fetched objects in identity map | 2026-01-20 | f98ea7b6 |
 | [#419](https://github.com/deepkit/deepkit-framework/issues/419) | NanoId type support | 2026-01-20 | 3d805f79 |
 | [#441](https://github.com/deepkit/deepkit-framework/issues/441) | CORS support | 2026-01-19 | 20d892ca |
