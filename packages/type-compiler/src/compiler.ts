@@ -2967,11 +2967,31 @@ export class ReflectionTransformer implements CustomTransformer {
         return this.packOpsAndStack(program);
     }
 
-    protected packOpsAndStack(program: CompilerProgram) {
+    /**
+     * Like getTypeOfType but returns undefined for empty ops instead of 'any'.
+     * Used for functions where empty ops means "can't determine type, don't decorate"
+     * rather than "external type, use any".
+     */
+    protected getTypeOfFunction(fn: Node | Declaration): Expression | undefined {
+        const reflection = this.isWithReflection(this.sourceFile, fn);
+        if (!reflection) return;
+
+        const program = new CompilerProgram(fn, this.sourceFile);
+        this.extractPackStructOfType(fn, program);
+        return this.packOpsAndStack(program, { emitAnyForEmptyOps: false });
+    }
+
+    protected packOpsAndStack(program: CompilerProgram, options?: { emitAnyForEmptyOps?: boolean }) {
         const packStruct = program.buildPackStruct();
         if (packStruct.ops.length === 0) {
             // External/excluded types produce empty ops - emit 'any' instead of
             // returning undefined which would create invalid JS: `const __ΩType;` (#352)
+            // However, for functions, empty ops means "can't determine type" and we should
+            // return undefined so the function isn't decorated (this preserves the fallback
+            // behavior in ReflectionFunction.from).
+            if (options?.emitAnyForEmptyOps === false) {
+                return undefined;
+            }
             return this.valueToExpression([encodeOps([ReflectionOp.any])]);
         }
         // debugPackStruct(this.sourceFile, program.forNode, packStruct);
@@ -3018,7 +3038,7 @@ export class ReflectionTransformer implements CustomTransformer {
      * => const fn = __assignType(function() {}, [34])
      */
     protected decorateFunctionExpression(expression: FunctionExpression) {
-        const encodedType = this.getTypeOfType(expression);
+        const encodedType = this.getTypeOfFunction(expression);
         if (!encodedType) return expression;
 
         return this.wrapWithAssignType(expression, encodedType);
@@ -3030,7 +3050,7 @@ export class ReflectionTransformer implements CustomTransformer {
      * => function name() {}; name.__type = 34;
      */
     protected decorateFunctionDeclaration(declaration: FunctionDeclaration, originalParent?: Node) {
-        const encodedType = this.getTypeOfType(declaration);
+        const encodedType = this.getTypeOfFunction(declaration);
         if (!encodedType) return declaration;
 
         if (!declaration.name) {
@@ -3067,7 +3087,7 @@ export class ReflectionTransformer implements CustomTransformer {
      * => const fn = __assignType(() => {}, [34])
      */
     protected decorateArrowFunction(expression: ArrowFunction) {
-        const encodedType = this.getTypeOfType(expression);
+        const encodedType = this.getTypeOfFunction(expression);
         if (!encodedType) return expression;
 
         return this.wrapWithAssignType(expression, encodedType);

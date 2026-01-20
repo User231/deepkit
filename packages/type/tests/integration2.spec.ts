@@ -2168,3 +2168,42 @@ test('map as complex', () => {
     expect(type.types[0].type.types[0].type.types[0].name).toBe('thePayload');
     assertType(type.types[0].type.types[0].type.types[0].type, ReflectionKind.string);
 });
+
+test('ReflectionFunction.from() with untyped arrow function', () => {
+    // Arrow function without explicit type annotations
+    // This pattern is used in DI factory providers like:
+    // { provide: InjectorContext, useFactory: () => this.injectorContext }
+    const untypedArrowFn = () => 42;
+
+    // Should not throw - should return a valid function reflection
+    const reflection = ReflectionFunction.from(untypedArrowFn);
+
+    // Should be a function type
+    expect(reflection.type.kind).toBe(ReflectionKind.function);
+
+    // Should have no parameters (since none were declared)
+    expect(reflection.getParameters().length).toBe(0);
+
+    // Return type should be 'any' (since we couldn't infer it)
+    expect(reflection.getReturnType().kind).toBe(ReflectionKind.any);
+});
+
+test('ReflectionFunction.from() with untyped arrow function referencing this', () => {
+    class Container {
+        value = 42;
+
+        getFactory() {
+            // This pattern was breaking after #352 fix
+            return () => this.value;
+        }
+    }
+
+    const container = new Container();
+    const factory = container.getFactory();
+
+    // Should not throw - should return a valid function reflection
+    const reflection = ReflectionFunction.from(factory);
+
+    // Should be a function type (not 'any')
+    expect(reflection.type.kind).toBe(ReflectionKind.function);
+});

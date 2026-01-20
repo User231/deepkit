@@ -818,3 +818,104 @@ test('transpile: multiple functions all have hoisted __type', () => {
     const firstTypeIndex = res.app.indexOf('first.__type');
     expect(firstTypeIndex).toBeLessThan(firstFuncIndex);
 });
+
+// ============================================================================
+// UNTYPED ARROW FUNCTIONS - should not break reflection
+// ============================================================================
+
+/**
+ * Tests for untyped arrow functions that should NOT be decorated with __assignType.
+ *
+ * When an arrow function has no explicit type annotations and no parameters,
+ * the type-compiler should either:
+ * - Not decorate it at all (original behavior)
+ * - Or emit a proper function type (function returning any)
+ *
+ * The issue was that after fix #352, empty ops were converted to `any` type,
+ * but this breaks ReflectionFunction.from() which expects a function type.
+ * See: GitHub Actions CI failure on feat/next branch.
+ */
+test('runtime: untyped arrow function without parameters still works with ReflectionFunction', () => {
+    const res = transpileAndRun({
+        app: `
+            // Simulate a class with a property accessed via 'this'
+            class Container {
+                value = 42;
+
+                getFactory() {
+                    // Arrow function with no type annotations referencing 'this'
+                    return () => this.value;
+                }
+            }
+
+            const container = new Container();
+            const factory = container.getFactory();
+
+            // ReflectionFunction.from should work without throwing
+            const rf = require('@deepkit/type').ReflectionFunction;
+            const reflection = rf.from(factory);
+
+            // Should get a valid function type (with 'any' return type as fallback)
+            reflection.type.kind; // Should be ReflectionKind.function (not throw)
+        `,
+    });
+
+    // ReflectionKind.function = 17
+    expect(res).toBe(17);
+});
+
+test('runtime: untyped arrow function in provider-like pattern works', () => {
+    const res = transpileAndRun({
+        app: `
+            // This simulates the pattern used in @deepkit/app service-container:
+            // { provide: InjectorContext, useFactory: () => this.injectorContext }
+            class ServiceContainer {
+                private contextValue = 'test-context';
+
+                addProvider(config: { useFactory: () => any }) {
+                    // The injector calls ReflectionFunction.from on the factory
+                    const rf = require('@deepkit/type').ReflectionFunction;
+                    const reflection = rf.from(config.useFactory);
+                    return reflection.type.kind;
+                }
+            }
+
+            const container = new ServiceContainer();
+            // This is the pattern that was breaking
+            const result = container.addProvider({
+                useFactory: () => container['contextValue']
+            });
+
+            result;
+        `,
+    });
+
+    // ReflectionKind.function = 17
+    expect(res).toBe(17);
+});
+
+test('transform: untyped arrow function should not get invalid __assignType', () => {
+    const res = transform({
+        app: `
+            class Container {
+                value = 42;
+                getFactory() {
+                    return () => this.value;
+                }
+            }
+        `,
+    });
+
+    // The arrow function should either:
+    // 1. Not be wrapped with __assignType at all, OR
+    // 2. Be wrapped with a proper function type (not just 'any')
+    //
+    // Invalid: __assignType(() => this.value, ['"'])
+    // Valid: no __assignType, OR __assignType with proper function bytecode
+
+    // Check that if __assignType is present, it doesn't have just ['"'] (which is just 'any')
+    // The pattern ['"'] means the type is 'any', not 'function returning any'
+    const hasInvalidAnyOnlyType = res.app.includes("__assignType(() => this.value, ['\"'");
+
+    expect(hasInvalidAnyOnlyType).toBe(false);
+});
