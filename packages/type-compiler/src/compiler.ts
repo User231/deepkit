@@ -2969,7 +2969,11 @@ export class ReflectionTransformer implements CustomTransformer {
 
     protected packOpsAndStack(program: CompilerProgram) {
         const packStruct = program.buildPackStruct();
-        if (packStruct.ops.length === 0) return;
+        if (packStruct.ops.length === 0) {
+            // External/excluded types produce empty ops - emit 'any' instead of
+            // returning undefined which would create invalid JS: `const __ΩType;` (#352)
+            return this.valueToExpression([encodeOps([ReflectionOp.any])]);
+        }
         // debugPackStruct(this.sourceFile, program.forNode, packStruct);
         const packed = [...packStruct.stack, encodeOps(packStruct.ops)];
         return this.valueToExpression(packed);

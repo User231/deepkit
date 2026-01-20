@@ -705,3 +705,84 @@ test('optional chaining with method call - undefined service', () => {
     // types should be empty because service is undefined and optional chaining skipped the call
     expect(res).toEqual([]);
 });
+
+/**
+ * Issue #352: External types without reflection should produce 'any' bytecode
+ * instead of invalid JS like `const __ΩMyResult;` (no initializer)
+ *
+ * When a type alias references an external type from a package without Deepkit
+ * reflection metadata, the compiler should emit valid JavaScript with 'any' bytecode.
+ */
+test('issue #352: external type alias produces valid any bytecode', () => {
+    const res = transpile({
+        app: `
+            import { ExternalResult } from './external-lib';
+            export type MyResult = ExternalResult<number, Error>;
+        `,
+        // Simulate external library with declaration file only (no __type metadata)
+        'external-lib.d.ts': `
+            export declare type ExternalResult<T, E> = { ok: true; value: T } | { ok: false; error: E };
+        `,
+    });
+
+    console.log('Issue #352 output:', res.app);
+
+    // The output should contain a valid __ΩMyResult declaration with an initializer
+    // It should NOT be `const __ΩMyResult;` (invalid JS - missing initializer)
+    expect(res.app).toContain('__ΩMyResult');
+
+    // Verify it's valid JavaScript by checking for the initializer
+    // The pattern should be `const __ΩMyResult = [...]` not `const __ΩMyResult;`
+    expect(res.app).toMatch(/__ΩMyResult\s*=\s*\[/);
+
+    // Should not contain the broken pattern (const without initializer at end of statement)
+    expect(res.app).not.toMatch(/const\s+__ΩMyResult\s*;/);
+});
+
+test('issue #352: type referencing external generic class produces valid bytecode', () => {
+    const res = transpile({
+        app: `
+            import { Result } from './result-lib';
+            export type AppResult<T> = Result<T, string>;
+
+            function processResult(r: AppResult<number>) {
+                return r;
+            }
+        `,
+        // Simulate a library like oxide.ts that exports both type and runtime value
+        'result-lib.d.ts': `
+            export declare class Result<T, E> {
+                static ok<T>(value: T): Result<T, never>;
+                static err<E>(error: E): Result<never, E>;
+            }
+        `,
+    });
+
+    console.log('Issue #352 generic class output:', res.app);
+
+    // Should have valid __ΩAppResult with initializer
+    expect(res.app).toMatch(/__ΩAppResult\s*=\s*\[/);
+    expect(res.app).not.toMatch(/const\s+__ΩAppResult\s*;/);
+});
+
+test('issue #352: empty ops fallback to any bytecode', () => {
+    // This test exercises the packOpsAndStack empty ops guard directly.
+    // The guard catches edge cases where extractPackStructOfType returns
+    // without pushing any ops (e.g., nameless function with no type/params).
+    const res = transpile({
+        app: `
+            // CallSignature with no name, no type, no params can produce empty ops
+            interface MyInterface {
+                (): void;  // Call signature - has name '' (empty), has return type void
+            }
+            export type Test = MyInterface;
+        `,
+    });
+
+    console.log('Issue #352 empty ops test:', res.app);
+
+    // Should produce valid JavaScript
+    expect(res.app).toContain('__ΩTest');
+    expect(res.app).toMatch(/__ΩTest\s*=\s*\[/);
+    expect(res.app).not.toMatch(/const\s+__Ω\w+\s*;/);
+});
