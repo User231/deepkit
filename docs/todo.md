@@ -195,7 +195,6 @@ Issues affecting DX or edge cases.
 
 | Issue | Title | Package | Created | Notes |
 |-------|-------|---------|---------|-------|
-| [#285](https://github.com/deepkit/deepkit-framework/issues/285) | Express middleware req.get() missing | http | 2022-07-02 | HttpRequest lacks Express-compatible methods |
 | [#220](https://github.com/deepkit/deepkit-framework/issues/220) | DI fails when type name duplicates DOM | type/injector | 2022-04-18 | Element, Node, Document from libs conflict with DOM globals |
 
 ### Priority: Low
@@ -323,6 +322,7 @@ Issues discovered through codebase analysis (not from GitHub).
 
 | Issue | Title | Completed | PR/Commit |
 |-------|-------|-----------|-----------|
+| [#285](https://github.com/deepkit/deepkit-framework/issues/285) | Express middleware req.get() missing | 2026-01-20 | 699dca13 |
 | [#356](https://github.com/deepkit/deepkit-framework/issues/356) | Windows backslash path delimiters | 2026-01-20 | fd8fda2f |
 | [#375](https://github.com/deepkit/deepkit-framework/issues/375) | Nested joins on backrefs not deserialized | 2026-01-20 | already fixed |
 | [#439](https://github.com/deepkit/deepkit-framework/issues/439) | Better middleware handling | 2026-01-20 | 6d6d5c28 |
