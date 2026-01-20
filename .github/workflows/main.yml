@@ -192,10 +192,15 @@ jobs:
     runs-on: self-hosted
     strategy:
       matrix:
-        mongo-version: [4.0]
+        mongo-version: ['5']
     services:
-      # this is used for the simple-auth test
-      mongo:
+      # Main MongoDB with replica set (required for transactions)
+      mongo-replica:
+        image: ghcr.io/deepkit/mongo-replica:${{ matrix.mongo-version }}
+        ports:
+          - 27017:27017
+      # MongoDB with auth for simple-auth tests
+      mongo-auth:
         image: mongo:5.0.10
         ports:
           - 27018:27017
@@ -206,12 +211,6 @@ jobs:
         volumes:
           - /packages/mongo/tests/docker/simple-auth/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
     steps:
-      - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.7.0
-        with:
-          mongodb-version: ${{ matrix.mongo-version }}
-          mongodb-replica-set: test-rs
-
       - uses: actions/checkout@v4
 
       - name: Setup
