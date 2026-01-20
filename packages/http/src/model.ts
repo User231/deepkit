@@ -470,6 +470,39 @@ export class HttpRequest extends IncomingMessage {
     getRemoteAddress(): string {
         return this.socket.remoteAddress || '';
     }
+
+    /**
+     * Returns the specified HTTP request header field (case-insensitive match).
+     * Express-compatible method for middleware compatibility (#285).
+     *
+     * @example
+     * ```typescript
+     * req.get('Content-Type'); // => "text/plain"
+     * req.get('content-type'); // => "text/plain"
+     * ```
+     */
+    get(name: string): string | undefined {
+        const lc = name.toLowerCase();
+        let value: string | string[] | undefined;
+        switch (lc) {
+            case 'referer':
+            case 'referrer':
+                value = this.headers.referrer || this.headers.referer;
+                break;
+            default:
+                value = this.headers[lc];
+        }
+        if (value === undefined) return undefined;
+        return Array.isArray(value) ? value.join(', ') : value;
+    }
+
+    /**
+     * Alias for `get(name)`. Returns the specified HTTP request header field.
+     * Express-compatible method for middleware compatibility (#285).
+     */
+    header(name: string): string | undefined {
+        return this.get(name);
+    }
 }
 
 export function incomingMessageToHttpRequest(request: IncomingMessage): HttpRequest {
