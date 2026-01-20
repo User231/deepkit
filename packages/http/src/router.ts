@@ -771,16 +771,28 @@ export class HttpRouter {
                         const isRequestScoped = isRequestScopedMiddleware(middleware, middlewareConfig.module);
 
                         if (isRequestScoped) {
-                            // Request-scoped middleware: resolve per-request with explicit parameters
+                            // Request-scoped middleware: resolve per-request
                             allStatic = false;
-                            const classVar = compiler.reserveVariable('middlewareClassType', middleware);
-                            const moduleVar = middlewareConfig.module
-                                ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
-                                : '';
-                            // Use named function for better debugging
-                            middlewareItems.push(
-                                `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
-                            );
+
+                            // Try to use pre-compiled resolver if module's injector is available
+                            if (middlewareConfig.module?.injector) {
+                                const resolverVar = compiler.reserveVariable(
+                                    'mwResolver',
+                                    middlewareConfig.module.injector.getResolver(middleware),
+                                );
+                                middlewareItems.push(
+                                    `function ${middlewareName}(req, res, next) { return ${resolverVar}(_injector.scope).execute(req, res, next); }`,
+                                );
+                            } else {
+                                // Fallback to dynamic lookup
+                                const classVar = compiler.reserveVariable('middlewareClassType', middleware);
+                                const moduleVar = middlewareConfig.module
+                                    ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
+                                    : '';
+                                middlewareItems.push(
+                                    `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
+                                );
+                            }
                         } else if (this.injectorContext) {
                             // Singleton middleware with injector available: pre-resolve at build time
                             try {
@@ -794,6 +806,36 @@ export class HttpRouter {
                             } catch {
                                 // Fallback if pre-resolution fails (e.g., dependencies not available)
                                 allStatic = false;
+                                if (middlewareConfig.module?.injector) {
+                                    const resolverVar = compiler.reserveVariable(
+                                        'mwResolver',
+                                        middlewareConfig.module.injector.getResolver(middleware),
+                                    );
+                                    middlewareItems.push(
+                                        `function ${middlewareName}(req, res, next) { return ${resolverVar}(_injector.scope).execute(req, res, next); }`,
+                                    );
+                                } else {
+                                    const classVar = compiler.reserveVariable('middlewareClassType', middleware);
+                                    const moduleVar = middlewareConfig.module
+                                        ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
+                                        : '';
+                                    middlewareItems.push(
+                                        `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
+                                    );
+                                }
+                            }
+                        } else {
+                            // No injector context available
+                            allStatic = false;
+                            if (middlewareConfig.module?.injector) {
+                                const resolverVar = compiler.reserveVariable(
+                                    'mwResolver',
+                                    middlewareConfig.module.injector.getResolver(middleware),
+                                );
+                                middlewareItems.push(
+                                    `function ${middlewareName}(req, res, next) { return ${resolverVar}(_injector.scope).execute(req, res, next); }`,
+                                );
+                            } else {
                                 const classVar = compiler.reserveVariable('middlewareClassType', middleware);
                                 const moduleVar = middlewareConfig.module
                                     ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
@@ -802,16 +844,6 @@ export class HttpRouter {
                                     `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
                                 );
                             }
-                        } else {
-                            // No injector context available: use explicit parameters (no ...arguments)
-                            allStatic = false;
-                            const classVar = compiler.reserveVariable('middlewareClassType', middleware);
-                            const moduleVar = middlewareConfig.module
-                                ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
-                                : '';
-                            middlewareItems.push(
-                                `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
-                            );
                         }
                     } else {
                         // Function middleware: always static
