@@ -284,6 +284,9 @@ export class Formatter {
             classSchema = subClassSchema;
         }
 
+        // Track whether we found the entity in the pool (same query) vs only in identity map (previous query)
+        let foundInPool = false;
+
         if (this.rootClassSchema.getReferences().length > 0) {
             //the pool is only necessary when the root class has actually references
             pkHash =
@@ -294,32 +297,36 @@ export class Formatter {
 
             const found = pool.get(pkHash);
             if (found) {
-                // Only upgrade references when processing joined data.
-                // This ensures FK fields remain as references unless explicitly joined.
-                // Example: review.book.author should be upgraded when review.user is joined
-                // (same User), but block.previous should stay a reference even if the
-                // same Block appears as another row in the result set.
-                if (isJoinedData && isReferenceInstance(found) && !isReferenceHydrated(found)) {
-                    upgradeReferenceToObject(
-                        found,
-                        classSchema,
-                        dbRecord,
-                        this.serializer,
-                        (cs, rec, prop, partial) => this.getReference(cs, rec, prop, partial),
-                        partial,
-                    );
-                }
-                // Return found object if it's a full object or if we just upgraded it.
-                // For main results, skip references and create a new full object below.
-                if (!isReferenceInstance(found) || isJoinedData) {
+                foundInPool = true;
+                if (isReferenceInstance(found)) {
+                    // Reference found in pool (created as FK in this query)
+                    if (isJoinedData && !isReferenceHydrated(found)) {
+                        // Joined data: upgrade the reference since it was explicitly joined
+                        upgradeReferenceToObject(
+                            found,
+                            classSchema,
+                            dbRecord,
+                            this.serializer,
+                            (cs, rec, prop, partial) => this.getReference(cs, rec, prop, partial),
+                            partial,
+                        );
+                        this.assignJoins(model, classSchema, dbRecord, found);
+                        return found;
+                    }
+                    // NOT joined: don't upgrade the FK reference, fall through to create new object
+                    // This keeps FK references lazy-loadable even if the same entity appears in results
+                } else {
+                    // Full object in pool
                     this.assignJoins(model, classSchema, dbRecord, found);
                     return found;
                 }
-                // Fall through to create a new full object for main results
             }
         }
 
-        if (this.identityMap && !partial) {
+        // Only check identity map if we didn't find it in the pool
+        // Pool = same query (FK references should stay as references)
+        // Identity map only = previous query (references should be upgraded)
+        if (this.identityMap && !partial && !foundInPool) {
             if (!pkHash) {
                 pkHash =
                     classSchema === this.rootClassSchema
@@ -332,8 +339,8 @@ export class Formatter {
                 const fromDatabase = getInstanceState(classState, item).isFromDatabase();
                 const isReference = isReferenceInstance(item);
 
-                // Only upgrade references when processing joined data
-                if (isJoinedData && isReference && !isReferenceHydrated(item)) {
+                // Reference from previous query: always upgrade when we have full data
+                if (isReference && !isReferenceHydrated(item)) {
                     upgradeReferenceToObject(
                         item,
                         classSchema,
@@ -354,14 +361,8 @@ export class Formatter {
                     );
                 }
 
-                // Return if it's not a reference, or if we're processing joined data
-                if (!isReference || isJoinedData) {
-                    if (fromDatabase || (isReference && isJoinedData)) {
-                        this.assignJoins(model, classSchema, dbRecord, item);
-                    }
-                    return item;
-                }
-                // Fall through to create new object for main results with references
+                this.assignJoins(model, classSchema, dbRecord, item);
+                return item;
             }
         }
 
