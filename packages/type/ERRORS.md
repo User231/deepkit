@@ -249,6 +249,36 @@ class Child {
 
 ---
 
+## DK-T210: Invalid SuperClass Type
+
+**Message:** Cannot deserialize class '[ClassName]': superClass must be a class type, got [kind]
+
+**Causes:**
+- Serialized type data contains a malformed superClass reference
+- The superClass was serialized incorrectly (e.g., as a method signature instead of a class)
+- Corrupted or manually constructed serialized type data
+
+**Solution:**
+1. This is typically an internal error - if you encounter it, ensure you're using compatible versions of `@deepkit/type`
+2. If manually constructing serialized types, ensure superClass references point to class types (kind 20)
+3. Report as a bug if this occurs during normal framework usage
+
+---
+
+## DK-T211: SuperClass Missing ClassType
+
+**Message:** Cannot deserialize class '[ClassName]': superClass has no classType
+
+**Causes:**
+- The serialized superClass type is missing its classType property
+- Internal error during type serialization/deserialization
+
+**Solution:**
+1. Ensure you're using compatible versions of `@deepkit/type`
+2. Report as a bug if this occurs during normal framework usage
+
+---
+
 ## DK-T300: Validation Error
 
 **Message:** Validation error for type [Type]: [details]

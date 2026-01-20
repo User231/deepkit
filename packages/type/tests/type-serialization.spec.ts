@@ -460,3 +460,53 @@ test('class reference with entity options', () => {
 
     expect(authorReflection.getProperty('firstName').isOptional()).toBe(true);
 });
+
+test('#241: deserialize rejects invalid superClass type', () => {
+    // Issue #241: When deserializing a class with a malformed superClass
+    // (e.g., a method signature instead of a class type), we should get
+    // a clear error message instead of "Class extends value undefined".
+
+    // Create a serialized type with an invalid superClass (method signature)
+    const invalidSuperClass: any = [
+        {
+            kind: ReflectionKind.class,
+            classType: 'TestClass',
+            types: [],
+            superClass: 1, // Reference to index 1
+        },
+        {
+            kind: ReflectionKind.method, // Invalid - not a class type
+            name: 'invalidMethod',
+            parameters: [],
+            return: 2,
+        },
+        { kind: ReflectionKind.any },
+    ];
+
+    // Deserialize should throw a clear error
+    expect(() => deserializeType(invalidSuperClass, { disableReuse: true })).toThrow(/superClass must be a class type/);
+});
+
+test('#241: serialize class with inheritance roundtrip', () => {
+    // Test that proper class inheritance serializes and deserializes correctly
+
+    class BaseClass {
+        baseField: string = '';
+    }
+
+    class DerivedClass extends BaseClass {
+        derivedField: number = 0;
+    }
+
+    const reflection = ReflectionClass.from(DerivedClass);
+    const json = reflection.serializeType();
+
+    // Deserialize should work without errors
+    const back = deserializeType(json, { disableReuse: true });
+    assertType(back, ReflectionKind.class);
+    expect(getClassName(back.classType)).toBe('DerivedClass');
+
+    // Creating ReflectionClass from deserialized type should work
+    const backReflection = ReflectionClass.from(back);
+    expect(backReflection.getClassName()).toBe('DerivedClass');
+});

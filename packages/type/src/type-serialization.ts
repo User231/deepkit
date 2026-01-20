@@ -1,4 +1,4 @@
-import { getClassName, getParentClass } from '@deepkit/core';
+import { ClassType, DeepkitError, getClassName, getParentClass } from '@deepkit/core';
 
 import { typeSettings } from './core.js';
 import { ReflectionClass, reflect, typeOf } from './reflection/reflection.js';
@@ -374,7 +374,16 @@ function serialize(type: Type, state: SerializerState): SerializedTypeReference 
             const parent = getParentClass(type.classType);
             let superClass: SerializedTypeReference | undefined = undefined;
             try {
-                superClass = parent ? serialize(reflect(parent), state) : undefined;
+                if (parent) {
+                    const parentType = reflect(parent);
+                    // Only serialize the superClass if reflect() returns a class type.
+                    // When the parent class has no __type emitted (e.g., generic base classes
+                    // without runtime type info), reflect() returns a method signature instead,
+                    // which would cause deserialization to fail (#241).
+                    if (parentType.kind === ReflectionKind.class) {
+                        superClass = serialize(parentType, state);
+                    }
+                }
             } catch {}
 
             const classType = getClassName(type.classType);
@@ -681,32 +690,48 @@ function deserialize(type: SerializedType | SerializedTypeReference, state: Dese
                 }
             }
 
-            const classType = type.globalObject
-                ? envGlobal[type.classType]
-                : newClass
-                  ? type.superClass
-                      ? class extends (deserialize(type.superClass, state) as TypeClass).classType {
-                            constructor(...args: any[]) {
-                                super(...args);
-                                for (const init of initialize) {
-                                    this[init.name] = args[init.index];
-                                }
-                            }
+            let classType: ClassType;
+            if (type.globalObject) {
+                classType = envGlobal[type.classType];
+            } else if (!newClass) {
+                classType = typeSettings.registeredEntities[type.name!];
+            } else if (type.superClass) {
+                const superType = deserialize(type.superClass, state);
+                if (superType.kind !== ReflectionKind.class) {
+                    throw new DeepkitError(
+                        'DK-T210',
+                        `Cannot deserialize class '${type.classType}': superClass must be a class type, got ${ReflectionKind[superType.kind]}`,
+                    );
+                }
+                if (!superType.classType) {
+                    throw new DeepkitError(
+                        'DK-T211',
+                        `Cannot deserialize class '${type.classType}': superClass has no classType`,
+                    );
+                }
+                classType = class extends superType.classType {
+                    constructor(...args: any[]) {
+                        super(...args);
+                        for (const init of initialize) {
+                            this[init.name] = args[init.index];
                         }
-                      : class {
-                            constructor(...args: any[]) {
-                                for (const init of initialize) {
-                                    (this as any)[init.name] = args[init.index];
-                                }
-                            }
+                    }
+                };
+            } else {
+                classType = class {
+                    constructor(...args: any[]) {
+                        for (const init of initialize) {
+                            (this as any)[init.name] = args[init.index];
                         }
-                  : typeSettings.registeredEntities[type.name!];
+                    }
+                };
+            }
 
             if (newClass && !type.globalObject) {
                 Object.defineProperty(classType, 'name', { value: type.classType, writable: true, enumerable: false });
-                if (!classType.__type) {
-                    classType.__type = [];
-                    classType.__type.__type = result;
+                if (!(classType as any).__type) {
+                    (classType as any).__type = [];
+                    (classType as any).__type.__type = result;
                 }
             }
 
