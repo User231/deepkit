@@ -2,9 +2,8 @@ import { createFilter } from '@rollup/pluginutils';
 import { cwd } from 'process';
 import ts from 'typescript';
 
-import { DeepkitError } from '@deepkit/core';
-
 import { declarationTransformer, transformer } from './compiler.js';
+import { TypeCompilerError } from './error.js';
 
 export interface Options {
     include?: string;
@@ -35,7 +34,7 @@ export function deepkitType(options: Options = {}): Transform {
             getCurrentDirectory: ts.sys.getCurrentDirectory,
             getNewLine: () => ts.sys.newLine,
         });
-        throw new DeepkitError('DK-TC006', diagnostic);
+        throw new TypeCompilerError('DK-TC006', diagnostic);
     }
 
     const compilerOptions = Object.assign(

@@ -2,9 +2,8 @@ import { dirname, isAbsolute, join } from 'path';
 import type { CompilerOptions, ParseConfigHost } from 'typescript';
 import ts from 'typescript';
 
-import { DeepkitError } from '@deepkit/core';
-
 import { debug, debug2, isDebug } from './debug.js';
+import { TypeCompilerError } from './error.js';
 import { patternMatch } from './resolver.js';
 
 /**
@@ -325,7 +324,7 @@ export function getConfigResolver(
             }
         }
     } else {
-        throw new DeepkitError(
+        throw new TypeCompilerError(
             'DK-TC006',
             `No tsconfig found for ${sourceFile?.fileName}. Either provide a tsconfig or compilerOptions.configFilePath`,
         );

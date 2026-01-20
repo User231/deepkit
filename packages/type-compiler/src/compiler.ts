@@ -79,11 +79,11 @@ import ts, {
     isJSDocImportTag,
 } from 'typescript';
 
-import { DeepkitError } from '@deepkit/core';
 import { MappedModifier, ReflectionOp, TypeIntrinsic, TypeNumberBrand } from '@deepkit/type-spec';
 
 import { ConfigResolver, MatchResult, ReflectionConfig, ReflectionConfigCache, ResolvedConfig, getConfigResolver, reflectionModeMatcher } from './config.js';
 import { debug, debug2 } from './debug.js';
+import { TypeCompilerError } from './error.js';
 import {
     NodeConverter,
     PackExpression,
@@ -327,7 +327,7 @@ class CompilerProgram {
 
     popCoRoutine(): number {
         const coRoutine = this.activeCoRoutines.pop();
-        if (!coRoutine) throw new DeepkitError('DK-TC001', 'No active co-routine found');
+        if (!coRoutine) throw new TypeCompilerError('DK-TC001', 'No active co-routine found');
         this.popFrameImplicit();
         if (this.mainOffset === 0) {
             this.mainOffset = 2; //we add JUMP + index when building the program
@@ -342,7 +342,7 @@ class CompilerProgram {
     pushOp(...ops: ReflectionOp[]): void {
         for (const op of ops) {
             if ('number' !== typeof op) {
-                throw new DeepkitError('DK-TC002', 'No valid OP added');
+                throw new TypeCompilerError('DK-TC002', 'No valid OP added');
             }
             // if (op + 33 > 126) {
             //todo: encode as var int
@@ -708,10 +708,10 @@ export class ReflectionTransformer implements CustomTransformer {
 
         if (sourceFile.kind !== SyntaxKind.SourceFile) {
             if ('undefined' === typeof require) {
-                throw new DeepkitError('DK-TC003', `Invalid TypeScript library imported. SyntaxKind different ${sourceFile.kind} !== ${SyntaxKind.SourceFile}.`);
+                throw new TypeCompilerError('DK-TC003', `Invalid TypeScript library imported. SyntaxKind different ${sourceFile.kind} !== ${SyntaxKind.SourceFile}.`);
             }
             const path = require.resolve('typescript');
-            throw new DeepkitError('DK-TC003', `Invalid TypeScript library imported. SyntaxKind different ${sourceFile.kind} !== ${SyntaxKind.SourceFile}. typescript package path: ${path}`);
+            throw new TypeCompilerError('DK-TC003', `Invalid TypeScript library imported. SyntaxKind different ${sourceFile.kind} !== ${SyntaxKind.SourceFile}. typescript package path: ${path}`);
         }
 
         const visitor = (node: Node): any => {
@@ -1178,7 +1178,7 @@ export class ReflectionTransformer implements CustomTransformer {
 
             for (const [importDeclaration, identifiers] of importMap.entries()) {
                 if (this.additionalImports.has(importDeclaration)) {
-                    throw new DeepkitError('DK-TC004', 'Internal error: additional import already exists');
+                    throw new TypeCompilerError('DK-TC004', 'Internal error: additional import already exists');
                 }
                 if (this.getModuleType() === 'cjs') {
                     // var {a, b, c} = require('./bar')
@@ -1897,7 +1897,7 @@ export class ReflectionTransformer implements CustomTransformer {
                     if (!variable) {
                         program.pushVariable(typeParameterName, frame);
                         variable = program.findVariable(typeParameterName);
-                        if (!variable) throw new DeepkitError('DK-TC005', 'Could not find inserted infer variable');
+                        if (!variable) throw new TypeCompilerError('DK-TC005', 'Could not find inserted infer variable');
                     }
                     program.pushOp(ReflectionOp.infer, variable.frameOffset, variable.stackIndex);
                 } else {
