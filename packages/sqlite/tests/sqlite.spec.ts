@@ -5,7 +5,26 @@ import { MemoryLogger } from '@deepkit/logger';
 import { DatabaseEntityRegistry, UniqueConstraintFailure } from '@deepkit/orm';
 import { User, UserCredentials } from '@deepkit/orm-integration';
 import { sql } from '@deepkit/sql';
-import { AutoIncrement, BackReference, DatabaseField, Entity, PrimaryKey, Reference, ReflectionClass, UUID, Unique, cast, entity, getPrimaryKeyExtractor, getPrimaryKeyHashGenerator, isReferenceInstance, serialize, typeOf, uuid } from '@deepkit/type';
+import {
+    AutoIncrement,
+    BackReference,
+    DatabaseField,
+    Entity,
+    Inline,
+    PrimaryKey,
+    Reference,
+    ReflectionClass,
+    UUID,
+    Unique,
+    cast,
+    entity,
+    getPrimaryKeyExtractor,
+    getPrimaryKeyHashGenerator,
+    isReferenceInstance,
+    serialize,
+    typeOf,
+    uuid,
+} from '@deepkit/type';
 
 import { SQLiteDatabaseAdapter, SQLiteDatabaseTransaction } from '../src/sqlite-adapter.js';
 import { SQLitePlatform } from '../src/sqlite-platform.js';
@@ -762,9 +781,11 @@ test('deep join population', async () => {
 });
 
 test('joinWith', async () => {
+    // Use & Inline to get nested serialization. Without & Inline, Reference fields
+    // always serialize as FK only, regardless of whether data was joined.
     class MyEntity {
-        ref?: MyEntity & Reference;
-        refs?: MyEntity[] & BackReference;
+        ref?: MyEntity & Reference & Inline;
+        refs?: MyEntity[] & BackReference & Inline;
 
         constructor(public id: number & PrimaryKey) {}
     }

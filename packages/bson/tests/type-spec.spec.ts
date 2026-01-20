@@ -384,13 +384,21 @@ test('relation 1', () => {
     }
 
     {
+        // With type-driven serialization, & Reference always outputs FK (primary key only),
+        // regardless of whether the full object is available at runtime.
         const team = new Team('foo');
         const user = new User('foo');
         user.id = 12;
         team.lead = user;
-        expect(serializeToJson<Team>(team)).toEqual(team);
+        // Serialization outputs FK (12) instead of full nested object
+        expect(serializeToJson<Team>(team)).toEqual({ id: 0, version: 0, name: 'foo', lead: 12 });
+        // Deserialization accepts both FK and full object
         expect(deserializeFromJson<Team>(team)).toEqual(team);
-        expect(roundTrip<Team>(team)).toEqual(team);
+        // Round trip: serialize (FK) -> deserialize (creates Reference) gives a reference proxy
+        const roundTripped = roundTrip<Team>(team);
+        expect(roundTripped.id).toBe(team.id);
+        expect(roundTripped.name).toBe(team.name);
+        expect(roundTripped.lead!.id).toBe(12);
     }
 
     {

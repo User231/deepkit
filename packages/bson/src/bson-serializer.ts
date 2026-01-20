@@ -20,6 +20,7 @@ import {
 import {
     BinaryBigIntType,
     ContainerAccessor,
+    InlineOptions,
     JitStack,
     MongoId,
     NamingStrategy,
@@ -56,6 +57,7 @@ import {
     getTypeJitContainer,
     handleUnion,
     hasDefaultValue,
+    inlineAnnotation,
     isBackReferenceType,
     isBinaryBigIntType,
     isMongoIdType,
@@ -975,17 +977,42 @@ function handleObjectLiteral(
     if (type.kind === ReflectionKind.class && referenceAnnotation.hasAnnotations(type)) {
         state.setContext({ isObject, isReferenceInstance, isReferenceHydrated });
         const reflection = ReflectionClass.from(type.classType);
-        //the primary key is serialised for unhydrated references
         const index = getNameExpression(reflection.getPrimary().getName(), state);
         const primaryKey = reflection.getPrimary().getType();
-        //if a reference or forMongoDatabase=true only the foreign primary key is serialized
-        state.replaceTemplate(`
-            if ((${options.forMongoDatabase === true}) || (isReferenceInstance(${state.accessor}) && !isReferenceHydrated(${state.accessor}))) {
+
+        // For MongoDB database operations, always serialize as FK (primary key only)
+        if (options.forMongoDatabase === true) {
+            state.replaceTemplate(`
                 ${executeTemplates(state.fork(state.setter, `${state.accessor}[${index}]`).forPropertyName(propertyName), primaryKey)}
-            } else {
-                ${state.template}
+            `);
+        } else {
+            // For general BSON serialization: type-driven approach
+            // Check if & Inline annotation is present and active for 'bson' serializer
+            const inlineOptions = inlineAnnotation.getFirst(type) as InlineOptions | undefined;
+            let inlineActive = !!inlineOptions;
+            if (inlineOptions) {
+                if (inlineOptions.only && inlineOptions.only.length > 0) {
+                    inlineActive = inlineOptions.only.includes('bson');
+                } else if (inlineOptions.except && inlineOptions.except.includes('bson')) {
+                    inlineActive = false;
+                }
             }
-        `);
+
+            if (inlineActive) {
+                // & Reference & Inline: serialize as nested object, throw if not loaded
+                state.replaceTemplate(`
+                    if (isReferenceInstance(${state.accessor}) && !isReferenceHydrated(${state.accessor})) {
+                        throw new Error('Cannot serialize inline reference: object not loaded. Use joinWith() to load the relation, or remove the Inline annotation.');
+                    }
+                    ${state.template}
+                `);
+            } else {
+                // & Reference (no Inline): always serialize as FK (just primary key)
+                state.replaceTemplate(`
+                    ${executeTemplates(state.fork(state.setter, `${state.accessor}[${index}]`).forPropertyName(propertyName), primaryKey)}
+                `);
+            }
+        }
     }
 }
 

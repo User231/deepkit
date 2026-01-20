@@ -259,11 +259,11 @@ test('identity map reference upgrade with multiple overlapping references', () =
     expect(post.reviewer!.name).toBe('Peter');
 });
 
-test('self-referencing entity: FK references remain as references when not joined', () => {
+test('self-referencing entity: FK references are upgraded when entity appears in same query', () => {
     // When an entity references itself (e.g., linked list, tree structure),
-    // FK fields should remain as reference proxies even when the same entity
-    // appears as a main result row. Only explicitly joined relations should
-    // trigger reference upgrade.
+    // and the referenced entity also appears as a root result in the same query,
+    // the FK reference is upgraded to preserve object identity. This ensures
+    // there's only ONE object representation per entity within a query.
 
     class Block {
         id!: number & PrimaryKey;
@@ -296,19 +296,22 @@ test('self-referencing entity: FK references remain as references when not joine
     expect(block2.id).toBe(2);
     expect(block2.level).toBe(200);
 
-    // block1.previous should be a reference proxy (FK field, not joined)
-    // Even though Block 2 was also loaded, the FK field should remain a reference
-    // because it wasn't explicitly joined.
+    // block1.previous was initially created as a reference proxy (FK field),
+    // but when block2 was hydrated as a root entity, the reference was upgraded
+    // to preserve object identity within the query.
     expect(block1.previous).toBeDefined();
     expect(block1.previous!.id).toBe(2);
-    expect(isReferenceInstance(block1.previous)).toBe(true);
 
-    // Accessing non-PK properties on the reference should throw
-    expect(() => block1.previous!.level).toThrow();
+    // The reference was upgraded to a full object - object identity is preserved
+    expect(isReferenceInstance(block1.previous)).toBe(false);
 
-    // block1.previous and block2 are DIFFERENT objects - no identity sharing
-    // for FK references that weren't joined
-    expect(block1.previous).not.toBe(block2);
+    // Properties are now accessible (reference was upgraded)
+    expect(block1.previous!.level).toBe(200);
+
+    // IMPORTANT: block1.previous and block2 ARE the same object - object identity
+    // is always preserved within a query to avoid having multiple representations
+    // of the same entity.
+    expect(block1.previous).toBe(block2);
 });
 
 test('self-referencing entity: FK references ARE upgraded when joined', () => {

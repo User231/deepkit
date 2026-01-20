@@ -44,6 +44,7 @@ import {
     BinaryBigIntType,
     EmbeddedOptions,
     FindType,
+    InlineOptions,
     ReflectionKind,
     Type,
     TypeArray,
@@ -70,6 +71,7 @@ import {
     groupAnnotation,
     hasDefaultValue,
     hasEmbedded,
+    inlineAnnotation,
     isBackReferenceType,
     isCustomTypeClass,
     isMongoIdType,
@@ -1501,20 +1503,48 @@ export function serializeObjectLiteral(type: TypeObjectLiteral | TypeClass, stat
         state.annotationHandled(referenceAnnotation);
         state.setContext({ isObject, isReferenceInstance, isReferenceHydrated });
         const reflection = ReflectionClass.from(type);
-        //the primary key is serialised for unhydrated references
+        const serializerName = state.registry.serializer.name;
 
-        //when in deserialization a referenced is passed as is
-        const keepReference = state.isDeserialization
-            ? `if (isReferenceInstance(${state.accessor})) {${state.setter} = ${state.accessor};} else `
-            : '';
-
-        state.replaceTemplate(`
-        ${keepReference} if (isReferenceInstance(${state.accessor}) && !isReferenceHydrated(${state.accessor})) {
-            ${executeTemplates(state.fork(state.setter, new ContainerAccessor(state.accessor, JSON.stringify(reflection.getPrimary().getName()))), reflection.getPrimary().getType())}
-        } else {
-            ${state.template}
+        // Check if & Inline annotation is present and active for this serializer
+        const inlineOptions = inlineAnnotation.getFirst(type) as InlineOptions | undefined;
+        const hasInline = !!inlineOptions;
+        let inlineActive = hasInline;
+        if (inlineOptions) {
+            if (inlineOptions.only && inlineOptions.only.length > 0) {
+                inlineActive = inlineOptions.only.includes(serializerName);
+            } else if (inlineOptions.except && inlineOptions.except.includes(serializerName)) {
+                inlineActive = false;
+            }
         }
-        `);
+
+        if (state.isDeserialization) {
+            // Deserialization: accept both FK and full object
+            state.replaceTemplate(`
+            if (isReferenceInstance(${state.accessor})) {
+                ${state.setter} = ${state.accessor};
+            } else {
+                ${state.template}
+            }
+            `);
+        } else {
+            // Serialization: type annotation determines output
+            if (inlineActive) {
+                // & Reference & Inline: serialize as nested object
+                // Throw if reference is not loaded (isReferenceInstance && !isReferenceHydrated)
+                state.replaceTemplate(`
+                if (isReferenceInstance(${state.accessor}) && !isReferenceHydrated(${state.accessor})) {
+                    throw new Error('Cannot serialize inline reference: object not loaded. Use joinWith() to load the relation, or remove the Inline annotation.');
+                }
+                ${state.template}
+                `);
+            } else {
+                // & Reference (no Inline): always serialize as FK (just primary key)
+                // This is type-driven, not runtime-state-driven
+                state.replaceTemplate(`
+                ${executeTemplates(state.fork(state.setter, new ContainerAccessor(state.accessor, JSON.stringify(reflection.getPrimary().getName()))), reflection.getPrimary().getType())}
+                `);
+            }
+        }
     }
 }
 

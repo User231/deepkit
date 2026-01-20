@@ -263,7 +263,6 @@ export class Formatter {
         model: DatabaseQueryModel<any, any, any>,
         classSchema: ReflectionClass<any>,
         dbRecord: DBRecord,
-        isJoinedData: boolean = false,
     ) {
         let pool: Map<PKHash, any> | undefined = undefined;
         let pkHash: any = undefined;
@@ -299,9 +298,11 @@ export class Formatter {
             if (found) {
                 foundInPool = true;
                 if (isReferenceInstance(found)) {
-                    // Reference found in pool (created as FK in this query)
-                    if (isJoinedData && !isReferenceHydrated(found)) {
-                        // Joined data: upgrade the reference since it was explicitly joined
+                    // Reference found in pool (created as FK in this query).
+                    // hydrateModel is only called for root entities or joined entities,
+                    // never for FK processing - so we always have full data here.
+                    // Upgrade the reference to preserve object identity.
+                    if (!isReferenceHydrated(found)) {
                         upgradeReferenceToObject(
                             found,
                             classSchema,
@@ -310,11 +311,9 @@ export class Formatter {
                             (cs, rec, prop, partial) => this.getReference(cs, rec, prop, partial),
                             partial,
                         );
-                        this.assignJoins(model, classSchema, dbRecord, found);
-                        return found;
                     }
-                    // NOT joined: don't upgrade the FK reference, fall through to create new object
-                    // This keeps FK references lazy-loadable even if the same entity appears in results
+                    this.assignJoins(model, classSchema, dbRecord, found);
+                    return found;
                 } else {
                     // Full object in pool
                     this.assignJoins(model, classSchema, dbRecord, found);
@@ -401,24 +400,20 @@ export class Formatter {
                 if (join.propertySchema.isBackReference() && join.propertySchema.isArray()) {
                     if (hasValue) {
                         item[join.propertySchema.name] = dbRecord[refName].map((item: any) => {
-                            // isJoinedData=true enables reference upgrade for joined relations
                             return this.hydrateModel(
                                 join.query.model,
                                 resolveForeignReflectionClass(join.propertySchema),
                                 item,
-                                true,
                             );
                         });
                     } else if (!item[join.propertySchema.name]) {
                         item[join.propertySchema.name] = [];
                     }
                 } else if (hasValue) {
-                    // isJoinedData=true enables reference upgrade for joined relations
                     item[join.propertySchema.name] = this.hydrateModel(
                         join.query.model,
                         resolveForeignReflectionClass(join.propertySchema),
                         dbRecord[refName],
-                        true,
                     );
                 } else {
                     item[join.propertySchema.name] = undefined;

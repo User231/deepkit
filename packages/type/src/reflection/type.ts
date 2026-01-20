@@ -1812,6 +1812,52 @@ export interface BackReferenceOptions {
 
 export type Reference<Options extends ReferenceOptions = {}> = TypeAnnotation<'reference', Options>;
 export type BackReference<Options extends BackReferenceOptions = {}> = TypeAnnotation<'backReference', Options>;
+
+/**
+ * Options for the Inline annotation.
+ * Controls which serializers should serialize the reference as a nested object.
+ */
+export interface InlineOptions {
+    /**
+     * List of serializer names where inline serialization is active.
+     * If specified, only these serializers will output nested objects.
+     * Example: { only: ['json'] } - only JSON serializer outputs nested, BSON outputs FK.
+     */
+    only?: string[];
+
+    /**
+     * List of serializer names where inline serialization is disabled.
+     * These serializers will output FK even with & Inline.
+     * Example: { except: ['bson'] } - BSON outputs FK, others output nested.
+     */
+    except?: string[];
+}
+
+/**
+ * Marks a Reference field to be serialized as a nested object instead of just the foreign key.
+ *
+ * By default, `& Reference` fields serialize as FK only (just the primary key).
+ * Adding `& Inline` changes this to serialize the full nested object.
+ *
+ * @example
+ * ```typescript
+ * class Post {
+ *     // Serializes as FK: { author: 2 }
+ *     author: User & Reference;
+ *
+ *     // Serializes as nested: { editor: { id: 3, name: "Bob" } }
+ *     // Throws if not loaded via joinWith()
+ *     editor: User & Reference & Inline;
+ *
+ *     // Nested only for JSON serializer, FK for BSON
+ *     reviewer: User & Reference & Inline<{ only: ['json'] }>;
+ * }
+ * ```
+ *
+ * Note: MongoDB database serialization always outputs FK regardless of Inline.
+ */
+export type Inline<Options extends InlineOptions = {}> = TypeAnnotation<'inline', Options>;
+
 export type EmbeddedMeta<Options> = TypeAnnotation<'embedded', Options>;
 export type Embedded<T, Options extends { prefix?: string } = {}> = T & EmbeddedMeta<Options>;
 
@@ -1821,6 +1867,7 @@ export type MapName<Alias extends string, ForSerializer extends string = ''> = T
 >;
 
 export const referenceAnnotation = new AnnotationDefinition<ReferenceOptions>('reference');
+export const inlineAnnotation = new AnnotationDefinition<InlineOptions>('inline');
 export const entityAnnotation = new (class extends AnnotationDefinition<EntityOptions> {
     set<K extends keyof EntityOptions>(type: Type, name: K, value: EntityOptions[K]) {
         const data = this.getFirst(type) || {};
@@ -2382,6 +2429,17 @@ export const typeDecorators: TypeDecorator[] = [
 
                 const options: AnnotationType<typeof validationAnnotation> = { name, args };
                 validationAnnotation.register(annotations, options);
+                return true;
+            }
+            case 'inline': {
+                const optionsType = meta.options;
+                if (optionsType && optionsType.kind === ReflectionKind.objectLiteral) {
+                    const options = typeToObject(optionsType);
+                    inlineAnnotation.replace(annotations, [options]);
+                } else {
+                    // Empty options: Inline or Inline<{}>
+                    inlineAnnotation.replace(annotations, [{}]);
+                }
                 return true;
             }
             default: {
