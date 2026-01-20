@@ -158,7 +158,7 @@ See `docs/team/README.md` for the full team intro and pipeline diagram.
 
 | Issue | Title | Folder | Status |
 |-------|-------|--------|--------|
-| - | - | - | - |
+| [#636](https://github.com/deepkit/deepkit-framework/issues/636) | Hydrate fetched objects in identity map | `docs/todo/636/` | In Progress |
 
 ## Backlog
 
@@ -182,7 +182,7 @@ Issues affecting DX or edge cases.
 
 | Issue | Title | Package | Created |
 |-------|-------|---------|---------|
-| [#658](https://github.com/deepkit/deepkit-framework/issues/658) | TypeScript 7 support | type-compiler | 2025-06-25 |
+| [#658](https://github.com/deepkit/deepkit-framework/issues/658) | TypeScript 7 support | type-compiler | 2025-06-25 | **BLOCKED** - TS7 switched to Go (tsgo), our transformer is TS-based. Solution in progress (not public). |
 | [#636](https://github.com/deepkit/deepkit-framework/issues/636) | hydrate fetched objects in identity map | orm | 2025-03-11 |
 | [#609](https://github.com/deepkit/deepkit-framework/issues/609) | ORM adapter for PgLite | orm | 2024-09-05 |
 | [#575](https://github.com/deepkit/deepkit-framework/issues/575) | Batch mechanism in Message Queue | broker | 2024-06-17 |
