@@ -106,6 +106,7 @@ import {
     deserializeUnion,
 } from './bson-deserializer-templates.js';
 import { seekElementSize } from './continuation.js';
+import { BSONError } from './model.js';
 import {
     BSONType,
     BSON_BINARY_SUBTYPE_DEFAULT,
@@ -1002,7 +1003,7 @@ function handleObjectLiteral(
                 // & Reference & Inline: serialize as nested object, throw if not loaded
                 state.replaceTemplate(`
                     if (isReferenceInstance(${state.accessor}) && !isReferenceHydrated(${state.accessor})) {
-                        throw new Error('Cannot serialize inline reference: object not loaded. Use joinWith() to load the relation, or remove the Inline annotation.');
+                        throw new BSONError('Cannot serialize inline reference at ' + ${collapsePath(state.path)} + ': object not loaded. Use joinWith() to load the relation, or remove the Inline annotation.');
                     }
                     ${state.template}
                 `);
@@ -1981,6 +1982,7 @@ function createBSONSerializer(
     compiler.context.set('createBuffer', createBuffer);
     compiler.context.set('sizer', getBSONSizer(serializer, type));
     compiler.context.set('UnpopulatedCheck', UnpopulatedCheck);
+    compiler.context.set('BSONError', BSONError);
 
     const state = new TemplateState('', 'data', compiler, serializer.bsonSerializeRegistry, namingStrategy, jitStack, [
         path,

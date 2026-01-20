@@ -172,11 +172,35 @@ export class UniqueConstraintFailure extends DatabaseError {
 - Include relevant context (class name, property name, etc.)
 - Don't duplicate docs content in the message
 
+### CRITICAL: Never Use Plain `Error`
+
+**NEVER use `throw new Error(...)` in this codebase.** All errors must use `DeepkitError` or a package-specific error class with proper error codes.
+
+```typescript
+// ❌ WRONG - Never do this
+throw new Error('Something went wrong');
+
+// ✅ CORRECT - Use DeepkitError with code
+throw new DeepkitError('DK-T201', 'Cannot serialize inline reference: not loaded');
+
+// ✅ CORRECT - Use package-specific error class
+throw new SerializationError('Cannot serialize...', 'inlineReference', path);
+throw new BSONError('Cannot serialize inline reference at ' + path);
+```
+
+**For JIT-compiled templates:** Ensure the error class is in the compiler context:
+```typescript
+compiler.context.set('SerializationError', SerializationError);
+compiler.context.set('BSONError', BSONError);
+```
+
 ### Key Files
 
 | Package | Base Error | Example Usage |
 |---------|------------|---------------|
 | @deepkit/core | `DeepkitError` | Base class for all coded errors |
+| @deepkit/type | `SerializationError` | Extends DeepkitError (DK-T200) |
+| @deepkit/bson | `BSONError` | Extends DeepkitError (DK-B) |
 | @deepkit/orm | `DatabaseError` | Extends DeepkitError (DK-O) |
 | @deepkit/injector | `InjectorError` | Extends DeepkitError (DK-I) |
 | @deepkit/mongo | `MongoError` | Extends DeepkitError (DK-MG) |

@@ -1533,7 +1533,7 @@ export function serializeObjectLiteral(type: TypeObjectLiteral | TypeClass, stat
                 // Throw if reference is not loaded (isReferenceInstance && !isReferenceHydrated)
                 state.replaceTemplate(`
                 if (isReferenceInstance(${state.accessor}) && !isReferenceHydrated(${state.accessor})) {
-                    throw new Error('Cannot serialize inline reference: object not loaded. Use joinWith() to load the relation, or remove the Inline annotation.');
+                    throw new SerializationError('Cannot serialize inline reference: object not loaded. Use joinWith() to load the relation, or remove the Inline annotation.', 'inlineReference', ${collapsePath(state.path)});
                 }
                 ${state.template}
                 `);
