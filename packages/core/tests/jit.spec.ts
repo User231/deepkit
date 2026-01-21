@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { Context, ExecContext, JITContext, Slot, canJIT, getRuntimeCapabilities, jit } from '../src/jit.js';
+import { Context, ExecContext, ExecSlot, JITContext, Slot, canJIT, getRuntimeCapabilities, jit } from '../src/jit.js';
 
 describe('jit', () => {
     describe('runtime detection', () => {
@@ -496,6 +496,56 @@ describe('jit', () => {
         });
     });
 
+    describe('control flow - map()', () => {
+        testBothModes('maps array elements', fn => {
+            const f = fn(jit.arg<number[]>(), (ctx, arr) => {
+                return ctx.map(arr, (elem, idx) => elem);
+            });
+            expect(f([1, 2, 3])).toEqual([1, 2, 3]);
+        });
+
+        testBothModes('transforms elements with callback', fn => {
+            const double = (x: number) => x * 2;
+            const f = fn(jit.arg<number[]>(), (ctx, arr) => {
+                return ctx.map(arr, elem => ctx.call(double, elem));
+            });
+            expect(f([1, 2, 3])).toEqual([2, 4, 6]);
+        });
+
+        testBothModes('maps to object literals', fn => {
+            const f = fn(jit.arg<any[]>(), (ctx, arr) => {
+                return ctx.map(arr, elem => {
+                    return ctx.objFrom([
+                        ['id', ctx.get(elem, 'id')],
+                        ['name', ctx.get(elem, 'name')],
+                    ]);
+                });
+            });
+            const input = [
+                { id: 1, name: 'Alice' },
+                { id: 2, name: 'Bob' },
+            ];
+            expect(f(input)).toEqual([
+                { id: 1, name: 'Alice' },
+                { id: 2, name: 'Bob' },
+            ]);
+        });
+
+        testBothModes('provides correct index', fn => {
+            const f = fn(jit.arg<string[]>(), (ctx, arr) => {
+                return ctx.map(arr, (elem, idx) => idx);
+            });
+            expect(f(['a', 'b', 'c'])).toEqual([0, 1, 2]);
+        });
+
+        testBothModes('handles empty array', fn => {
+            const f = fn(jit.arg<any[]>(), (ctx, arr) => {
+                return ctx.map(arr, elem => elem);
+            });
+            expect(f([])).toEqual([]);
+        });
+    });
+
     describe('complex scenarios', () => {
         testBothModes('object serializer with property loop', fn => {
             const props = ['id', 'name', 'email'];
@@ -642,6 +692,41 @@ describe('jit', () => {
 
             expect(fn(21)).toBe(42);
         });
+
+        test('map generates optimal arrow function for pure expressions', () => {
+            const ctx = new JITContext(1);
+            const [input] = ctx.getArgSlots();
+            const result = ctx.map(input, elem => {
+                return ctx.objFrom([
+                    ['id', ctx.get(elem, 'id')],
+                    ['name', ctx.get(elem, 'name')],
+                ]);
+            });
+            ctx.compile(result);
+            const code = ctx.getCode();
+
+            // Should use arrow function with object literal wrapped in parens
+            // Single param doesn't need parens: s1=>({...})
+            expect(code).toContain('.map(s');
+            expect(code).toContain('=>({id:');
+            expect(code).toContain(',name:');
+        });
+
+        test('map generates function body when callback has statements', () => {
+            const ctx = new JITContext(1);
+            const [input] = ctx.getArgSlots();
+            const double = (x: number) => x * 2;
+            const result = ctx.map(input, elem => {
+                // This creates a statement (var assignment for extern)
+                return ctx.call(double, elem);
+            });
+            ctx.compile(result);
+            const code = ctx.getCode();
+
+            // Should use function body with return statement
+            expect(code).toContain('.map(function(');
+            expect(code).toContain('return');
+        });
     });
 
     describe('ExecContext specifics', () => {
@@ -650,8 +735,8 @@ describe('jit', () => {
             const obj = ctx.obj<{ name: string }>();
             ctx.set(obj, 'name', ctx.lit('test') as Slot);
 
-            // In exec mode, obj IS the actual object
-            expect(obj).toEqual({ name: 'test' });
+            // In exec mode, obj is an ExecSlot wrapping the actual object
+            expect((obj as ExecSlot).value).toEqual({ name: 'test' });
         });
 
         test('early return flag', () => {

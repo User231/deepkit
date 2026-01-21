@@ -71,29 +71,29 @@ const arrayOfObjects = Array.from({ length: 100 }, (_, i) => ({
 // Benchmark 1: Simple Property Copy (3 properties)
 // ============================================================================
 
-const simpleProps = ['id', 'name', 'email'];
+const simpleProps = ['id', 'name', 'email'] as const;
 
-// JIT mode (obj + set)
+// JIT mode with object syntax (cleanest)
 const simpleSerializerJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
-    const output = ctx.obj();
-    for (const prop of simpleProps) {
-        ctx.set(output, prop, ctx.get(input, prop));
-    }
-    return output;
+    return ctx.objFrom({
+        id: input.get('id'),
+        name: input.get('name'),
+        email: input.get('email'),
+    });
 });
 
-// JIT mode with objFrom (object literal)
-const simpleSerializerJITObjFrom = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
-    return ctx.objFrom(simpleProps.map(prop => [prop, ctx.get(input, prop)]));
+// JIT mode with dynamic props (loop unrolling)
+const simpleSerializerJITLoop = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
+    return ctx.objFrom(simpleProps.map(prop => [prop, input.get(prop)]));
 });
 
 // Exec mode
 const simpleSerializerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
-    const output = ctx.obj();
-    for (const prop of simpleProps) {
-        ctx.set(output, prop, ctx.get(input, prop));
-    }
-    return output;
+    return ctx.objFrom({
+        id: input.get('id'),
+        name: input.get('name'),
+        email: input.get('email'),
+    });
 });
 
 // Baseline: hand-written
@@ -109,38 +109,42 @@ function simpleSerializerBaseline(input: any): any {
 // Benchmark 2: Medium Object (10 properties, nested)
 // ============================================================================
 
-const mediumProps = ['id', 'name', 'email', 'age', 'active', 'score', 'tags'];
-const addressProps = ['street', 'city', 'zip', 'country'];
-
-// JIT mode
+// JIT mode with object syntax and chained .get()
 const mediumSerializerJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
-    const output = ctx.obj();
-    for (const prop of mediumProps) {
-        ctx.set(output, prop, ctx.get(input, prop));
-    }
-    // Nested address
-    const addr = ctx.obj();
-    const inputAddr = ctx.get(input, 'address');
-    for (const prop of addressProps) {
-        ctx.set(addr, prop, ctx.get(inputAddr, prop));
-    }
-    ctx.set(output, 'address', addr);
-    return output;
+    return ctx.objFrom({
+        id: input.get('id'),
+        name: input.get('name'),
+        email: input.get('email'),
+        age: input.get('age'),
+        active: input.get('active'),
+        score: input.get('score'),
+        tags: input.get('tags'),
+        address: ctx.objFrom({
+            street: input.get('address').get('street'),
+            city: input.get('address').get('city'),
+            zip: input.get('address').get('zip'),
+            country: input.get('address').get('country'),
+        }),
+    });
 });
 
 // Exec mode
 const mediumSerializerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
-    const output = ctx.obj();
-    for (const prop of mediumProps) {
-        ctx.set(output, prop, ctx.get(input, prop));
-    }
-    const addr = ctx.obj();
-    const inputAddr = ctx.get(input, 'address');
-    for (const prop of addressProps) {
-        ctx.set(addr, prop, ctx.get(inputAddr, prop));
-    }
-    ctx.set(output, 'address', addr);
-    return output;
+    return ctx.objFrom({
+        id: input.get('id'),
+        name: input.get('name'),
+        email: input.get('email'),
+        age: input.get('age'),
+        active: input.get('active'),
+        score: input.get('score'),
+        tags: input.get('tags'),
+        address: ctx.objFrom({
+            street: input.get('address').get('street'),
+            city: input.get('address').get('city'),
+            zip: input.get('address').get('zip'),
+            country: input.get('address').get('country'),
+        }),
+    });
 });
 
 // Baseline
@@ -166,104 +170,90 @@ function mediumSerializerBaseline(input: any): any {
 // Benchmark 3: Large Object (20+ properties, deeply nested)
 // ============================================================================
 
-const largeTopProps = [
-    'id',
-    'uuid',
-    'name',
-    'email',
-    'phone',
-    'age',
-    'active',
-    'verified',
-    'score',
-    'rating',
-    'balance',
-    'tags',
-    'roles',
-    'permissions',
-];
-const largeAddressProps = ['street', 'city', 'state', 'zip', 'country'];
-const coordProps = ['lat', 'lng'];
-const companyProps = ['name', 'industry', 'employees', 'public'];
-const metaProps = ['createdAt', 'updatedAt', 'version', 'source'];
-
-// JIT mode
+// JIT mode with object syntax and deep chaining
 const largeSerializerJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
-    const output = ctx.obj();
-
-    for (const prop of largeTopProps) {
-        ctx.set(output, prop, ctx.get(input, prop));
-    }
-
-    // address with nested coordinates
-    const addr = ctx.obj();
-    const inputAddr = ctx.get(input, 'address');
-    for (const prop of largeAddressProps) {
-        ctx.set(addr, prop, ctx.get(inputAddr, prop));
-    }
-    const coords = ctx.obj();
-    const inputCoords = ctx.get(inputAddr, 'coordinates');
-    for (const prop of coordProps) {
-        ctx.set(coords, prop, ctx.get(inputCoords, prop));
-    }
-    ctx.set(addr, 'coordinates', coords);
-    ctx.set(output, 'address', addr);
-
-    // company
-    const company = ctx.obj();
-    const inputCompany = ctx.get(input, 'company');
-    for (const prop of companyProps) {
-        ctx.set(company, prop, ctx.get(inputCompany, prop));
-    }
-    ctx.set(output, 'company', company);
-
-    // metadata
-    const meta = ctx.obj();
-    const inputMeta = ctx.get(input, 'metadata');
-    for (const prop of metaProps) {
-        ctx.set(meta, prop, ctx.get(inputMeta, prop));
-    }
-    ctx.set(output, 'metadata', meta);
-
-    return output;
+    return ctx.objFrom({
+        id: input.get('id'),
+        uuid: input.get('uuid'),
+        name: input.get('name'),
+        email: input.get('email'),
+        phone: input.get('phone'),
+        age: input.get('age'),
+        active: input.get('active'),
+        verified: input.get('verified'),
+        score: input.get('score'),
+        rating: input.get('rating'),
+        balance: input.get('balance'),
+        tags: input.get('tags'),
+        roles: input.get('roles'),
+        permissions: input.get('permissions'),
+        address: ctx.objFrom({
+            street: input.get('address').get('street'),
+            city: input.get('address').get('city'),
+            state: input.get('address').get('state'),
+            zip: input.get('address').get('zip'),
+            country: input.get('address').get('country'),
+            coordinates: ctx.objFrom({
+                lat: input.get('address').get('coordinates').get('lat'),
+                lng: input.get('address').get('coordinates').get('lng'),
+            }),
+        }),
+        company: ctx.objFrom({
+            name: input.get('company').get('name'),
+            industry: input.get('company').get('industry'),
+            employees: input.get('company').get('employees'),
+            public: input.get('company').get('public'),
+        }),
+        metadata: ctx.objFrom({
+            createdAt: input.get('metadata').get('createdAt'),
+            updatedAt: input.get('metadata').get('updatedAt'),
+            version: input.get('metadata').get('version'),
+            source: input.get('metadata').get('source'),
+        }),
+    });
 });
 
 // Exec mode
 const largeSerializerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
-    const output = ctx.obj();
-
-    for (const prop of largeTopProps) {
-        ctx.set(output, prop, ctx.get(input, prop));
-    }
-
-    const addr = ctx.obj();
-    const inputAddr = ctx.get(input, 'address');
-    for (const prop of largeAddressProps) {
-        ctx.set(addr, prop, ctx.get(inputAddr, prop));
-    }
-    const coords = ctx.obj();
-    const inputCoords = ctx.get(inputAddr, 'coordinates');
-    for (const prop of coordProps) {
-        ctx.set(coords, prop, ctx.get(inputCoords, prop));
-    }
-    ctx.set(addr, 'coordinates', coords);
-    ctx.set(output, 'address', addr);
-
-    const company = ctx.obj();
-    const inputCompany = ctx.get(input, 'company');
-    for (const prop of companyProps) {
-        ctx.set(company, prop, ctx.get(inputCompany, prop));
-    }
-    ctx.set(output, 'company', company);
-
-    const meta = ctx.obj();
-    const inputMeta = ctx.get(input, 'metadata');
-    for (const prop of metaProps) {
-        ctx.set(meta, prop, ctx.get(inputMeta, prop));
-    }
-    ctx.set(output, 'metadata', meta);
-
-    return output;
+    return ctx.objFrom({
+        id: input.get('id'),
+        uuid: input.get('uuid'),
+        name: input.get('name'),
+        email: input.get('email'),
+        phone: input.get('phone'),
+        age: input.get('age'),
+        active: input.get('active'),
+        verified: input.get('verified'),
+        score: input.get('score'),
+        rating: input.get('rating'),
+        balance: input.get('balance'),
+        tags: input.get('tags'),
+        roles: input.get('roles'),
+        permissions: input.get('permissions'),
+        address: ctx.objFrom({
+            street: input.get('address').get('street'),
+            city: input.get('address').get('city'),
+            state: input.get('address').get('state'),
+            zip: input.get('address').get('zip'),
+            country: input.get('address').get('country'),
+            coordinates: ctx.objFrom({
+                lat: input.get('address').get('coordinates').get('lat'),
+                lng: input.get('address').get('coordinates').get('lng'),
+            }),
+        }),
+        company: ctx.objFrom({
+            name: input.get('company').get('name'),
+            industry: input.get('company').get('industry'),
+            employees: input.get('company').get('employees'),
+            public: input.get('company').get('public'),
+        }),
+        metadata: ctx.objFrom({
+            createdAt: input.get('metadata').get('createdAt'),
+            updatedAt: input.get('metadata').get('updatedAt'),
+            version: input.get('metadata').get('version'),
+            source: input.get('metadata').get('source'),
+        }),
+    });
 });
 
 // Baseline
@@ -313,32 +303,26 @@ function largeSerializerBaseline(input: any): any {
 // Benchmark 4: Array Iteration (100 items)
 // ============================================================================
 
-const itemProps = ['id', 'name', 'active'];
-
-// JIT mode
+// JIT mode with map + objFrom
 const arraySerializerJIT = jit.fnJIT(jit.arg<any[]>(), (ctx, input) => {
-    const output = ctx.arr();
-    ctx.loop(input, elem => {
-        const item = ctx.obj();
-        for (const prop of itemProps) {
-            ctx.set(item, prop, ctx.get(elem, prop));
-        }
-        ctx.push(output, item);
+    return ctx.map(input, elem => {
+        return ctx.objFrom({
+            id: elem.get('id'),
+            name: elem.get('name'),
+            active: elem.get('active'),
+        });
     });
-    return output;
 });
 
 // Exec mode
 const arraySerializerExec = jit.fnExec(jit.arg<any[]>(), (ctx, input) => {
-    const output = ctx.arr();
-    ctx.loop(input, elem => {
-        const item = ctx.obj();
-        for (const prop of itemProps) {
-            ctx.set(item, prop, ctx.get(elem, prop));
-        }
-        ctx.push(output, item);
+    return ctx.map(input, elem => {
+        return ctx.objFrom({
+            id: elem.get('id'),
+            name: elem.get('name'),
+            active: elem.get('active'),
+        });
     });
-    return output;
 });
 
 // Baseline
@@ -362,14 +346,13 @@ const validationRules = [
     { prop: 'name', check: isNonEmpty, msg: 'name required' },
     { prop: 'email', check: isEmail, msg: 'invalid email' },
     { prop: 'id', check: isPositive, msg: 'id must be positive' },
-];
+] as const;
 
 // JIT mode
 const validatorJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
     const errors = ctx.arr();
     for (const rule of validationRules) {
-        const value = ctx.get(input, rule.prop);
-        const valid = ctx.call(rule.check, value);
+        const valid = ctx.call(rule.check, input.get(rule.prop));
         ctx.when(ctx.not(valid), () => {
             ctx.push(errors, ctx.lit(rule.msg));
         });
@@ -381,8 +364,7 @@ const validatorJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
 const validatorExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
     const errors = ctx.arr();
     for (const rule of validationRules) {
-        const value = ctx.get(input, rule.prop);
-        const valid = ctx.call(rule.check, value);
+        const valid = ctx.call(rule.check, input.get(rule.prop));
         ctx.when(ctx.not(valid), () => {
             ctx.push(errors, ctx.lit(rule.msg));
         });
@@ -407,47 +389,23 @@ function validatorBaseline(input: any): string[] {
 
 // JIT mode
 const typeGuardJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
-    ctx.when(ctx.isNullish(input), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.isType(input, 'object')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.has(input, 'id')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.isType(ctx.get(input, 'id'), 'number')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.has(input, 'name')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.isType(ctx.get(input, 'name'), 'string')), () => {
-        return ctx.lit(false);
-    });
+    ctx.when(ctx.isNullish(input), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.isType(input, 'object')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.has(input, 'id')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.isType(input.get('id'), 'number')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.has(input, 'name')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.isType(input.get('name'), 'string')), () => ctx.lit(false));
     return ctx.lit(true);
 });
 
 // Exec mode
 const typeGuardExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
-    ctx.when(ctx.isNullish(input), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.isType(input, 'object')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.has(input, 'id')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.isType(ctx.get(input, 'id'), 'number')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.has(input, 'name')), () => {
-        return ctx.lit(false);
-    });
-    ctx.when(ctx.not(ctx.isType(ctx.get(input, 'name'), 'string')), () => {
-        return ctx.lit(false);
-    });
+    ctx.when(ctx.isNullish(input), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.isType(input, 'object')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.has(input, 'id')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.isType(input.get('id'), 'number')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.has(input, 'name')), () => ctx.lit(false));
+    ctx.when(ctx.not(ctx.isType(input.get('name'), 'string')), () => ctx.lit(false));
     return ctx.lit(true);
 });
 
@@ -463,6 +421,46 @@ function typeGuardBaseline(input: any): boolean {
 }
 
 // ============================================================================
+// Benchmark 7: Class Instantiation with constructor args and property setting
+// ============================================================================
+
+class User {
+    email: string = '';
+    active: boolean = false;
+
+    constructor(
+        public id: number,
+        public name: string,
+    ) {}
+}
+
+// JIT mode
+const classInstantiatorJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
+    const instance = ctx.new_(User, input.get('id'), input.get('name'));
+    ctx.set(instance, 'email', input.get('email'));
+    ctx.set(instance, 'active', input.get('active'));
+    return instance;
+});
+
+// Exec mode
+const classInstantiatorExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
+    const instance = ctx.new_(User, input.get('id'), input.get('name'));
+    ctx.set(instance, 'email', input.get('email'));
+    ctx.set(instance, 'active', input.get('active'));
+    return instance;
+});
+
+// Baseline
+function classInstantiatorBaseline(input: any): User {
+    const instance = new User(input.id, input.name);
+    instance.email = input.email;
+    instance.active = input.active;
+    return instance;
+}
+
+const classTestData = { id: 1, name: 'John', email: 'john@example.com', active: true };
+
+// ============================================================================
 // Run Benchmarks
 // ============================================================================
 
@@ -473,8 +471,8 @@ async function main() {
     // Simple serialization
     const simple = new BenchSuite('Simple Object (3 props)', 1, true);
     simple.add('baseline (hand-written)', () => simpleSerializerBaseline(simpleObject));
-    simple.add('jit.fnJIT (obj+set)', () => simpleSerializerJIT(simpleObject));
-    simple.add('jit.fnJIT (objFrom)', () => simpleSerializerJITObjFrom(simpleObject));
+    simple.add('jit.fnJIT (objFrom {})', () => simpleSerializerJIT(simpleObject));
+    simple.add('jit.fnJIT (loop)', () => simpleSerializerJITLoop(simpleObject));
     simple.add('jit.fnExec', () => simpleSerializerExec(simpleObject));
     await simple.runAsync();
 
@@ -512,6 +510,13 @@ async function main() {
     typeGuard.add('jit.fnJIT', () => typeGuardJIT(simpleObject));
     typeGuard.add('jit.fnExec', () => typeGuardExec(simpleObject));
     await typeGuard.runAsync();
+
+    // Class instantiation
+    const classInst = new BenchSuite('Class Instantiation (2 ctor args + 2 props)', 1, true);
+    classInst.add('baseline (hand-written)', () => classInstantiatorBaseline(classTestData));
+    classInst.add('jit.fnJIT', () => classInstantiatorJIT(classTestData));
+    classInst.add('jit.fnExec', () => classInstantiatorExec(classTestData));
+    await classInst.runAsync();
 }
 
 main().catch(console.error);

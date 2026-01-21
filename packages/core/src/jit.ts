@@ -17,9 +17,10 @@
  * import { jit } from '@deepkit/core';
  *
  * const serialize = jit.fn(jit.arg<User>(), (ctx, input) => {
- *     const output = ctx.obj();
- *     ctx.set(output, 'name', ctx.get(input, 'name'));
- *     return output;
+ *     return ctx.objFrom({
+ *         name: input.get('name'),
+ *         email: input.get('email'),
+ *     });
  * });
  * ```
  *
@@ -32,12 +33,21 @@
 // ============================================================================
 
 /**
- * Opaque Slot type - at runtime it's either:
- * - JIT mode: number (slot index for code generation)
- * - Exec mode: actual value T (direct value flow)
+ * Slot interface with chainable methods for property access.
+ * In JIT mode: SlotExpr that builds code strings
+ * In Exec mode: ExecSlot that wraps actual values
  */
-declare const SlotBrand: unique symbol;
-export type Slot<T = any> = (number | T) & { [SlotBrand]: T };
+export interface Slot<T = any> {
+    /** Get a property value */
+    get<K extends keyof T>(key: K): Slot<T[K]>;
+    get(key: string | Slot<string>): Slot<any>;
+
+    /** Get array element by index */
+    at(index: number | Slot<number>): Slot<any>;
+
+    /** Get length of array or string */
+    len(): Slot<number>;
+}
 
 /**
  * Marker type for function arguments declared with jit.arg()
@@ -46,19 +56,18 @@ export type Arg<T> = { __brand: 'arg'; __type?: T };
 
 /**
  * Context interface for building JIT functions.
- * All primitives are methods on the context passed to your callback.
  */
 export interface Context {
     // Create values
-    obj<T>(): Slot<T>;
-    objFrom<T>(entries: Array<[string | Slot<string>, Slot]>): Slot<T>;
-    arr<T>(): Slot<T[]>;
+    obj<T extends object = any>(): Slot<T>;
+    objFrom<T extends object = any>(entries: Record<string, Slot> | Array<[string | Slot<string>, Slot]>): Slot<T>;
+    arr<T = any>(): Slot<T[]>;
     lit<T>(value: T): Slot<T>;
 
-    // Property access
+    // Property access (still available, prefer slot.get())
     get<T>(target: Slot, key: string | Slot<string>): Slot<T>;
     set(target: Slot, key: string | Slot<string>, value: Slot): void;
-    at<T>(arr: Slot, index: Slot<number>): Slot<T>;
+    at<T>(arr: Slot, index: number | Slot<number>): Slot<T>;
     has(target: Slot, key: string | Slot<string>): Slot<boolean>;
 
     // Array operations
@@ -85,12 +94,13 @@ export interface Context {
     isNull(value: Slot): Slot<boolean>;
     isNullish(value: Slot): Slot<boolean>;
 
-    // Calls (escape hatch for everything else)
+    // Calls
     call<T>(fn: Function, ...args: Slot[]): Slot<T>;
     new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T>;
 
     // Control flow
     loop(arr: Slot, fn: (elem: Slot, idx: Slot) => void): void;
+    map<T>(arr: Slot, fn: (elem: Slot, idx: Slot) => Slot<T>): Slot<T[]>;
     when(cond: Slot<boolean>, then: () => Slot | void, else_?: () => Slot | void): void;
 }
 
@@ -100,9 +110,6 @@ export interface Context {
 
 const identifierRegex = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 
-/**
- * Check if a string is a valid JavaScript identifier (can use dot notation).
- */
 function isValidIdentifier(key: string): boolean {
     return identifierRegex.test(key);
 }
@@ -143,7 +150,6 @@ function detectNewFunction(): boolean {
 }
 
 function detectRuntime(): RuntimeCapabilities['runtime'] {
-    // Check for specific runtimes
     if (typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.versions?.node) return 'node';
     if (typeof (globalThis as any).Deno !== 'undefined') return 'deno';
     if (typeof (globalThis as any).Bun !== 'undefined') return 'bun';
@@ -155,26 +161,75 @@ function detectRuntime(): RuntimeCapabilities['runtime'] {
     return 'unknown';
 }
 
-/**
- * Returns true if JIT compilation via `new Function()` is available.
- * Cached at module load time.
- */
 export const canJIT = detectNewFunction();
+
+// ============================================================================
+// SlotExpr - JIT Mode Slot Implementation
+// ============================================================================
+
+/**
+ * SlotExpr represents a code expression in JIT mode.
+ * Has chainable methods for property access that return new SlotExpr instances.
+ */
+export class SlotExpr<T = any> implements Slot<T> {
+    constructor(public readonly e: string) {}
+
+    get(key: string | Slot<string>): Slot<any> {
+        if (key instanceof SlotExpr) {
+            return new SlotExpr(`${this.e}[${key.e}]`);
+        }
+        if (typeof key === 'string') {
+            if (isValidIdentifier(key)) {
+                return new SlotExpr(`${this.e}.${key}`);
+            }
+            return new SlotExpr(`${this.e}[${JSON.stringify(key)}]`);
+        }
+        // ExecSlot in mixed scenario - shouldn't happen but handle gracefully
+        return new SlotExpr(`${this.e}[${String(key)}]`);
+    }
+
+    at(index: number | Slot<number>): Slot<any> {
+        if (index instanceof SlotExpr) {
+            return new SlotExpr(`${this.e}[${index.e}]`);
+        }
+        return new SlotExpr(`${this.e}[${index}]`);
+    }
+
+    len(): Slot<number> {
+        return new SlotExpr(`${this.e}.length`);
+    }
+}
+
+// ============================================================================
+// ExecSlot - Exec Mode Slot Implementation
+// ============================================================================
+
+/**
+ * ExecSlot wraps an actual value in Exec mode.
+ * Has the same chainable methods as SlotExpr but operates on real values.
+ */
+export class ExecSlot<T = any> implements Slot<T> {
+    constructor(public readonly value: T) {}
+
+    get(key: string | Slot<string>): Slot<any> {
+        const k = typeof key === 'string' ? key : (key as ExecSlot<string>).value;
+        return new ExecSlot((this.value as any)[k]);
+    }
+
+    at(index: number | Slot<number>): Slot<any> {
+        const i = typeof index === 'number' ? index : (index as ExecSlot<number>).value;
+        return new ExecSlot((this.value as any)[i]);
+    }
+
+    len(): Slot<number> {
+        return new ExecSlot((this.value as any).length);
+    }
+}
 
 // ============================================================================
 // JITContext - Code Generation Mode
 // ============================================================================
 
-// Slot expression wrapper - instanceof check is fast
-class SlotExpr {
-    constructor(public readonly e: string) {}
-}
-
-/**
- * JIT context that accumulates code strings and compiles them with `new Function()`.
- * Uses expression strings to avoid unnecessary intermediate variables.
- * Used when `canJIT` is true (Node.js, Deno, Bun, browsers without strict CSP).
- */
 export class JITContext implements Context {
     private code = '';
     private slot = 0;
@@ -183,11 +238,11 @@ export class JITContext implements Context {
 
     constructor(argCount: number) {
         this.argCount = argCount;
-        this.slot = argCount; // Args occupy first slots (s0, s1, ...)
+        this.slot = argCount;
     }
 
     getArgSlots(): Slot[] {
-        return Array.from({ length: this.argCount }, (_, i) => new SlotExpr(`s${i}`) as unknown as Slot);
+        return Array.from({ length: this.argCount }, (_, i) => new SlotExpr(`s${i}`));
     }
 
     private nextSlot(): string {
@@ -195,31 +250,43 @@ export class JITContext implements Context {
     }
 
     private expr(slot: Slot): string {
-        return slot instanceof SlotExpr ? slot.e : String(slot);
+        if (slot instanceof SlotExpr) return slot.e;
+        if (slot instanceof ExecSlot) return String(slot.value);
+        return String(slot);
     }
 
     private slot_<T>(expr: string): Slot<T> {
-        return new SlotExpr(expr) as unknown as Slot<T>;
+        return new SlotExpr(expr) as Slot<T>;
     }
 
     // Create
-    obj<T>(): Slot<T> {
+    obj<T extends object = any>(): Slot<T> {
         const s = this.nextSlot();
         this.code += `var ${s}={};\n`;
-        return this.slot_<T>(s);
+        return new SlotExpr(s) as Slot<T>;
     }
 
-    objFrom<T>(entries: Array<[string | Slot<string>, Slot]>): Slot<T> {
-        // Returns object literal expression directly - no intermediate variable
+    objFrom<T extends object = any>(entries: Record<string, Slot> | Array<[string | Slot<string>, Slot]>): Slot<T> {
         const props: string[] = [];
-        for (const [key, value] of entries) {
-            const v = this.expr(value);
-            // Check if key is a slot (JITExpr) or literal string
-            if ((key as unknown) instanceof SlotExpr) {
-                // Dynamic key - use computed property
-                props.push(`[${(key as unknown as SlotExpr).e}]:${v}`);
-            } else if (typeof key === 'string') {
-                // Literal string key
+
+        if (Array.isArray(entries)) {
+            // Array of tuples - supports dynamic keys
+            for (const [key, value] of entries) {
+                const v = this.expr(value);
+                if (key instanceof SlotExpr) {
+                    props.push(`[${key.e}]:${v}`);
+                } else if (typeof key === 'string') {
+                    if (isValidIdentifier(key)) {
+                        props.push(`${key}:${v}`);
+                    } else {
+                        props.push(`${JSON.stringify(key)}:${v}`);
+                    }
+                }
+            }
+        } else {
+            // Object syntax - static keys only
+            for (const [key, value] of Object.entries(entries)) {
+                const v = this.expr(value);
                 if (isValidIdentifier(key)) {
                     props.push(`${key}:${v}`);
                 } else {
@@ -227,17 +294,17 @@ export class JITContext implements Context {
                 }
             }
         }
-        return this.slot_<T>(`{${props.join(',')}}`);
+
+        return new SlotExpr(`{${props.join(',')}}`) as Slot<T>;
     }
 
-    arr<T>(): Slot<T[]> {
+    arr<T = any>(): Slot<T[]> {
         const s = this.nextSlot();
         this.code += `var ${s}=[];\n`;
-        return this.slot_<T[]>(s);
+        return new SlotExpr(s) as Slot<T[]>;
     }
 
     lit<T>(value: T): Slot<T> {
-        // For simple primitives, return inline; for complex values, use extern
         if (value === null) return this.slot_<T>('null');
         if (value === undefined) return this.slot_<T>('undefined');
         if (typeof value === 'boolean') return this.slot_<T>(String(value));
@@ -253,31 +320,19 @@ export class JITContext implements Context {
         const s = this.nextSlot();
         const extIdx = this.externs.push(value) - 1;
         this.code += `var ${s}=e[${extIdx}];\n`;
-        return this.slot_<T>(s);
+        return new SlotExpr(s) as Slot<T>;
     }
 
-    // Access - returns expression without creating variable
+    // Property access (ctx.get still available for backwards compat)
     get<T>(target: Slot, key: string | Slot<string>): Slot<T> {
-        const t = this.expr(target);
-        if ((key as unknown) instanceof SlotExpr) {
-            // Dynamic key from slot
-            return this.slot_<T>(`${t}[${(key as unknown as SlotExpr).e}]`);
-        } else if (typeof key === 'string') {
-            if (isValidIdentifier(key)) {
-                return this.slot_<T>(`${t}.${key}`);
-            } else {
-                return this.slot_<T>(`${t}[${JSON.stringify(key)}]`);
-            }
-        }
-        return this.slot_<T>(`${t}[${this.expr(key)}]`);
+        return target.get(key) as Slot<T>;
     }
 
     set(target: Slot, key: string | Slot<string>, value: Slot): void {
         const t = this.expr(target);
         const v = this.expr(value);
-        if ((key as unknown) instanceof SlotExpr) {
-            // Dynamic key from slot
-            this.code += `${t}[${(key as unknown as SlotExpr).e}]=${v};\n`;
+        if (key instanceof SlotExpr) {
+            this.code += `${t}[${key.e}]=${v};\n`;
         } else if (typeof key === 'string') {
             if (isValidIdentifier(key)) {
                 this.code += `${t}.${key}=${v};\n`;
@@ -289,15 +344,14 @@ export class JITContext implements Context {
         }
     }
 
-    at<T>(arr: Slot, index: Slot<number>): Slot<T> {
-        // Return expression without creating variable
-        return this.slot_<T>(`${this.expr(arr)}[${this.expr(index)}]`);
+    at<T>(arr: Slot, index: number | Slot<number>): Slot<T> {
+        return arr.at(index) as Slot<T>;
     }
 
     has(target: Slot, key: string | Slot<string>): Slot<boolean> {
         const t = this.expr(target);
-        if ((key as unknown) instanceof SlotExpr) {
-            return this.slot_<boolean>(`(${(key as unknown as SlotExpr).e} in ${t})`);
+        if (key instanceof SlotExpr) {
+            return this.slot_<boolean>(`(${key.e} in ${t})`);
         }
         const k = typeof key === 'string' ? JSON.stringify(key) : this.expr(key);
         return this.slot_<boolean>(`(${k} in ${t})`);
@@ -309,10 +363,10 @@ export class JITContext implements Context {
     }
 
     len(target: Slot): Slot<number> {
-        return this.slot_<number>(`${this.expr(target)}.length`);
+        return target.len();
     }
 
-    // Equality - return expressions
+    // Equality
     eq(a: Slot, b: Slot): Slot<boolean> {
         return this.slot_<boolean>(`(${this.expr(a)}===${this.expr(b)})`);
     }
@@ -321,7 +375,7 @@ export class JITContext implements Context {
         return this.slot_<boolean>(`(${this.expr(a)}!==${this.expr(b)})`);
     }
 
-    // Comparison - return expressions
+    // Comparison
     lt(a: Slot, b: Slot): Slot<boolean> {
         return this.slot_<boolean>(`(${this.expr(a)}<${this.expr(b)})`);
     }
@@ -338,7 +392,7 @@ export class JITContext implements Context {
         return this.slot_<boolean>(`(${this.expr(a)}>=${this.expr(b)})`);
     }
 
-    // Logical - return expressions
+    // Logical
     not(a: Slot): Slot<boolean> {
         return this.slot_<boolean>(`(!${this.expr(a)})`);
     }
@@ -351,7 +405,7 @@ export class JITContext implements Context {
         return this.slot_<boolean>(`(${this.expr(a)}||${this.expr(b)})`);
     }
 
-    // Type checks - return expressions
+    // Type checks
     isType(value: Slot, type: string): Slot<boolean> {
         return this.slot_<boolean>(`(typeof ${this.expr(value)}===${JSON.stringify(type)})`);
     }
@@ -364,13 +418,13 @@ export class JITContext implements Context {
         return this.slot_<boolean>(`(${this.expr(value)}==null)`);
     }
 
-    // Calls - need slots for results
+    // Calls
     call<T>(fn: Function, ...args: Slot[]): Slot<T> {
         const s = this.nextSlot();
         const extIdx = this.externs.push(fn) - 1;
         const argsCode = args.map(a => this.expr(a)).join(',');
         this.code += `var ${s}=e[${extIdx}](${argsCode});\n`;
-        return this.slot_<T>(s);
+        return new SlotExpr(s) as Slot<T>;
     }
 
     new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
@@ -378,7 +432,7 @@ export class JITContext implements Context {
         const extIdx = this.externs.push(ctor) - 1;
         const argsCode = args.map(a => this.expr(a)).join(',');
         this.code += `var ${s}=new e[${extIdx}](${argsCode});\n`;
-        return this.slot_<T>(s);
+        return new SlotExpr(s) as Slot<T>;
     }
 
     // Control flow
@@ -404,8 +458,37 @@ export class JITContext implements Context {
         const a = this.expr(arr);
         this.code += `for(var ${idx}=0;${idx}<${a}.length;${idx}++){\n`;
         this.code += `var ${elem}=${a}[${idx}];\n`;
-        fn(this.slot_(elem), this.slot_(idx));
+        fn(new SlotExpr(elem), new SlotExpr(idx));
         this.code += `}\n`;
+    }
+
+    map<T>(arr: Slot, fn: (elem: Slot, idx: Slot) => Slot<T>): Slot<T[]> {
+        const a = this.expr(arr);
+        const elem = this.nextSlot();
+        const idx = this.nextSlot();
+
+        const startCode = this.code;
+        this.code = '';
+
+        const result = fn(new SlotExpr(elem), new SlotExpr(idx));
+        const bodyCode = this.code;
+        const returnExpr = this.expr(result);
+
+        this.code = startCode;
+
+        const idxUsed = bodyCode.includes(idx) || returnExpr.includes(idx);
+
+        if (bodyCode.trim()) {
+            const resultSlot = this.nextSlot();
+            const params = idxUsed ? `(${elem},${idx})` : `(${elem})`;
+            this.code += `var ${resultSlot}=${a}.map(function${params}{\n${bodyCode}return ${returnExpr};\n});\n`;
+            return new SlotExpr(resultSlot) as Slot<T[]>;
+        } else {
+            const needsParens = returnExpr.startsWith('{');
+            const exprWrapped = needsParens ? `(${returnExpr})` : returnExpr;
+            const params = idxUsed ? `(${elem},${idx})` : elem;
+            return new SlotExpr(`${a}.map(${params}=>${exprWrapped})`) as Slot<T[]>;
+        }
     }
 
     compile<T extends Function>(returnSlot?: Slot): T {
@@ -417,9 +500,6 @@ export class JITContext implements Context {
         return fn(this.externs) as T;
     }
 
-    /**
-     * Returns the generated code for debugging purposes.
-     */
     getCode(): string {
         return this.code;
     }
@@ -429,178 +509,193 @@ export class JITContext implements Context {
 // ExecContext - Direct Execution Mode
 // ============================================================================
 
-/**
- * Exec context that executes operations directly with actual values.
- * Used when `canJIT` is false (Cloudflare Workers, browsers with strict CSP).
- * Provides full debuggability - breakpoints work, stack traces are real.
- */
 export class ExecContext implements Context {
     hasEarlyReturn = false;
     earlyReturnValue: any;
 
-    // Create
-    obj<T>(): Slot<T> {
-        if (this.hasEarlyReturn) return undefined as any;
-        return {} as Slot<T>;
+    private unwrap<T>(slot: Slot<T>): T {
+        return slot instanceof ExecSlot ? slot.value : (slot as T);
     }
 
-    objFrom<T>(entries: Array<[string | Slot<string>, Slot]>): Slot<T> {
+    // Create
+    obj<T extends object = any>(): Slot<T> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return new ExecSlot({} as T);
+    }
+
+    objFrom<T extends object = any>(entries: Record<string, Slot> | Array<[string | Slot<string>, Slot]>): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
         const result: any = {};
-        for (const [key, value] of entries) {
-            const k = typeof key === 'string' ? key : (key as unknown as string);
-            result[k] = value;
+
+        if (Array.isArray(entries)) {
+            for (const [key, value] of entries) {
+                const k = typeof key === 'string' ? key : this.unwrap(key);
+                result[k] = this.unwrap(value);
+            }
+        } else {
+            for (const [key, value] of Object.entries(entries)) {
+                result[key] = this.unwrap(value);
+            }
         }
-        return result as Slot<T>;
+
+        return new ExecSlot(result as T);
     }
 
-    arr<T>(): Slot<T[]> {
+    arr<T = any>(): Slot<T[]> {
         if (this.hasEarlyReturn) return undefined as any;
-        return [] as unknown as Slot<T[]>;
+        return new ExecSlot([] as T[]);
     }
 
     lit<T>(value: T): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
-        return value as Slot<T>;
+        return new ExecSlot(value);
     }
 
-    // Access
+    // Property access
     get<T>(target: Slot, key: string | Slot<string>): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
-        const k = typeof key === 'string' ? key : (key as unknown as string);
-        return (target as any)[k] as Slot<T>;
+        return target.get(key) as Slot<T>;
     }
 
     set(target: Slot, key: string | Slot<string>, value: Slot): void {
         if (this.hasEarlyReturn) return;
-        const k = typeof key === 'string' ? key : (key as unknown as string);
-        (target as any)[k] = value;
+        const obj = this.unwrap(target);
+        const k = typeof key === 'string' ? key : this.unwrap(key);
+        const v = this.unwrap(value);
+        (obj as any)[k] = v;
     }
 
-    at<T>(arr: Slot, index: Slot<number>): Slot<T> {
+    at<T>(arr: Slot, index: number | Slot<number>): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
-        // In exec mode, index IS the actual number value
-        return (arr as any)[index as unknown as number] as Slot<T>;
+        return arr.at(index) as Slot<T>;
     }
 
     has(target: Slot, key: string | Slot<string>): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        const k = typeof key === 'string' ? key : (key as unknown as string);
-        return (k in (target as any)) as Slot<boolean>;
+        const obj = this.unwrap(target);
+        const k = typeof key === 'string' ? key : this.unwrap(key);
+        return new ExecSlot(k in (obj as any));
     }
 
     // Array
     push(arr: Slot, value: Slot): void {
         if (this.hasEarlyReturn) return;
-        (arr as any).push(value);
+        const a = this.unwrap(arr) as any[];
+        a.push(this.unwrap(value));
     }
 
     len(target: Slot): Slot<number> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (target as any).length as Slot<number>;
+        return target.len();
     }
 
     // Equality
     eq(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (a === b) as Slot<boolean>;
+        return new ExecSlot(this.unwrap(a) === this.unwrap(b));
     }
 
     neq(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (a !== b) as Slot<boolean>;
+        return new ExecSlot(this.unwrap(a) !== this.unwrap(b));
     }
 
     // Comparison
     lt(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return ((a as any) < (b as any)) as Slot<boolean>;
+        return new ExecSlot((this.unwrap(a) as any) < (this.unwrap(b) as any));
     }
 
     gt(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return ((a as any) > (b as any)) as Slot<boolean>;
+        return new ExecSlot((this.unwrap(a) as any) > (this.unwrap(b) as any));
     }
 
     lte(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return ((a as any) <= (b as any)) as Slot<boolean>;
+        return new ExecSlot((this.unwrap(a) as any) <= (this.unwrap(b) as any));
     }
 
     gte(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return ((a as any) >= (b as any)) as Slot<boolean>;
+        return new ExecSlot((this.unwrap(a) as any) >= (this.unwrap(b) as any));
     }
 
     // Logical
     not(a: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return !a as Slot<boolean>;
+        return new ExecSlot(!this.unwrap(a));
     }
 
     and(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (a && b) as Slot<boolean>;
+        return new ExecSlot(this.unwrap(a) && this.unwrap(b));
     }
 
     or(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (a || b) as Slot<boolean>;
+        return new ExecSlot(this.unwrap(a) || this.unwrap(b));
     }
 
     // Type checks
     isType(value: Slot, type: string): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (typeof value === type) as Slot<boolean>;
+        return new ExecSlot(typeof this.unwrap(value) === type);
     }
 
     isNull(v: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (v === null) as Slot<boolean>;
+        return new ExecSlot(this.unwrap(v) === null);
     }
 
     isNullish(v: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
-        return (v == null) as Slot<boolean>;
+        return new ExecSlot(this.unwrap(v) == null);
     }
 
     // Calls
     call<T>(fn: Function, ...args: Slot[]): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
-        return fn(...args) as Slot<T>;
+        return new ExecSlot(fn(...args.map(a => this.unwrap(a))));
     }
 
     new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
-        return new ctor(...args) as Slot<T>;
+        return new ExecSlot(new ctor(...args.map(a => this.unwrap(a))));
     }
 
     // Control flow
     when(cond: Slot<boolean>, then: () => Slot | void, else_?: () => Slot | void): void {
         if (this.hasEarlyReturn) return;
 
-        if (cond) {
+        if (this.unwrap(cond)) {
             const result = then();
             if (result !== undefined) {
                 this.hasEarlyReturn = true;
-                this.earlyReturnValue = result;
+                this.earlyReturnValue = this.unwrap(result);
             }
         } else if (else_) {
             const result = else_();
             if (result !== undefined) {
                 this.hasEarlyReturn = true;
-                this.earlyReturnValue = result;
+                this.earlyReturnValue = this.unwrap(result);
             }
         }
     }
 
     loop(arr: Slot, fn: (elem: Slot, idx: Slot) => void): void {
         if (this.hasEarlyReturn) return;
-        const array = arr as unknown as any[];
+        const array = this.unwrap(arr) as any[];
         for (let i = 0; i < array.length; i++) {
             if (this.hasEarlyReturn) break;
-            fn(array[i] as Slot, i as Slot);
+            fn(new ExecSlot(array[i]), new ExecSlot(i));
         }
+    }
+
+    map<T>(arr: Slot, fn: (elem: Slot, idx: Slot) => Slot<T>): Slot<T[]> {
+        if (this.hasEarlyReturn) return undefined as any;
+        const array = this.unwrap(arr) as any[];
+        return new ExecSlot(array.map((elem, idx) => this.unwrap(fn(new ExecSlot(elem), new ExecSlot(idx)))));
     }
 }
 
@@ -613,32 +708,21 @@ export class ExecContext implements Context {
  *
  * @example
  * ```typescript
- * // Build a serializer
+ * // Build a serializer with chainable API
  * const serialize = jit.fn(jit.arg<User>(), (ctx, input) => {
- *     const output = ctx.obj();
- *     ctx.set(output, 'name', ctx.get(input, 'name'));
- *     ctx.set(output, 'email', ctx.get(input, 'email'));
- *     return output;
+ *     return ctx.objFrom({
+ *         name: input.get('name'),
+ *         street: input.get('address').get('street'),
+ *     });
  * });
  *
- * // Use it
- * serialize({ name: 'John', email: 'john@example.com' });
- * // Returns: { name: 'John', email: 'john@example.com' }
+ * serialize({ name: 'John', address: { street: '123 Main' } });
+ * // Returns: { name: 'John', street: '123 Main' }
  * ```
  */
 export const jit = {
     /**
      * Declare a function argument with its type.
-     * Use this to define the parameters your JIT function will receive.
-     *
-     * @example
-     * ```typescript
-     * jit.fn(
-     *     jit.arg<User>(),        // First arg: User
-     *     jit.arg<number>(),      // Second arg: number
-     *     (ctx, user, count) => { ... }
-     * );
-     * ```
      */
     arg<T>(): Arg<T> {
         return { __brand: 'arg' } as Arg<T>;
@@ -646,42 +730,29 @@ export const jit = {
 
     /**
      * Build a function using the unified context API.
-     *
-     * In JIT mode: Runs callback ONCE to generate code, compiles with `new Function()`.
-     * In Exec mode: Re-runs callback each time with actual values.
-     *
-     * @example
-     * ```typescript
-     * const fn = jit.fn(jit.arg<any>(), (ctx, input) => {
-     *     const output = ctx.obj();
-     *     ctx.set(output, 'value', ctx.get(input, 'value'));
-     *     return output;
-     * });
-     * ```
      */
     fn<R>(...args: any[]): (...args: any[]) => R {
         const body = args.pop() as Function;
         const argCount = args.length;
 
         if (canJIT) {
-            // JIT mode: run body ONCE to generate code, then compile
             const ctx = new JITContext(argCount);
             const argSlots = ctx.getArgSlots();
             const returnSlot = body(ctx, ...argSlots);
             return ctx.compile(returnSlot);
         } else {
-            // Exec mode: re-run body each time with actual values
             return ((...runtimeArgs: any[]) => {
                 const ctx = new ExecContext();
-                const returnValue = body(ctx, ...runtimeArgs);
-                return ctx.hasEarlyReturn ? ctx.earlyReturnValue : returnValue;
+                const wrappedArgs = runtimeArgs.map(a => new ExecSlot(a));
+                const returnValue = body(ctx, ...wrappedArgs);
+                if (ctx.hasEarlyReturn) return ctx.earlyReturnValue;
+                return returnValue instanceof ExecSlot ? returnValue.value : returnValue;
             }) as any;
         }
     },
 
     /**
      * Force JIT mode (for testing or when you know it's available).
-     * Throws if `new Function()` is not available.
      */
     fnJIT<R>(...args: any[]): (...args: any[]) => R {
         const body = args.pop() as Function;
@@ -695,7 +766,6 @@ export const jit = {
 
     /**
      * Force Exec mode (for testing or debugging).
-     * Always uses direct execution regardless of `canJIT`.
      */
     fnExec<R>(...args: any[]): (...args: any[]) => R {
         const body = args.pop() as Function;
@@ -703,8 +773,10 @@ export const jit = {
 
         return ((...runtimeArgs: any[]) => {
             const ctx = new ExecContext();
-            const returnValue = body(ctx, ...runtimeArgs);
-            return ctx.hasEarlyReturn ? ctx.earlyReturnValue : returnValue;
+            const wrappedArgs = runtimeArgs.map(a => new ExecSlot(a));
+            const returnValue = body(ctx, ...wrappedArgs);
+            if (ctx.hasEarlyReturn) return ctx.earlyReturnValue;
+            return returnValue instanceof ExecSlot ? returnValue.value : returnValue;
         }) as any;
     },
 };
