@@ -165,20 +165,9 @@ export const canJIT = detectNewFunction();
 // JITContext - Code Generation Mode
 // ============================================================================
 
-// Prefix for JIT slot expressions to distinguish from literal strings
-const SLOT_PREFIX = '\0$:';
-
-function isSlotExpr(value: unknown): boolean {
-    return typeof value === 'string' && (value as string).startsWith(SLOT_PREFIX);
-}
-
-function slotExpr(expr: string): string {
-    return SLOT_PREFIX + expr;
-}
-
-function getExpr(slot: unknown): string {
-    const s = slot as string;
-    return s.startsWith(SLOT_PREFIX) ? s.slice(SLOT_PREFIX.length) : s;
+// Slot expression wrapper - instanceof check is fast
+class SlotExpr {
+    constructor(public readonly e: string) {}
 }
 
 /**
@@ -198,7 +187,7 @@ export class JITContext implements Context {
     }
 
     getArgSlots(): Slot[] {
-        return Array.from({ length: this.argCount }, (_, i) => slotExpr(`s${i}`) as unknown as Slot);
+        return Array.from({ length: this.argCount }, (_, i) => new SlotExpr(`s${i}`) as unknown as Slot);
     }
 
     private nextSlot(): string {
@@ -206,11 +195,11 @@ export class JITContext implements Context {
     }
 
     private expr(slot: Slot): string {
-        return getExpr(slot);
+        return slot instanceof SlotExpr ? slot.e : String(slot);
     }
 
     private slot_<T>(expr: string): Slot<T> {
-        return slotExpr(expr) as unknown as Slot<T>;
+        return new SlotExpr(expr) as unknown as Slot<T>;
     }
 
     // Create
@@ -226,9 +215,9 @@ export class JITContext implements Context {
         for (const [key, value] of entries) {
             const v = this.expr(value);
             // Check if key is a slot (JITExpr) or literal string
-            if (isSlotExpr(key)) {
+            if ((key as unknown) instanceof SlotExpr) {
                 // Dynamic key - use computed property
-                props.push(`[${getExpr(key)}]:${v}`);
+                props.push(`[${(key as unknown as SlotExpr).e}]:${v}`);
             } else if (typeof key === 'string') {
                 // Literal string key
                 if (isValidIdentifier(key)) {
@@ -270,9 +259,9 @@ export class JITContext implements Context {
     // Access - returns expression without creating variable
     get<T>(target: Slot, key: string | Slot<string>): Slot<T> {
         const t = this.expr(target);
-        if (isSlotExpr(key)) {
+        if ((key as unknown) instanceof SlotExpr) {
             // Dynamic key from slot
-            return this.slot_<T>(`${t}[${getExpr(key)}]`);
+            return this.slot_<T>(`${t}[${(key as unknown as SlotExpr).e}]`);
         } else if (typeof key === 'string') {
             if (isValidIdentifier(key)) {
                 return this.slot_<T>(`${t}.${key}`);
@@ -286,9 +275,9 @@ export class JITContext implements Context {
     set(target: Slot, key: string | Slot<string>, value: Slot): void {
         const t = this.expr(target);
         const v = this.expr(value);
-        if (isSlotExpr(key)) {
+        if ((key as unknown) instanceof SlotExpr) {
             // Dynamic key from slot
-            this.code += `${t}[${getExpr(key)}]=${v};\n`;
+            this.code += `${t}[${(key as unknown as SlotExpr).e}]=${v};\n`;
         } else if (typeof key === 'string') {
             if (isValidIdentifier(key)) {
                 this.code += `${t}.${key}=${v};\n`;
@@ -307,8 +296,8 @@ export class JITContext implements Context {
 
     has(target: Slot, key: string | Slot<string>): Slot<boolean> {
         const t = this.expr(target);
-        if (isSlotExpr(key)) {
-            return this.slot_<boolean>(`(${getExpr(key)} in ${t})`);
+        if ((key as unknown) instanceof SlotExpr) {
+            return this.slot_<boolean>(`(${(key as unknown as SlotExpr).e} in ${t})`);
         }
         const k = typeof key === 'string' ? JSON.stringify(key) : this.expr(key);
         return this.slot_<boolean>(`(${k} in ${t})`);
