@@ -102,6 +102,53 @@ export interface Context {
     loop(arr: Slot, fn: (elem: Slot, idx: Slot) => void): void;
     map<T>(arr: Slot, fn: (elem: Slot, idx: Slot) => Slot<T>): Slot<T[]>;
     when(cond: Slot<boolean>, then: () => Slot | void, else_?: () => Slot | void): void;
+
+    // Mutable state (for tracking changes across conditionals)
+    /**
+     * Create a mutable reference cell with an initial value.
+     * Returns a slot that can be passed to setVar/getVar.
+     * JIT mode: generates `var sN={c:initialValue};`
+     * Exec mode: wraps {c: value} in ExecSlot
+     */
+    var_<T>(initialValue: T | Slot<T>): Slot<{ c: T }>;
+
+    /**
+     * Set a mutable reference's value.
+     * JIT mode: generates `${slot}.c=${value};`
+     * Exec mode: updates slot.value.c
+     */
+    setVar<T>(ref: Slot<{ c: T }>, value: Slot<T>): void;
+
+    /**
+     * Get a mutable reference's current value.
+     * JIT mode: returns expression `${slot}.c`
+     * Exec mode: returns ExecSlot(slot.value.c)
+     */
+    getVar<T>(ref: Slot<{ c: T }>): Slot<T>;
+
+    // Switch statement (for type dispatch)
+    /**
+     * Switch statement with cases.
+     * JIT mode: generates `switch(${value}) { case ${literal}: ${code}; break; ... }`
+     * Exec mode: executes matching case
+     */
+    switch_<T>(value: Slot, cases: Array<[any, () => Slot<T> | void]>, defaultCase?: () => Slot<T> | void): void;
+
+    // Ternary expression (inline conditional)
+    /**
+     * Ternary conditional expression.
+     * JIT mode: generates `${cond} ? ${then} : ${else_}`
+     * Exec mode: evaluates condition and returns appropriate branch
+     */
+    ternary<T>(cond: Slot<boolean>, then: Slot<T>, else_: Slot<T>): Slot<T>;
+
+    // Instance check
+    /**
+     * Check if value is instance of constructor.
+     * JIT mode: generates `${value} instanceof ${ctor}`
+     * Exec mode: actual instanceof check
+     */
+    isInstance(value: Slot, ctor: Function): Slot<boolean>;
 }
 
 // ============================================================================
@@ -491,6 +538,59 @@ export class JITContext implements Context {
         }
     }
 
+    // Mutable state
+    var_<T>(initialValue: T | Slot<T>): Slot<{ c: T }> {
+        const s = this.nextSlot();
+        const value =
+            initialValue instanceof SlotExpr || initialValue instanceof ExecSlot
+                ? this.expr(initialValue as Slot<T>)
+                : this.expr(this.lit(initialValue));
+        this.code += `var ${s}={c:${value}};\n`;
+        return new SlotExpr(s) as Slot<{ c: T }>;
+    }
+
+    setVar<T>(ref: Slot<{ c: T }>, value: Slot<T>): void {
+        this.code += `${this.expr(ref)}.c=${this.expr(value)};\n`;
+    }
+
+    getVar<T>(ref: Slot<{ c: T }>): Slot<T> {
+        return new SlotExpr(`${this.expr(ref)}.c`) as Slot<T>;
+    }
+
+    // Switch statement
+    switch_<T>(value: Slot, cases: Array<[any, () => Slot<T> | void]>, defaultCase?: () => Slot<T> | void): void {
+        this.code += `switch(${this.expr(value)}){\n`;
+        for (const [literal, caseBody] of cases) {
+            const literalCode = typeof literal === 'string' ? JSON.stringify(literal) : String(literal);
+            this.code += `case ${literalCode}:{\n`;
+            const result = caseBody();
+            if (result !== undefined) {
+                this.code += `return ${this.expr(result)};\n`;
+            }
+            this.code += `break;}\n`;
+        }
+        if (defaultCase) {
+            this.code += `default:{\n`;
+            const result = defaultCase();
+            if (result !== undefined) {
+                this.code += `return ${this.expr(result)};\n`;
+            }
+            this.code += `break;}\n`;
+        }
+        this.code += `}\n`;
+    }
+
+    // Ternary expression
+    ternary<T>(cond: Slot<boolean>, then: Slot<T>, else_: Slot<T>): Slot<T> {
+        return this.slot_<T>(`(${this.expr(cond)}?${this.expr(then)}:${this.expr(else_)})`);
+    }
+
+    // Instance check
+    isInstance(value: Slot, ctor: Function): Slot<boolean> {
+        const extIdx = this.externs.push(ctor) - 1;
+        return this.slot_<boolean>(`(${this.expr(value)} instanceof e[${extIdx}])`);
+    }
+
     compile<T extends Function>(returnSlot?: Slot): T {
         if (returnSlot !== undefined) {
             this.code += `return ${this.expr(returnSlot)};\n`;
@@ -696,6 +796,65 @@ export class ExecContext implements Context {
         if (this.hasEarlyReturn) return undefined as any;
         const array = this.unwrap(arr) as any[];
         return new ExecSlot(array.map((elem, idx) => this.unwrap(fn(new ExecSlot(elem), new ExecSlot(idx)))));
+    }
+
+    // Mutable state
+    var_<T>(initialValue: T | Slot<T>): Slot<{ c: T }> {
+        if (this.hasEarlyReturn) return undefined as any;
+        const value =
+            initialValue instanceof ExecSlot || initialValue instanceof SlotExpr
+                ? this.unwrap(initialValue as Slot<T>)
+                : initialValue;
+        return new ExecSlot({ c: value });
+    }
+
+    setVar<T>(ref: Slot<{ c: T }>, value: Slot<T>): void {
+        if (this.hasEarlyReturn) return;
+        const cell = this.unwrap(ref) as { c: T };
+        cell.c = this.unwrap(value);
+    }
+
+    getVar<T>(ref: Slot<{ c: T }>): Slot<T> {
+        if (this.hasEarlyReturn) return undefined as any;
+        const cell = this.unwrap(ref) as { c: T };
+        return new ExecSlot(cell.c);
+    }
+
+    // Switch statement
+    switch_<T>(value: Slot, cases: Array<[any, () => Slot<T> | void]>, defaultCase?: () => Slot<T> | void): void {
+        if (this.hasEarlyReturn) return;
+        const val = this.unwrap(value);
+
+        for (const [literal, caseBody] of cases) {
+            if (val === literal) {
+                const result = caseBody();
+                if (result !== undefined) {
+                    this.hasEarlyReturn = true;
+                    this.earlyReturnValue = this.unwrap(result);
+                }
+                return;
+            }
+        }
+
+        if (defaultCase) {
+            const result = defaultCase();
+            if (result !== undefined) {
+                this.hasEarlyReturn = true;
+                this.earlyReturnValue = this.unwrap(result);
+            }
+        }
+    }
+
+    // Ternary expression
+    ternary<T>(cond: Slot<boolean>, then: Slot<T>, else_: Slot<T>): Slot<T> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return this.unwrap(cond) ? then : else_;
+    }
+
+    // Instance check
+    isInstance(value: Slot, ctor: Function): Slot<boolean> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return new ExecSlot(this.unwrap(value) instanceof ctor);
     }
 }
 

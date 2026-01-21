@@ -768,6 +768,309 @@ describe('jit', () => {
         });
     });
 
+    describe('mutable state - var_/setVar/getVar', () => {
+        testBothModes('creates mutable variable and reads it back', fn => {
+            const f = fn(ctx => {
+                const counter = ctx.var_(0);
+                return ctx.getVar(counter);
+            });
+            expect(f()).toBe(0);
+        });
+
+        testBothModes('sets and gets mutable variable', fn => {
+            const f = fn(ctx => {
+                const counter = ctx.var_(0);
+                ctx.setVar(counter, ctx.lit(42));
+                return ctx.getVar(counter);
+            });
+            expect(f()).toBe(42);
+        });
+
+        testBothModes('tracks state across conditionals', fn => {
+            const f = fn(jit.arg<boolean>(), (ctx, shouldChange) => {
+                const state = ctx.var_(false);
+                ctx.when(shouldChange, () => {
+                    ctx.setVar(state, ctx.lit(true));
+                });
+                return ctx.getVar(state);
+            });
+            expect(f(true)).toBe(true);
+            expect(f(false)).toBe(false);
+        });
+
+        testBothModes('multiple mutations', fn => {
+            const f = fn(ctx => {
+                const counter = ctx.var_(0);
+                ctx.setVar(counter, ctx.lit(1));
+                ctx.setVar(counter, ctx.lit(2));
+                ctx.setVar(counter, ctx.lit(3));
+                return ctx.getVar(counter);
+            });
+            expect(f()).toBe(3);
+        });
+
+        testBothModes('initializes from slot', fn => {
+            const f = fn(jit.arg<number>(), (ctx, initialValue) => {
+                const counter = ctx.var_(initialValue);
+                return ctx.getVar(counter);
+            });
+            expect(f(100)).toBe(100);
+        });
+
+        testBothModes('multiple independent variables', fn => {
+            const f = fn(ctx => {
+                const a = ctx.var_(1);
+                const b = ctx.var_(2);
+                ctx.setVar(a, ctx.lit(10));
+                ctx.setVar(b, ctx.lit(20));
+                const arr = ctx.arr();
+                ctx.push(arr, ctx.getVar(a));
+                ctx.push(arr, ctx.getVar(b));
+                return arr;
+            });
+            expect(f()).toEqual([10, 20]);
+        });
+
+        testBothModes('variable state persists in loop', fn => {
+            const f = fn(jit.arg<number[]>(), (ctx, arr) => {
+                const sum = ctx.var_(0);
+                ctx.loop(arr, (elem, idx) => {
+                    const current = ctx.getVar(sum);
+                    const add = (a: number, b: number) => a + b;
+                    ctx.setVar(sum, ctx.call(add, current, elem));
+                });
+                return ctx.getVar(sum);
+            });
+            expect(f([1, 2, 3, 4, 5])).toBe(15);
+        });
+
+        testBothModes('change detection pattern', fn => {
+            const f = fn(jit.arg<any>(), jit.arg<any>(), (ctx, oldObj, newObj) => {
+                const changed = ctx.var_(false);
+                ctx.when(ctx.neq(ctx.get(oldObj, 'name'), ctx.get(newObj, 'name')), () => {
+                    ctx.setVar(changed, ctx.lit(true));
+                });
+                ctx.when(ctx.neq(ctx.get(oldObj, 'age'), ctx.get(newObj, 'age')), () => {
+                    ctx.setVar(changed, ctx.lit(true));
+                });
+                return ctx.getVar(changed);
+            });
+            expect(f({ name: 'John', age: 30 }, { name: 'John', age: 30 })).toBe(false);
+            expect(f({ name: 'John', age: 30 }, { name: 'Jane', age: 30 })).toBe(true);
+            expect(f({ name: 'John', age: 30 }, { name: 'John', age: 31 })).toBe(true);
+        });
+    });
+
+    describe('switch statement - switch_', () => {
+        testBothModes('matches case and returns', fn => {
+            const f = fn(jit.arg<string>(), (ctx, kind) => {
+                ctx.switch_(kind, [
+                    ['string', () => ctx.lit('is string')],
+                    ['number', () => ctx.lit('is number')],
+                    ['boolean', () => ctx.lit('is boolean')],
+                ]);
+                return ctx.lit('unknown');
+            });
+            expect(f('string')).toBe('is string');
+            expect(f('number')).toBe('is number');
+            expect(f('boolean')).toBe('is boolean');
+            expect(f('other')).toBe('unknown');
+        });
+
+        testBothModes('matches default case', fn => {
+            const f = fn(jit.arg<number>(), (ctx, n) => {
+                ctx.switch_(
+                    n,
+                    [
+                        [1, () => ctx.lit('one')],
+                        [2, () => ctx.lit('two')],
+                    ],
+                    () => ctx.lit('other'),
+                );
+                return ctx.lit('never');
+            });
+            expect(f(1)).toBe('one');
+            expect(f(2)).toBe('two');
+            expect(f(3)).toBe('other');
+        });
+
+        testBothModes('executes case body without return', fn => {
+            const f = fn(jit.arg<string>(), (ctx, action) => {
+                const result = ctx.obj();
+                ctx.switch_(action, [
+                    [
+                        'add',
+                        () => {
+                            ctx.set(result, 'op', ctx.lit('addition'));
+                        },
+                    ],
+                    [
+                        'sub',
+                        () => {
+                            ctx.set(result, 'op', ctx.lit('subtraction'));
+                        },
+                    ],
+                ]);
+                return result;
+            });
+            expect(f('add')).toEqual({ op: 'addition' });
+            expect(f('sub')).toEqual({ op: 'subtraction' });
+            expect(f('other')).toEqual({});
+        });
+
+        testBothModes('handles numeric cases', fn => {
+            const f = fn(jit.arg<number>(), (ctx, kind) => {
+                ctx.switch_(kind, [
+                    [1, () => ctx.lit('type 1')],
+                    [2, () => ctx.lit('type 2')],
+                    [42, () => ctx.lit('type 42')],
+                ]);
+                return ctx.lit('unknown type');
+            });
+            expect(f(1)).toBe('type 1');
+            expect(f(2)).toBe('type 2');
+            expect(f(42)).toBe('type 42');
+            expect(f(999)).toBe('unknown type');
+        });
+
+        testBothModes('type dispatch pattern', fn => {
+            const serialize = fn(jit.arg<any>(), jit.arg<string>(), (ctx, value, typeName) => {
+                ctx.switch_(typeName, [
+                    ['string', () => value],
+                    ['number', () => ctx.call(String, value)],
+                    ['boolean', () => ctx.ternary(value, ctx.lit('true'), ctx.lit('false'))],
+                ]);
+                return ctx.lit(null);
+            });
+            expect(serialize('hello', 'string')).toBe('hello');
+            expect(serialize(42, 'number')).toBe('42');
+            expect(serialize(true, 'boolean')).toBe('true');
+            expect(serialize(false, 'boolean')).toBe('false');
+            expect(serialize(undefined, 'unknown')).toBe(null);
+        });
+    });
+
+    describe('ternary expression', () => {
+        testBothModes('returns then value when true', fn => {
+            const f = fn(jit.arg<boolean>(), (ctx, cond) => {
+                return ctx.ternary(cond, ctx.lit('yes'), ctx.lit('no'));
+            });
+            expect(f(true)).toBe('yes');
+            expect(f(false)).toBe('no');
+        });
+
+        testBothModes('works with slots from input', fn => {
+            const f = fn(jit.arg<any>(), (ctx, input) => {
+                return ctx.ternary(ctx.get(input, 'enabled'), ctx.get(input, 'a'), ctx.get(input, 'b'));
+            });
+            expect(f({ enabled: true, a: 'first', b: 'second' })).toBe('first');
+            expect(f({ enabled: false, a: 'first', b: 'second' })).toBe('second');
+        });
+
+        testBothModes('nested ternary', fn => {
+            const f = fn(jit.arg<number>(), (ctx, n) => {
+                return ctx.ternary(ctx.lt(n, ctx.lit(0)), ctx.lit('negative'), ctx.ternary(ctx.gt(n, ctx.lit(0)), ctx.lit('positive'), ctx.lit('zero')));
+            });
+            expect(f(-5)).toBe('negative');
+            expect(f(5)).toBe('positive');
+            expect(f(0)).toBe('zero');
+        });
+
+        testBothModes('ternary with object creation', fn => {
+            const f = fn(jit.arg<boolean>(), (ctx, useAlt) => {
+                return ctx.ternary(useAlt, ctx.objFrom([['value', ctx.lit('alternative')]]), ctx.objFrom([['value', ctx.lit('default')]]));
+            });
+            expect(f(true)).toEqual({ value: 'alternative' });
+            expect(f(false)).toEqual({ value: 'default' });
+        });
+
+        testBothModes('ternary in combination with var_', fn => {
+            const f = fn(jit.arg<number>(), (ctx, n) => {
+                const result = ctx.var_(ctx.lit(''));
+                ctx.setVar(result, ctx.ternary(ctx.gt(n, ctx.lit(10)), ctx.lit('big'), ctx.lit('small')));
+                return ctx.getVar(result);
+            });
+            expect(f(15)).toBe('big');
+            expect(f(5)).toBe('small');
+        });
+    });
+
+    describe('instance check - isInstance', () => {
+        testBothModes('checks Date instance', fn => {
+            const f = fn(jit.arg<any>(), (ctx, value) => {
+                return ctx.isInstance(value, Date);
+            });
+            expect(f(new Date())).toBe(true);
+            expect(f('2024-01-01')).toBe(false);
+            expect(f({})).toBe(false);
+        });
+
+        testBothModes('checks Array instance', fn => {
+            const f = fn(jit.arg<any>(), (ctx, value) => {
+                return ctx.isInstance(value, Array);
+            });
+            expect(f([1, 2, 3])).toBe(true);
+            expect(f({ length: 3 })).toBe(false);
+            expect(f('array')).toBe(false);
+        });
+
+        testBothModes('checks custom class instance', fn => {
+            class MyClass {
+                constructor(public value: number) {}
+            }
+            const f = fn(jit.arg<any>(), (ctx, value) => {
+                return ctx.isInstance(value, MyClass);
+            });
+            expect(f(new MyClass(42))).toBe(true);
+            expect(f({ value: 42 })).toBe(false);
+            expect(f(null)).toBe(false);
+        });
+
+        testBothModes('checks Error instance', fn => {
+            const f = fn(jit.arg<any>(), (ctx, value) => {
+                return ctx.isInstance(value, Error);
+            });
+            expect(f(new Error('test'))).toBe(true);
+            expect(f(new TypeError('test'))).toBe(true); // TypeError extends Error
+            expect(f({ message: 'test' })).toBe(false);
+        });
+
+        testBothModes('uses isInstance in conditional', fn => {
+            const f = fn(jit.arg<any>(), (ctx, value) => {
+                ctx.when(ctx.isInstance(value, Date), () => {
+                    return ctx.lit('is date');
+                });
+                ctx.when(ctx.isInstance(value, Array), () => {
+                    return ctx.lit('is array');
+                });
+                return ctx.lit('unknown');
+            });
+            expect(f(new Date())).toBe('is date');
+            expect(f([1, 2, 3])).toBe('is array');
+            expect(f('string')).toBe('unknown');
+        });
+
+        testBothModes('combines isInstance with other type checks', fn => {
+            const f = fn(jit.arg<any>(), (ctx, value) => {
+                ctx.when(ctx.isNullish(value), () => {
+                    return ctx.lit('nullish');
+                });
+                ctx.when(ctx.isInstance(value, Date), () => {
+                    return ctx.lit('date');
+                });
+                ctx.when(ctx.isType(value, 'string'), () => {
+                    return ctx.lit('string');
+                });
+                return ctx.lit('other');
+            });
+            expect(f(null)).toBe('nullish');
+            expect(f(undefined)).toBe('nullish');
+            expect(f(new Date())).toBe('date');
+            expect(f('hello')).toBe('string');
+            expect(f(42)).toBe('other');
+        });
+    });
+
     describe('edge cases', () => {
         testBothModes('handles special string values', fn => {
             const f = fn(ctx => {
