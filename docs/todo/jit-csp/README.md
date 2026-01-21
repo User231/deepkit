@@ -2,13 +2,13 @@
 
 > **Status:** Phase 1 - Migrate @deepkit/type
 > **Priority:** HIGH
-> **Documentation:** `docs/jit-csp-refactor.md`
+> **Technical Spec:** `technical-spec.md` (in this folder)
 
 ## Quick Start for Agents
 
 ```bash
 # 1. Read the full technical spec first
-cat docs/jit-csp-refactor.md
+cat docs/todo/jit-csp/technical-spec.md
 
 # 2. Run baseline benchmarks to understand current performance
 cd benchmarks && npm run benchmark -- -d src/benchmarks/core/type
@@ -89,7 +89,7 @@ git add -A && git commit -m "refactor(type): migrate <filename> to jit API"
 ## Reference
 
 - **New JIT API:** `packages/core/src/jit.ts`
-- **Technical Spec:** `docs/jit-csp-refactor.md`
+- **Technical Spec:** `docs/todo/jit-csp/technical-spec.md`
 - **Benchmark Baseline:** `benchmarks/src/benchmarks/baselines/baseline-pre-jit-refactor.json`
 
 ## Notes

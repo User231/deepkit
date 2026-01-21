@@ -188,7 +188,7 @@ See `docs/team/README.md` for the full team intro and pipeline diagram.
 2. **Faster bootstrap** - Lazy JIT generation: start with Exec mode, only compile to JIT after N calls (e.g., 10+), similar to V8's tiered compilation
 3. **Unified API** - Single codebase for both modes, automatic runtime detection
 
-**Documentation:** `docs/jit-csp-refactor.md`
+**Documentation:** `docs/todo/jit-csp/technical-spec.md`
 
 ### Phase 0: Baseline Benchmarks ✅ COMPLETE
 
