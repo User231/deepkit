@@ -177,7 +177,7 @@ See `docs/team/README.md` for the full team intro and pipeline diagram.
 
 | Issue | Title | Folder | Status |
 |-------|-------|--------|--------|
-| JIT-CSP | JIT/CSP Migration - Migrate packages to new jit API | docs/todo/jit-csp/ | **Phase 0: Benchmarks** |
+| JIT-CSP | JIT/CSP Migration - Migrate packages to new jit API | docs/todo/jit-csp/ | **Phase 1: Ready to start** |
 
 ---
 
@@ -190,24 +190,35 @@ See `docs/team/README.md` for the full team intro and pipeline diagram.
 
 **Documentation:** `docs/jit-csp-refactor.md`
 
-### Phase 0: Baseline Benchmarks (CURRENT - TOP PRIORITY)
+### Phase 0: Baseline Benchmarks ✅ COMPLETE
 
-Before migrating any package, we need baseline benchmarks to ensure no regressions.
+Comprehensive benchmarks are in place with a pre-refactor baseline saved.
 
-**Tasks:**
-1. [ ] Create comprehensive benchmarks for each package's JIT-compiled code
-2. [ ] Set up automated benchmark storage (CI or local baseline files)
-3. [ ] Document current performance numbers as migration baseline
+**Completed:**
+1. [x] Create comprehensive benchmarks for each package's JIT-compiled code
+2. [x] Set up automated benchmark storage (baseline files in git)
+3. [x] Document current performance numbers as migration baseline
+
+**Baseline file:** `benchmarks/src/benchmarks/baselines/baseline-pre-jit-refactor.json`
+
+**Commands:**
+```bash
+npm run benchmark                    # Run all benchmarks
+npm run benchmark -- --save-baseline # Save new baseline
+npm run benchmark -- --compare-baseline # Compare against baseline
+```
 
 **Packages using CompilerContext** (in migration order):
 
 | Priority | Package | Files | Complexity | Benchmark Status |
 |----------|---------|-------|------------|------------------|
-| 1 | @deepkit/type | serializer.ts, snapshot.ts, path.ts, change-detector.ts | High (core serialization) | ❌ Not done |
-| 2 | @deepkit/bson | bson-serializer.ts, bson-deserializer.ts | High (binary perf critical) | ❌ Not done |
-| 3 | @deepkit/injector | injector.ts | Medium (DI factories) | ❌ Not done |
-| 4 | @deepkit/http | router.ts, request-parser.ts | Medium (request handling) | ❌ Not done |
-| 5 | @deepkit/workflow | workflow.ts | Low (state machines) | ❌ Not done |
+| 1 | @deepkit/type | serializer.ts, snapshot.ts, path.ts, change-detector.ts | High (core serialization) | ✅ 115 benchmarks |
+| 2 | @deepkit/bson | bson-serializer.ts, bson-deserializer.ts | High (binary perf critical) | ✅ 19 benchmarks |
+| 3 | @deepkit/injector | injector.ts | Medium (DI factories) | ✅ 36 benchmarks |
+| 4 | @deepkit/http | router.ts, request-parser.ts | Medium (request handling) | ✅ 28 benchmarks |
+| 5 | @deepkit/workflow | workflow.ts | Low (state machines) | ⏭️ Skip (low priority) |
+
+**Total: 306 benchmarks across 15 suites** covering serialization, validation, reflection, change-detection, BSON, RPC, ORM, HTTP, injector, and more.
 
 ### Phase 1: Migrate @deepkit/type (NEXT)
 

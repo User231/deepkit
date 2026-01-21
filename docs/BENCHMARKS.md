@@ -35,9 +35,50 @@ Deepkit's value proposition depends on runtime type operations being fast enough
 ### Location
 
 ```
-packages/bench/              # Dedicated benchmark package
-packages/*/tests/*.bench.ts  # Package-specific benchmarks
+benchmarks/                           # Main benchmark infrastructure
+├── src/
+│   ├── benchmarks/
+│   │   ├── core/                    # Core package benchmarks (public APIs)
+│   │   │   ├── type/                # serialization, validation, reflection, change-detection
+│   │   │   ├── bson/                # BSON serialization/deserialization
+│   │   │   ├── injector/            # DI resolution, scaling
+│   │   │   ├── http/                # HTTP router, request handling
+│   │   │   ├── rpc/                 # RPC messages, actions
+│   │   │   ├── orm/                 # ORM queries, persistence
+│   │   │   └── ...
+│   │   ├── comparison/              # Comparative benchmarks vs other libraries
+│   │   ├── debug/                   # Internal/microbenchmarks (not in baseline)
+│   │   └── baselines/               # Saved baseline files
+│   │       └── baseline-pre-jit-refactor.json
+│   └── reporter/                    # Benchmark reporters (console, JSON, comparison)
+├── package.json
+└── README.md
+
+packages/bench/              # BenchSuite API (used by benchmarks/)
+packages/*/benchmarks/       # Package-internal microbenchmarks (optional)
 ```
+
+### Current Baseline (Pre-JIT Refactor)
+
+**306 benchmarks across 15 suites:**
+
+| Suite | Benchmarks | Key Operations |
+|-------|------------|----------------|
+| type/validation | 33 | guard, validate, is, constraints |
+| type/reflection | 37 | typeOf, ReflectionClass, property access |
+| type/serialization | 24 | serialize/deserialize, complex types |
+| type/change-detection | 21 | snapshot, changeDetector, PK extraction |
+| bson/serialization | 19 | BSON encode/decode, arrays, nested |
+| injector/scaling | 26 | provider scaling 10-500, scopes, tags |
+| injector/di | 10 | basic DI resolution |
+| http/router | 28 | route matching, request resolution |
+| rpc/messages | 29 | message creation, serialization |
+| rpc/actions | 20 | action calls, batching, errors |
+| orm/sqlite | 18 | queries, persist, session |
+| app/module | 15 | module creation, config |
+| event/dispatcher | 9 | event emission |
+| logger/core | 14 | logging overhead |
+| core/async | 3 | async primitives |
 
 ### Benchmark Categories
 
@@ -174,12 +215,32 @@ Track these categories with regular benchmarking:
 ### Quick Benchmark
 
 ```bash
-# Run all benchmarks
-cd packages/bench
-npm run bench
+# From repository root
+cd benchmarks
 
-# Run specific benchmark
-node dist/serialization.bench.js
+# Run all benchmarks
+npm run benchmark
+
+# Run specific category
+npm run benchmark -- -d src/benchmarks/core/type
+npm run benchmark -- -d src/benchmarks/core/bson
+npm run benchmark -- -d src/benchmarks/core/injector
+
+# Run comparison benchmarks (vs other libraries)
+npm run benchmark:comparison
+```
+
+### Baseline Management
+
+```bash
+# Save current results as baseline
+npm run benchmark -- --save-baseline
+
+# Compare against saved baseline (shows regressions/improvements)
+npm run benchmark -- --compare-baseline
+
+# Export results to JSON
+npm run benchmark -- -j results.json
 ```
 
 ### Detailed Benchmark with Profiling
