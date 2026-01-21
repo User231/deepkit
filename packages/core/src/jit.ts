@@ -165,8 +165,25 @@ export const canJIT = detectNewFunction();
 // JITContext - Code Generation Mode
 // ============================================================================
 
+// Prefix for JIT slot expressions to distinguish from literal strings
+const SLOT_PREFIX = '\0$:';
+
+function isSlotExpr(value: unknown): boolean {
+    return typeof value === 'string' && (value as string).startsWith(SLOT_PREFIX);
+}
+
+function slotExpr(expr: string): string {
+    return SLOT_PREFIX + expr;
+}
+
+function getExpr(slot: unknown): string {
+    const s = slot as string;
+    return s.startsWith(SLOT_PREFIX) ? s.slice(SLOT_PREFIX.length) : s;
+}
+
 /**
  * JIT context that accumulates code strings and compiles them with `new Function()`.
+ * Uses expression strings to avoid unnecessary intermediate variables.
  * Used when `canJIT` is true (Node.js, Deno, Bun, browsers without strict CSP).
  */
 export class JITContext implements Context {
@@ -181,208 +198,212 @@ export class JITContext implements Context {
     }
 
     getArgSlots(): Slot[] {
-        return Array.from({ length: this.argCount }, (_, i) => i as Slot);
+        return Array.from({ length: this.argCount }, (_, i) => slotExpr(`s${i}`) as unknown as Slot);
     }
 
-    private nextSlot(): number {
-        return this.slot++;
+    private nextSlot(): string {
+        return `s${this.slot++}`;
+    }
+
+    private expr(slot: Slot): string {
+        return getExpr(slot);
+    }
+
+    private slot_<T>(expr: string): Slot<T> {
+        return slotExpr(expr) as unknown as Slot<T>;
     }
 
     // Create
     obj<T>(): Slot<T> {
         const s = this.nextSlot();
-        this.code += `var s${s}={};\n`;
-        return s as Slot<T>;
+        this.code += `var ${s}={};\n`;
+        return this.slot_<T>(s);
     }
 
     objFrom<T>(entries: Array<[string | Slot<string>, Slot]>): Slot<T> {
-        const s = this.nextSlot();
+        // Returns object literal expression directly - no intermediate variable
         const props: string[] = [];
         for (const [key, value] of entries) {
-            if (typeof key === 'string') {
+            const v = this.expr(value);
+            // Check if key is a slot (JITExpr) or literal string
+            if (isSlotExpr(key)) {
+                // Dynamic key - use computed property
+                props.push(`[${getExpr(key)}]:${v}`);
+            } else if (typeof key === 'string') {
+                // Literal string key
                 if (isValidIdentifier(key)) {
-                    props.push(`${key}:s${value}`);
+                    props.push(`${key}:${v}`);
                 } else {
-                    props.push(`${JSON.stringify(key)}:s${value}`);
+                    props.push(`${JSON.stringify(key)}:${v}`);
                 }
-            } else {
-                props.push(`[s${key}]:s${value}`);
             }
         }
-        this.code += `var s${s}={${props.join(',')}};\n`;
-        return s as Slot<T>;
+        return this.slot_<T>(`{${props.join(',')}}`);
     }
 
     arr<T>(): Slot<T[]> {
         const s = this.nextSlot();
-        this.code += `var s${s}=[];\n`;
-        return s as Slot<T[]>;
+        this.code += `var ${s}=[];\n`;
+        return this.slot_<T[]>(s);
     }
 
     lit<T>(value: T): Slot<T> {
+        // For simple primitives, return inline; for complex values, use extern
+        if (value === null) return this.slot_<T>('null');
+        if (value === undefined) return this.slot_<T>('undefined');
+        if (typeof value === 'boolean') return this.slot_<T>(String(value));
+        if (typeof value === 'number') {
+            if (Number.isNaN(value)) return this.slot_<T>('NaN');
+            if (value === Infinity) return this.slot_<T>('Infinity');
+            if (value === -Infinity) return this.slot_<T>('-Infinity');
+            if (Object.is(value, -0)) return this.slot_<T>('(-0)');
+            return this.slot_<T>(String(value));
+        }
+        if (typeof value === 'string') return this.slot_<T>(JSON.stringify(value));
+        // Complex values need extern slot
         const s = this.nextSlot();
         const extIdx = this.externs.push(value) - 1;
-        this.code += `var s${s}=e[${extIdx}];\n`;
-        return s as Slot<T>;
+        this.code += `var ${s}=e[${extIdx}];\n`;
+        return this.slot_<T>(s);
     }
 
-    // Access
+    // Access - returns expression without creating variable
     get<T>(target: Slot, key: string | Slot<string>): Slot<T> {
-        const s = this.nextSlot();
-        if (typeof key === 'string') {
+        const t = this.expr(target);
+        if (isSlotExpr(key)) {
+            // Dynamic key from slot
+            return this.slot_<T>(`${t}[${getExpr(key)}]`);
+        } else if (typeof key === 'string') {
             if (isValidIdentifier(key)) {
-                this.code += `var s${s}=s${target}.${key};\n`;
+                return this.slot_<T>(`${t}.${key}`);
             } else {
-                this.code += `var s${s}=s${target}[${JSON.stringify(key)}];\n`;
+                return this.slot_<T>(`${t}[${JSON.stringify(key)}]`);
             }
-        } else {
-            this.code += `var s${s}=s${target}[s${key}];\n`;
         }
-        return s as Slot<T>;
+        return this.slot_<T>(`${t}[${this.expr(key)}]`);
     }
 
     set(target: Slot, key: string | Slot<string>, value: Slot): void {
-        if (typeof key === 'string') {
+        const t = this.expr(target);
+        const v = this.expr(value);
+        if (isSlotExpr(key)) {
+            // Dynamic key from slot
+            this.code += `${t}[${getExpr(key)}]=${v};\n`;
+        } else if (typeof key === 'string') {
             if (isValidIdentifier(key)) {
-                this.code += `s${target}.${key}=s${value};\n`;
+                this.code += `${t}.${key}=${v};\n`;
             } else {
-                this.code += `s${target}[${JSON.stringify(key)}]=s${value};\n`;
+                this.code += `${t}[${JSON.stringify(key)}]=${v};\n`;
             }
         } else {
-            this.code += `s${target}[s${key}]=s${value};\n`;
+            this.code += `${t}[${this.expr(key)}]=${v};\n`;
         }
     }
 
     at<T>(arr: Slot, index: Slot<number>): Slot<T> {
-        const s = this.nextSlot();
-        // Always treat index as a slot reference in JIT mode
-        this.code += `var s${s}=s${arr}[s${index}];\n`;
-        return s as Slot<T>;
+        // Return expression without creating variable
+        return this.slot_<T>(`${this.expr(arr)}[${this.expr(index)}]`);
     }
 
     has(target: Slot, key: string | Slot<string>): Slot<boolean> {
-        const s = this.nextSlot();
-        const k = typeof key === 'string' ? JSON.stringify(key) : `s${key}`;
-        this.code += `var s${s}=${k} in s${target};\n`;
-        return s as Slot<boolean>;
+        const t = this.expr(target);
+        if (isSlotExpr(key)) {
+            return this.slot_<boolean>(`(${getExpr(key)} in ${t})`);
+        }
+        const k = typeof key === 'string' ? JSON.stringify(key) : this.expr(key);
+        return this.slot_<boolean>(`(${k} in ${t})`);
     }
 
     // Array
     push(arr: Slot, value: Slot): void {
-        this.code += `s${arr}.push(s${value});\n`;
+        this.code += `${this.expr(arr)}.push(${this.expr(value)});\n`;
     }
 
     len(target: Slot): Slot<number> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${target}.length;\n`;
-        return s as Slot<number>;
+        return this.slot_<number>(`${this.expr(target)}.length`);
     }
 
-    // Equality
+    // Equality - return expressions
     eq(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}===s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}===${this.expr(b)})`);
     }
 
     neq(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}!==s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}!==${this.expr(b)})`);
     }
 
-    // Comparison
+    // Comparison - return expressions
     lt(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}<s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}<${this.expr(b)})`);
     }
 
     gt(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}>s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}>${this.expr(b)})`);
     }
 
     lte(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}<=s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}<=${this.expr(b)})`);
     }
 
     gte(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}>=s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}>=${this.expr(b)})`);
     }
 
-    // Logical
+    // Logical - return expressions
     not(a: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=!s${a};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(!${this.expr(a)})`);
     }
 
     and(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}&&s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}&&${this.expr(b)})`);
     }
 
     or(a: Slot, b: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${a}||s${b};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(a)}||${this.expr(b)})`);
     }
 
-    // Type checks
+    // Type checks - return expressions
     isType(value: Slot, type: string): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=typeof s${value}===${JSON.stringify(type)};\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(typeof ${this.expr(value)}===${JSON.stringify(type)})`);
     }
 
     isNull(value: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${value}===null;\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(value)}===null)`);
     }
 
     isNullish(value: Slot): Slot<boolean> {
-        const s = this.nextSlot();
-        this.code += `var s${s}=s${value}==null;\n`;
-        return s as Slot<boolean>;
+        return this.slot_<boolean>(`(${this.expr(value)}==null)`);
     }
 
-    // Calls
+    // Calls - need slots for results
     call<T>(fn: Function, ...args: Slot[]): Slot<T> {
         const s = this.nextSlot();
         const extIdx = this.externs.push(fn) - 1;
-        const argsCode = args.map(a => `s${a}`).join(',');
-        this.code += `var s${s}=e[${extIdx}](${argsCode});\n`;
-        return s as Slot<T>;
+        const argsCode = args.map(a => this.expr(a)).join(',');
+        this.code += `var ${s}=e[${extIdx}](${argsCode});\n`;
+        return this.slot_<T>(s);
     }
 
     new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
         const s = this.nextSlot();
         const extIdx = this.externs.push(ctor) - 1;
-        const argsCode = args.map(a => `s${a}`).join(',');
-        this.code += `var s${s}=new e[${extIdx}](${argsCode});\n`;
-        return s as Slot<T>;
+        const argsCode = args.map(a => this.expr(a)).join(',');
+        this.code += `var ${s}=new e[${extIdx}](${argsCode});\n`;
+        return this.slot_<T>(s);
     }
 
     // Control flow
     when(cond: Slot<boolean>, then: () => Slot | void, else_?: () => Slot | void): void {
-        this.code += `if(s${cond}){\n`;
+        this.code += `if(${this.expr(cond)}){\n`;
         const thenResult = then();
         if (thenResult !== undefined) {
-            this.code += `return s${thenResult};\n`;
+            this.code += `return ${this.expr(thenResult)};\n`;
         }
         if (else_) {
             this.code += `}else{\n`;
             const elseResult = else_();
             if (elseResult !== undefined) {
-                this.code += `return s${elseResult};\n`;
+                this.code += `return ${this.expr(elseResult)};\n`;
             }
         }
         this.code += `}\n`;
@@ -391,15 +412,16 @@ export class JITContext implements Context {
     loop(arr: Slot, fn: (elem: Slot, idx: Slot) => void): void {
         const idx = this.nextSlot();
         const elem = this.nextSlot();
-        this.code += `for(var s${idx}=0;s${idx}<s${arr}.length;s${idx}++){\n`;
-        this.code += `var s${elem}=s${arr}[s${idx}];\n`;
-        fn(elem as Slot, idx as Slot);
+        const a = this.expr(arr);
+        this.code += `for(var ${idx}=0;${idx}<${a}.length;${idx}++){\n`;
+        this.code += `var ${elem}=${a}[${idx}];\n`;
+        fn(this.slot_(elem), this.slot_(idx));
         this.code += `}\n`;
     }
 
     compile<T extends Function>(returnSlot?: Slot): T {
         if (returnSlot !== undefined) {
-            this.code += `return s${returnSlot};\n`;
+            this.code += `return ${this.expr(returnSlot)};\n`;
         }
         const argNames = Array.from({ length: this.argCount }, (_, i) => `s${i}`).join(',');
         const fn = new Function('e', `'use strict';return function(${argNames}){'use strict';\n${this.code}}`);

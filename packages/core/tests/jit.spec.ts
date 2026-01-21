@@ -620,7 +620,7 @@ describe('jit', () => {
             const code = ctx.getCode();
 
             expect(code).toContain('var s1={};');
-            expect(code).toContain('s1.name=s2;'); // Uses dot notation for valid identifiers
+            expect(code).toContain('s1.name=s0.name;'); // Uses expression directly, no intermediate slot
         });
 
         test('compile produces working function', () => {
