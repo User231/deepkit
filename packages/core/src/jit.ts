@@ -149,6 +149,46 @@ export interface Context {
      * Exec mode: actual instanceof check
      */
     isInstance(value: Slot, ctor: Function): Slot<boolean>;
+
+    // Throw
+    /**
+     * Throw an error.
+     * JIT mode: generates `throw ${error};`
+     * Exec mode: throws the unwrapped error value
+     */
+    throw_(error: Slot): void;
+
+    // Object iteration
+    /**
+     * Iterate over object's own enumerable properties.
+     * JIT mode: generates `for(var k in obj){...}`
+     * Exec mode: uses for-in loop directly
+     */
+    forIn(obj: Slot, fn: (key: Slot<string>, value: Slot) => void): void;
+
+    // Else-if chains
+    /**
+     * Else-if chain for multiple conditions.
+     * JIT mode: generates `if(c1){...}else if(c2){...}else{...}`
+     * Exec mode: evaluates conditions in order
+     */
+    cond(cases: Array<[Slot<boolean>, () => Slot | void]>, else_?: () => Slot | void): void;
+
+    // String concatenation
+    /**
+     * Concatenate multiple values as strings.
+     * JIT mode: generates `a+b+c`
+     * Exec mode: concatenates unwrapped values
+     */
+    concat(...slots: Slot[]): Slot<string>;
+
+    // Typeof
+    /**
+     * Get the typeof a value as a Slot.
+     * JIT mode: generates `typeof ${value}`
+     * Exec mode: returns typeof the unwrapped value
+     */
+    typeof_(value: Slot): Slot<string>;
 }
 
 // ============================================================================
@@ -591,6 +631,58 @@ export class JITContext implements Context {
         return this.slot_<boolean>(`(${this.expr(value)} instanceof e[${extIdx}])`);
     }
 
+    // Throw
+    throw_(error: Slot): void {
+        this.code += `throw ${this.expr(error)};\n`;
+    }
+
+    // Object iteration
+    forIn(obj: Slot, fn: (key: Slot<string>, value: Slot) => void): void {
+        const key = this.nextSlot();
+        const o = this.expr(obj);
+        this.code += `for(var ${key} in ${o}){\n`;
+        fn(new SlotExpr(key), new SlotExpr(`${o}[${key}]`));
+        this.code += `}\n`;
+    }
+
+    // Else-if chains
+    cond(cases: Array<[Slot<boolean>, () => Slot | void]>, else_?: () => Slot | void): void {
+        for (let i = 0; i < cases.length; i++) {
+            const [condSlot, body] = cases[i];
+            if (i === 0) {
+                this.code += `if(${this.expr(condSlot)}){\n`;
+            } else {
+                this.code += `}else if(${this.expr(condSlot)}){\n`;
+            }
+            const result = body();
+            if (result !== undefined) {
+                this.code += `return ${this.expr(result)};\n`;
+            }
+        }
+        if (else_) {
+            this.code += `}else{\n`;
+            const result = else_();
+            if (result !== undefined) {
+                this.code += `return ${this.expr(result)};\n`;
+            }
+        }
+        if (cases.length > 0) {
+            this.code += `}\n`;
+        }
+    }
+
+    // String concatenation
+    concat(...slots: Slot[]): Slot<string> {
+        if (slots.length === 0) return this.slot_<string>('""');
+        if (slots.length === 1) return this.slot_<string>(`(${this.expr(slots[0])}+"")`);
+        return this.slot_<string>(`(${slots.map(s => this.expr(s)).join('+')})`);
+    }
+
+    // Typeof
+    typeof_(value: Slot): Slot<string> {
+        return this.slot_<string>(`(typeof ${this.expr(value)})`);
+    }
+
     compile<T extends Function>(returnSlot?: Slot): T {
         if (returnSlot !== undefined) {
             this.code += `return ${this.expr(returnSlot)};\n`;
@@ -855,6 +947,58 @@ export class ExecContext implements Context {
     isInstance(value: Slot, ctor: Function): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
         return new ExecSlot(this.unwrap(value) instanceof ctor);
+    }
+
+    // Throw
+    throw_(error: Slot): void {
+        throw this.unwrap(error);
+    }
+
+    // Object iteration
+    forIn(obj: Slot, fn: (key: Slot<string>, value: Slot) => void): void {
+        if (this.hasEarlyReturn) return;
+        const o = this.unwrap(obj) as any;
+        for (const key in o) {
+            if (this.hasEarlyReturn) break;
+            fn(new ExecSlot(key), new ExecSlot(o[key]));
+        }
+    }
+
+    // Else-if chains
+    cond(cases: Array<[Slot<boolean>, () => Slot | void]>, else_?: () => Slot | void): void {
+        if (this.hasEarlyReturn) return;
+
+        for (const [condSlot, body] of cases) {
+            if (this.unwrap(condSlot)) {
+                const result = body();
+                if (result !== undefined) {
+                    this.hasEarlyReturn = true;
+                    this.earlyReturnValue = this.unwrap(result);
+                }
+                return;
+            }
+        }
+
+        if (else_) {
+            const result = else_();
+            if (result !== undefined) {
+                this.hasEarlyReturn = true;
+                this.earlyReturnValue = this.unwrap(result);
+            }
+        }
+    }
+
+    // String concatenation
+    concat(...slots: Slot[]): Slot<string> {
+        if (this.hasEarlyReturn) return undefined as any;
+        if (slots.length === 0) return new ExecSlot('');
+        return new ExecSlot(slots.map(s => this.unwrap(s)).join(''));
+    }
+
+    // Typeof
+    typeof_(value: Slot): Slot<string> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return new ExecSlot(typeof this.unwrap(value));
     }
 }
 
