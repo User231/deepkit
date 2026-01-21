@@ -320,12 +320,47 @@ export class ExecSlot<T = any> implements Slot<T> {
 export class JITContext implements Context {
     private code = '';
     private slot = 0;
-    private externs: any[] = [];
+    private externs = new Map<string, any>();
+    private reservedNames = new Set<string>();
+    private variableContext: { [name: string]: any } = {};
     private argCount: number;
+    private maxReservedVariable = 10_000;
 
     constructor(argCount: number) {
         this.argCount = argCount;
         this.slot = argCount;
+        // Add variable context for monomorphic undefined values
+        this.externs.set('_context', this.variableContext);
+    }
+
+    /**
+     * Generate a unique variable name based on a prefix.
+     * Returns names like: Date_0, Date_1, isNumeric_0, etc.
+     */
+    private reserveName(name: string): string {
+        for (let i = 0; i < this.maxReservedVariable; i++) {
+            const candidate = name + '_' + i;
+            if (!this.reservedNames.has(candidate)) {
+                this.reservedNames.add(candidate);
+                return candidate;
+            }
+        }
+        throw new Error(`Too many context variables (max ${this.maxReservedVariable})`);
+    }
+
+    /**
+     * Add an external value and get its named reference.
+     * For undefined values, uses _context.name pattern for monomorphic optimization.
+     */
+    addExtern(value: any, name: string = 'ext'): string {
+        if (value === undefined) {
+            // For undefined values, use _context.varName to get monomorphic types
+            const freeName = this.reserveName(name);
+            return '_context.' + freeName;
+        }
+        const freeName = this.reserveName(name);
+        this.externs.set(freeName, value);
+        return freeName;
     }
 
     getArgSlots(): Slot[] {
@@ -403,11 +438,9 @@ export class JITContext implements Context {
             return this.slot_<T>(String(value));
         }
         if (typeof value === 'string') return this.slot_<T>(JSON.stringify(value));
-        // Complex values need extern slot
-        const s = this.nextSlot();
-        const extIdx = this.externs.push(value) - 1;
-        this.code += `var ${s}=e[${extIdx}];\n`;
-        return new SlotExpr(s) as Slot<T>;
+        // Complex values use named extern
+        const name = this.addExtern(value, 'const');
+        return new SlotExpr(name) as Slot<T>;
     }
 
     // Property access (ctx.get still available for backwards compat)
@@ -508,17 +541,17 @@ export class JITContext implements Context {
     // Calls
     call<T>(fn: Function, ...args: Slot[]): Slot<T> {
         const s = this.nextSlot();
-        const extIdx = this.externs.push(fn) - 1;
+        const fnName = this.addExtern(fn, fn.name || 'fn');
         const argsCode = args.map(a => this.expr(a)).join(',');
-        this.code += `var ${s}=e[${extIdx}](${argsCode});\n`;
+        this.code += `var ${s}=${fnName}(${argsCode});\n`;
         return new SlotExpr(s) as Slot<T>;
     }
 
     new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
         const s = this.nextSlot();
-        const extIdx = this.externs.push(ctor) - 1;
+        const ctorName = this.addExtern(ctor, ctor.name || 'Ctor');
         const argsCode = args.map(a => this.expr(a)).join(',');
-        this.code += `var ${s}=new e[${extIdx}](${argsCode});\n`;
+        this.code += `var ${s}=new ${ctorName}(${argsCode});\n`;
         return new SlotExpr(s) as Slot<T>;
     }
 
@@ -627,8 +660,8 @@ export class JITContext implements Context {
 
     // Instance check
     isInstance(value: Slot, ctor: Function): Slot<boolean> {
-        const extIdx = this.externs.push(ctor) - 1;
-        return this.slot_<boolean>(`(${this.expr(value)} instanceof e[${extIdx}])`);
+        const ctorName = this.addExtern(ctor, ctor.name || 'Ctor');
+        return this.slot_<boolean>(`(${this.expr(value)} instanceof ${ctorName})`);
     }
 
     // Throw
@@ -688,8 +721,14 @@ export class JITContext implements Context {
             this.code += `return ${this.expr(returnSlot)};\n`;
         }
         const argNames = Array.from({ length: this.argCount }, (_, i) => `s${i}`).join(',');
-        const fn = new Function('e', `'use strict';return function(${argNames}){'use strict';\n${this.code}}`);
-        return fn(this.externs) as T;
+        // Use spread on Map keys/values for named parameters
+        const externNames = [...this.externs.keys()];
+        const externValues = [...this.externs.values()];
+        const fn = new Function(
+            ...externNames,
+            `'use strict';return function(${argNames}){'use strict';\n${this.code}}`,
+        );
+        return fn(...externValues) as T;
     }
 
     getCode(): string {
