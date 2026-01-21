@@ -39,9 +39,56 @@ const fn = jit.fn(jit.arg<any>(), (ctx, input) => {
 
 **If jit.fn() seems insufficient**: Extend `@deepkit/core/src/jit.ts` with new primitives. DO NOT fall back to CompilerContext.
 
+### Before/After Example
+
+```typescript
+// ❌ OLD (CompilerContext) - This is what exists in packages/type/src/serializer.ts
+const compiler = new CompilerContext();
+compiler.context.set('isString', (v: any) => typeof v === 'string');
+compiler.context.set('ValidationError', ValidationError);
+const code = `
+    if (!isString(data)) throw new ValidationError('Expected string');
+    return data;
+`;
+return compiler.build(code, 'data');
+
+// ✅ NEW (jit.fn()) - Rewrite to this
+return jit.fn(jit.arg<any>(), (ctx, data) => {
+    ctx.when(ctx.not(ctx.isType(data, 'string')), () => {
+        ctx.call(throwValidationError, ctx.lit('Expected string'));
+    });
+    return data;
+});
+```
+
+```typescript
+// ❌ OLD - Tracking state with template strings
+let code = 'var hasChanges = false;\n';
+for (const prop of props) {
+    code += `if (old.${prop} !== new.${prop}) hasChanges = true;\n`;
+}
+code += 'return hasChanges;';
+return compiler.build(code, 'old', 'new');
+
+// ✅ NEW - Using var_/setVar/getVar
+return jit.fn(jit.arg<any>(), jit.arg<any>(), (ctx, oldObj, newObj) => {
+    const hasChanges = ctx.var_(false);
+    for (const prop of props) {
+        ctx.when(ctx.neq(oldObj.get(prop), newObj.get(prop)), () => {
+            ctx.setVar(hasChanges, ctx.lit(true));
+        });
+    }
+    return ctx.getVar(hasChanges);
+});
+```
+
+**Key insight**: The old code accumulates template strings. The new code calls ctx methods that either generate code (JIT mode) or execute directly (Exec mode).
+
 ---
 
 ## Files to Rewrite
+
+**Important**: The PUBLIC API must stay the same. Existing tests in `packages/type/tests/` must pass without modification. Read the current implementation first to understand what functionality to replicate.
 
 | File | Purpose | Notes |
 |------|---------|-------|
