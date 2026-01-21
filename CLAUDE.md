@@ -54,6 +54,10 @@ npm run test                    # All tests
 npm run test packages/type/     # Package tests
 node --expose-gc --max_old_space_size=3048 node_modules/jest/bin/jest.js packages/type/tests/serializer.spec.ts  # Single file
 
+# Benchmarks (run from package directory)
+cd packages/core && node --import @deepkit/run benchmarks/jit.ts
+cd packages/type && node --import @deepkit/run benchmarks/serializer.ts
+
 # Full build
 npm run build        # Full build (several minutes)
 npm run clean        # Clean artifacts
