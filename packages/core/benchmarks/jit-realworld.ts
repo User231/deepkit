@@ -110,7 +110,7 @@ const typeSerializerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
     });
 });
 
-function typeSerializerBaseline(input: any): any {
+const typeSerializerBaseline = (input: any): any => {
     return {
         id: input.id,
         name: input.name,
@@ -124,7 +124,7 @@ function typeSerializerBaseline(input: any): any {
         },
         roles: input.roles,
     };
-}
+};
 
 // ============================================================================
 // Scenario 2: @deepkit/type - Union Type Discrimination
@@ -186,7 +186,7 @@ const unionSerializerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
     });
 });
 
-function unionSerializerBaseline(input: any): any {
+const unionSerializerBaseline = (input: any): any => {
     if (input.type === 'user') {
         return { kind: 'user', id: input.id, name: input.name };
     }
@@ -194,7 +194,7 @@ function unionSerializerBaseline(input: any): any {
         return { kind: 'admin', id: input.id, perms: input.permissions };
     }
     return { kind: 'guest', session: input.sessionId };
-}
+};
 
 // ============================================================================
 // Scenario 3: @deepkit/type - Change Detection (Snapshot Comparison)
@@ -203,59 +203,57 @@ function unionSerializerBaseline(input: any): any {
 const props = ['id', 'name', 'age', 'active'] as const;
 
 // JIT: Compare two snapshots and return changed fields
+// Note: Both versions always return the changes object for fair comparison
 const changeDetectorJIT = jit.fnJIT(jit.arg<any>(), jit.arg<any>(), (ctx, oldSnap, newSnap) => {
     const changes = ctx.obj();
-    let hasChanges = ctx.lit(false);
 
     for (const prop of props) {
         const oldVal = oldSnap.get(prop);
         const newVal = newSnap.get(prop);
         ctx.when(ctx.neq(oldVal, newVal), () => {
             ctx.set(changes, prop, newVal);
-            hasChanges = ctx.lit(true);
         });
     }
 
-    ctx.when(hasChanges, () => {
-        return changes;
-    });
-
-    return ctx.lit(undefined);
+    return changes;
 });
 
 const changeDetectorExec = jit.fnExec(jit.arg<any>(), jit.arg<any>(), (ctx, oldSnap, newSnap) => {
     const changes = ctx.obj();
-    let hasChanges = ctx.lit(false);
 
     for (const prop of props) {
         const oldVal = oldSnap.get(prop);
         const newVal = newSnap.get(prop);
         ctx.when(ctx.neq(oldVal, newVal), () => {
             ctx.set(changes, prop, newVal);
-            hasChanges = ctx.lit(true);
         });
     }
 
-    ctx.when(hasChanges, () => {
-        return changes;
-    });
-
-    return ctx.lit(undefined);
+    return changes;
 });
 
-function changeDetectorBaseline(oldSnap: any, newSnap: any): any {
+// Generic baseline: What you'd have WITHOUT JIT - must loop over unknown properties
+// This is the realistic baseline for code that uses runtime type info
+const changeDetectorGenericBaseline = (oldSnap: any, newSnap: any): any => {
     const changes: any = {};
-    let hasChanges = false;
-
     for (const prop of props) {
         if (oldSnap[prop] !== newSnap[prop]) {
             changes[prop] = newSnap[prop];
-            hasChanges = true;
         }
     }
+    return changes;
+};
 
-    return hasChanges ? changes : undefined;
-}
+// Optimal baseline: The ideal hand-written code - unrolled, type-specific
+// This is the target JIT should match (impossible to achieve generically)
+const changeDetectorOptimalBaseline = (oldSnap: any, newSnap: any): any => {
+    const changes: any = {};
+    if (oldSnap.id !== newSnap.id) changes.id = newSnap.id;
+    if (oldSnap.name !== newSnap.name) changes.name = newSnap.name;
+    if (oldSnap.age !== newSnap.age) changes.age = newSnap.age;
+    if (oldSnap.active !== newSnap.active) changes.active = newSnap.active;
+    return changes;
+};
 
 // ============================================================================
 // Scenario 4: @deepkit/http - Request Parameter Extraction
@@ -323,7 +321,7 @@ const requestParserExec = jit.fnExec(jit.arg<any>(), (ctx, req) => {
     });
 });
 
-function requestParserBaseline(req: any): any {
+const requestParserBaseline = (req: any): any => {
     const match = pathRegex.exec(req.path);
     if (match === null) return null;
 
@@ -339,7 +337,7 @@ function requestParserBaseline(req: any): any {
         title: req.body.title,
         content: req.body.content,
     };
-}
+};
 
 // ============================================================================
 // Scenario 5: @deepkit/sql - Row-to-Entity Mapping
@@ -388,7 +386,7 @@ const rowMapperExec = jit.fnExec(jit.arg<any[]>(), (ctx, row) => {
     return entity;
 });
 
-function rowMapperBaseline(row: any[]): UserEntity | undefined {
+const rowMapperBaseline = (row: any[]): UserEntity | undefined => {
     if (row[0] === null) return undefined;
 
     const entity = new UserEntity();
@@ -399,7 +397,7 @@ function rowMapperBaseline(row: any[]): UserEntity | undefined {
     entity.active = row[4];
     entity.createdAt = stringToDate(row[5]);
     return entity;
-}
+};
 
 // ============================================================================
 // Scenario 6: @deepkit/sql - Batch Row Mapping (100 rows)
@@ -432,7 +430,7 @@ const batchRowMapperExec = jit.fnExec(jit.arg<any[][]>(), (ctx, rows) => {
     });
 });
 
-function batchRowMapperBaseline(rows: any[][]): UserEntity[] {
+const batchRowMapperBaseline = (rows: any[][]): UserEntity[] => {
     return rows.map(row => {
         const entity = new UserEntity();
         entity.id = row[0];
@@ -443,7 +441,7 @@ function batchRowMapperBaseline(rows: any[][]): UserEntity[] {
         entity.createdAt = stringToDate(row[5]);
         return entity;
     });
-}
+};
 
 // ============================================================================
 // Scenario 7: @deepkit/injector - Dependency Factory (Simplified)
@@ -498,14 +496,14 @@ const factoryExec = jit.fnExec(ctx => {
     return instance;
 });
 
-function factoryBaseline(): UserService {
+const factoryBaseline = (): UserService => {
     const cached = singletonCache.get(UserService);
     if (cached !== undefined) return cached;
 
     const instance = new UserService(dbInstance, loggerInstance);
     singletonCache.set(UserService, instance);
     return instance;
-}
+};
 
 // ============================================================================
 // Scenario 8: @deepkit/bson - Binary Size Calculation (Simplified)
@@ -546,13 +544,13 @@ const bsonSizerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
     return size;
 });
 
-function bsonSizerBaseline(input: any): number {
+const bsonSizerBaseline = (input: any): number => {
     let size = 5; // doc overhead
     size += 8; // id field
     size += 10 + stringByteLength(input.name); // name field
     size += 11 + stringByteLength(input.email); // email field
     return size;
-}
+};
 
 // ============================================================================
 // Scenario 9: @deepkit/workflow - State Machine Dispatch
@@ -600,7 +598,7 @@ const stateMachineExec = jit.fnExec(jit.arg<WorkflowState>(), (ctx, state) => {
     return ctx.lit('unknown state');
 });
 
-function stateMachineBaseline(state: WorkflowState): string {
+const stateMachineBaseline = (state: WorkflowState): string => {
     switch (state) {
         case 'pending':
             return stateHandlers.pending();
@@ -613,7 +611,7 @@ function stateMachineBaseline(state: WorkflowState): string {
         default:
             return 'unknown state';
     }
-}
+};
 
 // ============================================================================
 // Run Benchmarks
@@ -640,9 +638,13 @@ async function main() {
     unionSer.add('jit.fnExec', () => unionData.map(unionSerializerExec));
     await unionSer.runAsync();
 
-    // Change detection
+    // Change detection - shows JIT's real value: matching optimal hand-written code
+    // Generic: what runtime type handling must do (loop over unknown props)
+    // JIT: generates optimal unrolled code from type info
+    // Optimal: ideal hand-written code (the target JIT should match)
     const changeDet = new BenchSuite('@deepkit/type: Change Detection (4 props)', 1, true);
-    changeDet.add('baseline', () => changeDetectorBaseline(snapshotOld, snapshotNew));
+    changeDet.add('generic-baseline', () => changeDetectorGenericBaseline(snapshotOld, snapshotNew));
+    changeDet.add('optimal-baseline', () => changeDetectorOptimalBaseline(snapshotOld, snapshotNew));
     changeDet.add('jit.fnJIT', () => changeDetectorJIT(snapshotOld, snapshotNew));
     changeDet.add('jit.fnExec', () => changeDetectorExec(snapshotOld, snapshotNew));
     await changeDet.runAsync();
