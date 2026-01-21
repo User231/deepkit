@@ -183,7 +183,10 @@ See `docs/team/README.md` for the full team intro and pipeline diagram.
 
 ## JIT/CSP Migration Project
 
-**Goal:** Migrate all packages using `CompilerContext` to the new `jit` API (`@deepkit/core/jit`) to support CSP-restricted environments (Cloudflare Workers, strict browser CSP).
+**Goals:**
+1. **CSP compatibility** - Support CSP-restricted environments (Cloudflare Workers, strict browser CSP) via Exec mode
+2. **Faster bootstrap** - Lazy JIT generation: start with Exec mode, only compile to JIT after N calls (e.g., 10+), similar to V8's tiered compilation
+3. **Unified API** - Single codebase for both modes, automatic runtime detection
 
 **Documentation:** `docs/jit-csp-refactor.md`
 
