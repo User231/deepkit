@@ -177,7 +177,65 @@ See `docs/team/README.md` for the full team intro and pipeline diagram.
 
 | Issue | Title | Folder | Status |
 |-------|-------|--------|--------|
-| - | - | - | - |
+| JIT-CSP | JIT/CSP Migration - Migrate packages to new jit API | docs/todo/jit-csp/ | **Phase 0: Benchmarks** |
+
+---
+
+## JIT/CSP Migration Project
+
+**Goal:** Migrate all packages using `CompilerContext` to the new `jit` API (`@deepkit/core/jit`) to support CSP-restricted environments (Cloudflare Workers, strict browser CSP).
+
+**Documentation:** `docs/jit-csp-refactor.md`
+
+### Phase 0: Baseline Benchmarks (CURRENT - TOP PRIORITY)
+
+Before migrating any package, we need baseline benchmarks to ensure no regressions.
+
+**Tasks:**
+1. [ ] Create comprehensive benchmarks for each package's JIT-compiled code
+2. [ ] Set up automated benchmark storage (CI or local baseline files)
+3. [ ] Document current performance numbers as migration baseline
+
+**Packages using CompilerContext** (in migration order):
+
+| Priority | Package | Files | Complexity | Benchmark Status |
+|----------|---------|-------|------------|------------------|
+| 1 | @deepkit/type | serializer.ts, snapshot.ts, path.ts, change-detector.ts | High (core serialization) | ❌ Not done |
+| 2 | @deepkit/bson | bson-serializer.ts, bson-deserializer.ts | High (binary perf critical) | ❌ Not done |
+| 3 | @deepkit/injector | injector.ts | Medium (DI factories) | ❌ Not done |
+| 4 | @deepkit/http | router.ts, request-parser.ts | Medium (request handling) | ❌ Not done |
+| 5 | @deepkit/workflow | workflow.ts | Low (state machines) | ❌ Not done |
+
+### Phase 1: Migrate @deepkit/type (NEXT)
+
+After benchmarks are in place:
+- [ ] Migrate serializer.ts to `jit` API
+- [ ] Migrate change-detector.ts to `jit` API
+- [ ] Migrate snapshot.ts to `jit` API
+- [ ] Migrate path.ts to `jit` API
+- [ ] Verify benchmarks match or beat baseline
+- [ ] Run full test suite
+
+### Phase 2: Migrate @deepkit/bson
+
+- [ ] Migrate bson-serializer.ts to `jit` API
+- [ ] Migrate bson-deserializer.ts to `jit` API
+- [ ] Verify benchmarks match or beat baseline
+
+### Phase 3: Migrate remaining packages
+
+- [ ] @deepkit/injector - injector.ts
+- [ ] @deepkit/http - router.ts, request-parser.ts
+- [ ] @deepkit/workflow - workflow.ts
+
+### Phase 4: Testing & Documentation
+
+- [ ] Cross-runtime testing (Node, Deno, Bun, Cloudflare Workers)
+- [ ] Performance regression CI
+- [ ] Migration guide
+- [ ] API documentation
+
+---
 
 ## Backlog
 
