@@ -13,7 +13,7 @@ import * as path from 'path';
 import type { BenchSuiteResult } from '@deepkit/bench';
 import { formatHz } from '@deepkit/bench';
 
-import { BenchmarkReport, getLatestReport, listReports, readReport } from './json';
+import { BenchmarkReport, JsonReporter, getLatestReport, listReports, readReport } from './json';
 
 // ANSI color codes
 const Reset = '\x1b[0m';
@@ -364,7 +364,6 @@ export function saveBaseline(
     baselineDir: string,
     filename?: string,
 ): string {
-    const { JsonReporter } = require('./json');
     const reporter = new JsonReporter();
 
     for (const [name, result] of Object.entries(results)) {

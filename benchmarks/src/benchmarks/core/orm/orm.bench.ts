@@ -9,27 +9,17 @@
  */
 import { BenchSuite } from '@deepkit/bench';
 import { Database } from '@deepkit/orm';
-import { getClassState, getInstanceState } from '@deepkit/orm';
 import { SQLiteDatabaseAdapter } from '@deepkit/sqlite';
-import {
-    AutoIncrement,
-    PrimaryKey,
-    Reference,
-    ReflectionClass,
-    cast,
-    deserialize,
-    entity,
-    serialize,
-} from '@deepkit/type';
+import { AutoIncrement, PrimaryKey, Reference, cast, deserialize, entity, serialize } from '@deepkit/type';
 
 /**
- * ORM benchmark - tests Deepkit ORM performance
+ * ORM benchmark - tests Deepkit ORM public API performance
  *
- * This benchmark tests:
+ * This benchmark tests real-world ORM operations:
  * - Entity hydration (creating instances from raw data)
- * - Query building
- * - Unit of work operations (add, commit)
- * - Change detection
+ * - Query building and execution
+ * - Unit of work operations (session, add, commit)
+ * - Persistence operations (insert, patch)
  */
 
 // Simple entity for basic benchmarks
@@ -117,10 +107,6 @@ export default async function () {
     }
     await session.commit();
 
-    // Cache reflection class for benchmarks
-    const userReflection = ReflectionClass.from(User);
-    const classState = getClassState(userReflection);
-
     // ═══════════════════════════════════════════════════════════════════════════
     // ENTITY HYDRATION BENCHMARKS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -205,43 +191,6 @@ export default async function () {
         for (let i = 0; i < 10; i++) {
             s.add(new User(`test_${i}`, `test${i}@test.com`, 25));
         }
-    });
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // CHANGE DETECTION BENCHMARKS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // Benchmark: Get instance state
-    const stateTestUser = cast<User>(rawUserData);
-    suite.add('get instance state', () => {
-        getInstanceState(classState, stateTestUser);
-    });
-
-    // Benchmark: Create snapshot
-    suite.add('create snapshot', () => {
-        classState.snapshot(stateTestUser);
-    });
-
-    // Benchmark: Primary key extraction
-    suite.add('extract primary key', () => {
-        classState.primaryKeyExtractor(stateTestUser);
-    });
-
-    // Benchmark: Primary key hash generation
-    suite.add('generate pk hash', () => {
-        classState.primaryKeyHashGenerator(stateTestUser);
-    });
-
-    // Benchmark: Change detection
-    const snapshot1 = classState.snapshot(stateTestUser);
-    const modifiedUser = cast<User>({ ...rawUserData, username: 'modified' });
-    const snapshot2 = classState.snapshot(modifiedUser);
-    suite.add('change detection (no changes)', () => {
-        classState.changeDetector(snapshot1, snapshot1, stateTestUser);
-    });
-
-    suite.add('change detection (with changes)', () => {
-        classState.changeDetector(snapshot1, snapshot2, modifiedUser);
     });
 
     // ═══════════════════════════════════════════════════════════════════════════

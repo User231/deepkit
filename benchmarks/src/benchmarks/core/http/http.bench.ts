@@ -356,12 +356,9 @@ export default async function () {
         httpMiddleware.for((req, res, next) => next());
     });
 
-    // Benchmark: Middleware config with options
-    suite.add('middleware config - with options', () => {
-        httpMiddleware
-            .for((req, res, next) => next())
-            .forRoutes({ path: '/api/*' })
-            .timeout(5000);
+    // Benchmark: Middleware config with route filter
+    suite.add('middleware config - with route filter', () => {
+        httpMiddleware.for((req, res, next) => next()).forRoutes({ path: '/api/*' });
     });
 
     // ============================================================================

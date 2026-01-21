@@ -25,6 +25,7 @@
     "@deepkit/injector": "file:../packages/injector",
     "@deepkit/logger": "file:../packages/logger",
     "@deepkit/orm": "file:../packages/orm",
+    "@deepkit/rpc": "file:../packages/rpc",
     "@deepkit/run": "file:../packages/run",
     "@deepkit/sql": "file:../packages/sql",
     "@deepkit/sqlite": "file:../packages/sqlite",
