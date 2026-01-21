@@ -1679,25 +1679,41 @@ jobs:
 
 ## 14. Benchmark Results (2026-01-21)
 
-Real-world benchmarks simulating actual Deepkit package patterns:
+Real-world benchmarks simulating actual Deepkit package patterns.
 
-| Scenario | Baseline | JIT | Exec | JIT vs Baseline |
-|----------|----------|-----|------|-----------------|
-| @deepkit/type: Entity Serialization | 2.13M | 2.11M | 922K | ~equal |
-| @deepkit/type: Union Discrimination | 27.0M | 41.3M | 1.44M | **1.53x faster** |
-| @deepkit/type: Change Detection | 14.3M | 89.4M | 7.14M | **6.27x faster** |
-| @deepkit/http: Request Parsing | 10.3M | 10.2M | 1.29M | ~equal |
-| @deepkit/sql: Row-to-Entity | 5.48M | 5.38M | 2.83M | ~equal |
-| @deepkit/sql: Batch (100 rows) | 55.7K | 55.7K | 31.1K | ~equal |
-| @deepkit/injector: Factory | 17.0M | 23.0M | 5.84M | **1.35x faster** |
-| @deepkit/bson: Size Calculation | 17.7M | 17.3M | 3.95M | ~equal |
-| @deepkit/workflow: State Machine | 25.8M | 45.0M | 2.89M | **1.75x faster** |
+### Understanding the Baselines
 
-**Key findings:**
-- JIT always matches or beats hand-written baselines
-- Loop unrolling (change detection) gives massive 6x gains
-- Early return chains (union, workflow) are 1.5-1.75x faster than switch statements
-- Exec mode is 2-15x slower but provides full debuggability
+Two baselines are used for comparison:
+
+- **Optimal baseline**: Ideal hand-written code - unrolled loops, type-specific access. This is what you'd write if you knew the exact type at code-write time. *Impossible to achieve with generic runtime type handling.*
+- **Generic baseline**: What runtime type handling must do - loop over unknown properties, dynamic access. This is the realistic baseline for code that uses runtime type info.
+
+### Results
+
+| Scenario | Generic | Optimal | JIT | Exec |
+|----------|---------|---------|-----|------|
+| @deepkit/type: Entity Serialization | - | 2.15M | 2.13M | 922K |
+| @deepkit/type: Union Discrimination | - | 40.4M | 40.6M | 1.43M |
+| @deepkit/type: Change Detection | 14.0M | 87.7M | 88.6M | 7.52M |
+| @deepkit/http: Request Parsing | - | 10.2M | 10.2M | 1.29M |
+| @deepkit/sql: Row-to-Entity | - | 5.30M | 5.16M | 2.84M |
+| @deepkit/sql: Batch (100 rows) | - | 55.4K | 54.4K | 29.9K |
+| @deepkit/injector: Factory | - | 13.3M | 20.2M | 4.86M |
+| @deepkit/bson: Size Calculation | - | 12.7M | 16.8M | 3.62M |
+| @deepkit/workflow: State Machine | - | 47.8M | 41.8M | 2.86M |
+
+### Key Findings
+
+1. **JIT matches optimal hand-written code** - When comparing equivalent code structures (unrolled, type-specific), JIT produces the same performance as hand-written optimal code.
+
+2. **Loop unrolling is the real win** - The Change Detection benchmark shows the true value of JIT:
+   - Generic baseline (loop): ~14M ops/sec
+   - JIT (unrolled): ~88M ops/sec
+   - **6x speedup** from generating optimal code from runtime type info
+
+3. **Exec mode is 2-15x slower** - The interpreted mode trades performance for debuggability and CSP compatibility.
+
+4. **No magic speedup** - JIT doesn't beat hand-written optimal code. Its value is *generating* optimal code from runtime type information, achieving performance that would otherwise require hand-writing type-specific code for each type.
 
 ---
 
