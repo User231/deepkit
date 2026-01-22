@@ -44,10 +44,13 @@ import {
     getDeepConstructorProperties,
     groupAnnotation,
     hasDefaultValue,
+    isMongoIdType,
+    isNanoIdType,
     isNullable,
     isOptional,
     isPropertyMemberType,
     isReferenceType,
+    isUUIDType,
     memberNameToString,
     referenceAnnotation,
     resolveTypeMembers,
@@ -141,30 +144,39 @@ const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
         const inputKey = isDeserialize ? serializedName : propName;
         const outputKey = isDeserialize ? propName : serializedName;
         const propInput = input.get(inputKey);
-        ctx.when(ctx.has(input, inputKey), () => {
-            ctx.when(
-                ctx.not(ctx.isNullish(propInput)),
-                () => {
-                    ctx.set(result, outputKey, state.build(propType, propInput));
-                },
-                () => {
-                    // Handle null/undefined values based on direction
-                    if (isDeserialize) {
-                        // Deserialize: null → undefined for optional, null for nullable
-                        if (isNullable(memberType)) {
-                            ctx.set(result, outputKey, ctx.lit(null));
-                        } else if (isOptional(memberType)) {
-                            ctx.set(result, outputKey, ctx.lit(undefined));
+        ctx.when(
+            ctx.has(input, inputKey),
+            () => {
+                ctx.when(
+                    ctx.not(ctx.isNullish(propInput)),
+                    () => {
+                        ctx.set(result, outputKey, state.build(propType, propInput));
+                    },
+                    () => {
+                        // Handle null/undefined values based on direction
+                        if (isDeserialize) {
+                            // Deserialize: null → undefined for optional, null for nullable
+                            if (isNullable(memberType)) {
+                                ctx.set(result, outputKey, ctx.lit(null));
+                            } else if (isOptional(memberType)) {
+                                ctx.set(result, outputKey, ctx.lit(undefined));
+                            }
+                        } else {
+                            // Serialize: undefined → null for optional/nullable
+                            if (isNullable(memberType) || isOptional(memberType)) {
+                                ctx.set(result, outputKey, ctx.lit(null));
+                            }
                         }
-                    } else {
-                        // Serialize: undefined → null for optional/nullable
-                        if (isNullable(memberType) || isOptional(memberType)) {
-                            ctx.set(result, outputKey, ctx.lit(null));
-                        }
-                    }
-                },
-            );
-        });
+                    },
+                );
+            },
+            () => {
+                // Handle missing properties - set nullable to null
+                if (isNullable(memberType)) {
+                    ctx.set(result, outputKey, ctx.lit(null));
+                }
+            },
+        );
     }
 
     // Handle index signature (e.g., Record<string, T> or { [key: string]: T })
@@ -232,6 +244,62 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     // Track which properties are handled by constructor
     const constructorPropNames = new Set<string>();
 
+    // Collect explicit property names and detect index signature
+    const explicitProps = new Set<string>();
+    let indexSignature: TypeIndexSignature | undefined;
+
+    for (const member of members) {
+        if (member.kind === ReflectionKind.indexSignature) {
+            indexSignature = member;
+            continue;
+        }
+        if (isPropertyMemberType(member)) {
+            const propName = memberNameToString((member as TypeProperty | TypePropertySignature).name);
+            explicitProps.add(propName);
+        }
+    }
+
+    // Helper function to process index signature properties on a result object
+    const processIndexSignatureOnResult = (result: Slot<any>): void => {
+        if (!indexSignature) return;
+
+        const valueType = indexSignature.type;
+        const valueAllowsNull = isNullable(indexSignature) || isOptional(indexSignature);
+
+        const processIndexSignature = (
+            inputObj: any,
+            resultObj: any,
+            explicitKeys: Set<string>,
+            valueTypeArg: Type,
+            stateArg: BuildStateBase,
+            valueAllowsNullArg: boolean,
+        ): void => {
+            for (const key of Object.keys(inputObj)) {
+                if (explicitKeys.has(key)) continue;
+                const value = inputObj[key];
+                if (value === undefined) {
+                    if (valueAllowsNullArg) {
+                        resultObj[key] = null;
+                    }
+                } else if (value !== null || valueAllowsNullArg) {
+                    const serializer = (stateArg as any).serializer;
+                    const fn = serializer.buildDeserializer(valueTypeArg);
+                    resultObj[key] = fn(value, {});
+                }
+            }
+        };
+
+        ctx.callExpr(
+            processIndexSignature,
+            input,
+            result,
+            ctx.lit(explicitProps),
+            ctx.lit(valueType),
+            ctx.lit(state),
+            ctx.lit(valueAllowsNull),
+        );
+    };
+
     // Check if constructor should be disabled
     if (clazz.disableConstructor) {
         // Use Object.create() to bypass constructor
@@ -279,6 +347,9 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
                 );
             });
         }
+
+        // Process index signature properties
+        processIndexSignatureOnResult(result);
 
         return result;
     }
@@ -368,6 +439,9 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             });
         }
 
+        // Process index signature properties
+        processIndexSignatureOnResult(result);
+
         return result;
     }
 
@@ -402,6 +476,9 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             );
         });
     }
+
+    // Process index signature properties
+    processIndexSignatureOnResult(result);
 
     return result;
 };
@@ -469,16 +546,24 @@ const serializeArrayBuffer: TypeHandler = (type, input, ctx, state) => {
 const deserializeTypedArray: TypeHandler = (type, input, ctx, state) => {
     const classType = (type as TypeClass).classType;
     // If already the correct type, return as-is; otherwise convert from Base64
-    return ctx.ternary(
+    const result = ctx.var_<any>(undefined);
+    ctx.when(
         ctx.isInstance(input, classType),
-        input,
-        ctx.callExpr(base64ToTypedArray, input, ctx.lit(classType)),
+        () => ctx.setVar(result, input),
+        () => ctx.setVar(result, ctx.callExpr(base64ToTypedArray, input, ctx.lit(classType))),
     );
+    return ctx.getVar(result);
 };
 
 const deserializeArrayBuffer: TypeHandler = (type, input, ctx, state) => {
     // If already ArrayBuffer, return as-is; otherwise convert from Base64
-    return ctx.ternary(ctx.isInstance(input, ArrayBuffer), input, ctx.callExpr(base64ToArrayBuffer, input));
+    const result = ctx.var_<any>(undefined);
+    ctx.when(
+        ctx.isInstance(input, ArrayBuffer),
+        () => ctx.setVar(result, input),
+        () => ctx.setVar(result, ctx.callExpr(base64ToArrayBuffer, input)),
+    );
+    return ctx.getVar(result);
 };
 
 // Type Guards for binary types
@@ -1429,6 +1514,94 @@ const guardReference: TypeHandler = (type, input, ctx, state) => {
     return ctx.getVar(score);
 };
 
+/**
+ * Type guard for NanoId.
+ * NanoId must be exactly 21 characters using URL-safe alphabet.
+ */
+const guardNanoId: TypeHandler = (type, input, ctx, state) => {
+    const isString = ctx.isType(input, 'string');
+    const hasCorrectLength = ctx.eq(input.get('length'), ctx.lit(21));
+    const isValid = ctx.and(isString, hasCorrectLength);
+
+    return guardWithError(ctx, state, input, isValid, 'type', 'Not a valid NanoId');
+};
+
+/**
+ * Type guard for UUID.
+ * UUID must match the standard UUID format (8-4-4-4-12 hex chars).
+ */
+const guardUUID: TypeHandler = (type, input, ctx, state) => {
+    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const isString = ctx.isType(input, 'string');
+    const matchesPattern = ctx.callExpr(
+        (pattern: RegExp, value: string) => pattern.test(value),
+        ctx.lit(uuidPattern),
+        input,
+    );
+    const isValid = ctx.and(isString, matchesPattern);
+
+    return guardWithError(ctx, state, input, isValid, 'type', 'Not a valid UUID');
+};
+
+/**
+ * Type guard for MongoId (ObjectId).
+ * MongoId must be exactly 24 hex characters or empty string.
+ */
+const guardMongoId: TypeHandler = (type, input, ctx, state) => {
+    const mongoIdPattern = /^[0-9a-fA-F]{24}$/;
+    const isString = ctx.isType(input, 'string');
+    const isEmpty = ctx.eq(input, ctx.lit(''));
+    const matchesPattern = ctx.callExpr(
+        (pattern: RegExp, value: string) => pattern.test(value),
+        ctx.lit(mongoIdPattern),
+        input,
+    );
+    const isValid = ctx.and(isString, ctx.or(isEmpty, matchesPattern));
+
+    return guardWithError(ctx, state, input, isValid, 'type', 'Not a MongoId (ObjectId)');
+};
+
+/**
+ * Deserialize decorator for NanoId.
+ * Throws SerializationError if input is not a valid NanoId.
+ */
+const deserializeNanoId: TypeHandler = (type, input, ctx, state) => {
+    // Throw if string doesn't have correct length
+    ctx.when(ctx.neq(input.get('length'), ctx.lit(21)), () => {
+        state.throw_(type, input, 'Not a valid NanoId');
+    });
+    return input;
+};
+
+/**
+ * Deserialize decorator for UUID.
+ * Throws SerializationError if input is not a valid UUID.
+ */
+const deserializeUUID: TypeHandler = (type, input, ctx, state) => {
+    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const matchesPattern = ctx.callExpr(
+        (pattern: RegExp, value: string) => pattern.test(value),
+        ctx.lit(uuidPattern),
+        input,
+    );
+    ctx.when(ctx.not(matchesPattern), () => {
+        state.throw_(type, input, 'Not a valid UUID');
+    });
+    return input;
+};
+
+/**
+ * Deserialize decorator for MongoId (ObjectId).
+ * Throws SerializationError if input is not a valid MongoId.
+ */
+const deserializeMongoId: TypeHandler = (type, input, ctx, state) => {
+    const isValidLength = ctx.or(ctx.eq(input.get('length'), ctx.lit(24)), ctx.eq(input.get('length'), ctx.lit(0)));
+    ctx.when(ctx.not(isValidLength), () => {
+        state.throw_(type, input, 'Not a MongoId (ObjectId)');
+    });
+    return input;
+};
+
 // Registration
 export function registerDefaultHandlers(serializer: Serializer): void {
     const serializeRegistry = serializer.serializeRegistry;
@@ -1485,6 +1658,11 @@ export function registerDefaultHandlers(serializer: Serializer): void {
 
     // Reference types - decorator handler for types with Reference annotation
     deserializeRegistry.addDecorator(isReferenceType, deserializeReference);
+
+    // Special string type decorators (NanoId, UUID, MongoId)
+    deserializeRegistry.addDecorator(isNanoIdType, deserializeNanoId);
+    deserializeRegistry.addDecorator(isUUIDType, deserializeUUID);
+    deserializeRegistry.addDecorator(isMongoIdType, deserializeMongoId);
 }
 
 export function registerDefaultTypeGuards(serializer: Serializer): void {
@@ -1516,4 +1694,9 @@ export function registerDefaultTypeGuards(serializer: Serializer): void {
 
     // Reference type guard - decorator handler
     typeGuards.addDecorator(1, isReferenceType, guardReference);
+
+    // Special string type guards (NanoId, UUID, MongoId)
+    typeGuards.addDecorator(1, isNanoIdType, guardNanoId);
+    typeGuards.addDecorator(1, isUUIDType, guardUUID);
+    typeGuards.addDecorator(1, isMongoIdType, guardMongoId);
 }

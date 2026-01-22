@@ -48,10 +48,10 @@ export type Guard<T> = (data: any, state?: { errors?: ValidationErrorItem[] }) =
  */
 export class Serializer {
     /** Registry for serialization handlers */
-    readonly serializeRegistry = new HandlerRegistry();
+    readonly serializeRegistry = new HandlerRegistry('serialize');
 
     /** Registry for deserialization handlers */
-    readonly deserializeRegistry = new HandlerRegistry();
+    readonly deserializeRegistry = new HandlerRegistry('deserialize');
 
     /** Registry for type guards at different specificality levels */
     readonly typeGuards = new TypeGuardRegistry();
@@ -228,9 +228,8 @@ export function createSerializeFunction(
     namingStrategy: NamingStrategy = new NamingStrategy(),
     path: string = '',
 ): SerializeFunction {
-    // Determine direction from registry
-    // This is a simplified version - full implementation would check registry type
-    const direction = 'serialize' as const;
+    // Get direction from registry
+    const direction = registry.direction;
 
     return jit.fn(
         jit.arg<any>(),

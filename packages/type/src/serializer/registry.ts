@@ -84,6 +84,7 @@ export type TypeHook = (type: Type, input: Slot, ctx: Context, state: BuildState
 export class HandlerRegistry {
     private static nextId = 0;
     public readonly id: number;
+    public readonly direction: 'serialize' | 'deserialize';
 
     private kindHandlers = new Map<ReflectionKind, TypeHandler[]>();
     private classHandlers = new Map<ClassType, TypeHandler[]>();
@@ -94,8 +95,9 @@ export class HandlerRegistry {
     private preHooks: TypeHook[] = [];
     private postHooks: TypeHook[] = [];
 
-    constructor() {
+    constructor(direction: 'serialize' | 'deserialize' = 'serialize') {
         this.id = HandlerRegistry.nextId++;
+        this.direction = direction;
     }
 
     /**
