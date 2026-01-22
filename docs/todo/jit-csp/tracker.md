@@ -4,9 +4,12 @@
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| jit.ts primitives | ✅ Done | var_, setVar, getVar, switch_, ternary, isInstance added |
+| jit.ts primitives | ✅ Done | var_, setVar, getVar, switch_, ternary, isInstance, throw_, forIn, cond, concat, typeof_ |
+| Tiered execution | ✅ Done | Exec mode first, JIT after N calls (default 10). Fast bootstrap. |
+| Capability investigation | ✅ Done | All 15 agents completed, design.md updated with 33 capability sections |
+| Recursion handling | ✅ Done | Build-time (typeStack/fnCache) + runtime (_stack) documented |
 | Reset type/src | ⏳ Pending | Need to restore from src-old or git |
-| serializer.ts | ⏳ Pending | Core file, do first |
+| serializer.ts | ⏳ Pending | Core file, do first. Now with complete feature awareness |
 | change-detector.ts | ⏳ Pending | Uses var_/setVar for state |
 | snapshot.ts | ⏳ Pending | Similar to serializer |
 | path.ts | ⏳ Pending | Simplest, good for validation |
@@ -82,3 +85,260 @@ These files don't use JIT compilation - just copy them:
 - All 181 jit.spec.ts tests passing
 - Consolidated docs into plan.md + tracker.md
 - Next: Reset type/src, start rewrite
+
+### 2026-01-22
+
+**Comprehensive Capability Investigation Complete**
+
+Spawned 7 investigation agents to analyze all current capabilities:
+
+1. **Type Handlers (a5fd7a8)** ✅
+   - Documented all ReflectionKind handlers
+   - Class-specific handlers (Date, Set, Map, Binary types)
+   - Decorator annotations (Reference, Embedded, Group, etc.)
+
+2. **Specificality System (aa46ff6)** ✅
+   - 10+ specificality levels from -0.9 to 50
+   - Context-specific ranges (HTTP, CLI, JSON, SQL/BSON, Validation)
+   - Priority ordering for union resolution
+
+3. **Public API Surface (a2f3136)** ✅
+   - All exported functions, classes, types
+   - Usage patterns by external packages
+   - ReflectionClass, ReflectionProperty APIs
+
+4. **Downstream Dependencies (a96dbc2)** ✅
+   - BSON: TemplateState, TemplateRegistry, sizer/serialize/deserialize registries
+   - SQL: Serializer base class, serializeObjectLiteral, handleUnion
+   - Mongo: BSONBinarySerializer extension, EmptySerializer
+
+5. **Specialized Features (a36193d)** ✅
+   - Reference handling (FK, Inline, hydration)
+   - Embedded types (flattening, prefixes)
+   - Groups, Exclusions, Naming strategies
+   - Mapped types handled by processor (no serializer work needed)
+
+6. **Validation System (a64a853)** ✅
+   - 21 built-in validators documented
+   - Custom validator API (Validate<typeof fn>)
+   - Class-level validators (@t.validator)
+   - Validation API: is(), validate(), validates(), assert(), guard()
+
+7. **Test Cases (aa1701a)** ✅
+   - All 3200+ test cases analyzed
+   - Expected behaviors documented for every type
+   - Edge cases: large unions, circular references, discriminators
+
+**Updated design.md with:**
+- Comprehensive Capability Inventory (20 sections)
+- Type handlers table (all ReflectionKind)
+- Special class handlers (Date, Set, Map, Binary)
+- Reference handling (FK, Inline, hydration)
+- Embedded types (flattening rules)
+- Validation system (21 validators + custom)
+- Downstream dependency impacts
+- Features At Risk Summary with risk levels
+
+**HIGH Risk Features:**
+- Reference hydration tracking (complex lazy-loading)
+- Embedded flattening (property name computation)
+- Union validation fallthrough (scoring + error tracking)
+- Specificality system (10+ levels)
+
+**MEDIUM Risk Features:**
+- Class-level validators
+- Serialization groups
+- Naming strategies
+- Integer clamping
+- Template literal validation
+- Change detection
+- Snapshot creation
+
+**Next Steps:**
+- Reset type/src directory
+- Begin serializer.ts rewrite with complete feature awareness
+
+---
+
+**Investigation Round 2 - Additional Features Discovered**
+
+Spawned 13 more investigation agents (8 + 5) to ensure complete coverage:
+
+**Round 2a (8 agents):**
+
+1. **Error Handling Patterns (ab8a32a)** ✅
+   - SerializationError (DK-T200), ValidationError (DK-T300)
+   - Path tracking with RuntimeCode for dynamic segments
+   - Soft vs hard error modes
+   - Error accumulation for validation
+
+2. **Generic Type Handling (ad24258)** ✅
+   - Type parameter resolution via program.frame.inputs
+   - ReceiveType<T> pattern
+   - Generic caching behavior (NOT cached on packed.__type)
+   - Nested generics (Set<T>, Map<K,V>)
+
+3. **Binary/Buffer Handling (af477ed)** ✅
+   - 10 TypedArray types + ArrayBuffer
+   - Base64 encoding/decoding utilities
+   - BinaryBigInt, SignedBinaryBigInt
+   - Memory management considerations
+
+4. **Union/Intersection Edge Cases (a3b3460)** ✅
+   - Score-based discriminator detection (not explicit)
+   - UNION_LITERAL_THRESHOLD = 50 for Set optimization
+   - Nested union flattening
+   - Intersection property merging
+
+5. **Circular Reference Handling (a07e2f2)** ✅
+   - JitStack for JIT compilation tracking
+   - Runtime state._stack for data serialization
+   - findExistingProgram() with 1000-check safety limit
+   - createRef() for placeholder resolution
+
+6. **Serialization Context/State (aa31137)** ✅
+   - TemplateState: 15+ properties documented
+   - fork() method: shared vs cloned state
+   - TemplateRegistry caching strategy
+   - NamingStrategy ID in cache keys
+
+7. **Tuple Types (a23aaf1)** ✅
+   - Fixed, optional, rest, named variants
+   - Rest at start/middle/end handling
+   - Named tuples in error paths
+   - serializeTuple() and typeGuardTuple()
+
+8. **Index Signatures/Mapped Types (a48530b)** ✅
+   - String, number, symbol, template literal index types
+   - MappedModifier enum for Partial/Required/Readonly
+   - Record, Pick, Omit standard library handling
+   - Index signature sorting priority
+
+**Round 2b (5 agents):**
+
+9. **Decorator-Based Features (ae8f653)** ✅
+   - @entity options (name, collection, disableConstructor, etc.)
+   - @t methods (type, validator, serialize, deserialize)
+   - All type annotation decorators documented
+   - disableConstructor behavior (Object.create vs new)
+
+10. **ReflectionClass API (a74ec7f)** ✅
+    - 30+ methods documented
+    - ReflectionProperty: 40+ methods
+    - Caching levels (prototype, JitContainer)
+    - Downstream package usage patterns
+
+11. **Conditional Types/Infer (a39d060)** ✅
+    - ReflectionOp: extends, condition, jumpCondition, distribute, infer, widen
+    - Distributive vs non-distributive behavior
+    - TypeInfer.set() callback mechanism
+    - Tuple/template literal infer patterns
+
+12. **Complete Annotation Inventory (aa509c8)** ✅
+    - 40+ annotations categorized
+    - Database/ORM, serialization control, validation
+    - Integer types, BigInt variants
+    - AnnotationDefinition infrastructure
+
+13. **JIT Caching Strategies (aa3f4d6)** ✅
+    - 4 cache locations documented
+    - Cache key patterns (registry.id + namingStrategy.id + path)
+    - When caching is disabled (generics, inline, non-reuseCached)
+    - V8 toFastProperties() optimization
+
+**Updated design.md with:**
+- 13 new capability sections (21-33)
+- Updated Features At Risk Summary (25 items)
+- Complete annotation inventory
+- ReflectionClass API surface
+- JIT caching architecture
+
+---
+
+**Investigation Round 3 - Edge Cases & Performance**
+
+Spawned 4 targeted agents for final coverage:
+
+14. **Edge Cases in Type Handling (ac9e806)** ✅
+    - Promise<T> unwraps transparently (just serializes T)
+    - Static/abstract members explicitly SKIPPED
+    - Private/protected serialized same as public
+    - ES private fields (#) NOT handled
+    - Functions NOT serialized
+    - Getters/setters - no special handling
+    - WeakMap/WeakSet/WeakRef NOT supported
+    - Proxy objects NOT handled
+
+15. **Cross-Package Type Interactions (a1e624a)** ✅
+    - **CRITICAL**: BSON/SQL/Mongo directly instantiate TemplateState
+    - **CRITICAL**: BSON/SQL/Mongo use TemplateRegistry, Serializer base class
+    - Injector uses ReflectionClass, typeAnnotation
+    - HTTP uses serializer.deserializeRegistry, getValidatorFunction
+    - RPC uses parametersToTuple, serializeType
+    - App uses typeAnnotation.getOption for CLI
+
+16. **Template Literal Handling (aae31fb)** ✅
+    - CartesianProduct class for union expansion
+    - extendTemplateLiteral() matching algorithm
+    - UNION_LITERAL_THRESHOLD = 50 for Set optimization
+    - 86,400 member unions work (time strings)
+    - Template literals as index signatures
+
+17. **Performance-Critical Paths (a327068)** ✅
+    - toFastProperties() for V8 hidden class optimization
+    - Monomorphic variables: _context.varName pattern
+    - JIT function caching on type.jit[id]
+    - Loop unrolling for known properties
+    - Direct property access generation
+    - Buffer pre-sizing for BSON
+
+---
+
+**Pattern Mapping Document Created**
+
+Created `/docs/todo/jit-csp/pattern-mapping.md` with:
+- 16 pattern categories: OLD CompilerContext → NEW jit.fn()
+- Code examples for each pattern
+- New jit.ts primitives needed (new_, let_, object, array, has, map, forEach)
+- Performance anti-patterns to avoid
+- Testing guidance for conversions
+
+**Final Status:**
+- 33 capability sections documented in design.md
+- 29 features in risk summary
+- Pattern mapping complete for implementation
+- Ready for serializer.ts rewrite
+
+---
+
+**Recursion Handling Documentation**
+
+Added comprehensive "Recursion Handling (CRITICAL)" section to design.md:
+
+**Two Types of Recursion:**
+
+1. **Build-time** (type graph traversal):
+   - Problem: `User { manager?: User }` creates infinite loop during build
+   - Solution: `typeStack: Set<Type>` + `fnCache: Map<Type, Slot<Function>>`
+   - O(1) cycle detection via Set.has() vs old O(n) array.includes()
+
+2. **Runtime** (circular data):
+   - Problem: `user.friend = user` creates infinite loop during serialization
+   - Solution: `state._stack` array tracking visited objects
+   - Same pattern as before, cleaner implementation via Slots
+
+**The `build()` Decision Tree:**
+1. `typeStack.has(type)`? → Extract (circular in current path)
+2. `fnCache.has(type)`? → Reuse (already built)
+3. `depth >= maxDepth`? → Extract (size control)
+4. Default → Inline
+
+**Key Simplification:**
+- Old: `JitStack` with `prepare()` returning setter callback
+- New: `ctx.var_()` placeholder + `ctx.setVar()` after building
+- jit.fn() closures naturally capture extracted functions
+
+**Updated Files:**
+- `design.md`: New "Recursion Handling (CRITICAL)" section after Architecture
+- `design.md`: Updated BuildState interface with `fnCache`, `hasCircularReference()`
+- `pattern-mapping.md`: Expanded section 14 with both recursion types

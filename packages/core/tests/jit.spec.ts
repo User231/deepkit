@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { Context, ExecContext, ExecSlot, JITContext, Slot, canJIT, getRuntimeCapabilities, jit } from '../src/jit.js';
+import { Context, ExecContext, ExecSlot, JITContext, Slot, canJIT, getJitThreshold, getRuntimeCapabilities, jit, setJitThreshold } from '../src/jit.js';
 
 describe('jit', () => {
     describe('runtime detection', () => {
@@ -1263,6 +1263,183 @@ describe('jit', () => {
                 // Should return inline object literal - no intermediate variable
                 expect(code).toBe('return {id:s0.id,name:s0.name};\n');
             });
+        });
+    });
+
+    describe('tiered execution', () => {
+        const originalThreshold = getJitThreshold();
+
+        afterEach(() => {
+            // Restore original threshold after each test
+            setJitThreshold(originalThreshold);
+        });
+
+        test('getJitThreshold returns default value', () => {
+            expect(getJitThreshold()).toBe(10);
+        });
+
+        test('setJitThreshold changes threshold', () => {
+            setJitThreshold(5);
+            expect(getJitThreshold()).toBe(5);
+        });
+
+        test('threshold 0 immediately JIT compiles', () => {
+            setJitThreshold(0);
+            let callCount = 0;
+            const fn = jit.fn(jit.arg<number>(), (ctx, n) => {
+                callCount++;
+                return n;
+            });
+
+            // Body should only be called once (during JIT compilation)
+            expect(callCount).toBe(1);
+
+            // Calling the function doesn't re-run the body
+            fn(1);
+            fn(2);
+            fn(3);
+            expect(callCount).toBe(1);
+        });
+
+        test('tiered execution starts with Exec mode', () => {
+            setJitThreshold(5);
+            let bodyCallCount = 0;
+            const fn = jit.fn(jit.arg<number>(), (ctx, n) => {
+                bodyCallCount++;
+                return ctx.lit(42);
+            });
+
+            // Body not called during creation (deferred)
+            expect(bodyCallCount).toBe(0);
+
+            // First call runs body in Exec mode
+            expect(fn(1)).toBe(42);
+            expect(bodyCallCount).toBe(1);
+
+            // Each call before threshold runs body again (Exec mode)
+            fn(2);
+            expect(bodyCallCount).toBe(2);
+            fn(3);
+            expect(bodyCallCount).toBe(3);
+            fn(4);
+            expect(bodyCallCount).toBe(4);
+        });
+
+        test('switches to JIT after threshold', () => {
+            setJitThreshold(3);
+            let bodyCallCount = 0;
+            const fn = jit.fn(jit.arg<number>(), (ctx, n) => {
+                bodyCallCount++;
+                return n;
+            });
+
+            // Calls 1 and 2: Exec mode (body runs each time)
+            fn(1);
+            fn(2);
+            expect(bodyCallCount).toBe(2);
+
+            // Call 3: Threshold reached, JIT compiles (body runs once more)
+            fn(3);
+            expect(bodyCallCount).toBe(3);
+
+            // Calls 4+: JIT mode (body never runs again)
+            fn(4);
+            fn(5);
+            fn(6);
+            expect(bodyCallCount).toBe(3);
+        });
+
+        test('JIT compiled function produces correct results', () => {
+            setJitThreshold(2);
+            const fn = jit.fn(jit.arg<number>(), (ctx, n) => {
+                // Double the input
+                const result = ctx.let(ctx.objExpr<{ doubled: number }>());
+                ctx.set(
+                    result,
+                    'doubled',
+                    ctx.callExpr((x: number) => x * 2, n),
+                );
+                return result;
+            });
+
+            // Exec mode calls
+            expect(fn(5)).toEqual({ doubled: 10 });
+
+            // Triggers JIT compilation
+            expect(fn(7)).toEqual({ doubled: 14 });
+
+            // JIT mode calls
+            expect(fn(10)).toEqual({ doubled: 20 });
+            expect(fn(100)).toEqual({ doubled: 200 });
+        });
+
+        test('each jit.fn() has independent call counter', () => {
+            setJitThreshold(3);
+            let fn1BodyCalls = 0;
+            let fn2BodyCalls = 0;
+
+            const fn1 = jit.fn(jit.arg<number>(), (ctx, n) => {
+                fn1BodyCalls++;
+                return n;
+            });
+
+            const fn2 = jit.fn(jit.arg<number>(), (ctx, n) => {
+                fn2BodyCalls++;
+                return n;
+            });
+
+            // Call fn1 past threshold
+            fn1(1);
+            fn1(2);
+            fn1(3); // JIT compiles
+            fn1(4); // JIT mode
+
+            // fn2 should still be in Exec mode
+            fn2(1);
+            expect(fn1BodyCalls).toBe(3);
+            expect(fn2BodyCalls).toBe(1);
+
+            fn2(2);
+            fn2(3); // JIT compiles
+            fn2(4); // JIT mode
+            expect(fn2BodyCalls).toBe(3);
+        });
+
+        test('fnJIT bypasses tiered execution', () => {
+            setJitThreshold(100); // High threshold
+            let bodyCallCount = 0;
+
+            const fn = jit.fnJIT(jit.arg<number>(), (ctx, n) => {
+                bodyCallCount++;
+                return n;
+            });
+
+            // Body called once during immediate JIT compilation
+            expect(bodyCallCount).toBe(1);
+
+            // Multiple calls don't re-run body
+            fn(1);
+            fn(2);
+            fn(3);
+            expect(bodyCallCount).toBe(1);
+        });
+
+        test('fnExec always uses Exec mode regardless of threshold', () => {
+            setJitThreshold(1); // Low threshold
+            let bodyCallCount = 0;
+
+            const fn = jit.fnExec(jit.arg<number>(), (ctx, n) => {
+                bodyCallCount++;
+                return n;
+            });
+
+            // Body runs on every call (Exec mode)
+            fn(1);
+            fn(2);
+            fn(3);
+            fn(4);
+            fn(5);
+            expect(bodyCallCount).toBe(5);
         });
     });
 });

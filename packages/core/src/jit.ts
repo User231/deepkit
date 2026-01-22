@@ -289,6 +289,32 @@ function detectRuntime(): RuntimeCapabilities['runtime'] {
 export const canJIT = detectNewFunction();
 
 // ============================================================================
+// Tiered Execution Configuration
+// ============================================================================
+
+/**
+ * Default number of calls before upgrading from Exec mode to JIT mode.
+ * Set to 0 to always JIT immediately (old behavior).
+ * Set to Infinity to never JIT (always Exec mode).
+ */
+let jitThreshold = 10;
+
+/**
+ * Set the global JIT threshold.
+ * @param threshold Number of calls before JIT compilation (default: 10)
+ */
+export function setJitThreshold(threshold: number): void {
+    jitThreshold = threshold;
+}
+
+/**
+ * Get the current JIT threshold.
+ */
+export function getJitThreshold(): number {
+    return jitThreshold;
+}
+
+// ============================================================================
 // SlotExpr - JIT Mode Slot Implementation
 // ============================================================================
 
@@ -1114,17 +1140,19 @@ export const jit = {
 
     /**
      * Build a function using the unified context API.
+     *
+     * Uses tiered execution for optimal performance:
+     * - First N calls (default 10): Exec mode (fast startup, no compilation)
+     * - After N calls: JIT compile and use optimized code
+     *
+     * In CSP environments where `new Function` is blocked, always uses Exec mode.
      */
     fn<R>(...args: any[]): (...args: any[]) => R {
         const body = args.pop() as Function;
         const argCount = args.length;
 
-        if (canJIT) {
-            const ctx = new JITContext(argCount);
-            const argSlots = ctx.getArgSlots();
-            const returnSlot = body(ctx, ...argSlots);
-            return ctx.compile(returnSlot);
-        } else {
+        // CSP environment - always Exec mode
+        if (!canJIT) {
             return ((...runtimeArgs: any[]) => {
                 const ctx = new ExecContext();
                 const wrappedArgs = runtimeArgs.map(a => new ExecSlot(a));
@@ -1133,10 +1161,51 @@ export const jit = {
                 return returnValue instanceof ExecSlot ? returnValue.value : returnValue;
             }) as any;
         }
+
+        // Immediate JIT if threshold is 0
+        if (jitThreshold === 0) {
+            const ctx = new JITContext(argCount);
+            const argSlots = ctx.getArgSlots();
+            const returnSlot = body(ctx, ...argSlots);
+            return ctx.compile(returnSlot);
+        }
+
+        // Tiered execution: Exec mode first, JIT after threshold
+        let callCount = 0;
+        let compiledFn: ((...args: any[]) => R) | null = null;
+
+        return ((...runtimeArgs: any[]) => {
+            // Hot path: use compiled function
+            if (compiledFn) {
+                return compiledFn(...runtimeArgs);
+            }
+
+            callCount++;
+
+            // Upgrade to JIT after threshold
+            if (callCount >= jitThreshold) {
+                const ctx = new JITContext(argCount);
+                const argSlots = ctx.getArgSlots();
+                const returnSlot = body(ctx, ...argSlots);
+                const fn = ctx.compile<(...args: any[]) => R>(returnSlot);
+                compiledFn = fn;
+                return fn(...runtimeArgs);
+            }
+
+            // Cold path: Exec mode
+            const ctx = new ExecContext();
+            const wrappedArgs = runtimeArgs.map(a => new ExecSlot(a));
+            const returnValue = body(ctx, ...wrappedArgs);
+            if (ctx.hasEarlyReturn) return ctx.earlyReturnValue;
+            return returnValue instanceof ExecSlot ? returnValue.value : returnValue;
+        }) as any;
     },
 
     /**
-     * Force JIT mode (for testing or when you know it's available).
+     * Force immediate JIT compilation, bypassing tiered execution.
+     *
+     * WARNING: This will throw in CSP environments where `new Function()` is blocked.
+     * Only use for testing JIT code generation. Production code should use `jit.fn()`.
      */
     fnJIT<R>(...args: any[]): (...args: any[]) => R {
         const body = args.pop() as Function;
@@ -1149,7 +1218,10 @@ export const jit = {
     },
 
     /**
-     * Force Exec mode (for testing or debugging).
+     * Force Exec mode, bypassing JIT compilation entirely.
+     *
+     * Use for testing or debugging. In production, prefer `jit.fn()` which
+     * automatically uses tiered execution for optimal performance.
      */
     fnExec<R>(...args: any[]): (...args: any[]) => R {
         const body = args.pop() as Function;
