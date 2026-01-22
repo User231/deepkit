@@ -58,10 +58,52 @@ export type Arg<T> = { __brand: 'arg'; __type?: T };
  * Context interface for building JIT functions.
  */
 export interface Context {
+    // Expressions (no variable creation - pure expressions)
+    /**
+     * Create an empty object expression.
+     * JIT mode: returns SlotExpr("{}") - no variable created
+     * Exec mode: returns ExecSlot({})
+     * Use let(objExpr()) when you need to mutate the object.
+     */
+    objExpr<T extends object = any>(): Slot<T>;
+
+    /**
+     * Create an empty array expression.
+     * JIT mode: returns SlotExpr("[]") - no variable created
+     * Exec mode: returns ExecSlot([])
+     * Use let(arrExpr()) when you need to mutate the array.
+     */
+    arrExpr<T = any>(): Slot<T[]>;
+
+    /**
+     * Call a function (expression - no variable creation).
+     * JIT mode: returns SlotExpr("fn_0(a,b)") - inlined
+     * Exec mode: returns ExecSlot(fn(a,b))
+     * Use let(callExpr(...)) when result is used multiple times.
+     */
+    callExpr<T>(fn: Function, ...args: Slot[]): Slot<T>;
+
+    /**
+     * Construct a new instance (expression - no variable creation).
+     * JIT mode: returns SlotExpr("new Ctor_0(a,b)") - inlined
+     * Exec mode: returns ExecSlot(new ctor(a,b))
+     * Use let(newExpr(...)) when result is used multiple times.
+     */
+    newExpr<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T>;
+
+    // Binding (explicit variable creation)
+    /**
+     * Bind an expression to a variable.
+     * JIT mode: generates `var sN=${expr};` and returns SlotExpr("sN")
+     * Exec mode: returns the slot as-is (value already computed)
+     * Use this when:
+     * - Expression result is used multiple times
+     * - Object/array needs to be mutated via set/push
+     */
+    let<T>(expr: Slot<T>): Slot<T>;
+
     // Create values
-    obj<T extends object = any>(): Slot<T>;
     objFrom<T extends object = any>(entries: Record<string, Slot> | Array<[string | Slot<string>, Slot]>): Slot<T>;
-    arr<T = any>(): Slot<T[]>;
     lit<T>(value: T): Slot<T>;
 
     // Property access (still available, prefer slot.get())
@@ -93,10 +135,6 @@ export interface Context {
     isType(value: Slot, type: string): Slot<boolean>;
     isNull(value: Slot): Slot<boolean>;
     isNullish(value: Slot): Slot<boolean>;
-
-    // Calls
-    call<T>(fn: Function, ...args: Slot[]): Slot<T>;
-    new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T>;
 
     // Control flow
     loop(arr: Slot, fn: (elem: Slot, idx: Slot) => void): void;
@@ -381,13 +419,35 @@ export class JITContext implements Context {
         return new SlotExpr(expr) as Slot<T>;
     }
 
-    // Create
-    obj<T extends object = any>(): Slot<T> {
+    // Expressions (no variable creation)
+    objExpr<T extends object = any>(): Slot<T> {
+        return new SlotExpr('{}') as Slot<T>;
+    }
+
+    arrExpr<T = any>(): Slot<T[]> {
+        return new SlotExpr('[]') as Slot<T[]>;
+    }
+
+    callExpr<T>(fn: Function, ...args: Slot[]): Slot<T> {
+        const fnName = this.addExtern(fn, fn.name || 'fn');
+        const argsCode = args.map(a => this.expr(a)).join(',');
+        return new SlotExpr(`${fnName}(${argsCode})`) as Slot<T>;
+    }
+
+    newExpr<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
+        const ctorName = this.addExtern(ctor, ctor.name || 'Ctor');
+        const argsCode = args.map(a => this.expr(a)).join(',');
+        return new SlotExpr(`new ${ctorName}(${argsCode})`) as Slot<T>;
+    }
+
+    // Binding
+    let<T>(expr: Slot<T>): Slot<T> {
         const s = this.nextSlot();
-        this.code += `var ${s}={};\n`;
+        this.code += `var ${s}=${this.expr(expr)};\n`;
         return new SlotExpr(s) as Slot<T>;
     }
 
+    // Create
     objFrom<T extends object = any>(entries: Record<string, Slot> | Array<[string | Slot<string>, Slot]>): Slot<T> {
         const props: string[] = [];
 
@@ -418,12 +478,6 @@ export class JITContext implements Context {
         }
 
         return new SlotExpr(`{${props.join(',')}}`) as Slot<T>;
-    }
-
-    arr<T = any>(): Slot<T[]> {
-        const s = this.nextSlot();
-        this.code += `var ${s}=[];\n`;
-        return new SlotExpr(s) as Slot<T[]>;
     }
 
     lit<T>(value: T): Slot<T> {
@@ -536,23 +590,6 @@ export class JITContext implements Context {
 
     isNullish(value: Slot): Slot<boolean> {
         return this.slot_<boolean>(`(${this.expr(value)}==null)`);
-    }
-
-    // Calls
-    call<T>(fn: Function, ...args: Slot[]): Slot<T> {
-        const s = this.nextSlot();
-        const fnName = this.addExtern(fn, fn.name || 'fn');
-        const argsCode = args.map(a => this.expr(a)).join(',');
-        this.code += `var ${s}=${fnName}(${argsCode});\n`;
-        return new SlotExpr(s) as Slot<T>;
-    }
-
-    new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
-        const s = this.nextSlot();
-        const ctorName = this.addExtern(ctor, ctor.name || 'Ctor');
-        const argsCode = args.map(a => this.expr(a)).join(',');
-        this.code += `var ${s}=new ${ctorName}(${argsCode});\n`;
-        return new SlotExpr(s) as Slot<T>;
     }
 
     // Control flow
@@ -748,12 +785,33 @@ export class ExecContext implements Context {
         return slot instanceof ExecSlot ? slot.value : (slot as T);
     }
 
-    // Create
-    obj<T extends object = any>(): Slot<T> {
+    // Expressions (no variable creation - but in exec mode values are directly computed)
+    objExpr<T extends object = any>(): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
         return new ExecSlot({} as T);
     }
 
+    arrExpr<T = any>(): Slot<T[]> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return new ExecSlot([] as T[]);
+    }
+
+    callExpr<T>(fn: Function, ...args: Slot[]): Slot<T> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return new ExecSlot(fn(...args.map(a => this.unwrap(a))));
+    }
+
+    newExpr<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return new ExecSlot(new ctor(...args.map(a => this.unwrap(a))));
+    }
+
+    // Binding - in exec mode, value is already computed so just return as-is
+    let<T>(expr: Slot<T>): Slot<T> {
+        return expr;
+    }
+
+    // Create
     objFrom<T extends object = any>(entries: Record<string, Slot> | Array<[string | Slot<string>, Slot]>): Slot<T> {
         if (this.hasEarlyReturn) return undefined as any;
         const result: any = {};
@@ -770,11 +828,6 @@ export class ExecContext implements Context {
         }
 
         return new ExecSlot(result as T);
-    }
-
-    arr<T = any>(): Slot<T[]> {
-        if (this.hasEarlyReturn) return undefined as any;
-        return new ExecSlot([] as T[]);
     }
 
     lit<T>(value: T): Slot<T> {
@@ -882,17 +935,6 @@ export class ExecContext implements Context {
     isNullish(v: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
         return new ExecSlot(this.unwrap(v) == null);
-    }
-
-    // Calls
-    call<T>(fn: Function, ...args: Slot[]): Slot<T> {
-        if (this.hasEarlyReturn) return undefined as any;
-        return new ExecSlot(fn(...args.map(a => this.unwrap(a))));
-    }
-
-    new_<T>(ctor: new (...args: any[]) => T, ...args: Slot[]): Slot<T> {
-        if (this.hasEarlyReturn) return undefined as any;
-        return new ExecSlot(new ctor(...args.map(a => this.unwrap(a))));
     }
 
     // Control flow

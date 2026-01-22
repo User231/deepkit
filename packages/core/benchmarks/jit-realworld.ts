@@ -84,7 +84,7 @@ const typeSerializerJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
         name: input.get('name'),
         email: input.get('email'),
         age: input.get('age'),
-        createdAt: ctx.call(dateToString, input.get('createdAt')),
+        createdAt: ctx.callExpr(dateToString, input.get('createdAt')),
         address: ctx.objFrom({
             street: input.get('address').get('street'),
             city: input.get('address').get('city'),
@@ -100,7 +100,7 @@ const typeSerializerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
         name: input.get('name'),
         email: input.get('email'),
         age: input.get('age'),
-        createdAt: ctx.call(dateToString, input.get('createdAt')),
+        createdAt: ctx.callExpr(dateToString, input.get('createdAt')),
         address: ctx.objFrom({
             street: input.get('address').get('street'),
             city: input.get('address').get('city'),
@@ -205,7 +205,7 @@ const props = ['id', 'name', 'age', 'active'] as const;
 // JIT: Compare two snapshots and return changed fields
 // Note: Both versions always return the changes object for fair comparison
 const changeDetectorJIT = jit.fnJIT(jit.arg<any>(), jit.arg<any>(), (ctx, oldSnap, newSnap) => {
-    const changes = ctx.obj();
+    const changes = ctx.let(ctx.objExpr());
 
     for (const prop of props) {
         const oldVal = oldSnap.get(prop);
@@ -219,7 +219,7 @@ const changeDetectorJIT = jit.fnJIT(jit.arg<any>(), jit.arg<any>(), (ctx, oldSna
 });
 
 const changeDetectorExec = jit.fnExec(jit.arg<any>(), jit.arg<any>(), (ctx, oldSnap, newSnap) => {
-    const changes = ctx.obj();
+    const changes = ctx.let(ctx.objExpr());
 
     for (const prop of props) {
         const oldVal = oldSnap.get(prop);
@@ -270,8 +270,8 @@ const requestParserJIT = jit.fnJIT(jit.arg<any>(), (ctx, req) => {
     const headers = req.get('headers');
     const body = req.get('body');
 
-    // Extract path params via regex
-    const match = ctx.call((p: string) => pathRegex.exec(p), path);
+    // Extract path params via regex - use let() because match is used 3 times
+    const match = ctx.let(ctx.callExpr((p: string) => pathRegex.exec(p), path));
 
     ctx.when(ctx.isNull(match), () => {
         return ctx.lit(null);
@@ -279,11 +279,11 @@ const requestParserJIT = jit.fnJIT(jit.arg<any>(), (ctx, req) => {
 
     return ctx.objFrom({
         // Path params
-        userId: ctx.call(parseInt10, match.at(1)),
-        postId: ctx.call(parseInt10, match.at(2)),
+        userId: ctx.callExpr(parseInt10, match.at(1)),
+        postId: ctx.callExpr(parseInt10, match.at(2)),
         // Query params
-        page: ctx.call(parseInt10, query.get('page')),
-        limit: ctx.call(parseInt10, query.get('limit')),
+        page: ctx.callExpr(parseInt10, query.get('page')),
+        limit: ctx.callExpr(parseInt10, query.get('limit')),
         sort: query.get('sort'),
         // Headers
         contentType: headers.get('content-type'),
@@ -301,17 +301,18 @@ const requestParserExec = jit.fnExec(jit.arg<any>(), (ctx, req) => {
     const headers = req.get('headers');
     const body = req.get('body');
 
-    const match = ctx.call((p: string) => pathRegex.exec(p), path);
+    // Use let() because match is used multiple times
+    const match = ctx.let(ctx.callExpr((p: string) => pathRegex.exec(p), path));
 
     ctx.when(ctx.isNull(match), () => {
         return ctx.lit(null);
     });
 
     return ctx.objFrom({
-        userId: ctx.call(parseInt10, match.at(1)),
-        postId: ctx.call(parseInt10, match.at(2)),
-        page: ctx.call(parseInt10, query.get('page')),
-        limit: ctx.call(parseInt10, query.get('limit')),
+        userId: ctx.callExpr(parseInt10, match.at(1)),
+        postId: ctx.callExpr(parseInt10, match.at(2)),
+        page: ctx.callExpr(parseInt10, query.get('page')),
+        limit: ctx.callExpr(parseInt10, query.get('limit')),
         sort: query.get('sort'),
         contentType: headers.get('content-type'),
         authorization: headers.get('authorization'),
@@ -361,13 +362,13 @@ const rowMapperJIT = jit.fnJIT(jit.arg<any[]>(), (ctx, row) => {
         return ctx.lit(undefined);
     });
 
-    const entity = ctx.new_(UserEntity);
+    const entity = ctx.let(ctx.newExpr(UserEntity));
     ctx.set(entity, 'id', row.at(0));
     ctx.set(entity, 'name', row.at(1));
     ctx.set(entity, 'email', row.at(2));
     ctx.set(entity, 'age', row.at(3));
     ctx.set(entity, 'active', row.at(4));
-    ctx.set(entity, 'createdAt', ctx.call(stringToDate, row.at(5)));
+    ctx.set(entity, 'createdAt', ctx.callExpr(stringToDate, row.at(5)));
     return entity;
 });
 
@@ -376,13 +377,13 @@ const rowMapperExec = jit.fnExec(jit.arg<any[]>(), (ctx, row) => {
         return ctx.lit(undefined);
     });
 
-    const entity = ctx.new_(UserEntity);
+    const entity = ctx.let(ctx.newExpr(UserEntity));
     ctx.set(entity, 'id', row.at(0));
     ctx.set(entity, 'name', row.at(1));
     ctx.set(entity, 'email', row.at(2));
     ctx.set(entity, 'age', row.at(3));
     ctx.set(entity, 'active', row.at(4));
-    ctx.set(entity, 'createdAt', ctx.call(stringToDate, row.at(5)));
+    ctx.set(entity, 'createdAt', ctx.callExpr(stringToDate, row.at(5)));
     return entity;
 });
 
@@ -406,26 +407,26 @@ const rowMapperBaseline = (row: any[]): UserEntity | undefined => {
 // JIT: Map array of SQL rows to entities
 const batchRowMapperJIT = jit.fnJIT(jit.arg<any[][]>(), (ctx, rows) => {
     return ctx.map(rows, row => {
-        const entity = ctx.new_(UserEntity);
+        const entity = ctx.let(ctx.newExpr(UserEntity));
         ctx.set(entity, 'id', row.at(0));
         ctx.set(entity, 'name', row.at(1));
         ctx.set(entity, 'email', row.at(2));
         ctx.set(entity, 'age', row.at(3));
         ctx.set(entity, 'active', row.at(4));
-        ctx.set(entity, 'createdAt', ctx.call(stringToDate, row.at(5)));
+        ctx.set(entity, 'createdAt', ctx.callExpr(stringToDate, row.at(5)));
         return entity;
     });
 });
 
 const batchRowMapperExec = jit.fnExec(jit.arg<any[][]>(), (ctx, rows) => {
     return ctx.map(rows, row => {
-        const entity = ctx.new_(UserEntity);
+        const entity = ctx.let(ctx.newExpr(UserEntity));
         ctx.set(entity, 'id', row.at(0));
         ctx.set(entity, 'name', row.at(1));
         ctx.set(entity, 'email', row.at(2));
         ctx.set(entity, 'age', row.at(3));
         ctx.set(entity, 'active', row.at(4));
-        ctx.set(entity, 'createdAt', ctx.call(stringToDate, row.at(5)));
+        ctx.set(entity, 'createdAt', ctx.callExpr(stringToDate, row.at(5)));
         return entity;
     });
 });
@@ -470,28 +471,28 @@ const dbInstance = new Database(loggerInstance);
 // JIT: Factory with singleton check and dependency injection
 const factoryJIT = jit.fnJIT(ctx => {
     // Singleton check
-    const cached = ctx.call(() => singletonCache.get(UserService));
+    const cached = ctx.callExpr(() => singletonCache.get(UserService));
     ctx.when(ctx.not(ctx.isNullish(cached)), () => {
         return cached;
     });
 
     // Create with resolved dependencies
-    const instance = ctx.new_(UserService, ctx.lit(dbInstance), ctx.lit(loggerInstance));
+    const instance = ctx.let(ctx.newExpr(UserService, ctx.lit(dbInstance), ctx.lit(loggerInstance)));
 
     // Cache it
-    ctx.call(() => singletonCache.set(UserService, instance));
+    ctx.callExpr(() => singletonCache.set(UserService, instance));
 
     return instance;
 });
 
 const factoryExec = jit.fnExec(ctx => {
-    const cached = ctx.call(() => singletonCache.get(UserService));
+    const cached = ctx.callExpr(() => singletonCache.get(UserService));
     ctx.when(ctx.not(ctx.isNullish(cached)), () => {
         return cached;
     });
 
-    const instance = ctx.new_(UserService, ctx.lit(dbInstance), ctx.lit(loggerInstance));
-    ctx.call(() => singletonCache.set(UserService, instance));
+    const instance = ctx.let(ctx.newExpr(UserService, ctx.lit(dbInstance), ctx.lit(loggerInstance)));
+    ctx.callExpr(() => singletonCache.set(UserService, instance));
 
     return instance;
 });
@@ -518,28 +519,28 @@ const bsonSizerJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
     let size = ctx.lit(5);
 
     // id field: 1 (type) + 3 (name "id\0") + 4 (int32)
-    size = ctx.call((a: number, b: number) => a + b, size, ctx.lit(8));
+    size = ctx.callExpr((a: number, b: number) => a + b, size, ctx.lit(8));
 
     // name field: 1 (type) + 5 (name "name\0") + 4 (size) + strlen + 1 (terminator)
-    const nameLen = ctx.call(stringByteLength, input.get('name'));
-    size = ctx.call((a: number, b: number, c: number) => a + b + c, size, ctx.lit(10), nameLen);
+    const nameLen = ctx.callExpr(stringByteLength, input.get('name'));
+    size = ctx.callExpr((a: number, b: number, c: number) => a + b + c, size, ctx.lit(10), nameLen);
 
     // email field: 1 (type) + 6 (name "email\0") + 4 (size) + strlen + 1
-    const emailLen = ctx.call(stringByteLength, input.get('email'));
-    size = ctx.call((a: number, b: number, c: number) => a + b + c, size, ctx.lit(11), emailLen);
+    const emailLen = ctx.callExpr(stringByteLength, input.get('email'));
+    size = ctx.callExpr((a: number, b: number, c: number) => a + b + c, size, ctx.lit(11), emailLen);
 
     return size;
 });
 
 const bsonSizerExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
     let size = ctx.lit(5);
-    size = ctx.call((a: number, b: number) => a + b, size, ctx.lit(8));
+    size = ctx.callExpr((a: number, b: number) => a + b, size, ctx.lit(8));
 
-    const nameLen = ctx.call(stringByteLength, input.get('name'));
-    size = ctx.call((a: number, b: number, c: number) => a + b + c, size, ctx.lit(10), nameLen);
+    const nameLen = ctx.callExpr(stringByteLength, input.get('name'));
+    size = ctx.callExpr((a: number, b: number, c: number) => a + b + c, size, ctx.lit(10), nameLen);
 
-    const emailLen = ctx.call(stringByteLength, input.get('email'));
-    size = ctx.call((a: number, b: number, c: number) => a + b + c, size, ctx.lit(11), emailLen);
+    const emailLen = ctx.callExpr(stringByteLength, input.get('email'));
+    size = ctx.callExpr((a: number, b: number, c: number) => a + b + c, size, ctx.lit(11), emailLen);
 
     return size;
 });
@@ -568,32 +569,32 @@ const stateHandlers = {
 // JIT: State machine dispatch (like workflow applier)
 const stateMachineJIT = jit.fnJIT(jit.arg<WorkflowState>(), (ctx, state) => {
     ctx.when(ctx.eq(state, ctx.lit('pending')), () => {
-        return ctx.call(stateHandlers.pending);
+        return ctx.callExpr(stateHandlers.pending);
     });
     ctx.when(ctx.eq(state, ctx.lit('processing')), () => {
-        return ctx.call(stateHandlers.processing);
+        return ctx.callExpr(stateHandlers.processing);
     });
     ctx.when(ctx.eq(state, ctx.lit('completed')), () => {
-        return ctx.call(stateHandlers.completed);
+        return ctx.callExpr(stateHandlers.completed);
     });
     ctx.when(ctx.eq(state, ctx.lit('failed')), () => {
-        return ctx.call(stateHandlers.failed);
+        return ctx.callExpr(stateHandlers.failed);
     });
     return ctx.lit('unknown state');
 });
 
 const stateMachineExec = jit.fnExec(jit.arg<WorkflowState>(), (ctx, state) => {
     ctx.when(ctx.eq(state, ctx.lit('pending')), () => {
-        return ctx.call(stateHandlers.pending);
+        return ctx.callExpr(stateHandlers.pending);
     });
     ctx.when(ctx.eq(state, ctx.lit('processing')), () => {
-        return ctx.call(stateHandlers.processing);
+        return ctx.callExpr(stateHandlers.processing);
     });
     ctx.when(ctx.eq(state, ctx.lit('completed')), () => {
-        return ctx.call(stateHandlers.completed);
+        return ctx.callExpr(stateHandlers.completed);
     });
     ctx.when(ctx.eq(state, ctx.lit('failed')), () => {
-        return ctx.call(stateHandlers.failed);
+        return ctx.callExpr(stateHandlers.failed);
     });
     return ctx.lit('unknown state');
 });

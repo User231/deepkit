@@ -57,7 +57,7 @@ describe('jit', () => {
 
         testBothModes('passes through multiple arguments', fn => {
             const f = fn(jit.arg<number>(), jit.arg<string>(), (ctx, a, b) => {
-                const result = ctx.arr();
+                const result = ctx.let(ctx.arrExpr());
                 ctx.push(result, a);
                 ctx.push(result, b);
                 return result;
@@ -68,13 +68,13 @@ describe('jit', () => {
 
     describe('object operations', () => {
         testBothModes('creates empty object', fn => {
-            const f = fn(ctx => ctx.obj());
+            const f = fn(ctx => ctx.let(ctx.objExpr()));
             expect(f()).toEqual({});
         });
 
         testBothModes('sets property with string key', fn => {
             const f = fn(ctx => {
-                const obj = ctx.obj();
+                const obj = ctx.let(ctx.objExpr());
                 ctx.set(obj, 'name', ctx.lit('John'));
                 return obj;
             });
@@ -83,7 +83,7 @@ describe('jit', () => {
 
         testBothModes('sets property with slot key', fn => {
             const f = fn(jit.arg<string>(), (ctx, key) => {
-                const obj = ctx.obj();
+                const obj = ctx.let(ctx.objExpr());
                 ctx.set(obj, key, ctx.lit('value'));
                 return obj;
             });
@@ -114,7 +114,7 @@ describe('jit', () => {
 
         testBothModes('copies object properties', fn => {
             const f = fn(jit.arg<any>(), (ctx, input) => {
-                const output = ctx.obj();
+                const output = ctx.let(ctx.objExpr());
                 ctx.set(output, 'id', ctx.get(input, 'id'));
                 ctx.set(output, 'name', ctx.get(input, 'name'));
                 return output;
@@ -152,13 +152,13 @@ describe('jit', () => {
 
     describe('array operations', () => {
         testBothModes('creates empty array', fn => {
-            const f = fn(ctx => ctx.arr());
+            const f = fn(ctx => ctx.let(ctx.arrExpr()));
             expect(f()).toEqual([]);
         });
 
         testBothModes('pushes to array', fn => {
             const f = fn(ctx => {
-                const arr = ctx.arr();
+                const arr = ctx.let(ctx.arrExpr());
                 ctx.push(arr, ctx.lit(1));
                 ctx.push(arr, ctx.lit(2));
                 ctx.push(arr, ctx.lit(3));
@@ -326,7 +326,7 @@ describe('jit', () => {
         testBothModes('calls external function with call()', fn => {
             const double = (x: number) => x * 2;
             const f = fn(jit.arg<number>(), (ctx, x) => {
-                return ctx.call(double, x);
+                return ctx.callExpr(double, x);
             });
             expect(f(5)).toBe(10);
             expect(f(21)).toBe(42);
@@ -335,7 +335,7 @@ describe('jit', () => {
         testBothModes('calls function with multiple args', fn => {
             const add = (a: number, b: number, c: number) => a + b + c;
             const f = fn(jit.arg<number>(), jit.arg<number>(), jit.arg<number>(), (ctx, a, b, c) => {
-                return ctx.call(add, a, b, c);
+                return ctx.callExpr(add, a, b, c);
             });
             expect(f(1, 2, 3)).toBe(6);
         });
@@ -348,7 +348,7 @@ describe('jit', () => {
                 ) {}
             }
             const f = fn(jit.arg<number>(), jit.arg<number>(), (ctx, x, y) => {
-                return ctx.new_(Point, x, y);
+                return ctx.newExpr(Point, x, y);
             });
             const point = f(10, 20);
             expect(point).toBeInstanceOf(Point);
@@ -360,7 +360,7 @@ describe('jit', () => {
     describe('control flow - when()', () => {
         testBothModes('executes then branch when true', fn => {
             const f = fn(jit.arg<boolean>(), (ctx, cond) => {
-                const result = ctx.obj();
+                const result = ctx.let(ctx.objExpr());
                 ctx.when(
                     cond,
                     () => {
@@ -406,7 +406,7 @@ describe('jit', () => {
 
         testBothModes('nested when statements', fn => {
             const f = fn(jit.arg<number>(), (ctx, n) => {
-                const result = ctx.obj();
+                const result = ctx.let(ctx.objExpr());
                 ctx.when(
                     ctx.lt(n, ctx.lit(0)),
                     () => {
@@ -435,7 +435,7 @@ describe('jit', () => {
     describe('control flow - loop()', () => {
         testBothModes('iterates over array', fn => {
             const f = fn(jit.arg<number[]>(), (ctx, arr) => {
-                const result = ctx.arr();
+                const result = ctx.let(ctx.arrExpr());
                 ctx.loop(arr, (elem, idx) => {
                     ctx.push(result, elem);
                 });
@@ -446,7 +446,7 @@ describe('jit', () => {
 
         testBothModes('provides correct index', fn => {
             const f = fn(jit.arg<string[]>(), (ctx, arr) => {
-                const result = ctx.arr();
+                const result = ctx.let(ctx.arrExpr());
                 ctx.loop(arr, (elem, idx) => {
                     ctx.push(result, idx);
                 });
@@ -458,9 +458,9 @@ describe('jit', () => {
         testBothModes('transforms array elements', fn => {
             const double = (x: number) => x * 2;
             const f = fn(jit.arg<number[]>(), (ctx, arr) => {
-                const result = ctx.arr();
+                const result = ctx.let(ctx.arrExpr());
                 ctx.loop(arr, (elem, idx) => {
-                    ctx.push(result, ctx.call(double, elem));
+                    ctx.push(result, ctx.callExpr(double, elem));
                 });
                 return result;
             });
@@ -469,7 +469,7 @@ describe('jit', () => {
 
         testBothModes('handles empty array', fn => {
             const f = fn(jit.arg<any[]>(), (ctx, arr) => {
-                const result = ctx.arr();
+                const result = ctx.let(ctx.arrExpr());
                 ctx.loop(arr, elem => {
                     ctx.push(result, elem);
                 });
@@ -480,7 +480,7 @@ describe('jit', () => {
 
         testBothModes('early return inside loop', fn => {
             const f = fn(jit.arg<number[]>(), (ctx, arr) => {
-                const result = ctx.arr();
+                const result = ctx.let(ctx.arrExpr());
                 ctx.loop(arr, elem => {
                     ctx.when(ctx.eq(elem, ctx.lit(3)), () => {
                         return ctx.lit('found 3');
@@ -507,7 +507,7 @@ describe('jit', () => {
         testBothModes('transforms elements with callback', fn => {
             const double = (x: number) => x * 2;
             const f = fn(jit.arg<number[]>(), (ctx, arr) => {
-                return ctx.map(arr, elem => ctx.call(double, elem));
+                return ctx.map(arr, elem => ctx.callExpr(double, elem));
             });
             expect(f([1, 2, 3])).toEqual([2, 4, 6]);
         });
@@ -550,7 +550,7 @@ describe('jit', () => {
         testBothModes('object serializer with property loop', fn => {
             const props = ['id', 'name', 'email'];
             const f = fn(jit.arg<any>(), (ctx, input) => {
-                const output = ctx.obj();
+                const output = ctx.let(ctx.objExpr());
                 for (const prop of props) {
                     ctx.set(output, prop, ctx.get(input, prop));
                 }
@@ -565,10 +565,10 @@ describe('jit', () => {
                 { prop: 'age', check: (v: any) => typeof v === 'number' && v >= 0, msg: 'age must be non-negative number' },
             ];
             const f = fn(jit.arg<any>(), (ctx, input) => {
-                const errors = ctx.arr();
+                const errors = ctx.let(ctx.arrExpr());
                 for (const rule of rules) {
                     const value = ctx.get(input, rule.prop);
-                    const valid = ctx.call(rule.check, value);
+                    const valid = ctx.callExpr(rule.check, value);
                     ctx.when(ctx.not(valid), () => {
                         ctx.push(errors, ctx.lit(rule.msg));
                     });
@@ -586,7 +586,7 @@ describe('jit', () => {
                 ctx.when(ctx.isNullish(input), () => {
                     return ctx.lit(null);
                 });
-                const output = ctx.obj();
+                const output = ctx.let(ctx.objExpr());
                 ctx.set(output, 'value', ctx.get(input, 'value'));
                 return output;
             });
@@ -602,7 +602,7 @@ describe('jit', () => {
                 { prop: 'range', min: 10, max: 50 },
             ];
             const f = fn(jit.arg<any>(), (ctx, input) => {
-                const errors = ctx.arr();
+                const errors = ctx.let(ctx.arrExpr());
                 for (const c of constraints) {
                     const value = ctx.get(input, c.prop);
                     if (c.min !== undefined) {
@@ -635,17 +635,17 @@ describe('jit', () => {
             }
 
             const serializeAddress = fn(jit.arg<any>(), (ctx, input) => {
-                const output = ctx.obj();
+                const output = ctx.let(ctx.objExpr());
                 ctx.set(output, 'street', ctx.get(input, 'street'));
                 ctx.set(output, 'city', ctx.get(input, 'city'));
                 return output;
             });
 
             const serializeUser = fn(jit.arg<any>(), (ctx, input) => {
-                const output = ctx.obj();
+                const output = ctx.let(ctx.objExpr());
                 ctx.set(output, 'name', ctx.get(input, 'name'));
                 const address = ctx.get(input, 'address');
-                ctx.set(output, 'address', ctx.call(serializeAddress, address));
+                ctx.set(output, 'address', ctx.callExpr(serializeAddress, address));
                 return output;
             });
 
@@ -665,7 +665,7 @@ describe('jit', () => {
         test('getCode returns generated code', () => {
             const ctx = new JITContext(1);
             const [input] = ctx.getArgSlots();
-            const output = ctx.obj();
+            const output = ctx.let(ctx.objExpr());
             ctx.set(output, 'name', ctx.get(input, 'name'));
             const code = ctx.getCode();
 
@@ -676,7 +676,7 @@ describe('jit', () => {
         test('compile produces working function', () => {
             const ctx = new JITContext(1);
             const [input] = ctx.getArgSlots();
-            const output = ctx.obj();
+            const output = ctx.let(ctx.objExpr());
             ctx.set(output, 'value', ctx.get(input, 'value'));
             const fn = ctx.compile<(input: any) => any>(output);
 
@@ -687,7 +687,7 @@ describe('jit', () => {
             const ctx = new JITContext(1);
             const [input] = ctx.getArgSlots();
             const double = (x: number) => x * 2;
-            const result = ctx.call(double, input);
+            const result = ctx.callExpr(double, input);
             const fn = ctx.compile<(x: number) => number>(result);
 
             expect(fn(21)).toBe(42);
@@ -712,13 +712,32 @@ describe('jit', () => {
             expect(code).toContain(',name:');
         });
 
+        test('map generates arrow function when callback is pure expression', () => {
+            const ctx = new JITContext(1);
+            const [input] = ctx.getArgSlots();
+            function double(x: number) {
+                return x * 2;
+            }
+            const result = ctx.map(input, elem => {
+                // callExpr returns inline expression - no statements emitted
+                return ctx.callExpr(double, elem);
+            });
+            ctx.compile(result);
+            const code = ctx.getCode();
+
+            // Should use arrow function since callExpr doesn't emit statements
+            expect(code).toContain('.map(s');
+            expect(code).toContain('=>double_0(');
+        });
+
         test('map generates function body when callback has statements', () => {
             const ctx = new JITContext(1);
             const [input] = ctx.getArgSlots();
             const double = (x: number) => x * 2;
             const result = ctx.map(input, elem => {
-                // This creates a statement (var assignment for extern)
-                return ctx.call(double, elem);
+                // let() creates a statement (var assignment)
+                const doubled = ctx.let(ctx.callExpr(double, elem));
+                return doubled;
             });
             ctx.compile(result);
             const code = ctx.getCode();
@@ -732,7 +751,7 @@ describe('jit', () => {
     describe('ExecContext specifics', () => {
         test('direct value flow', () => {
             const ctx = new ExecContext();
-            const obj = ctx.obj<{ name: string }>();
+            const obj = ctx.let(ctx.objExpr<{ name: string }>());
             ctx.set(obj, 'name', ctx.lit('test') as Slot);
 
             // In exec mode, obj is an ExecSlot wrapping the actual object
@@ -760,10 +779,10 @@ describe('jit', () => {
             });
 
             // These should be no-ops
-            const obj = ctx.obj();
+            const obj = ctx.let(ctx.objExpr());
             expect(obj).toBeUndefined();
 
-            const arr = ctx.arr();
+            const arr = ctx.let(ctx.arrExpr());
             expect(arr).toBeUndefined();
         });
     });
@@ -823,7 +842,7 @@ describe('jit', () => {
                 const b = ctx.var_(2);
                 ctx.setVar(a, ctx.lit(10));
                 ctx.setVar(b, ctx.lit(20));
-                const arr = ctx.arr();
+                const arr = ctx.let(ctx.arrExpr());
                 ctx.push(arr, ctx.getVar(a));
                 ctx.push(arr, ctx.getVar(b));
                 return arr;
@@ -837,7 +856,7 @@ describe('jit', () => {
                 ctx.loop(arr, (elem, idx) => {
                     const current = ctx.getVar(sum);
                     const add = (a: number, b: number) => a + b;
-                    ctx.setVar(sum, ctx.call(add, current, elem));
+                    ctx.setVar(sum, ctx.callExpr(add, current, elem));
                 });
                 return ctx.getVar(sum);
             });
@@ -896,7 +915,7 @@ describe('jit', () => {
 
         testBothModes('executes case body without return', fn => {
             const f = fn(jit.arg<string>(), (ctx, action) => {
-                const result = ctx.obj();
+                const result = ctx.let(ctx.objExpr());
                 ctx.switch_(action, [
                     [
                         'add',
@@ -937,7 +956,7 @@ describe('jit', () => {
             const serialize = fn(jit.arg<any>(), jit.arg<string>(), (ctx, value, typeName) => {
                 ctx.switch_(typeName, [
                     ['string', () => value],
-                    ['number', () => ctx.call(String, value)],
+                    ['number', () => ctx.callExpr(String, value)],
                     ['boolean', () => ctx.ternary(value, ctx.lit('true'), ctx.lit('false'))],
                 ]);
                 return ctx.lit(null);
@@ -1074,7 +1093,7 @@ describe('jit', () => {
     describe('edge cases', () => {
         testBothModes('handles special string values', fn => {
             const f = fn(ctx => {
-                const obj = ctx.obj();
+                const obj = ctx.let(ctx.objExpr());
                 ctx.set(obj, 'quote', ctx.lit('say "hello"'));
                 ctx.set(obj, 'newline', ctx.lit('line1\nline2'));
                 ctx.set(obj, 'backslash', ctx.lit('path\\to\\file'));
@@ -1089,7 +1108,7 @@ describe('jit', () => {
 
         testBothModes('handles numeric edge cases', fn => {
             const f = fn(ctx => {
-                const obj = ctx.obj();
+                const obj = ctx.let(ctx.objExpr());
                 ctx.set(obj, 'inf', ctx.lit(Infinity));
                 ctx.set(obj, 'negInf', ctx.lit(-Infinity));
                 ctx.set(obj, 'zero', ctx.lit(0));
@@ -1120,6 +1139,130 @@ describe('jit', () => {
             const sym = Symbol('test');
             const f = fn(ctx => ctx.lit(sym));
             expect(f()).toBe(sym);
+        });
+    });
+
+    describe('IR-style expression semantics', () => {
+        describe('expressions inline without variables', () => {
+            test('objExpr returns inline expression', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                // objExpr doesn't create a variable - just returns "{}"
+                ctx.set(input, 'result', ctx.objExpr());
+                const code = ctx.getCode();
+                // Should directly assign {} without intermediate variable
+                expect(code).toBe('s0.result={};\n');
+            });
+
+            test('arrExpr returns inline expression', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                // arrExpr doesn't create a variable - just returns "[]"
+                ctx.set(input, 'result', ctx.arrExpr());
+                const code = ctx.getCode();
+                // Should directly assign [] without intermediate variable
+                expect(code).toBe('s0.result=[];\n');
+            });
+
+            test('callExpr returns inline expression', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                function double(x: number) {
+                    return x * 2;
+                }
+                // callExpr doesn't create a variable - inlines the call
+                ctx.set(input, 'result', ctx.callExpr(double, input.get('x')));
+                const code = ctx.getCode();
+                // Should directly assign function call without intermediate variable
+                expect(code).toBe('s0.result=double_0(s0.x);\n');
+            });
+
+            test('newExpr returns inline expression', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                class Point {
+                    constructor(
+                        public x: number,
+                        public y: number,
+                    ) {}
+                }
+                // newExpr doesn't create a variable - inlines the constructor call
+                ctx.set(input, 'result', ctx.newExpr(Point, input.get('x'), input.get('y')));
+                const code = ctx.getCode();
+                // Should directly assign new expression without intermediate variable
+                expect(code).toBe('s0.result=new Point_0(s0.x,s0.y);\n');
+            });
+        });
+
+        describe('let() creates explicit bindings', () => {
+            test('let() creates variable for objExpr', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                const obj = ctx.let(ctx.objExpr());
+                ctx.set(obj, 'name', input.get('name'));
+                const code = ctx.getCode();
+                // Should create variable for object
+                expect(code).toContain('var s1={};');
+                expect(code).toContain('s1.name=s0.name;');
+            });
+
+            test('let() creates variable for arrExpr', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                const arr = ctx.let(ctx.arrExpr());
+                ctx.push(arr, input.get('x'));
+                const code = ctx.getCode();
+                // Should create variable for array
+                expect(code).toContain('var s1=[];');
+                expect(code).toContain('s1.push(s0.x);');
+            });
+
+            test('let() creates variable for callExpr when used multiple times', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                function validate(x: any) {
+                    return x !== null;
+                }
+                const result = ctx.let(ctx.callExpr(validate, input));
+                ctx.set(input, 'a', result);
+                ctx.set(input, 'b', result);
+                const code = ctx.getCode();
+                // Should create variable to avoid duplicate calls
+                expect(code).toContain('var s1=validate_0(s0);');
+                expect(code).toContain('s0.a=s1;');
+                expect(code).toContain('s0.b=s1;');
+            });
+        });
+
+        describe('generated code comparison', () => {
+            test('inline expressions produce fewer variables', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                const output = ctx.let(ctx.objExpr());
+                ctx.set(output, 'id', input.get('id'));
+                ctx.set(output, 'name', input.get('name'));
+                function parseInt(x: string) {
+                    return Number(x);
+                }
+                ctx.set(output, 'count', ctx.callExpr(parseInt, input.get('countStr')));
+                ctx.compile(output);
+                const code = ctx.getCode();
+                // Optimal code: only one variable for output, callExpr inlined
+                expect(code).toBe('var s1={};\n' + 's1.id=s0.id;\n' + 's1.name=s0.name;\n' + 's1.count=parseInt_0(s0.countStr);\n' + 'return s1;\n');
+            });
+
+            test('objFrom() returns inline object literal', () => {
+                const ctx = new JITContext(1);
+                const [input] = ctx.getArgSlots();
+                const result = ctx.objFrom({
+                    id: input.get('id'),
+                    name: input.get('name'),
+                });
+                ctx.compile(result);
+                const code = ctx.getCode();
+                // Should return inline object literal - no intermediate variable
+                expect(code).toBe('return {id:s0.id,name:s0.name};\n');
+            });
         });
     });
 });

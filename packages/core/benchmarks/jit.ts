@@ -350,9 +350,9 @@ const validationRules = [
 
 // JIT mode
 const validatorJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
-    const errors = ctx.arr();
+    const errors = ctx.let(ctx.arrExpr());
     for (const rule of validationRules) {
-        const valid = ctx.call(rule.check, input.get(rule.prop));
+        const valid = ctx.callExpr(rule.check, input.get(rule.prop));
         ctx.when(ctx.not(valid), () => {
             ctx.push(errors, ctx.lit(rule.msg));
         });
@@ -362,9 +362,9 @@ const validatorJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
 
 // Exec mode
 const validatorExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
-    const errors = ctx.arr();
+    const errors = ctx.let(ctx.arrExpr());
     for (const rule of validationRules) {
-        const valid = ctx.call(rule.check, input.get(rule.prop));
+        const valid = ctx.callExpr(rule.check, input.get(rule.prop));
         ctx.when(ctx.not(valid), () => {
             ctx.push(errors, ctx.lit(rule.msg));
         });
@@ -436,7 +436,7 @@ class User {
 
 // JIT mode
 const classInstantiatorJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
-    const instance = ctx.new_(User, input.get('id'), input.get('name'));
+    const instance = ctx.let(ctx.newExpr(User, input.get('id'), input.get('name')));
     ctx.set(instance, 'email', input.get('email'));
     ctx.set(instance, 'active', input.get('active'));
     return instance;
@@ -444,7 +444,7 @@ const classInstantiatorJIT = jit.fnJIT(jit.arg<any>(), (ctx, input) => {
 
 // Exec mode
 const classInstantiatorExec = jit.fnExec(jit.arg<any>(), (ctx, input) => {
-    const instance = ctx.new_(User, input.get('id'), input.get('name'));
+    const instance = ctx.let(ctx.newExpr(User, input.get('id'), input.get('name')));
     ctx.set(instance, 'email', input.get('email'));
     ctx.set(instance, 'active', input.get('active'));
     return instance;
