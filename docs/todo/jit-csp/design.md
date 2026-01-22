@@ -1121,6 +1121,424 @@ fn<R>(...args: any[]): (...args: any[]) => R {
 
 ---
 
+## Pattern Mapping: CompilerContext → jit.fn()
+
+**CRITICAL:** This section shows how every CompilerContext pattern must be converted. Never use CompilerContext. If a pattern doesn't fit jit.fn(), extend jit.ts with new primitives.
+
+### 1. Basic Code Generation
+
+**Variable Declaration:**
+```typescript
+// ❌ OLD (CompilerContext)
+const compiler = new CompilerContext();
+const varName = compiler.reserveVariable('count', 0);
+const code = `let result = ${varName};`;
+
+// ✅ NEW (jit.fn()) - slots ARE variables
+return jit.fn((ctx) => {
+    const count = ctx.lit(0);  // count is a slot, use it directly
+    return count;              // no separate "result" declaration needed
+});
+```
+
+**Context Variables:**
+```typescript
+// ❌ OLD - store runtime values in context
+compiler.context.set('ValidationError', ValidationError);
+compiler.context.set('isString', (v: any) => typeof v === 'string');
+const code = `if (!isString(data)) throw new ValidationError('...')`;
+
+// ✅ NEW - use ctx.call() for function calls
+return jit.fn(jit.arg<any>(), (ctx, data) => {
+    ctx.when(ctx.not(ctx.isType(data, 'string')), () => {
+        ctx.call(throwValidationError, ctx.lit('Expected string'));
+    });
+    return data;
+});
+```
+
+### 2. Conditionals
+
+**If-Else:**
+```typescript
+// ❌ OLD
+let code = `if (typeof data === 'string') {`;
+code += `  result = data;`;
+code += `} else {`;
+code += `  result = String(data);`;
+code += `}`;
+
+// ✅ NEW
+return jit.fn(jit.arg<any>(), (ctx, data) => {
+    return ctx.ternary(
+        ctx.isType(data, 'string'),
+        data,
+        ctx.call(String, data)
+    );
+});
+```
+
+**Nested Conditionals:**
+```typescript
+// ❌ OLD
+code = `if (data === null) { result = null; }`;
+code += `else if (data === undefined) { result = undefined; }`;
+code += `else { result = String(data); }`;
+
+// ✅ NEW - use ctx.cond() for if-else chains
+return jit.fn(jit.arg<any>(), (ctx, data) => {
+    return ctx.cond([
+        [ctx.eq(data, ctx.lit(null)), ctx.lit(null)],
+        [ctx.eq(data, ctx.lit(undefined)), ctx.lit(undefined)],
+    ], ctx.call(String, data));
+});
+```
+
+### 3. Loops
+
+**For-In Loop:**
+```typescript
+// ❌ OLD
+let code = `for (const key in obj) {`;
+code += `  if (!hasOwnProperty.call(obj, key)) continue;`;
+code += `  result[key] = convert(obj[key]);`;
+code += `}`;
+
+// ✅ NEW - use ctx.forIn()
+return jit.fn(jit.arg<any>(), (ctx, obj) => {
+    const result = ctx.let_('result', ctx.lit({}));
+    ctx.forIn(obj, (key, value) => {
+        ctx.set(result, key, ctx.call(convert, value));
+    });
+    return result;
+});
+```
+
+**Array Iteration:**
+```typescript
+// ❌ OLD
+code = `const result = [];`;
+code += `for (let i = 0; i < arr.length; i++) {`;
+code += `  result.push(convert(arr[i]));`;
+code += `}`;
+
+// ✅ NEW - use ctx.map() or ctx.forEach()
+return jit.fn(jit.arg<any[]>(), (ctx, arr) => {
+    return ctx.map(arr, (item, index) => {
+        return ctx.call(convert, item);
+    });
+});
+```
+
+### 4. Type Checking
+
+```typescript
+// ❌ OLD: typeof checks
+code = `'string' === typeof data`;
+// ✅ NEW
+ctx.isType(data, 'string')
+
+// ❌ OLD: instanceof checks
+compiler.context.set('Date', Date);
+code = `data instanceof Date`;
+// ✅ NEW
+ctx.isInstance(data, Date)
+
+// ❌ OLD: Array.isArray
+code = `Array.isArray(data)`;
+// ✅ NEW
+ctx.call(Array.isArray, data)
+```
+
+### 5. Property Access
+
+```typescript
+// ❌ OLD: Direct property access
+code = `data.name`;
+code = `data['some-prop']`;
+// ✅ NEW
+data.get('name')
+data.get('some-prop')
+
+// ❌ OLD: Setting properties
+code = `result.name = data.name;`;
+// ✅ NEW
+ctx.set(result, 'name', data.get('name'));
+
+// ❌ OLD: In operator
+code = `'name' in data`;
+// ✅ NEW
+ctx.has(data, 'name')
+```
+
+### 6. Object/Array Creation
+
+```typescript
+// ❌ OLD: Static object literal
+code = `let result = { a: 1, b: 2 };`;
+// ✅ NEW
+ctx.lit({ a: 1, b: 2 })
+
+// ❌ OLD: Dynamic object building
+code = `let result = {}; result.a = valueA;`;
+// ✅ NEW
+const result = ctx.lit({});
+ctx.set(result, 'a', valueA);
+
+// ❌ OLD: Object.create() for disableConstructor
+code = `Object.create(classType.prototype)`;
+// ✅ NEW - use helper function
+const createInstance = () => Object.create(MyClass.prototype);
+ctx.call(createInstance)
+```
+
+### 7. Error Handling
+
+```typescript
+// ❌ OLD
+compiler.context.set('ValidationError', ValidationError);
+code = `throw new ValidationError('Expected string')`;
+
+// ✅ NEW - use ctx.throw_()
+ctx.throw_(ValidationError, ctx.lit('Expected string'))
+
+// Or with ctx.call for factory functions
+ctx.call(throwValidationError, ctx.lit('Expected string'))
+```
+
+### 8. State Tracking (var_/setVar/getVar)
+
+```typescript
+// ❌ OLD
+code = `let hasChanges = false;`;
+code += `if (a !== b) hasChanges = true;`;
+code += `return hasChanges;`;
+
+// ✅ NEW - use var_/setVar/getVar
+return jit.fn(jit.arg<any>(), jit.arg<any>(), (ctx, a, b) => {
+    const hasChanges = ctx.var_(false);
+    ctx.when(ctx.neq(a, b), () => {
+        ctx.setVar(hasChanges, ctx.lit(true));
+    });
+    return ctx.getVar(hasChanges);
+});
+```
+
+### 9. Switch Statements
+
+```typescript
+// ❌ OLD
+code = `switch (type) {`;
+code += `  case 'string': return serialize_string(data);`;
+code += `  case 'number': return serialize_number(data);`;
+code += `  default: throw new Error('Unknown type');`;
+code += `}`;
+
+// ✅ NEW - use ctx.switch_()
+return jit.fn(jit.arg<string>(), jit.arg<any>(), (ctx, type, data) => {
+    return ctx.switch_(type, [
+        [ctx.lit('string'), () => ctx.call(serialize_string, data)],
+        [ctx.lit('number'), () => ctx.call(serialize_number, data)],
+    ], () => ctx.throw_(Error, ctx.lit('Unknown type')));
+});
+```
+
+### 10. String Concatenation (Path Building)
+
+```typescript
+// ❌ OLD
+code = `const path = parentPath + '.' + propertyName;`;
+
+// ✅ NEW - use ctx.concat()
+ctx.concat(parentPath, ctx.lit('.'), propertyName)
+```
+
+### 11. Union Resolution (Score-Based)
+
+```typescript
+// ❌ OLD (from handleUnion)
+code = `let matching = -1; let matchingIndex = -1;`;
+for (const t of unionTypes) {
+    code += `const score_${i} = checkType_${i}(data);`;
+    code += `if (score_${i} > matching) { matching = score_${i}; matchingIndex = ${i}; }`;
+}
+
+// ✅ NEW
+return jit.fn(jit.arg<any>(), (ctx, data) => {
+    const matching = ctx.var_(-1);
+    const matchingIndex = ctx.var_(-1);
+
+    for (let i = 0; i < unionTypes.length; i++) {
+        const score = ctx.call(checkTypeFns[i], data);
+        ctx.when(ctx.gt(score, ctx.getVar(matching)), () => {
+            ctx.setVar(matching, score);
+            ctx.setVar(matchingIndex, ctx.lit(i));
+        });
+    }
+
+    return ctx.switch_(ctx.getVar(matchingIndex),
+        unionTypes.map((_, i) => [ctx.lit(i), () => ctx.call(serializeFns[i], data)]),
+        () => ctx.throw_(ValidationError, ctx.lit('No matching type'))
+    );
+});
+```
+
+### 12. Large Literal Union (Set Optimization)
+
+```typescript
+// ❌ OLD
+if (type.types.length >= 50) {
+    compiler.context.set('literalSet', new Set(literals));
+    code = `if (!literalSet.has(data)) throw ...;`;
+}
+
+// ✅ NEW
+return jit.fn(jit.arg<any>(), (ctx, data) => {
+    const literalSet = new Set(literals); // Captured in closure
+    ctx.when(ctx.not(ctx.call(literalSet.has.bind(literalSet), data)), () => {
+        ctx.throw_(ValidationError, ctx.lit('Invalid literal'));
+    });
+    return data;
+});
+```
+
+### 13. Binary Data Handling
+
+```typescript
+// ❌ OLD
+compiler.context.set('arrayBufferToBase64', arrayBufferToBase64);
+code = `result = arrayBufferToBase64(data)`;
+
+// ✅ NEW
+return jit.fn(jit.arg<ArrayBuffer>(), (ctx, data) => {
+    return ctx.call(arrayBufferToBase64, data);
+});
+```
+
+### 14. Recursion Handling
+
+**Build-Time (Type Graph Cycles):**
+```typescript
+// ❌ OLD - parentTypes array + JitStack
+state.parentTypes.push(type);
+if (state.jitStack.has(registry, type)) { /* call existing */ }
+else {
+    const prepare = state.jitStack.prepare(registry, type);
+    // ... build ...
+    prepare.setFunction(builtFn);
+}
+state.parentTypes.pop();
+
+// ✅ NEW - typeStack Set + fnCache Map
+if (this.typeStack.has(type)) {
+    return this.buildExtractedCall(type, input);  // Circular
+}
+if (this.fnCache.has(type)) {
+    return ctx.call(ctx.getVar(this.fnCache.get(type)!), input, state, path);  // Reuse
+}
+this.typeStack.add(type);
+const result = this.buildInline(type, input);
+this.typeStack.delete(type);
+return result;
+```
+
+**Runtime (Circular Data):**
+```typescript
+// ❌ OLD
+code = `if (state._stack && state._stack.includes(data)) return undefined;`;
+code += `state._stack = state._stack || []; state._stack.push(data);`;
+
+// ✅ NEW
+const arrayIncludes = (arr: any[], item: any) => arr.includes(item);
+ctx.when(ctx.not(state.get('_stack')), () => {
+    ctx.set(state, '_stack', ctx.lit([]));
+});
+return ctx.cond([
+    [ctx.isNullish(data), () => serializeInner(ctx, data, state)],
+    [ctx.call(arrayIncludes, state.get('_stack'), data), () => ctx.lit(undefined)],
+], () => {
+    ctx.call(arrayPush, state.get('_stack'), data);
+    const result = serializeInner(ctx, data, state);
+    ctx.call(arrayPop, state.get('_stack'));
+    return result;
+});
+```
+
+### 15. Class Instantiation
+
+```typescript
+// ❌ OLD: With constructor
+compiler.context.set('MyClass', MyClass);
+code = `new MyClass(arg1, arg2)`;
+
+// ✅ NEW - factory function (captures class in closure)
+const createMyClass = (a: any, b: any) => new MyClass(a, b);
+ctx.call(createMyClass, arg1, arg2)
+
+// ❌ OLD: Without constructor (disableConstructor)
+code = `Object.create(MyClass.prototype)`;
+
+// ✅ NEW
+const createInstance = () => Object.create(MyClass.prototype);
+ctx.call(createInstance)
+```
+
+### 16. Performance-Critical Patterns
+
+**Avoid These Anti-Patterns:**
+```typescript
+// ❌ DON'T: Create functions in hot paths
+code = `const fn = (x) => x + 1; result = fn(data);`;
+
+// ✅ DO: Pre-define and reference
+const addOne = (x: number) => x + 1;
+ctx.call(addOne, data);
+```
+
+**Ensure V8 Optimization:**
+1. **Monomorphic functions**: Each generated function handles ONE type
+2. **Stable shapes**: Objects created should have consistent property order
+3. **No megamorphic calls**: Avoid calling same function with different argument types
+
+### jit.ts Primitives Summary
+
+**Already Available:**
+| Primitive | Purpose |
+|-----------|---------|
+| `var_(initial)` | Mutable state cell |
+| `setVar(ref, value)` | Update mutable cell |
+| `getVar(ref)` | Read mutable cell |
+| `switch_(value, cases, default)` | Switch statement |
+| `ternary(cond, then, else)` | Inline conditional |
+| `isInstance(value, ctor)` | instanceof check |
+| `throw_(Error, message)` | Throw error |
+| `forIn(obj, callback)` | For-in loop |
+| `cond(cases, default)` | If-else chain |
+| `concat(...parts)` | String concatenation |
+| `typeof_(value)` | typeof operator |
+
+**Key Insight: Slots vs Code Generation**
+
+CompilerContext builds strings that become JavaScript code. jit.fn() builds a computation graph with slots:
+
+```typescript
+// CompilerContext - strings
+let code = 'let x = data.name;';
+code += 'if (x) result = x;';
+return new Function('data', code);
+
+// jit.fn() - slots
+return jit.fn(jit.arg<any>(), (ctx, data) => {
+    const x = data.get('name');     // x is a SLOT (reference to a value)
+    return ctx.ternary(x, x, ctx.lit(undefined));
+});
+```
+
+In JIT mode, jit.fn() generates optimized code similar to CompilerContext.
+In Exec mode (CSP), jit.fn() interprets the graph directly.
+
+---
+
 ## Handler Examples
 
 ### Primitive with Specificality
@@ -2260,5 +2678,307 @@ jit[id] = createSerializeFunction(...);
 **V8 Optimization:**
 - `toFastProperties(jit)` after cache writes
 - Ensures stable hidden class for JIT container
+
+---
+
+## Union Serialization Test Matrix
+
+This section provides the **test oracle** for union behavior across all serialization contexts. Every test case here MUST pass after the rewrite.
+
+### Context Summary
+
+| Context | Mode | `loosely` | Source Format | Key Characteristics |
+|---------|------|-----------|---------------|---------------------|
+| HTTP Query String | deserialize | `true` | All strings | `?limit=123` becomes number 123 |
+| HTTP URL Path | deserialize | `true` | All strings | `/user/123` becomes number 123 |
+| HTTP JSON Body | deserialize | `true` (default) | JSON types | Dates as ISO strings or timestamps |
+| CLI Arguments | deserialize | `true` | All strings | `--count 5` becomes number 5 |
+| JSON Serialize | serialize | N/A | JS types | Dates become ISO strings |
+| JSON Deserialize | deserialize | `true` (default) | JSON types | Standard JSON round-trip |
+| SQL Database | both | `false` | DB types | Type-specific mappings, JSON columns |
+| BSON/MongoDB | both | `false` | Binary | ObjectId, Binary, strict types |
+| Validation (`is()`) | validate | `strict` | JS types | Only specificality=1 guards |
+
+### Specificality Quick Reference
+
+| Specificality | Purpose | Examples |
+|---------------|---------|----------|
+| **-0.9 to -0.5** | Loose coercion | `'123'` -> number, `'true'` -> boolean |
+| **0.5** | Priority guard (JSON) | ISO string -> Date |
+| **1** | Strict JS type check | `'number' === typeof x` |
+| **1.5** | Fallback priority | number -> Date |
+| **2** | Standard fallback | string-to-anything |
+| **10+** | Last resort | binary as string |
+| **20** | Catch-all | `any` matches anything |
+| **50** | Ultimate fallback | string accepts non-null |
+
+**Key Rules:**
+- `validation='strict'` only uses specificality=1
+- `serialize` skips specificality < 1
+- `deserialize` uses all specificalities when `loosely=true`
+
+---
+
+### Test Cases: Primitive Unions
+
+#### Case 1: `string | number` with input `"123"` (string value)
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| HTTP Query (`loosely=true`) | **number (C)** | Numeric string coerced to number |
+| HTTP JSON Body | **string** | Already valid JSON string |
+| JSON Deserialize | **string** | Valid as string, no coercion needed |
+| SQL/BSON Deserialize | **string** | Strict: string matches first |
+| Validation (`is()`) | **string** | Strict mode: `typeof === 'string'` |
+
+#### Case 2: `string | number` with input `123` (number value)
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **number** | Native number matches |
+
+#### Case 3: `string | boolean` with input `"true"` (string value)
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| HTTP Query (`loosely=true`) | **boolean (C)** | `'true'` -> `true` at specificality -0.9 |
+| HTTP JSON Body | **string** | Valid JSON string |
+| JSON Deserialize | **string** | Valid as string |
+| Validation (`is()`) | **string** | Strict: matches string type |
+
+#### Case 4: `number | boolean` with input `"1"` (string value)
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| HTTP Query (`loosely=true`) | **number (C)** | isNumeric() at -0.5 beats boolean's -0.9 |
+| HTTP JSON Body | **FAIL** | No string in union |
+| Validation (`is()`) | **FAIL** | Neither matches strict |
+
+---
+
+### Test Cases: Date Unions
+
+#### Case 5: `string | Date` with input `"2024-01-01T00:00:00Z"` (ISO string)
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| HTTP Query (`loosely=true`) | **Date (C)** | Date guard at 0.5 matches ISO string |
+| HTTP JSON Body | **Date (C)** | JSON standard: ISO string -> Date |
+| JSON Deserialize | **Date (C)** | Date guard at specificality 0.5 |
+| Validation (`is()`) | **string** | Strict mode: string matches at 1 |
+
+**Key insight:** Date has a type guard at specificality 0.5 for ISO strings, which runs BEFORE string's guard at 1 during deserialization but not during strict validation.
+
+#### Case 6: `number | Date` with input `1704067200000` (number)
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **number** | Number matches at specificality 1 |
+
+**Note:** Date has a fallback guard at specificality 1.5 for numbers, but number's guard at 1 matches first.
+
+---
+
+### Test Cases: Object Unions
+
+#### Case 7: `{a: number} | {b: string}` with input `{a: 1}`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **{a: number}** | Property `a` matches, score > 0 |
+
+#### Case 8: `{a: number} | {a: number, b?: string}` with input `{a: 1}`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **{a: number}** | First matching type wins (equal scores) |
+
+#### Case 9: `{a: number} | {a: number, b?: string}` with input `{a: 1, b: "x"}`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **{a: number, b?: string}** | Higher score (2 properties match) |
+
+#### Case 10: Discriminated Union `{type: 'a', x: number} | {type: 'b', y: string}` with input `{type: 'a', x: 1}`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **{type: 'a', x: number}** | Literal 'a' provides quick discrimination |
+
+---
+
+### Test Cases: Unions with Validation Annotations
+
+#### Case 11: `(string & MinLength<3>) | number` with input `"ab"` (2 chars)
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **FAIL: MinLength** | String matches type, then validation fails |
+
+**Important:** Type matching happens FIRST, then validation annotations run.
+
+#### Case 12: `(number & Positive) | (number & Negative)` with input `5`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **number & Positive** | First member matches type and validation |
+
+#### Case 13: `(number & Positive) | (number & Negative)` with input `-5`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **number & Negative** | Second member: Positive fails, Negative passes |
+
+**Validation in unions:** When first member's type matches but validation fails, try next members. Only if ALL fail, report best-match errors.
+
+---
+
+### Test Cases: Validation-Aware Resolution (CRITICAL)
+
+#### Case 14: `(string & MinLength<3>) | (number & Positive)` with input `"5"` (loose mode)
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | Try number (spec -0.5) | Coerces "5" → 5 |
+| 2 | Validate Positive | 5 >= 0 → PASS |
+| **Final** | **number: 5** | |
+
+#### Case 15: `(string & MinLength<3>) | (number & Positive)` with input `"-5"` (loose mode)
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | Try number (spec -0.5) | Coerces "-5" → -5 |
+| 2 | Validate Positive | -5 < 0 → FAIL |
+| 3 | Try string (spec 1) | "-5" is string |
+| 4 | Validate MinLength<3> | length 2 < 3 → FAIL |
+| **Final** | **FAIL: Positive** | Best structural match was number |
+
+#### Case 16: Branded types `Email | Username`
+
+```typescript
+type Email = string & Pattern</@/> & MaxLength<255>;
+type Username = string & Pattern</^[a-z]+$/> & MinLength<3> & MaxLength<20>;
+```
+
+| Input | Expected Member | Result |
+|-------|-----------------|--------|
+| `"user@example.com"` | `Email` | PASS (has @) |
+| `"johndoe"` | `Username` | PASS (lowercase only) |
+| `"ab"` | `Username` | FAIL: MinLength |
+| `"User123"` | FAIL both | Neither pattern matches |
+
+---
+
+### Test Cases: Loose Coercion with Validation (HTTP Query)
+
+#### Case 17: `SearchLimit | SearchQuery` with query params
+
+```typescript
+type SearchLimit = number & Positive & Maximum<100>;
+type SearchQuery = string & MinLength<2>;
+type SearchParam = SearchLimit | SearchQuery;
+```
+
+| Input String | Coercion | Candidate | Validation | Final Result |
+|--------------|----------|-----------|------------|--------------|
+| `"50"` | → 50 | SearchLimit | Positive ✓, Max<100> ✓ | **50 (number)** |
+| `"150"` | → 150 | SearchLimit | Max<100> ✗ → try string | MinLength ✓ | **"150" (string)** |
+| `"hi"` | not numeric | SearchQuery | MinLength<2> ✓ | **"hi" (string)** |
+| `"x"` | not numeric | SearchQuery | MinLength<2> ✗ | **FAIL: MinLength** |
+| `"-5"` | → -5 | SearchLimit | Positive ✗ → try string | MinLength ✓ | **"-5" (string)** |
+
+**Key insight:** When number validation fails, fall back to trying string (which keeps original value).
+
+---
+
+### Test Cases: Edge Cases
+
+#### Case 18: `string | number | boolean` with input `"true"`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| HTTP Query (`loosely=true`) | **boolean (C)** | `'true'` -> boolean at -0.9 |
+| HTTP JSON Body | **string** | Valid JSON string |
+| Validation (`is()`) | **string** | Strict: string matches |
+
+#### Case 19: `string | any` with input `{complex: true}`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **any** | `any` matches at specificality 20 |
+
+#### Case 20: `Date | null` with input `null`
+
+| Context | Result | Notes |
+|---------|--------|-------|
+| All contexts | **null** | `null` literal matches |
+
+---
+
+### Algorithm Specification
+
+#### Phase 1: Discriminator Detection (O(1) fast path)
+
+```
+IF all union members are objects with a common literal property:
+    Use switch on discriminator value
+    RETURN matching member or FAIL
+```
+
+#### Phase 2: Primitive Shortcut
+
+```
+IF input is primitive AND union has matching primitive type:
+    FOR each specificality level (sorted by context rules):
+        IF guard matches:
+            candidate = {member, specificality}
+            BREAK to validation
+```
+
+#### Phase 3: Object Scoring
+
+```
+FOR each object member:
+    score = 0
+    FOR each property in member:
+        IF property in input AND type matches:
+            score += 1
+        ELSE IF required:
+            REJECT member
+
+    extraFields = count(input keys not in member)
+    finalScore = (score * 1000) + (normalizedSpec * 10) - (extraFields * 5)
+
+    IF finalScore > bestScore:
+        bestCandidate = member
+```
+
+#### Phase 4: Validation with Fallthrough
+
+```
+FOR each candidate (by score descending):
+    errors = validate(input, candidate.member)
+    IF no errors:
+        RETURN SUCCESS with candidate.member
+    ELSE:
+        track as potentialMatch with errors
+
+IF no valid candidate:
+    RETURN FAIL with closest match's errors
+```
+
+---
+
+### Specificality Ranges by Context
+
+| Context | Min Spec | Max Spec | Notes |
+|---------|----------|----------|-------|
+| HTTP Query/Path | -0.9 | 50 | Full loose mode |
+| HTTP JSON Body | -0.5 | 50 | Slightly less loose (preserve explicit types) |
+| CLI Args | -0.9 | 50 | Full loose mode |
+| JSON Deserialize | configurable | configurable | Default: 0.5 to 50 |
+| SQL/BSON | 1 | 1 | Strict only |
+| Validation (`is()`) | 1 | 1 | Strict only |
+| Serialize | 1 | 50 | No loose, yes fallback |
 
 ---

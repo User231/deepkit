@@ -8,6 +8,7 @@
 | Tiered execution | ✅ Done | Exec mode first, JIT after N calls (default 10). Fast bootstrap. |
 | Capability investigation | ✅ Done | All 15 agents completed, design.md updated with 33 capability sections |
 | Recursion handling | ✅ Done | Build-time (typeStack/fnCache) + runtime (_stack) documented |
+| Documentation consolidation | ✅ Done | pattern-mapping.md + union-serialization-matrix.md merged into design.md (2984 lines) |
 | Reset type/src | ⏳ Pending | Need to restore from src-old or git |
 | serializer.ts | ⏳ Pending | Core file, do first. Now with complete feature awareness |
 | change-detector.ts | ⏳ Pending | Uses var_/setVar for state |
@@ -342,3 +343,36 @@ Added comprehensive "Recursion Handling (CRITICAL)" section to design.md:
 - `design.md`: New "Recursion Handling (CRITICAL)" section after Architecture
 - `design.md`: Updated BuildState interface with `fnCache`, `hasCircularReference()`
 - `pattern-mapping.md`: Expanded section 14 with both recursion types
+
+---
+
+**Documentation Consolidation**
+
+Consolidated all knowledge into single `design.md` to ensure implementation agent has complete context:
+
+**Merged into design.md:**
+- `pattern-mapping.md` (705 lines) → "Pattern Mapping: CompilerContext → jit.fn()" section
+- `docs/union-serialization-matrix.md` (715 lines) → "Union Serialization Test Matrix" section
+
+**Deleted standalone files:**
+- `docs/todo/jit-csp/pattern-mapping.md`
+- `docs/union-serialization-matrix.md`
+
+**Result:** Single 2984-line design.md contains:
+1. Overview & Philosophy
+2. Use Cases
+3. Specificality System
+4. Architecture (Slots, Registries, BuildState)
+5. Recursion Handling (build-time + runtime)
+6. Union Handling (algorithm)
+7. **Pattern Mapping** (16 OLD→NEW patterns) ← MERGED
+8. File Structure
+9. jit.ts Changes Required
+10. Handler Examples
+11. Implementation Order
+12. Public API Preservation
+13. Verification
+14. Comprehensive Capability Inventory (33 sections)
+15. **Union Serialization Test Matrix** (20+ test cases) ← MERGED
+
+**Rationale:** Previous agent failures occurred partly due to incomplete context. Single consolidated file ensures agent cannot miss critical patterns or test cases.
