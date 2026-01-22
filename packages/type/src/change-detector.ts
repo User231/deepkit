@@ -7,12 +7,11 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { CompilerContext, empty, toFastProperties } from '@deepkit/core';
+import { Context, Slot, empty, jit, toFastProperties } from '@deepkit/core';
 
 import { Changes, ItemChanges, changeSetSymbol } from './changes.js';
 import { ReflectionClass } from './reflection/reflection.js';
 import { ReflectionKind, Type, TypeIndexSignature, referenceAnnotation } from './reflection/type.js';
-import { ContainerAccessor, TemplateRegistry, TemplateState, getIndexCheck, sortSignatures } from './serializer.js';
 import { getConverterForSnapshot } from './snapshot.js';
 
 function genericEqualArray(a: any[], b: any[]): boolean {
@@ -59,86 +58,64 @@ export function genericEqual(a: any, b: any): boolean {
     return a === b;
 }
 
-function createJITChangeDetectorForSnapshot(
-    schema: ReflectionClass<any>,
-    stateIn?: TemplateState,
-): (lastSnapshot: any, currentSnapshot: any) => ItemChanges<any> {
-    const compiler = new CompilerContext();
-    const state = new TemplateState(
-        '',
-        '',
-        compiler,
-        stateIn ? stateIn.registry : new TemplateRegistry(),
-        undefined,
-        stateIn ? stateIn.jitStack : undefined,
-    );
-    state.setContext({
-        genericEqual,
-        empty,
-    });
-    const lines: string[] = [];
+/**
+ * Check if a numeric index signature key
+ */
+function isNumeric(value: string): boolean {
+    return !isNaN(parseFloat(value)) && isFinite(value as any);
+}
 
-    function has(accessor: string): string {
-        return `(changeSet.$inc && ${accessor} in changeSet.$inc) || (changeSet.$unset && ${accessor} in changeSet.$unset)`;
-    }
+/**
+ * Build state for change detector JIT function generation.
+ */
+interface ChangeDetectorState {
+    /** Map from type to its cached detector function var */
+    fnCache: Map<Type, Slot<Function>>;
+    /** Types currently being processed (for circular detection) */
+    typeStack: Set<Type>;
+}
 
-    function getComparator(
-        type: Type,
-        last: ContainerAccessor,
-        current: ContainerAccessor,
-        accessor: ContainerAccessor,
-        changedName: string,
-        onChanged: string,
-        state: TemplateState,
-    ): string {
+/**
+ * Check if a key is already handled by $inc or $unset in the changeSet.
+ */
+function hasChangeSet(changeSet: any, key: string): boolean {
+    return (changeSet.$inc && key in changeSet.$inc) || (changeSet.$unset && key in changeSet.$unset);
+}
+
+/**
+ * Build comparator code for a specific type.
+ */
+function buildComparator(
+    ctx: Context,
+    type: Type,
+    last: Slot,
+    current: Slot,
+    item: Slot,
+    changedKey: Slot<string>,
+    changesSlot: Slot,
+    changeSetSlot: Slot,
+    onChanged: () => void,
+    state: ChangeDetectorState,
+    schema?: ReflectionClass<any>,
+): void {
+    const hasChangeSetFn = hasChangeSet;
+
+    // Check if this key is already handled by $inc or $unset
+    ctx.when(ctx.not(ctx.callExpr<boolean>(hasChangeSetFn, changeSetSlot, changedKey)), () => {
         if (type.kind === ReflectionKind.array) {
-            const l = compiler.reserveName('l');
-
-            const lastAccessor = new ContainerAccessor(last, l);
-            const currentAccessor = new ContainerAccessor(current, l);
-            const itemAccessor = new ContainerAccessor(accessor, l);
-            return `
-                if (!${has(changedName)}) {
-                if (!${current} && !${last}) {
-
-                } else if ((${current} && !${last}) || (!${current} && ${last})) {
-                    changes[${changedName}] = item[${changedName}];
-                    ${onChanged}
-                } else if (${current}.length !== ${last}.length) {
-                    changes[${changedName}] = item[${changedName}];
-                    ${onChanged}
-                } else {
-                    let ${l} = ${last}.length;
-                    ${onChanged ? '' : 'root:'}
-                    while (${l}--) {
-                         ${getComparator(type.type, lastAccessor, currentAccessor, itemAccessor, changedName, 'break root;', state)}
-                    }
-                }
-                }
-            `;
-
-            // } else if (type.isMap || type.isPartial) {
-            //     compiler.context.set('getObjectKeysSize', getObjectKeysSize);
-            //     const i = reserveVariable(compiler.context, 'i');
-            //     return `
-            //         if (!${has(changedName)}) {
-            //         if (!${current} && !${last}) {
-            //
-            //         } else if ((${current} && !${last}) || (!${current} && ${last})) {
-            //             changes[${changedName}] = item[${changedName}];
-            //             ${onChanged}
-            //         } else if (getObjectKeysSize(${current}) !== getObjectKeysSize(${last})) {
-            //             changes[${changedName}] = item[${changedName}];
-            //             ${onChanged}
-            //         } else {
-            //             ${onChanged ? '' : 'root:'}
-            //             for (let ${i} in ${last}) {
-            //                 if (!${last}.hasOwnProperty(${i})) continue;
-            //                  ${getComparator(type.getSubType(), `${last}[${i}]`, `${current}[${i}]`, `${accessor}[${i}]`, changedName, 'break root;', jitStack)}
-            //             }
-            //         }
-            //         }
-            //     `;
+            // Array comparison
+            buildArrayComparator(
+                ctx,
+                type,
+                last,
+                current,
+                item,
+                changedKey,
+                changesSlot,
+                changeSetSlot,
+                onChanged,
+                state,
+            );
         } else if (
             (type.kind === ReflectionKind.class || type.kind === ReflectionKind.objectLiteral) &&
             type.types.length
@@ -146,166 +123,494 @@ function createJITChangeDetectorForSnapshot(
             const classSchema = ReflectionClass.from(type);
 
             if (referenceAnnotation.getFirst(type) !== undefined) {
-                const checks: string[] = [];
-
-                for (const primaryField of classSchema.getPrimaries()) {
-                    const name = JSON.stringify(primaryField.getNameAsString());
-                    const lastAccessor = new ContainerAccessor(last, name);
-                    const currentAccessor = new ContainerAccessor(current, name);
-                    const itemAccessor = new ContainerAccessor(accessor, name);
-                    checks.push(`
-                         ${getComparator(primaryField.type, lastAccessor, currentAccessor, itemAccessor, changedName, onChanged, state)}
-                    `);
-                }
-
-                return `
-                    if (!${has(changedName)}) {
-                    if (!${current} && !${last}) {
-
-                    } else if ((${current} && !${last}) || (!${current} && ${last})) {
-                        changes[${changedName}] = item[${changedName}];
-                        ${onChanged}
-                    } else {
-                        ${checks.join('\n')}
-                    }
-                    }
-                `;
+                // Reference type - compare primary keys
+                buildReferenceComparator(
+                    ctx,
+                    classSchema,
+                    last,
+                    current,
+                    item,
+                    changedKey,
+                    changesSlot,
+                    changeSetSlot,
+                    onChanged,
+                    state,
+                );
+            } else {
+                // Nested object - use recursive detector
+                buildNestedObjectComparator(
+                    ctx,
+                    classSchema,
+                    type,
+                    last,
+                    current,
+                    item,
+                    changedKey,
+                    changesSlot,
+                    changeSetSlot,
+                    onChanged,
+                    state,
+                );
             }
-
-            const jitChangeDetectorThis = compiler.reserveVariable(
-                'jitChangeDetector',
-                state.jitStack.getOrCreate(state.registry, type, () => {
-                    return createJITChangeDetectorForSnapshot(classSchema, state);
-                }),
-            );
-
-            return `
-                if (!${has(changedName)}) {
-                    if (!${current} && !${last}) {
-
-                    } else if ((${current} && !${last}) || (!${current} && ${last})) {
-                        changes[${changedName}] = item[${changedName}];
-                        ${onChanged}
-                    } else {
-                        const thisChanged = ${jitChangeDetectorThis}.fn(${last}, ${current}, ${accessor});
-                        if (!empty(thisChanged)) {
-                            changes[${changedName}] = item[${changedName}];
-                            ${onChanged}
-                        }
-                    }
-                }
-            `;
         } else if (
             type.kind === ReflectionKind.any ||
             type.kind === ReflectionKind.never ||
             type.kind === ReflectionKind.union
         ) {
-            return `
-                if (!${has(changedName)}) {
-                    if (!genericEqual(${last}, ${current})) {
-                        changes[${changedName}] = item[${changedName}];
-                        ${onChanged}
-                    }
-                }
-            `;
+            // Use generic comparison for any/never/union types
+            ctx.when(ctx.not(ctx.callExpr<boolean>(genericEqual, last, current)), () => {
+                ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                onChanged();
+            });
         } else {
-            //binary, date, boolean, etc are encoded as simple JSON objects (number, boolean, or string) primitives
-            return `
-            if (!${has(changedName)}) {
-                if (${last} !== ${current}) {
-                    changes[${changedName}] = item[${changedName}];
-                    ${onChanged}
-                }
+            // Primitive comparison (number, string, boolean, etc.)
+            ctx.when(ctx.neq(last, current), () => {
+                ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                onChanged();
+            });
+        }
+    });
+}
+
+/**
+ * Build array comparison.
+ */
+function buildArrayComparator(
+    ctx: Context,
+    type: Type & { kind: ReflectionKind.array; type: Type },
+    last: Slot,
+    current: Slot,
+    item: Slot,
+    changedKey: Slot<string>,
+    changesSlot: Slot,
+    changeSetSlot: Slot,
+    onChanged: () => void,
+    state: ChangeDetectorState,
+): void {
+    // Both null/undefined - no change
+    ctx.when(
+        ctx.and(ctx.not(current), ctx.not(last)),
+        () => {
+            // No change - both are null/undefined
+        },
+        () => {
+            // At least one exists
+            ctx.when(
+                ctx.or(ctx.and(current, ctx.not(last)), ctx.and(ctx.not(current), last)),
+                () => {
+                    // One exists, other doesn't - change
+                    ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                    onChanged();
+                },
+                () => {
+                    // Both exist - compare lengths first, then elements
+                    ctx.when(
+                        ctx.neq(ctx.len(current), ctx.len(last)),
+                        () => {
+                            // Different lengths - change
+                            ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                            onChanged();
+                        },
+                        () => {
+                            // Same length - compare elements
+                            const changed = ctx.var_<boolean>(false);
+
+                            ctx.loop(last, (elem, idx) => {
+                                ctx.when(ctx.not(ctx.getVar(changed)), () => {
+                                    const lastElem = ctx.at(last, idx);
+                                    const currentElem = ctx.at(current, idx);
+
+                                    // For array elements, we need to compare them
+                                    // Using nested comparator (simplified - using genericEqual for elements)
+                                    if (
+                                        type.type.kind === ReflectionKind.any ||
+                                        type.type.kind === ReflectionKind.never ||
+                                        type.type.kind === ReflectionKind.union ||
+                                        type.type.kind === ReflectionKind.array ||
+                                        type.type.kind === ReflectionKind.class ||
+                                        type.type.kind === ReflectionKind.objectLiteral
+                                    ) {
+                                        ctx.when(
+                                            ctx.not(ctx.callExpr<boolean>(genericEqual, lastElem, currentElem)),
+                                            () => {
+                                                ctx.setVar(changed, ctx.lit(true));
+                                            },
+                                        );
+                                    } else {
+                                        ctx.when(ctx.neq(lastElem, currentElem), () => {
+                                            ctx.setVar(changed, ctx.lit(true));
+                                        });
+                                    }
+                                });
+                            });
+
+                            ctx.when(ctx.getVar(changed), () => {
+                                ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                                onChanged();
+                            });
+                        },
+                    );
+                },
+            );
+        },
+    );
+}
+
+/**
+ * Build reference type comparison (compare primary keys).
+ */
+function buildReferenceComparator(
+    ctx: Context,
+    classSchema: ReflectionClass<any>,
+    last: Slot,
+    current: Slot,
+    item: Slot,
+    changedKey: Slot<string>,
+    changesSlot: Slot,
+    changeSetSlot: Slot,
+    onChanged: () => void,
+    state: ChangeDetectorState,
+): void {
+    // Both null/undefined - no change
+    ctx.when(
+        ctx.and(ctx.not(current), ctx.not(last)),
+        () => {
+            // No change
+        },
+        () => {
+            ctx.when(
+                ctx.or(ctx.and(current, ctx.not(last)), ctx.and(ctx.not(current), last)),
+                () => {
+                    // One exists, other doesn't - change
+                    ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                    onChanged();
+                },
+                () => {
+                    // Both exist - compare primary key fields
+                    const changed = ctx.var_<boolean>(false);
+
+                    for (const primaryField of classSchema.getPrimaries()) {
+                        const pkName = primaryField.getNameAsString();
+                        const lastPk = ctx.get(last, pkName);
+                        const currentPk = ctx.get(current, pkName);
+
+                        ctx.when(ctx.not(ctx.getVar(changed)), () => {
+                            // Compare primary key values
+                            if (
+                                primaryField.type.kind === ReflectionKind.any ||
+                                primaryField.type.kind === ReflectionKind.never ||
+                                primaryField.type.kind === ReflectionKind.union
+                            ) {
+                                ctx.when(ctx.not(ctx.callExpr<boolean>(genericEqual, lastPk, currentPk)), () => {
+                                    ctx.setVar(changed, ctx.lit(true));
+                                });
+                            } else {
+                                ctx.when(ctx.neq(lastPk, currentPk), () => {
+                                    ctx.setVar(changed, ctx.lit(true));
+                                });
+                            }
+                        });
+                    }
+
+                    ctx.when(ctx.getVar(changed), () => {
+                        ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                        onChanged();
+                    });
+                },
+            );
+        },
+    );
+}
+
+/**
+ * Build nested object comparison using recursive detector.
+ */
+function buildNestedObjectComparator(
+    ctx: Context,
+    classSchema: ReflectionClass<any>,
+    type: Type,
+    last: Slot,
+    current: Slot,
+    item: Slot,
+    changedKey: Slot<string>,
+    changesSlot: Slot,
+    changeSetSlot: Slot,
+    onChanged: () => void,
+    state: ChangeDetectorState,
+): void {
+    // Both null/undefined - no change
+    ctx.when(
+        ctx.and(ctx.not(current), ctx.not(last)),
+        () => {
+            // No change
+        },
+        () => {
+            ctx.when(
+                ctx.or(ctx.and(current, ctx.not(last)), ctx.and(ctx.not(current), last)),
+                () => {
+                    // One exists, other doesn't - change
+                    ctx.set(changesSlot, changedKey, ctx.get(item, changedKey));
+                    onChanged();
+                },
+                () => {
+                    // Both exist - use nested change detector
+                    let fnSlot = state.fnCache.get(type);
+
+                    if (!fnSlot) {
+                        // Check for circular reference
+                        if (state.typeStack.has(type)) {
+                            // Circular reference - use lazy initialization
+                            fnSlot = ctx.var_<Function>(undefined as any);
+                            state.fnCache.set(type, fnSlot);
+
+                            // Build the nested detector lazily
+                            const nestedDetector = createJITChangeDetectorForSnapshot(classSchema, state);
+                            ctx.setVar(fnSlot, ctx.lit(nestedDetector));
+                        } else {
+                            // Not circular - build inline
+                            state.typeStack.add(type);
+                            try {
+                                const nestedDetector = createJITChangeDetectorForSnapshot(classSchema, state);
+                                fnSlot = ctx.var_<Function>(ctx.lit(nestedDetector));
+                                state.fnCache.set(type, fnSlot);
+                            } finally {
+                                state.typeStack.delete(type);
+                            }
+                        }
+                    }
+
+                    const itemValue = ctx.get(item, changedKey);
+                    const thisChanged = ctx.let(
+                        ctx.callExpr<ItemChanges<any> | undefined>(
+                            (fn: Function, l: any, c: any, i: any) => fn(l, c, i),
+                            ctx.getVar(fnSlot),
+                            last,
+                            current,
+                            itemValue,
+                        ),
+                    );
+
+                    ctx.when(ctx.and(thisChanged, ctx.not(ctx.callExpr<boolean>(empty, thisChanged))), () => {
+                        ctx.set(changesSlot, changedKey, itemValue);
+                        onChanged();
+                    });
+                },
+            );
+        },
+    );
+}
+
+/**
+ * Sort index signatures: literals first, then numbers, then strings.
+ */
+function sortSignatures(signatures: TypeIndexSignature[]): void {
+    signatures.sort((a, b) => {
+        const aIsLiteral =
+            a.index.kind === ReflectionKind.literal ||
+            (a.index.kind === ReflectionKind.union && a.index.types.some(v => v.kind === ReflectionKind.literal));
+        const bIsLiteral =
+            b.index.kind === ReflectionKind.literal ||
+            (b.index.kind === ReflectionKind.union && b.index.types.some(v => v.kind === ReflectionKind.literal));
+        const aIsNumber =
+            a.index.kind === ReflectionKind.number ||
+            (a.index.kind === ReflectionKind.union && a.index.types.some(v => v.kind === ReflectionKind.number));
+
+        if (aIsLiteral) return -1;
+        if (aIsNumber && !bIsLiteral) return -1;
+        return +1;
+    });
+}
+
+/**
+ * Build index check for index signature key.
+ */
+function buildIndexCheck(ctx: Context, keySlot: Slot<string>, indexType: Type): Slot<boolean> {
+    if (indexType.kind === ReflectionKind.number) {
+        return ctx.callExpr<boolean>(isNumeric, keySlot);
+    } else if (indexType.kind === ReflectionKind.string || indexType.kind === ReflectionKind.any) {
+        return ctx.eq(ctx.typeof_(keySlot), ctx.lit('string'));
+    } else if (indexType.kind === ReflectionKind.symbol) {
+        return ctx.eq(ctx.typeof_(keySlot), ctx.lit('symbol'));
+    } else if (indexType.kind === ReflectionKind.union) {
+        // OR of all member checks
+        let result: Slot<boolean> | undefined;
+        for (const member of indexType.types) {
+            const check = buildIndexCheck(ctx, keySlot, member);
+            result = result ? ctx.or(result, check) : check;
+        }
+        return result || ctx.lit(false);
+    }
+    return ctx.lit(true);
+}
+
+function createJITChangeDetectorForSnapshot(
+    schema: ReflectionClass<any>,
+    parentState?: ChangeDetectorState,
+): (lastSnapshot: any, currentSnapshot: any, item: any) => ItemChanges<any> | undefined {
+    const state: ChangeDetectorState = {
+        fnCache: parentState?.fnCache ?? new Map(),
+        typeStack: parentState?.typeStack ?? new Set(),
+    };
+
+    return jit.fn(
+        jit.arg<any>(), // last snapshot
+        jit.arg<any>(), // current snapshot
+        jit.arg<any>(), // item
+        (ctx: Context, last: Slot<any>, current: Slot<any>, item: Slot<any>) => {
+            // Get or create changeSet from item
+            const changeSetFromItem = ctx.callExpr<ItemChanges<any> | undefined>((i: any) => i[changeSetSymbol], item);
+            const changeSet = ctx.let(
+                ctx.ternary(changeSetFromItem, changeSetFromItem, ctx.newExpr(ItemChanges, ctx.lit(undefined), item)),
+            );
+
+            // Create changes object to collect detected changes
+            const changes = ctx.let(ctx.objExpr<Record<string, any>>());
+
+            // Track existing property names for index signature exclusion
+            const existingNames: string[] = [];
+
+            // Process each property
+            for (const property of schema.getProperties()) {
+                if (property.isBackReference()) continue;
+
+                const name = property.getNameAsString();
+                existingNames.push(name);
+
+                const nameSlot = ctx.lit(name);
+                const lastProp = ctx.get(last, name);
+                const currentProp = ctx.get(current, name);
+
+                buildComparator(
+                    ctx,
+                    property.type,
+                    lastProp,
+                    currentProp,
+                    item,
+                    nameSlot,
+                    changes,
+                    changeSet,
+                    () => {
+                        /* no break needed at top level */
+                    },
+                    state,
+                    schema,
+                );
             }
-            `;
-        }
-    }
 
-    const existing: string[] = [];
+            // Process index signatures
+            const signatures = (schema.type.types as Type[]).filter(
+                v => v.kind === ReflectionKind.indexSignature,
+            ) as TypeIndexSignature[];
 
-    for (const property of schema.getProperties()) {
-        // if (property.isParentReference) continue;
-        if (property.isBackReference()) continue;
-        const name = JSON.stringify(property.getNameAsString());
-        existing.push(name);
+            if (signatures.length) {
+                sortSignatures(signatures);
 
-        const lastAccessor = new ContainerAccessor('last', name);
-        const currentAccessor = new ContainerAccessor('current', name);
-        const itemAccessor = new ContainerAccessor('item', name);
-        lines.push(
-            getComparator(
-                property.type,
-                lastAccessor,
-                currentAccessor,
-                itemAccessor,
-                JSON.stringify(property.getNameAsString()),
-                '',
-                state,
-            ),
-        );
-    }
+                // Process current keys not in existing properties
+                ctx.forIn(current, (key, _value) => {
+                    // Skip if key is in existing property names
+                    let skipCondition: Slot<boolean> | undefined;
+                    for (const name of existingNames) {
+                        const check = ctx.eq(key, ctx.lit(name));
+                        skipCondition = skipCondition ? ctx.or(skipCondition, check) : check;
+                    }
 
-    for (const t of schema.type.types) {
-    }
+                    if (skipCondition) {
+                        ctx.when(
+                            skipCondition,
+                            () => {
+                                // Skip - already handled
+                            },
+                            () => {
+                                buildIndexSignatureComparison(
+                                    ctx,
+                                    signatures,
+                                    key,
+                                    last,
+                                    current,
+                                    item,
+                                    changes,
+                                    changeSet,
+                                    state,
+                                );
+                            },
+                        );
+                    } else {
+                        buildIndexSignatureComparison(
+                            ctx,
+                            signatures,
+                            key,
+                            last,
+                            current,
+                            item,
+                            changes,
+                            changeSet,
+                            state,
+                        );
+                    }
+                });
 
-    const signatures = (schema.type.types as Type[]).filter(
-        v => v.kind === ReflectionKind.indexSignature,
-    ) as TypeIndexSignature[];
-    if (signatures.length) {
-        const i = compiler.reserveName('i');
-        const existingCheck = existing.map(v => `${i} === ${v}`).join(' || ') || 'false';
-        const signatureLines: string[] = [];
-        sortSignatures(signatures);
-
-        const lastAccessor = new ContainerAccessor('last', i);
-        const currentAccessor = new ContainerAccessor('current', i);
-        const itemAccessor = new ContainerAccessor('item', i);
-
-        for (const signature of signatures) {
-            signatureLines.push(`else if (${getIndexCheck(state.compilerContext, i, signature.index)}) {
-            ${getComparator(signature.type, lastAccessor, currentAccessor, itemAccessor, i, '', state)}
-        }`);
-        }
-
-        //the index signature type could be: string, number, symbol.
-        //or a literal when it was constructed by a mapped type.
-        lines.push(`
-        for (const ${i} in current) {
-            if (!current.hasOwnProperty(${i})) continue;
-            if (${existingCheck}) continue;
-            if (false) {} ${signatureLines.join(' ')}
-        }
-
-        for (const ${i} in last) {
-            if (!last.hasOwnProperty(${i})) continue;
-            if (!current.hasOwnProperty(${i})) {
-               changes[${i}] = item[${i}];
-               break;
+                // Check for keys in last but not in current (deleted)
+                ctx.forIn(last, (key, _value) => {
+                    ctx.when(ctx.not(ctx.has(current, key)), () => {
+                        ctx.set(changes, key, ctx.get(item, key));
+                    });
+                });
             }
-        }
-        `);
+
+            // Merge detected changes into changeSet
+            ctx.callExpr<void>((cs: ItemChanges<any>, c: Record<string, any>) => cs.mergeSet(c), changeSet, changes);
+
+            // Return changeSet if not empty, undefined otherwise
+            return ctx.ternary(ctx.get<boolean>(changeSet, 'empty'), ctx.lit(undefined), changeSet);
+        },
+    );
+}
+
+/**
+ * Build index signature comparison for a dynamic key.
+ */
+function buildIndexSignatureComparison(
+    ctx: Context,
+    signatures: TypeIndexSignature[],
+    key: Slot<string>,
+    last: Slot,
+    current: Slot,
+    item: Slot,
+    changes: Slot,
+    changeSet: Slot,
+    state: ChangeDetectorState,
+): void {
+    // Build condition chain for signatures
+    const cases: Array<[Slot<boolean>, () => void]> = [];
+
+    for (const signature of signatures) {
+        const check = buildIndexCheck(ctx, key, signature.index);
+        cases.push([
+            check,
+            () => {
+                const lastValue = ctx.get(last, key);
+                const currentValue = ctx.get(current, key);
+
+                buildComparator(
+                    ctx,
+                    signature.type,
+                    lastValue,
+                    currentValue,
+                    item,
+                    key,
+                    changes,
+                    changeSet,
+                    () => {
+                        /* no break needed */
+                    },
+                    state,
+                );
+            },
+        ]);
     }
 
-    compiler.context.set('changeSetSymbol', changeSetSymbol);
-    compiler.context.set('ItemChanges', ItemChanges);
-
-    const functionCode = `
-        var changeSet = item[changeSetSymbol] || new ItemChanges(undefined, item);
-        var changes = {};
-        ${lines.join('\n')}
-        changeSet.mergeSet(changes);
-        return changeSet.empty ? undefined : changeSet;
-        `;
-
-    // console.log('functionCode', functionCode);
-
-    try {
-        const fn = compiler.build(functionCode, 'last', 'current', 'item');
-        // prepared(fn);
-        return fn;
-    } catch (error) {
-        console.log('functionCode', functionCode);
-        throw error;
+    if (cases.length > 0) {
+        ctx.cond(cases);
     }
 }
 
@@ -314,13 +619,13 @@ const changeDetectorSymbol = Symbol('changeDetector');
 export function getChangeDetector<T extends object>(
     classSchema: ReflectionClass<T>,
 ): (last: any, current: any, item: T) => ItemChanges<T> | undefined {
-    const jit = classSchema.getJitContainer();
-    if (jit[changeDetectorSymbol]) return jit[changeDetectorSymbol];
+    const jitContainer = classSchema.getJitContainer();
+    if (jitContainer[changeDetectorSymbol]) return jitContainer[changeDetectorSymbol];
 
-    jit[changeDetectorSymbol] = createJITChangeDetectorForSnapshot(classSchema);
-    toFastProperties(jit);
+    jitContainer[changeDetectorSymbol] = createJITChangeDetectorForSnapshot(classSchema);
+    toFastProperties(jitContainer);
 
-    return jit[changeDetectorSymbol];
+    return jitContainer[changeDetectorSymbol];
 }
 
 export function buildChanges<T extends object>(

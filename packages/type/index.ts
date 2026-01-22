@@ -13,7 +13,7 @@ export * from './src/changes.js';
 export * from './src/decorator.js';
 export * from './src/decorator-builder.js';
 export * from './src/reference.js';
-export * from './src/serializer.js';
+export * from './src/serializer/index.js';
 export * from './src/serializer-facade.js';
 export * from './src/typeguard.js';
 export * from './src/types.js';

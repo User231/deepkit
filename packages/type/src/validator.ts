@@ -3,7 +3,7 @@ import { DeepkitError, TypeAnnotation, stringifyValueWithType } from '@deepkit/c
 import { entity } from './decorator.js';
 import { ReceiveType } from './reflection/reflection.js';
 import { Type, stringifyType } from './reflection/type.js';
-import { Serializer, serializer } from './serializer.js';
+import { Serializer, serializer } from './serializer/index.js';
 import { getValidatorFunction, is } from './typeguard.js';
 
 export type ValidatorMeta<Name extends string, Args extends [...args: any[]] = []> = TypeAnnotation<

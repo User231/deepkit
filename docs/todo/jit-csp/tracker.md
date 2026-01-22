@@ -9,12 +9,13 @@
 | Capability investigation | ✅ Done | All 15 agents completed, design.md updated with 33 capability sections |
 | Recursion handling | ✅ Done | Build-time (typeStack/fnCache) + runtime (_stack) documented |
 | Documentation consolidation | ✅ Done | pattern-mapping.md + union-serialization-matrix.md merged into design.md (2984 lines) |
-| Reset type/src | ⏳ Pending | Need to restore from src-old or git |
-| serializer.ts | ⏳ Pending | Core file, do first. Now with complete feature awareness |
+| Reset type/src | N/A | Creating new serializer/ subdirectory instead |
+| serializer/ module | ✅ Done | New jit.fn()-based serializer in packages/type/src/serializer/ |
 | change-detector.ts | ⏳ Pending | Uses var_/setVar for state |
 | snapshot.ts | ⏳ Pending | Similar to serializer |
 | path.ts | ⏳ Pending | Simplest, good for validation |
-| Testing | ⏳ Blocked | After all files rewritten |
+| Integration | ⏳ Pending | Replace old serializer.ts exports with new module |
+| Testing | ⏳ Blocked | After integration |
 
 ---
 
@@ -376,3 +377,57 @@ Consolidated all knowledge into single `design.md` to ensure implementation agen
 15. **Union Serialization Test Matrix** (20+ test cases) ← MERGED
 
 **Rationale:** Previous agent failures occurred partly due to incomplete context. Single consolidated file ensures agent cannot miss critical patterns or test cases.
+
+---
+
+### 2026-01-22 (continued)
+
+**New Serializer Module Created**
+
+Created complete `packages/type/src/serializer/` module with jit.fn()-based implementation:
+
+**Files Created:**
+| File | Lines | Purpose |
+|------|-------|---------|
+| `errors.ts` | 71 | SerializationError, RuntimeCode, collapsePath |
+| `naming.ts` | 73 | NamingStrategy, underscoreNamingStrategy |
+| `registry.ts` | 325 | HandlerRegistry, TypeGuardRegistry, TypeHandler, TypeHook |
+| `state.ts` | 449 | BuildState with inline/extract logic, typeStack, fnCache |
+| `handlers.ts` | 765 | All type handlers for primitives, objects, arrays, tuples, Date, Set, Map, binary |
+| `union.ts` | 237 | Discriminated union (O(1)), literal Set (O(1)), scored resolution (O(n)) |
+| `validation.ts` | 107 | Validation post-hook for type guards |
+| `serializer.ts` | 307 | Serializer class, buildSerializer, buildDeserializer, buildValidator |
+| `index.ts` | 70 | Module exports |
+
+**Key Design Decisions:**
+1. **Created new module** instead of modifying old serializer.ts - cleaner separation
+2. **BuildStateBase interface** in registry.ts to avoid circular imports
+3. **TypeHandler<T>** with BuildStateBase for compile-time type safety
+4. **All handlers return Slot** - no void returns, pure expressions
+5. **Nested ternary** instead of ctx.cond() for value-returning expressions
+
+**Type Handlers Implemented:**
+- Primitives: string, number, boolean, bigint, null, undefined, literal
+- Complex: array, tuple, objectLiteral, class, union
+- Special: Date, Set, Map, RegExp, binary types (ArrayBuffer, TypedArrays)
+- Promise (unwrap), any/unknown (pass-through), void
+
+**Type Guards Implemented:**
+- Exact guards (specificality 1): string, number, boolean, null, undefined, array, object, Date
+- Loose guards (specificality -0.5 to -0.9): number from string, boolean from "true"/"false"/1/0
+- Fallback guards (specificality 50): string accepts anything
+- JSON priority (specificality 0.5): ISO date string → Date
+
+**Union Handling:**
+- Phase 1: Discriminator detection (O(1)) - property with distinct literals
+- Phase 2: Literal set optimization (O(1)) - for 50+ literal members
+- Phase 3: Scored resolution (O(n)) - type guard based selection
+
+**Compiles cleanly** - no TypeScript errors in the new module.
+
+**Next Steps:**
+1. Rewrite change-detector.ts with jit.fn()
+2. Rewrite snapshot.ts with jit.fn()
+3. Rewrite path.ts with jit.fn()
+4. Integration: Wire new serializer/ module into main exports
+5. Run tests and fix issues

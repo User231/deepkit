@@ -12,15 +12,15 @@ import {
     getTypeJitContainer,
 } from './reflection/type.js';
 import {
+    HandlerRegistry,
     NamingStrategy,
     SerializationOptions,
     SerializeFunction,
     Serializer,
-    TemplateRegistry,
     getPartialSerializeFunction,
     getSerializeFunction,
     serializer,
-} from './serializer.js';
+} from './serializer/index.js';
 import { assert } from './typeguard.js';
 import { JSONPartial, JSONSingle } from './utils.js';
 
@@ -121,8 +121,9 @@ export function patch<T>(
  */
 export function getPatchSerializeFunction(
     type: TypeClass | TypeObjectLiteral,
-    registry: TemplateRegistry,
+    registry: HandlerRegistry,
     namingStrategy: NamingStrategy = new NamingStrategy(),
+    serializerName: string = 'json',
 ): (data: any, state?: SerializationOptions, patch?: { normalizeArrayIndex: boolean }) => any {
     const jitContainer = getTypeJitContainer(type);
     const id = registry.id + '_' + namingStrategy.id + '_' + 'patch';
@@ -163,8 +164,7 @@ export function getPatchSerializeFunction(
                         if (next.kind === ReflectionKind.method || next.kind === ReflectionKind.methodSignature)
                             continue outer;
                         if (next.kind === ReflectionKind.propertySignature || next.kind === ReflectionKind.property) {
-                            newPath +=
-                                (newPath ? '.' : '') + namingStrategy.getPropertyName(next, registry.serializer.name);
+                            newPath += (newPath ? '.' : '') + namingStrategy.getPropertyName(next, serializerName);
                         } else {
                             newPath += (newPath ? '.' : '') + part;
                         }
