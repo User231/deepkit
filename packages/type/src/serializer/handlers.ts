@@ -607,10 +607,12 @@ function buildObjectLiteralBody(
 
         // Determine if this property can use object literal syntax (fast path)
         // Requirements for literal:
-        // - Serialize: non-optional, non-nullable, no groups, no BackReference
-        // - Deserialize: only for object literals (not classes), non-optional, non-nullable, no groups
-        //   Note: Classes use deserializeClass handler which creates instances, not handleObjectLiteral
+        // For deserialize: can use literal path for non-optional, non-nullable, non-grouped properties
+        // For serialize: must use incremental path to support runtime group filtering
+        //   (even properties without groups need runtime check when options.groups is specified)
+        // Note: Classes use deserializeClass handler which creates instances, not handleObjectLiteral
         const canUseLiteral =
+            isDeserialize &&
             !isOptional(memberType) &&
             !isNullable(memberType) &&
             propGroups.length === 0 &&
@@ -756,13 +758,10 @@ function buildObjectLiteralBody(
             }
         };
 
-        // Only check groups at runtime if property actually has groups
-        if (propGroups.length > 0) {
-            const groupCheck = ctx.callExpr(isGroupAllowed, state.optionsSlot, ctx.lit(propGroups));
-            ctx.when(groupCheck, buildPropBody);
-        } else {
-            buildPropBody();
-        }
+        // Always check groups at runtime - properties without groups should be excluded
+        // when options.groups is specified (isGroupAllowed handles this correctly)
+        const groupCheck = ctx.callExpr(isGroupAllowed, state.optionsSlot, ctx.lit(propGroups));
+        ctx.when(groupCheck, buildPropBody);
     }
 
     // Handle index signature (e.g., Record<string, T> or { [key: string]: T })
@@ -2591,10 +2590,11 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
                         const propCheck = childState.build(propType, propInput) as Slot<boolean>;
                         propResult = ctx.and(propResult, ctx.and(hasProp, propCheck));
                     } else {
-                        const hasProp = ctx.has(input, propName);
+                        // Optional: value must be undefined OR match type
+                        const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
                         const childState = state.forProperty(propName);
                         const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                        propResult = ctx.and(propResult, ctx.or(ctx.not(hasProp), propCheck));
+                        propResult = ctx.and(propResult, ctx.or(propIsUndefined, propCheck));
                     }
                 }
                 ctx.setVar(refResult, propResult);
@@ -2619,12 +2619,12 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
             const propCheck = childState.build(propType, propInput) as Slot<boolean>;
             result = ctx.and(result, ctx.and(hasProp, propCheck));
         } else {
-            // Optional: if property exists, it must match type
-            // !(propName in obj) || check(obj.propName)
-            const hasProp = ctx.has(input, propName);
+            // Optional: value must be undefined OR match type
+            // This handles both missing properties and explicit undefined values
+            const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
             const childState = state.forProperty(propName);
             const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-            result = ctx.and(result, ctx.or(ctx.not(hasProp), propCheck));
+            result = ctx.and(result, ctx.or(propIsUndefined, propCheck));
         }
     }
 
@@ -2749,10 +2749,11 @@ const guardObjectStrict: TypeHandler = (type, input, ctx, state) => {
             const propCheck = childState.build(propType, propInput) as Slot<boolean>;
             result = ctx.and(result, ctx.and(hasProp, propCheck));
         } else {
-            const hasProp = ctx.has(input, propName);
+            // Optional: value must be undefined OR match type
+            const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
             const childState = state.forProperty(propName);
             const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-            result = ctx.and(result, ctx.or(ctx.not(hasProp), propCheck));
+            result = ctx.and(result, ctx.or(propIsUndefined, propCheck));
         }
     }
 
