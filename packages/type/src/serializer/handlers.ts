@@ -52,6 +52,7 @@ import {
     getEnumValueIndexMatcher,
     groupAnnotation,
     hasDefaultValue,
+    isBackReferenceType,
     isMongoIdType,
     isNanoIdType,
     isNullable,
@@ -329,11 +330,24 @@ const handleArray: TypeHandler = (type, input, ctx, state) => {
     const elementType = arrType.type;
     if (elementType.kind === ReflectionKind.any) return input;
 
-    // Handle unpopulated relations (BackReference that wasn't loaded)
-    // Return empty array for unpopulatedSymbol
+    // For serialize direction with pass-through primitive types, return input directly
+    // (unpopulatedSymbol is handled at property level in buildObjectLiteralBody)
+    const isSerialize = state.direction === 'serialize';
+    const isPassThrough =
+        isSerialize &&
+        (elementType.kind === ReflectionKind.string ||
+            elementType.kind === ReflectionKind.number ||
+            elementType.kind === ReflectionKind.boolean ||
+            elementType.kind === ReflectionKind.unknown);
+
+    if (isPassThrough) {
+        // Serialize primitive arrays: return input directly, no checks needed
+        return input;
+    }
+
+    // For deserialize or non-primitive arrays, need Array.isArray check
     const result = ctx.var_<any[]>(ctx.arrExpr());
-    const isUnpopulated = ctx.eq(input, ctx.lit(unpopulatedSymbol));
-    ctx.when(ctx.and(ctx.not(isUnpopulated), ctx.callExpr(Array.isArray, input)), () => {
+    ctx.when(ctx.callExpr(Array.isArray, input), () => {
         ctx.setVar(
             result,
             ctx.map(input, (elem, idx) => state.build(elementType, elem)),
@@ -462,82 +476,115 @@ const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
         // (multi-property embedded uses prefix-based flattening)
     }
 
-    // Check if input is an object (not null, not primitive)
-    const isObjectCheck = ctx.and(ctx.isType(input, 'object'), ctx.not(ctx.isNull(input)));
-
     // Check for circular references during serialization
     const hasCircular = !isDeserialize && hasCircularReference(objType);
 
-    const result = ctx.var_<any>(undefined);
+    // For serialize direction, we trust the input is a valid object (TypeScript class instance)
+    // For deserialize direction, we need to check if input is actually an object
+    if (isDeserialize) {
+        // Check if input is an object (not null, not primitive)
+        const isObjectCheck = ctx.and(ctx.isType(input, 'object'), ctx.not(ctx.isNull(input)));
+        const result = ctx.var_<any>(undefined);
 
-    ctx.when(
-        isObjectCheck,
-        () => {
-            if (hasCircular) {
-                // Runtime circular reference check using _stack in options
-                const checkCircular = (data: any, stack: any[] | undefined, opts: any): any[] | undefined => {
-                    if (data && typeof data === 'object') {
-                        if (stack) {
-                            if (stack.includes(data)) return undefined; // Already seen - signal to skip
-                        } else {
-                            stack = [];
-                            opts._stack = stack;
-                        }
-                        stack.push(data);
-                    }
-                    return stack;
-                };
-
-                const popStack = (stack: any[] | undefined): void => {
-                    if (stack) stack.pop();
-                };
-
-                // Check and push to stack, returns undefined if circular
-                const stackSlot = ctx.callExpr(
-                    checkCircular,
-                    input,
-                    state.optionsSlot.get('_stack' as any),
-                    state.optionsSlot,
-                );
-
-                // If stack is undefined (circular detected), return undefined
-                ctx.when(ctx.neq(stackSlot, ctx.lit(undefined)), () => {
-                    const innerResult = ctx.let(ctx.objExpr());
-                    buildObjectLiteralBody(objType, members, input, innerResult, ctx, state, isDeserialize);
-                    ctx.callExpr(popStack, stackSlot);
-                    ctx.setVar(result, innerResult);
-                });
-            } else {
-                const innerResult = ctx.let(ctx.objExpr());
-                buildObjectLiteralBody(objType, members, input, innerResult, ctx, state, isDeserialize);
+        ctx.when(
+            isObjectCheck,
+            () => {
+                const innerResult = buildObjectLiteralBody(objType, members, input, ctx, state, isDeserialize);
                 ctx.setVar(result, innerResult);
-            }
-        },
-        () => {
-            // Not an object - throw error
-            state.throw_(type, input);
-        },
-    );
+            },
+            () => {
+                // Not an object - throw error
+                state.throw_(type, input);
+            },
+        );
 
-    return ctx.getVar(result);
+        return ctx.getVar(result);
+    } else {
+        // Serialize direction - trust input is valid, skip type check
+        if (hasCircular) {
+            // Runtime circular reference check using _stack in options
+            const checkCircular = (data: any, stack: any[] | undefined, opts: any): any[] | undefined => {
+                if (data && typeof data === 'object') {
+                    if (stack) {
+                        if (stack.includes(data)) return undefined; // Already seen - signal to skip
+                    } else {
+                        stack = [];
+                        opts._stack = stack;
+                    }
+                    stack.push(data);
+                }
+                return stack;
+            };
+
+            const popStack = (stack: any[] | undefined): void => {
+                if (stack) stack.pop();
+            };
+
+            const result = ctx.var_<any>(undefined);
+
+            // Check and push to stack, returns undefined if circular
+            const stackSlot = ctx.callExpr(
+                checkCircular,
+                input,
+                state.optionsSlot.get('_stack' as any),
+                state.optionsSlot,
+            );
+
+            // If stack is undefined (circular detected), return undefined
+            ctx.when(ctx.neq(stackSlot, ctx.lit(undefined)), () => {
+                const innerResult = buildObjectLiteralBody(objType, members, input, ctx, state, isDeserialize);
+                ctx.callExpr(popStack, stackSlot);
+                ctx.setVar(result, innerResult);
+            });
+
+            return ctx.getVar(result);
+        } else {
+            // Simple case - no circular refs, no type check needed
+            return buildObjectLiteralBody(objType, members, input, ctx, state, isDeserialize);
+        }
+    }
 };
 
 /**
  * Build the body of object literal serialization/deserialization.
+ * Returns the result slot containing the built object.
+ *
+ * For serialize with simple properties (non-optional, non-nullable, no groups):
+ * Uses object literal syntax for performance: `{a:s0.a, b:s0.b}`
+ *
+ * For properties needing conditionals (optional, nullable, grouped):
+ * Uses incremental assignment: `if(...){result.p = ...}`
  */
 function buildObjectLiteralBody(
     objType: TypeObjectLiteral | TypeClass,
     members: Type[],
     input: Slot,
-    result: Slot,
     ctx: Context,
     state: BuildStateBase,
     isDeserialize: boolean,
-): void {
+): Slot {
     // Collect explicit property names for index signature handling
     const explicitProps = new Set<string>();
     let indexSignature: TypeIndexSignature | undefined;
 
+    // Categorize properties for optimal code generation
+    interface LiteralProp {
+        outputKey: string;
+        valueSlot: Slot;
+    }
+    interface IncrementalProp {
+        memberType: TypeProperty | TypePropertySignature;
+        propType: Type;
+        inputKey: string;
+        outputKey: string;
+        propInput: Slot;
+        propGroups: string[];
+    }
+
+    const literalProps: LiteralProp[] = [];
+    const incrementalProps: IncrementalProp[] = [];
+
+    // First pass: categorize all properties
     for (const member of members) {
         if (member.kind === ReflectionKind.indexSignature) {
             indexSignature = member;
@@ -552,51 +599,161 @@ function buildObjectLiteralBody(
         const excluded = excludedAnnotation.getAnnotations(memberType.type);
         if (excluded.includes('*') || excluded.includes(state.serializer.name)) continue;
 
-        // Get groups for this property (compile-time)
         const propGroups = groupAnnotation.getAnnotations(memberType.type) || [];
-
         const propType = memberType.type;
-        // For serialize: read from propName, write to serializedName
-        // For deserialize: read from serializedName, write to propName
         const inputKey = isDeserialize ? serializedName : propName;
         const outputKey = isDeserialize ? propName : serializedName;
         const propInput = input.get(inputKey);
 
-        // Build the property handling (will be wrapped in group check if needed)
+        // Determine if this property can use object literal syntax (fast path)
+        // Requirements for literal:
+        // - Serialize: non-optional, non-nullable, no groups, no BackReference
+        // - Deserialize: only for object literals (not classes), non-optional, non-nullable, no groups
+        //   Note: Classes use deserializeClass handler which creates instances, not handleObjectLiteral
+        const canUseLiteral =
+            !isOptional(memberType) &&
+            !isNullable(memberType) &&
+            propGroups.length === 0 &&
+            !(propType.kind === ReflectionKind.array && isBackReferenceType(memberType));
+
+        if (canUseLiteral) {
+            // Simple property - can use object literal
+            literalProps.push({
+                outputKey,
+                valueSlot: state.build(propType, propInput),
+            });
+        } else {
+            // Complex property - needs conditional handling
+            incrementalProps.push({
+                memberType,
+                propType,
+                inputKey,
+                outputKey,
+                propInput,
+                propGroups,
+            });
+        }
+    }
+
+    // Create result object
+    let result: Slot;
+
+    // Fast path: if all properties are simple (no incremental, no index signature),
+    // return object literal directly without variable assignment (25% faster in V8)
+    // Note: For deserialize, handleObjectLiteral is only called for TypeObjectLiteral, not TypeClass
+    // (TypeClass uses deserializeClass handler which creates class instances)
+    if (literalProps.length > 0 && incrementalProps.length === 0 && !indexSignature) {
+        const entries: Record<string, Slot> = {};
+        for (const prop of literalProps) {
+            entries[prop.outputKey] = prop.valueSlot;
+        }
+        return ctx.objFrom(entries); // Direct return - avoids variable assignment overhead
+    }
+
+    if (literalProps.length > 0) {
+        // Use object literal for simple properties, but need variable for incremental adds
+        const entries: Record<string, Slot> = {};
+        for (const prop of literalProps) {
+            entries[prop.outputKey] = prop.valueSlot;
+        }
+        result = ctx.let(ctx.objFrom(entries));
+    } else {
+        // Start with empty object (no simple properties)
+        result = ctx.let(ctx.objExpr());
+    }
+
+    // Handle incremental properties (optional, nullable, grouped, etc.)
+    for (const prop of incrementalProps) {
+        const { memberType, propType, inputKey, outputKey, propInput, propGroups } = prop;
+
         const buildPropBody = () => {
-            ctx.when(
-                ctx.has(input, inputKey),
-                () => {
+            // For deserialize: always need `in` check since input is unknown
+            // For serialize: need `in` check only for optional properties
+            const needsHasCheck = isDeserialize || isOptional(memberType);
+
+            if (needsHasCheck) {
+                ctx.when(
+                    ctx.has(input, inputKey),
+                    () => {
+                        if (isDeserialize) {
+                            // Deserialize: need to check for null/undefined and transform
+                            ctx.when(
+                                ctx.not(ctx.isNullish(propInput)),
+                                () => {
+                                    ctx.set(result, outputKey, state.build(propType, propInput));
+                                },
+                                () => {
+                                    // Deserialize: null → undefined for optional, null for nullable
+                                    if (isNullable(memberType)) {
+                                        ctx.set(result, outputKey, ctx.lit(null));
+                                    } else if (isOptional(memberType)) {
+                                        ctx.set(result, outputKey, ctx.lit(undefined));
+                                    }
+                                },
+                            );
+                        } else {
+                            // Serialize optional: check if primitive pass-through type
+                            const isPrimitivePassThrough =
+                                propType.kind === ReflectionKind.string ||
+                                propType.kind === ReflectionKind.number ||
+                                propType.kind === ReflectionKind.boolean;
+
+                            if (isPrimitivePassThrough) {
+                                // Primitive: use nullish coalescing directly
+                                ctx.set(result, outputKey, ctx.nullishCoalesce(propInput, ctx.lit(null)));
+                            } else {
+                                // Non-primitive: need transformation
+                                ctx.when(
+                                    ctx.not(ctx.isNullish(propInput)),
+                                    () => {
+                                        ctx.set(result, outputKey, state.build(propType, propInput));
+                                    },
+                                    () => {
+                                        if (isNullable(memberType) || isOptional(memberType)) {
+                                            ctx.set(result, outputKey, ctx.lit(null));
+                                        }
+                                    },
+                                );
+                            }
+                        }
+                    },
+                    () => {
+                        // Handle missing properties - set nullable to null
+                        if (isNullable(memberType)) {
+                            ctx.set(result, outputKey, ctx.lit(null));
+                        }
+                    },
+                );
+            } else {
+                // Required property that needs special handling
+                if (isNullable(memberType)) {
+                    // Nullable property: check for null to convert undefined → null
                     ctx.when(
                         ctx.not(ctx.isNullish(propInput)),
                         () => {
                             ctx.set(result, outputKey, state.build(propType, propInput));
                         },
                         () => {
-                            // Handle null/undefined values based on direction
-                            if (isDeserialize) {
-                                // Deserialize: null → undefined for optional, null for nullable
-                                if (isNullable(memberType)) {
-                                    ctx.set(result, outputKey, ctx.lit(null));
-                                } else if (isOptional(memberType)) {
-                                    ctx.set(result, outputKey, ctx.lit(undefined));
-                                }
-                            } else {
-                                // Serialize: undefined → null for optional/nullable
-                                if (isNullable(memberType) || isOptional(memberType)) {
-                                    ctx.set(result, outputKey, ctx.lit(null));
-                                }
-                            }
+                            ctx.set(result, outputKey, ctx.lit(null));
                         },
                     );
-                },
-                () => {
-                    // Handle missing properties - set nullable to null
-                    if (isNullable(memberType)) {
-                        ctx.set(result, outputKey, ctx.lit(null));
-                    }
-                },
-            );
+                } else if (propType.kind === ReflectionKind.array && isBackReferenceType(memberType)) {
+                    // BackReference array: check for unpopulatedSymbol
+                    ctx.when(
+                        ctx.eq(propInput, ctx.lit(unpopulatedSymbol)),
+                        () => {
+                            ctx.set(result, outputKey, ctx.arrExpr());
+                        },
+                        () => {
+                            ctx.set(result, outputKey, state.build(propType, propInput));
+                        },
+                    );
+                } else {
+                    // Should not reach here for serialize (these go to literalProps)
+                    // But handle for deserialize
+                    ctx.set(result, outputKey, state.build(propType, propInput));
+                }
+            }
         };
 
         // Only check groups at runtime if property actually has groups
@@ -604,7 +761,6 @@ function buildObjectLiteralBody(
             const groupCheck = ctx.callExpr(isGroupAllowed, state.optionsSlot, ctx.lit(propGroups));
             ctx.when(groupCheck, buildPropBody);
         } else {
-            // No groups - always include property
             buildPropBody();
         }
     }
@@ -682,6 +838,8 @@ function buildObjectLiteralBody(
             ctx.lit(extendTemplateLiteral),
         );
     }
+
+    return result;
 }
 
 const handleLiteral: TypeHandler = (type, input, ctx, state) => ctx.lit((type as TypeLiteral).literal);

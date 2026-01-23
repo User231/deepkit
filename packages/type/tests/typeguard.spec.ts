@@ -12,7 +12,7 @@ import { expect, test } from '@jest/globals';
 import { isReferenceInstance } from '../src/reference.js';
 import { PrimaryKey, Reference, float, float32, int8, integer } from '../src/reflection/type.js';
 import { cast } from '../src/serializer-facade.js';
-import { Serializer } from '../src/serializer.js';
+import { Serializer, registerDefaultHandlers, registerDefaultTypeGuards } from '../src/serializer.js';
 import { is } from '../src/typeguard.js';
 
 test('primitive string', () => {
@@ -446,6 +446,8 @@ test('union classes with generic', () => {
     }
 
     const serializer = new Serializer();
+    registerDefaultHandlers(serializer);
+    registerDefaultTypeGuards(serializer);
 
     const newGroup = cast<Group>({ id: 1, second: 'a' });
 

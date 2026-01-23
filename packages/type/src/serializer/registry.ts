@@ -35,6 +35,8 @@ export interface BuildStateBase {
     pathSlot(): Slot<string>;
     forProperty(name: string): BuildStateBase;
     forIndex(index: Slot<number>): BuildStateBase;
+    /** Check if loose mode is enabled (options.loosely !== false). */
+    isLoose(): Slot<boolean>;
 }
 
 /**
@@ -83,7 +85,8 @@ export type TypeHook = (type: Type, input: Slot, ctx: Context, state: BuildState
  */
 export class HandlerRegistry {
     private static nextId = 0;
-    public readonly id: number;
+    /** Unique ID that changes when handlers are modified. Used for cache invalidation. */
+    public id: number;
     public readonly direction: 'serialize' | 'deserialize';
 
     private kindHandlers = new Map<ReflectionKind, TypeHandler[]>();
@@ -100,6 +103,11 @@ export class HandlerRegistry {
         this.direction = direction;
     }
 
+    /** Increment ID to invalidate cached functions. */
+    private invalidateCache(): void {
+        this.id = HandlerRegistry.nextId++;
+    }
+
     /**
      * Register a handler for a ReflectionKind.
      * Multiple handlers can be registered for the same kind.
@@ -111,6 +119,7 @@ export class HandlerRegistry {
         } else {
             this.kindHandlers.set(kind, [handler]);
         }
+        this.invalidateCache();
         return this;
     }
 
@@ -124,6 +133,7 @@ export class HandlerRegistry {
         } else {
             this.kindHandlers.set(kind, [handler]);
         }
+        this.invalidateCache();
         return this;
     }
 
@@ -144,6 +154,7 @@ export class HandlerRegistry {
         } else {
             this.classHandlers.set(classType, [handler]);
         }
+        this.invalidateCache();
         return this;
     }
 
@@ -163,6 +174,7 @@ export class HandlerRegistry {
      */
     addDecorator(predicate: (type: Type) => boolean, handler: TypeHandler): this {
         this.annotationHandlers.push({ predicate, handler });
+        this.invalidateCache();
         return this;
     }
 
@@ -171,6 +183,7 @@ export class HandlerRegistry {
      */
     addPreHook(hook: TypeHook): this {
         this.preHooks.push(hook);
+        this.invalidateCache();
         return this;
     }
 
@@ -179,6 +192,7 @@ export class HandlerRegistry {
      */
     addPostHook(hook: TypeHook): this {
         this.postHooks.push(hook);
+        this.invalidateCache();
         return this;
     }
 
@@ -283,6 +297,7 @@ export class HandlerRegistry {
         this.annotationHandlers = [];
         this.preHooks = [];
         this.postHooks = [];
+        this.invalidateCache();
     }
 }
 

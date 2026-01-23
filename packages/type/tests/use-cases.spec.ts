@@ -1,10 +1,9 @@
 import { expect, test } from '@jest/globals';
 
-import { validate } from '@deepkit/type';
+import { Serializer, TypeClass, TypeHandler, registerDefaultHandlers, registerDefaultTypeGuards, registerUnionHandler, validate } from '@deepkit/type';
 
-import { TypeClass } from '../src/reflection/type';
-import { SerializeFunction, TemplateState, createSerializeFunction, executeTypeArgumentAsArray, serializer } from '../src/serializer';
-import { deserialize, serialize } from '../src/serializer-facade';
+import { ReceiveType, ReflectionKind, resolveReceiveType } from '../src/reflection/reflection';
+import { typeOf } from '../src/reflection/reflection';
 
 class MyIterable<T> implements Iterable<T> {
     items: T[] = [];
@@ -23,33 +22,71 @@ class MyIterable<T> implements Iterable<T> {
 }
 
 /**
- * This example shows how to use `executeTypeArgumentAsArray` to automatically convert a
- * array-like custom type easily.
+ * This example shows how to use the new TypeHandler API to automatically convert a
+ * array-like custom type.
  */
 test('custom iterable', () => {
     type T1 = MyIterable<string>;
     type T2 = MyIterable<number>;
 
-    serializer.deserializeRegistry.registerClass(MyIterable, (type, state) => {
-        // takes first argument (0) and deserializes as array.
-        executeTypeArgumentAsArray(type, 0, state);
-        // at this point current value contains the value of `executeTypeArgumentAsArray`, which is T as array.
-        // we forward this value to OrderedSet constructor.
-        state.convert(value => {
-            return new MyIterable(value);
-        });
-    });
+    // Create a fresh serializer instance to avoid caching issues
+    const customSerializer = new Serializer('json');
+    registerDefaultHandlers(customSerializer);
+    registerDefaultTypeGuards(customSerializer);
+    registerUnionHandler(customSerializer);
 
-    serializer.serializeRegistry.registerClass(MyIterable, (type, state) => {
-        // set `MyIterable.items` as current value, so that executeTypeArgumentAsArray operates on it.
-        state.convert((value: MyIterable<unknown>) => value.items);
-        // see explanation in deserializeRegistry
-        executeTypeArgumentAsArray(type, 0, state);
-    });
+    const deserializeIterable: TypeHandler<TypeClass> = (type, input, ctx, state) => {
+        const elementType = type.arguments?.[0];
+        if (!elementType) {
+            // No type argument - return empty
+            return ctx.callExpr((v: any) => new MyIterable([]), input);
+        }
 
-    const a = deserialize<T1>(['a', 'b']);
-    const b = deserialize<T1>(['a', 2]);
-    const c = deserialize<T1>('abc');
+        // Check if input is array, if not return empty
+        // Use ctx.when for lazy evaluation (only executed when condition is true)
+        const isArray = ctx.callExpr(Array.isArray, input);
+        const result = ctx.var_<MyIterable<any>>(undefined as any);
+        ctx.when(
+            isArray,
+            () => {
+                const mapped = ctx.map(input, elem => state.build(elementType, elem));
+                ctx.setVar(
+                    result,
+                    ctx.callExpr((items: any[]) => new MyIterable(items), mapped),
+                );
+            },
+            () => {
+                ctx.setVar(
+                    result,
+                    ctx.callExpr(() => new MyIterable([]), input),
+                );
+            },
+        );
+        return ctx.getVar(result);
+    };
+
+    const serializeIterable: TypeHandler<TypeClass> = (type, input, ctx, state) => {
+        const elementType = type.arguments?.[0];
+        if (!elementType) {
+            return ctx.arrExpr();
+        }
+
+        // Get items from MyIterable and serialize each
+        const items = input.get('items');
+        return ctx.map(items, elem => state.build(elementType, elem));
+    };
+
+    customSerializer.deserializeRegistry.registerClass(MyIterable, deserializeIterable);
+    customSerializer.serializeRegistry.registerClass(MyIterable, serializeIterable);
+
+    // Use the custom serializer's methods directly
+    const deserializeT1 = customSerializer.buildDeserializer<T1>(typeOf<T1>());
+    const serializeT1 = customSerializer.buildSerializer<T1>(typeOf<T1>());
+    const deserializeT2 = customSerializer.buildDeserializer<T2>(typeOf<T2>());
+
+    const a = deserializeT1(['a', 'b']);
+    const b = deserializeT1(['a', 2]);
+    const c = deserializeT1('abc');
     expect(a).toBeInstanceOf(MyIterable);
     expect(a.items).toEqual(['a', 'b']);
     expect(b).toBeInstanceOf(MyIterable);
@@ -61,11 +98,11 @@ test('custom iterable', () => {
     obj1.add('a');
     obj1.add('b');
 
-    const json1 = serialize<T1>(obj1);
+    const json1 = serializeT1(obj1);
     console.log(json1);
     expect(json1).toEqual(['a', 'b']);
 
-    const back1 = deserialize<T1>(json1);
+    const back1 = deserializeT1(json1);
     console.log(back1);
     expect(back1).toBeInstanceOf(MyIterable);
     expect(back1.items).toEqual(['a', 'b']);
@@ -73,63 +110,81 @@ test('custom iterable', () => {
     const errors = validate<T1>(back1);
     expect(errors).toEqual([]);
 
-    const back2 = deserialize<T2>([1, '2']);
+    const back2 = deserializeT2([1, '2']);
     console.log(back2);
     expect(back2).toBeInstanceOf(MyIterable);
     expect(back2.items).toEqual([1, 2]);
 });
 
 /**
- * This example shows how to manually implement a custom iterable using state.convert().
+ * This example shows how to manually implement a custom iterable using the new TypeHandler API.
  */
 test('custom iterable manual', () => {
     type T1 = MyIterable<string>;
     type T2 = MyIterable<number>;
 
-    function getFirstArgumentSerializer(type: TypeClass, state: TemplateState): SerializeFunction {
-        const firstArgument = type.arguments?.[0];
-        if (!firstArgument) throw new Error('First type argument in MyIterable is missing');
-        return createSerializeFunction(firstArgument, state.registry, state.namingStrategy, state.path);
-    }
+    // Create a fresh serializer instance
+    const customSerializer = new Serializer('json');
+    registerDefaultHandlers(customSerializer);
+    registerDefaultTypeGuards(customSerializer);
+    registerUnionHandler(customSerializer);
 
-    serializer.deserializeRegistry.registerClass(MyIterable, (type, state) => {
-        const itemSerializer = getFirstArgumentSerializer(type, state);
+    const deserializeIterable: TypeHandler<TypeClass> = (type, input, ctx, state) => {
+        const elementType = type.arguments?.[0];
+        if (!elementType) throw new Error('First type argument in MyIterable is missing');
 
-        state.convert((value: any) => {
-            // convert() in `deserializeRegistry` accepts `any`, so we have to check if it's an array.
-            // you can choose to throw or silently ignore invalid values,
-            // by returning empty `return new MyIterable([]);`
-            if (!Array.isArray(value)) throw new Error('Expected array');
+        // For manual approach, we do the validation ourselves
+        // Use ctx.when for lazy evaluation
+        const isArray = ctx.callExpr(Array.isArray, input);
+        const result = ctx.var_<MyIterable<any>>(undefined as any);
+        ctx.when(
+            isArray,
+            () => {
+                const mapped = ctx.map(input, elem => state.build(elementType, elem));
+                ctx.setVar(
+                    result,
+                    ctx.callExpr((items: any[]) => new MyIterable(items), mapped),
+                );
+            },
+            () => {
+                ctx.callExpr(() => {
+                    throw new Error('Expected array');
+                }, input);
+            },
+        );
+        return ctx.getVar(result);
+    };
 
-            // convert each item in the array to the correct type.
-            const items = value.map((v: unknown) => itemSerializer(v));
-            return new MyIterable(items);
-        });
-    });
+    const serializeIterable: TypeHandler<TypeClass> = (type, input, ctx, state) => {
+        const elementType = type.arguments?.[0];
+        if (!elementType) throw new Error('First type argument in MyIterable is missing');
 
-    serializer.serializeRegistry.registerClass(MyIterable, (type, state) => {
-        const itemSerializer = getFirstArgumentSerializer(type, state);
+        // Get items and serialize each
+        const items = input.get('items');
+        return ctx.map(items, elem => state.build(elementType, elem));
+    };
 
-        // convert() in `serializeRegistry` gets the actual runtime type,
-        // as anything else would be a TypeScript type error.
-        state.convert((value: MyIterable<unknown>) => {
-            return value.items.map((v: unknown) => itemSerializer(v));
-        });
-    });
+    customSerializer.deserializeRegistry.registerClass(MyIterable, deserializeIterable);
+    customSerializer.serializeRegistry.registerClass(MyIterable, serializeIterable);
 
-    expect(deserialize<T1>(['a', 'b'])).toBeInstanceOf(MyIterable);
-    expect(deserialize<T1>(['a', 2])).toBeInstanceOf(MyIterable);
-    expect(() => deserialize<T1>('abc')).toThrow('Expected array');
+    // Use the custom serializer's methods directly
+    const deserializeT1 = customSerializer.buildDeserializer<T1>(typeOf<T1>());
+    const serializeT1 = customSerializer.buildSerializer<T1>(typeOf<T1>());
+    const deserializeT2 = customSerializer.buildDeserializer<T2>(typeOf<T2>());
+
+    expect(deserializeT1(['a', 'b'])).toBeInstanceOf(MyIterable);
+    expect(deserializeT1(['a', 2])).toBeInstanceOf(MyIterable);
+    expect(() => deserializeT1('abc')).toThrow('Expected array');
 
     const obj1 = new MyIterable<string>();
     obj1.add('a');
     obj1.add('b');
 
-    const json1 = serialize<T1>(obj1);
+    const json1 = serializeT1(obj1);
     console.log(json1);
     expect(json1).toEqual(['a', 'b']);
 
-    const back1 = deserialize<T1>(json1);
+    const back1 = deserializeT1(json1);
     console.log(back1);
     expect(back1).toBeInstanceOf(MyIterable);
     expect(back1.items).toEqual(['a', 'b']);
@@ -137,7 +192,7 @@ test('custom iterable manual', () => {
     const errors = validate<T1>(back1);
     expect(errors).toEqual([]);
 
-    const back2 = deserialize<T2>([1, '2']);
+    const back2 = deserializeT2([1, '2']);
     console.log(back2);
     expect(back2).toBeInstanceOf(MyIterable);
     expect(back2.items).toEqual([1, 2]);

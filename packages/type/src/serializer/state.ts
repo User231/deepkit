@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { type Context, type Slot, jit } from '@deepkit/core';
+import { type Context, type Slot, jit, stringifyValueWithType } from '@deepkit/core';
 
 import { hasCircularReference } from '../reflection/reflection.js';
 import { ReflectionKind, Type, stringifyType } from '../reflection/type.js';
@@ -234,18 +234,15 @@ export class BuildState {
         const typeStr = stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim();
         const pathExpr = this.pathSlot();
 
-        // Create error message
-        const msgParts = [this.ctx.lit('Cannot convert ')];
-        // In real implementation we'd stringify the value, but that's complex
-        // For now just show the type
-        msgParts.push(this.ctx.lit(' to '));
-        msgParts.push(this.ctx.lit(typeStr));
-        if (message) {
-            msgParts.push(this.ctx.lit('. '));
-            msgParts.push(this.ctx.lit(message));
-        }
-
-        const errorMsg = this.ctx.concat(...msgParts);
+        // Create error message with stringified value (format: "type value" e.g., 'string "hello"')
+        const valueStr = this.ctx.callExpr(stringifyValueWithType, value);
+        const errorMsg = this.ctx.concat(
+            this.ctx.lit('Cannot convert '),
+            valueStr,
+            this.ctx.lit(' to '),
+            this.ctx.lit(typeStr),
+            message ? this.ctx.lit('. ' + message) : this.ctx.lit(''),
+        );
 
         // Create and throw ValidationError
         const errorItem = this.ctx.objFrom({

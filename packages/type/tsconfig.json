@@ -2,17 +2,19 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist/cjs",
-    "types": [
-      "uuid",
-      "lz-string",
-      "node"
-    ]
+    "types": ["uuid", "lz-string", "node"]
   },
-  "reflection": true,
-  "include": [
-    "src",
-    "index.ts"
+  "reflection": [
+    "src/reflection/**/*.ts",
+    "src/mixin.ts",
+    "src/validator.ts",
+    "src/serializer-facade.ts",
+    "src/typeguard.ts",
+    "src/change-detection.ts",
+    "src/decorator.ts",
+    "benchmarks/**/*.ts"
   ],
+  "include": ["src", "index.ts"],
   "references": [
     {
       "path": "../type-spec/tsconfig.json"

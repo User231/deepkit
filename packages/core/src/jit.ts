@@ -102,6 +102,14 @@ export interface Context {
      */
     let<T>(expr: Slot<T>): Slot<T>;
 
+    /**
+     * Lazy binding - only emits variable declaration if actually used.
+     * JIT mode: defers `var sN=${expr};` until compile(), skips if unused
+     * Exec mode: returns the slot as-is (same as let)
+     * Use this for optional parameters that may not be referenced.
+     */
+    lazyLet<T>(expr: Slot<T>): Slot<T>;
+
     // Create values
     objFrom<T extends object = any>(entries: Record<string, Slot> | Array<[string | Slot<string>, Slot]>): Slot<T>;
     lit<T>(value: T): Slot<T>;
@@ -130,6 +138,7 @@ export interface Context {
     not(a: Slot): Slot<boolean>;
     and(a: Slot, b: Slot): Slot<boolean>;
     or(a: Slot, b: Slot): Slot<boolean>;
+    nullishCoalesce<T>(value: Slot<T>, fallback: Slot<T>): Slot<T>;
 
     // Type checks
     isType(value: Slot, type: string): Slot<boolean>;
@@ -401,6 +410,8 @@ export class JITContext implements Context {
     private variableContext: { [name: string]: any } = {};
     private argCount: number;
     private maxReservedVariable = 10_000;
+    /** Deferred variable declarations: varName -> expression string */
+    private deferredVars = new Map<string, string>();
 
     constructor(argCount: number) {
         this.argCount = argCount;
@@ -482,6 +493,16 @@ export class JITContext implements Context {
     let<T>(expr: Slot<T>): Slot<T> {
         const s = this.nextSlot();
         this.code += `var ${s}=${this.expr(expr)};\n`;
+        return new SlotExpr(s) as Slot<T>;
+    }
+
+    /**
+     * Lazy binding - only emits variable declaration if the slot is actually used.
+     * Useful for optional parameters that may not be referenced in generated code.
+     */
+    lazyLet<T>(expr: Slot<T>): Slot<T> {
+        const s = this.nextSlot();
+        this.deferredVars.set(s, this.expr(expr));
         return new SlotExpr(s) as Slot<T>;
     }
 
@@ -617,6 +638,10 @@ export class JITContext implements Context {
         return this.slot_<boolean>(`(${this.expr(a)}||${this.expr(b)})`);
     }
 
+    nullishCoalesce<T>(value: Slot<T>, fallback: Slot<T>): Slot<T> {
+        return this.slot_<T>(`(${this.expr(value)}??${this.expr(fallback)})`);
+    }
+
     // Type checks
     isType(value: Slot, type: string): Slot<boolean> {
         return this.slot_<boolean>(`(typeof ${this.expr(value)}===${JSON.stringify(type)})`);
@@ -638,10 +663,20 @@ export class JITContext implements Context {
             this.code += `return ${this.expr(thenResult)};\n`;
         }
         if (else_) {
-            this.code += `}else{\n`;
+            // Capture else callback output to avoid emitting empty else blocks
+            const savedCode = this.code;
+            this.code = '';
             const elseResult = else_();
-            if (elseResult !== undefined) {
-                this.code += `return ${this.expr(elseResult)};\n`;
+            const elseBody = this.code;
+            this.code = savedCode;
+
+            // Only emit else block if callback produced code or returned a value
+            if (elseBody || elseResult !== undefined) {
+                this.code += `}else{\n`;
+                this.code += elseBody;
+                if (elseResult !== undefined) {
+                    this.code += `return ${this.expr(elseResult)};\n`;
+                }
             }
         }
         this.code += `}\n`;
@@ -693,16 +728,16 @@ export class JITContext implements Context {
             initialValue instanceof SlotExpr || initialValue instanceof ExecSlot
                 ? this.expr(initialValue as Slot<T>)
                 : this.expr(this.lit(initialValue));
-        this.code += `var ${s}={c:${value}};\n`;
+        this.code += `var ${s}=${value};\n`;
         return new SlotExpr(s) as Slot<{ c: T }>;
     }
 
     setVar<T>(ref: Slot<{ c: T }>, value: Slot<T>): void {
-        this.code += `${this.expr(ref)}.c=${this.expr(value)};\n`;
+        this.code += `${this.expr(ref)}=${this.expr(value)};\n`;
     }
 
     getVar<T>(ref: Slot<{ c: T }>): Slot<T> {
-        return new SlotExpr(`${this.expr(ref)}.c`) as Slot<T>;
+        return ref as unknown as Slot<T>;
     }
 
     // Switch statement
@@ -768,10 +803,20 @@ export class JITContext implements Context {
             }
         }
         if (else_) {
-            this.code += `}else{\n`;
+            // Capture else callback output to avoid emitting empty else blocks
+            const savedCode = this.code;
+            this.code = '';
             const result = else_();
-            if (result !== undefined) {
-                this.code += `return ${this.expr(result)};\n`;
+            const elseBody = this.code;
+            this.code = savedCode;
+
+            // Only emit else block if callback produced code or returned a value
+            if (elseBody || result !== undefined) {
+                this.code += `}else{\n`;
+                this.code += elseBody;
+                if (result !== undefined) {
+                    this.code += `return ${this.expr(result)};\n`;
+                }
             }
         }
         if (cases.length > 0) {
@@ -795,11 +840,22 @@ export class JITContext implements Context {
         if (returnSlot !== undefined) {
             this.code += `return ${this.expr(returnSlot)};\n`;
         }
+
+        // Emit deferred variables that are actually used in the generated code
+        let deferredDecls = '';
+        for (const [varName, exprStr] of this.deferredVars) {
+            // Check if variable is referenced in code (as word boundary to avoid false matches)
+            // Match patterns: varName at start, after non-identifier char, or in property access
+            if (this.code.includes(varName)) {
+                deferredDecls += `var ${varName}=${exprStr};\n`;
+            }
+        }
+
         const argNames = Array.from({ length: this.argCount }, (_, i) => `s${i}`).join(',');
         // Use spread on Map keys/values for named parameters
         const externNames = [...this.externs.keys()];
         const externValues = [...this.externs.values()];
-        const fnBody = `'use strict';return function(${argNames}){'use strict';\n${this.code}}`;
+        const fnBody = `return function(${argNames}){\n${deferredDecls}${this.code}}`;
         if (jitDebug) {
             console.log('=== JIT Generated Code ===');
             console.log('Externs:', externNames);
@@ -850,6 +906,11 @@ export class ExecContext implements Context {
 
     // Binding - in exec mode, value is already computed so just return as-is
     let<T>(expr: Slot<T>): Slot<T> {
+        return expr;
+    }
+
+    // Lazy binding - in exec mode, same as let (value already computed)
+    lazyLet<T>(expr: Slot<T>): Slot<T> {
         return expr;
     }
 
@@ -961,6 +1022,11 @@ export class ExecContext implements Context {
     or(a: Slot, b: Slot): Slot<boolean> {
         if (this.hasEarlyReturn) return undefined as any;
         return new ExecSlot(this.unwrap(a) || this.unwrap(b));
+    }
+
+    nullishCoalesce<T>(value: Slot<T>, fallback: Slot<T>): Slot<T> {
+        if (this.hasEarlyReturn) return undefined as any;
+        return new ExecSlot(this.unwrap(value) ?? this.unwrap(fallback));
     }
 
     // Type checks

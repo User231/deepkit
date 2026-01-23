@@ -115,7 +115,7 @@ export class Serializer {
             jit.arg<T>(),
             jit.arg<SerializationOptions>(),
             (ctx: Context, data: Slot<T>, options: Slot<SerializationOptions>) => {
-                const optionsSlot = ctx.let(ctx.ternary(options, options, ctx.objExpr<SerializationOptions>()));
+                const optionsSlot = ctx.lazyLet(ctx.ternary(options, options, ctx.objExpr<SerializationOptions>()));
 
                 const state = new BuildState('serialize', this, ctx, optionsSlot, this.serializeRegistry);
 
@@ -135,7 +135,7 @@ export class Serializer {
             jit.arg<any>(),
             jit.arg<SerializationOptions>(),
             (ctx: Context, data: Slot<any>, options: Slot<SerializationOptions>) => {
-                const optionsSlot = ctx.let(ctx.ternary(options, options, ctx.objExpr<SerializationOptions>()));
+                const optionsSlot = ctx.lazyLet(ctx.ternary(options, options, ctx.objExpr<SerializationOptions>()));
 
                 const state = new BuildState('deserialize', this, ctx, optionsSlot, this.deserializeRegistry);
 
@@ -155,7 +155,7 @@ export class Serializer {
             jit.arg<any>(),
             jit.arg<{ errors?: ValidationErrorItem[] }>(),
             (ctx: Context, data: Slot<any>, stateArg: Slot<{ errors?: ValidationErrorItem[] }>) => {
-                const optionsSlot = ctx.let(ctx.ternary(stateArg, stateArg, ctx.objExpr()));
+                const optionsSlot = ctx.lazyLet(ctx.ternary(stateArg, stateArg, ctx.objExpr()));
 
                 const guardRegistry = this.typeGuards.getRegistry(1);
                 const state = new BuildState('validate', this, ctx, optionsSlot, guardRegistry, {
@@ -183,7 +183,7 @@ export class Serializer {
             jit.arg<any>(),
             jit.arg<{ errors?: ValidationErrorItem[] }>(),
             (ctx: Context, data: Slot<any>, stateArg: Slot<{ errors?: ValidationErrorItem[] }>) => {
-                const optionsSlot = ctx.let(ctx.ternary(stateArg, stateArg, ctx.objExpr()));
+                const optionsSlot = ctx.lazyLet(ctx.ternary(stateArg, stateArg, ctx.objExpr()));
 
                 const guardRegistry = this.typeGuards.getRegistry(1);
                 const state = new BuildState('validate', this, ctx, optionsSlot, guardRegistry, {
@@ -235,7 +235,7 @@ export function createSerializeFunction(
         jit.arg<any>(),
         jit.arg<SerializationOptions>(),
         (ctx: Context, data: Slot<any>, options: Slot<SerializationOptions>) => {
-            const optionsSlot = ctx.let(ctx.ternary(options, options, ctx.objExpr<SerializationOptions>()));
+            const optionsSlot = ctx.lazyLet(ctx.ternary(options, options, ctx.objExpr<SerializationOptions>()));
 
             // We need a serializer reference here - for now use default
             const state = new BuildState(

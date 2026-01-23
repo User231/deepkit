@@ -11,7 +11,7 @@ test('primitives', () => {
     expect(validate<string>('Hello')).toEqual([]);
     expect(validate<string>(123)).toEqual([{ code: 'type', message: 'Not a string', path: '', value: 123 }]);
 
-    expect(validate<number>('Hello')).toEqual([{ code: 'type', message: 'Not a number', path: '', value: 'Hello' }]);
+    expect(validate<number>('Hello')).toEqual([{ code: 'type', message: 'Cannot convert string "Hello" to number', path: '', value: 'Hello' }]);
     expect(validate<number>(123)).toEqual([]);
 });
 
@@ -305,7 +305,7 @@ test('readonly constructor properties', () => {
     }
 
     expect(validate<Pilot>({ name: 'Peter', age: 32 })).toEqual([]);
-    expect(validate<Pilot>({ name: 'Peter', age: 'sdd' })).toEqual([{ code: 'type', message: 'Not a number', path: 'age', value: 'sdd' }]);
+    expect(validate<Pilot>({ name: 'Peter', age: 'sdd' })).toEqual([{ code: 'type', message: 'Cannot convert string "sdd" to number', path: 'age', value: 'sdd' }]);
 });
 
 test('class with statics', () => {
@@ -320,7 +320,7 @@ test('class with statics', () => {
     }
 
     expect(validate<PilotId>({ value: 34 })).toEqual([]);
-    expect(validate<PilotId>({ value: '33' })).toEqual([{ code: 'type', message: 'Not a number', path: 'value', value: '33' }]);
+    expect(validate<PilotId>({ value: '33' })).toEqual([{ code: 'type', message: 'Cannot convert string "33" to number', path: 'value', value: '33' }]);
 });
 
 test('date', () => {
