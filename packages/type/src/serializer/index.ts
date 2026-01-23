@@ -1,5 +1,10 @@
 // Initialize the default serializer with handlers
-import { registerDefaultHandlers, registerDefaultTypeGuards } from './handlers.js';
+import {
+    registerDefaultHandlers,
+    registerDefaultTypeGuards,
+    registerFastTypeGuards,
+    registerStrictTypeGuards,
+} from './handlers.js';
 import { serializer as defaultSerializer } from './serializer.js';
 import { registerUnionHandler } from './union.js';
 import { registerValidationHook } from './validation.js';
@@ -35,7 +40,12 @@ export { UNION_LITERAL_THRESHOLD, handleUnion, registerUnionHandler } from './un
 export { validationHook, registerValidationHook, createValidator } from './validation.js';
 
 // Handlers
-export { registerDefaultHandlers, registerDefaultTypeGuards } from './handlers.js';
+export {
+    registerDefaultHandlers,
+    registerDefaultTypeGuards,
+    registerFastTypeGuards,
+    registerStrictTypeGuards,
+} from './handlers.js';
 
 // Backward compatibility (deprecated)
 export type { TemplateState } from './compat.js';
@@ -55,5 +65,7 @@ export {
 
 registerDefaultHandlers(defaultSerializer);
 registerDefaultTypeGuards(defaultSerializer);
+registerFastTypeGuards(defaultSerializer);
+registerStrictTypeGuards(defaultSerializer);
 registerUnionHandler(defaultSerializer);
 registerValidationHook(defaultSerializer);

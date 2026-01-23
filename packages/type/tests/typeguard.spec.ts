@@ -13,7 +13,7 @@ import { isReferenceInstance } from '../src/reference.js';
 import { PrimaryKey, Reference, float, float32, int8, integer } from '../src/reflection/type.js';
 import { cast } from '../src/serializer-facade.js';
 import { Serializer, registerDefaultHandlers, registerDefaultTypeGuards } from '../src/serializer.js';
-import { is } from '../src/typeguard.js';
+import { is, isStrict, typeGuardStrict } from '../src/typeguard.js';
 
 test('primitive string', () => {
     expect(is<string>('a')).toEqual(true);
@@ -477,4 +477,148 @@ test('union classes with generic', () => {
     if (isReferenceInstance(b.groups[0])) {
         //do something with this instance and fully load it
     }
+});
+
+// ============================================================================
+// Strict Type Guards (reject unknown keys)
+// ============================================================================
+
+test('isStrict object literal', () => {
+    // Exact match - should pass
+    expect(isStrict<{ a: string }>({ a: 'abc' })).toEqual(true);
+    expect(isStrict<{ a: string; b: number }>({ a: 'abc', b: 123 })).toEqual(true);
+
+    // Unknown key - should fail
+    expect(isStrict<{ a: string }>({ a: 'abc', x: 1 })).toEqual(false);
+    expect(isStrict<{ a: string }>({ a: 'abc', extra: 'key' })).toEqual(false);
+    expect(isStrict<{ a: string; b: number }>({ a: 'abc', b: 123, c: true })).toEqual(false);
+
+    // Wrong type - should fail
+    expect(isStrict<{ a: string }>({ a: 123 })).toEqual(false);
+
+    // Missing required key - should fail
+    expect(isStrict<{ a: string }>({})).toEqual(false);
+
+    // Optional key - should pass when missing
+    expect(isStrict<{ a?: string }>({})).toEqual(true);
+    expect(isStrict<{ a?: string }>({ a: 'abc' })).toEqual(true);
+    expect(isStrict<{ a?: string }>({ a: 'abc', x: 1 })).toEqual(false);
+});
+
+test('isStrict class', () => {
+    class User {
+        name!: string;
+        age!: number;
+    }
+
+    // Exact match - should pass
+    expect(isStrict<User>({ name: 'John', age: 30 })).toEqual(true);
+
+    // Unknown key - should fail
+    expect(isStrict<User>({ name: 'John', age: 30, extra: 'data' })).toEqual(false);
+    expect(isStrict<User>({ name: 'John', age: 30, x: 1 })).toEqual(false);
+
+    // Wrong type - should fail
+    expect(isStrict<User>({ name: 'John', age: 'thirty' })).toEqual(false);
+
+    // Missing required key - should fail
+    expect(isStrict<User>({ name: 'John' })).toEqual(false);
+});
+
+test('isStrict with optional properties', () => {
+    class Config {
+        host!: string;
+        port?: number;
+    }
+
+    // All properties present - should pass
+    expect(isStrict<Config>({ host: 'localhost', port: 8080 })).toEqual(true);
+
+    // Optional property missing - should pass
+    expect(isStrict<Config>({ host: 'localhost' })).toEqual(true);
+
+    // Unknown key - should fail
+    expect(isStrict<Config>({ host: 'localhost', extra: true })).toEqual(false);
+    expect(isStrict<Config>({ host: 'localhost', port: 8080, extra: true })).toEqual(false);
+});
+
+test('isStrict nested objects', () => {
+    interface Address {
+        city: string;
+        zip: string;
+    }
+
+    interface Person {
+        name: string;
+        address: Address;
+    }
+
+    // Exact match - should pass
+    expect(isStrict<Person>({ name: 'John', address: { city: 'NYC', zip: '10001' } })).toEqual(true);
+
+    // Unknown key at top level - should fail
+    expect(isStrict<Person>({ name: 'John', address: { city: 'NYC', zip: '10001' }, extra: 1 })).toEqual(false);
+
+    // Unknown key in nested object - should fail
+    expect(isStrict<Person>({ name: 'John', address: { city: 'NYC', zip: '10001', extra: 1 } })).toEqual(false);
+});
+
+test('isStrict vs is comparison', () => {
+    interface Model {
+        name: string;
+    }
+
+    const exact = { name: 'test' };
+    const withExtra = { name: 'test', extra: 123 };
+
+    // is() allows extra keys
+    expect(is<Model>(exact)).toEqual(true);
+    expect(is<Model>(withExtra)).toEqual(true);
+
+    // isStrict() rejects extra keys
+    expect(isStrict<Model>(exact)).toEqual(true);
+    expect(isStrict<Model>(withExtra)).toEqual(false);
+});
+
+test('typeGuardStrict precompiled', () => {
+    interface User {
+        id: number;
+        name: string;
+    }
+
+    const isUserStrict = typeGuardStrict<User>();
+
+    // Exact match - should pass
+    expect(isUserStrict({ id: 1, name: 'John' })).toEqual(true);
+
+    // Unknown key - should fail
+    expect(isUserStrict({ id: 1, name: 'John', extra: true })).toEqual(false);
+
+    // Wrong type - should fail
+    expect(isUserStrict({ id: '1', name: 'John' })).toEqual(false);
+
+    // Missing key - should fail
+    expect(isUserStrict({ id: 1 })).toEqual(false);
+});
+
+test('isStrict arrays', () => {
+    // Arrays should work normally
+    expect(isStrict<string[]>(['a', 'b'])).toEqual(true);
+    expect(isStrict<number[]>([1, 2, 3])).toEqual(true);
+
+    interface Item {
+        id: number;
+    }
+
+    // Array of objects with strict checking
+    expect(isStrict<Item[]>([{ id: 1 }, { id: 2 }])).toEqual(true);
+    expect(isStrict<Item[]>([{ id: 1, extra: 1 }])).toEqual(false);
+});
+
+test('isStrict primitives', () => {
+    // Primitives should work normally (no extra keys possible)
+    expect(isStrict<string>('hello')).toEqual(true);
+    expect(isStrict<number>(123)).toEqual(true);
+    expect(isStrict<boolean>(true)).toEqual(true);
+    expect(isStrict<null>(null)).toEqual(true);
 });

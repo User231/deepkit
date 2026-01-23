@@ -59,6 +59,12 @@ export class Serializer {
     /** Registry for validator handlers */
     readonly validators = new HandlerRegistry();
 
+    /** Registry for fast type guards (pure && chain, no error collection) */
+    readonly fastTypeGuards = new HandlerRegistry();
+
+    /** Registry for strict type guards (reject unknown keys) */
+    readonly strictTypeGuards = new HandlerRegistry();
+
     constructor(public name: string = 'json') {
         this.registerSerializers();
         this.registerTypeGuards();
@@ -102,6 +108,7 @@ export class Serializer {
         this.deserializeRegistry.clear();
         this.typeGuards.clear();
         this.validators.clear();
+        this.fastTypeGuards.clear();
     }
 
     /**
@@ -194,6 +201,57 @@ export class Serializer {
                 return ctx.gt(result, ctx.lit(0));
             },
         ) as Guard<T>;
+    }
+
+    /**
+     * Build a fast type guard function (pure && chain, no error collection).
+     *
+     * Generated code returns a simple boolean without error collection infrastructure.
+     * Use this for maximum performance when you only need to know if data matches the type.
+     *
+     * @example
+     * ```typescript
+     * const isFast = serializer.buildFastTypeGuard<User>(typeOf<User>());
+     * if (isFast(data)) {
+     *     // data is User
+     * }
+     * ```
+     *
+     * @param type - The type to guard
+     * @returns A fast type guard function
+     */
+    buildFastTypeGuard<T>(type: Type): (data: unknown) => data is T {
+        return jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
+            const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.fastTypeGuards, {
+                validation: 'fast',
+            });
+            return state.build(type, data);
+        }) as (data: unknown) => data is T;
+    }
+
+    /**
+     * Build a strict type guard function (rejects unknown keys).
+     *
+     * Similar to buildFastTypeGuard but also checks for extra/unknown properties.
+     * This corresponds to "assertStrict" in benchmark terminology.
+     *
+     * @example
+     * ```typescript
+     * const isStrict = serializer.buildStrictTypeGuard<User>(typeOf<User>());
+     * isStrict({ name: 'John', age: 30 });        // true
+     * isStrict({ name: 'John', age: 30, x: 1 }); // false (unknown key 'x')
+     * ```
+     *
+     * @param type - The type to guard
+     * @returns A strict type guard function
+     */
+    buildStrictTypeGuard<T>(type: Type): (data: unknown) => data is T {
+        return jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
+            const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.strictTypeGuards, {
+                validation: 'strict',
+            });
+            return state.build(type, data);
+        }) as (data: unknown) => data is T;
     }
 }
 

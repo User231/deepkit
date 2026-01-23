@@ -28,6 +28,8 @@ export interface BuildStateBase {
         name: string;
         typeGuards: TypeGuardRegistry;
         buildTypeGuard<T>(type: Type, withLoose?: boolean): (data: any, state?: { errors?: any[] }) => data is T;
+        buildFastTypeGuard<T>(type: Type): (data: unknown) => data is T;
+        buildStrictTypeGuard<T>(type: Type): (data: unknown) => data is T;
     };
     readonly namingStrategy: { getPropertyName(type: any, forSerializer: string): string | undefined };
     build(type: Type, input: Slot): Slot;

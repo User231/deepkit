@@ -2457,6 +2457,404 @@ const deserializeMongoId: TypeHandler = (type, input, ctx, state) => {
     return input;
 };
 
+// ============================================================================
+// Fast Type Guards (Pure && chain, no error collection)
+// ============================================================================
+// These guards return boolean directly without score calculation or error collection.
+// Used by buildFastTypeGuard() for maximum performance type checking.
+
+/**
+ * Fast string type guard - returns boolean directly.
+ */
+const guardStringFast: TypeHandler = (type, input, ctx, state) => ctx.isType(input, 'string');
+
+/**
+ * Fast number type guard - checks typeof and not NaN.
+ */
+const guardNumberFast: TypeHandler = (type, input, ctx, state) =>
+    ctx.and(ctx.isType(input, 'number'), ctx.not(ctx.callExpr(Number.isNaN, input)));
+
+/**
+ * Fast boolean type guard.
+ */
+const guardBooleanFast: TypeHandler = (type, input, ctx, state) => ctx.isType(input, 'boolean');
+
+/**
+ * Fast bigint type guard.
+ */
+const guardBigIntFast: TypeHandler = (type, input, ctx, state) => ctx.isType(input, 'bigint');
+
+/**
+ * Fast null type guard.
+ */
+const guardNullFast: TypeHandler = (type, input, ctx, state) => ctx.isNull(input);
+
+/**
+ * Fast undefined type guard.
+ */
+const guardUndefinedFast: TypeHandler = (type, input, ctx, state) => ctx.eq(input, ctx.lit(undefined));
+
+/**
+ * Fast any type guard - always returns true.
+ */
+const guardAnyFast: TypeHandler = (type, input, ctx, state) => ctx.lit(true);
+
+/**
+ * Fast literal type guard - checks exact value equality.
+ */
+const guardLiteralFast: TypeHandler = (type, input, ctx, state) => {
+    const literalType = type as TypeLiteral;
+    return ctx.eq(input, ctx.lit(literalType.literal));
+};
+
+/**
+ * Fast array type guard - checks Array.isArray and element types.
+ */
+const guardArrayFast: TypeHandler = (type, input, ctx, state) => {
+    const arrType = type as TypeArray;
+    const elementType = arrType.type;
+
+    const isArray = ctx.callExpr(Array.isArray, input);
+
+    // For any[] just check Array.isArray
+    if (elementType.kind === ReflectionKind.any) {
+        return isArray;
+    }
+
+    // For typed arrays: Array.isArray(x) && x.every(elem => check(elem))
+    // Build element checker using nested fast type guard
+    const elemChecker = state.serializer.buildFastTypeGuard(elementType);
+
+    const allValid = ctx.callExpr(
+        (arr: any[], checker: (e: any) => boolean) => arr.every(checker),
+        input,
+        ctx.lit(elemChecker),
+    );
+
+    return ctx.and(isArray, allValid);
+};
+
+/**
+ * Fast union type guard - builds || chain for all members.
+ */
+const guardUnionFast: TypeHandler = (type, input, ctx, state) => {
+    const unionType = type as TypeUnion;
+
+    // Build || chain: member1Check || member2Check || ...
+    let result: Slot<boolean> = ctx.lit(false);
+    for (const member of unionType.types) {
+        const memberCheck = state.build(member, input) as Slot<boolean>;
+        result = ctx.or(result, memberCheck);
+    }
+    return result;
+};
+
+/**
+ * Fast object type guard - builds && chain for all properties.
+ */
+const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
+    const objType = type as TypeObjectLiteral | TypeClass;
+    const members = resolveTypeMembers(objType);
+
+    // Start with object type check: typeof x === 'object' && x !== null && !Array.isArray(x)
+    let result: Slot<boolean> = ctx.and(
+        ctx.isType(input, 'object'),
+        ctx.and(ctx.not(ctx.isNull(input)), ctx.not(ctx.callExpr(Array.isArray, input))),
+    );
+
+    // For class types, check if it's a Reference instance
+    // Reference proxies throw when accessing properties, so we just check instanceof
+    if (objType.kind === ReflectionKind.class && objType.classType) {
+        const isRef = ctx.callExpr(isReferenceInstance, input);
+        const isInstance = ctx.callExpr((v: any, cls: any) => v instanceof cls, input, ctx.lit(objType.classType));
+        // If it's a Reference, just check instanceof; otherwise check properties
+        const refResult = ctx.var_<boolean>(undefined as any);
+        ctx.when(
+            isRef,
+            () => {
+                ctx.setVar(refResult, isInstance);
+            },
+            () => {
+                // Full property checking for non-reference instances
+                let propResult: Slot<boolean> = ctx.lit(true);
+                for (const member of members) {
+                    if (!isPropertyMemberType(member)) continue;
+
+                    const propName = memberNameToString(member.name);
+                    const propType = member.type;
+                    const isOpt = isOptional(member);
+                    const propInput = input.get(propName);
+
+                    if (!isOpt) {
+                        const hasProp = ctx.has(input, propName);
+                        const childState = state.forProperty(propName);
+                        const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                        propResult = ctx.and(propResult, ctx.and(hasProp, propCheck));
+                    } else {
+                        const hasProp = ctx.has(input, propName);
+                        const childState = state.forProperty(propName);
+                        const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                        propResult = ctx.and(propResult, ctx.or(ctx.not(hasProp), propCheck));
+                    }
+                }
+                ctx.setVar(refResult, propResult);
+            },
+        );
+        return ctx.and(result, ctx.getVar(refResult));
+    }
+
+    // For object literals, check all properties
+    for (const member of members) {
+        if (!isPropertyMemberType(member)) continue;
+
+        const propName = memberNameToString(member.name);
+        const propType = member.type;
+        const isOpt = isOptional(member);
+        const propInput = input.get(propName);
+
+        if (!isOpt) {
+            // Required: property must exist and match type
+            const hasProp = ctx.has(input, propName);
+            const childState = state.forProperty(propName);
+            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+            result = ctx.and(result, ctx.and(hasProp, propCheck));
+        } else {
+            // Optional: if property exists, it must match type
+            // !(propName in obj) || check(obj.propName)
+            const hasProp = ctx.has(input, propName);
+            const childState = state.forProperty(propName);
+            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+            result = ctx.and(result, ctx.or(ctx.not(hasProp), propCheck));
+        }
+    }
+
+    return result;
+};
+
+/**
+ * Strict array type guard - checks Array.isArray and element types using strict checking.
+ * This ensures nested objects in arrays also reject unknown keys.
+ */
+const guardArrayStrict: TypeHandler = (type, input, ctx, state) => {
+    const arrType = type as TypeArray;
+    const elementType = arrType.type;
+
+    const isArray = ctx.callExpr(Array.isArray, input);
+
+    // For any[] just check Array.isArray
+    if (elementType.kind === ReflectionKind.any) {
+        return isArray;
+    }
+
+    // For typed arrays: Array.isArray(x) && x.every(elem => strictCheck(elem))
+    // Use buildStrictTypeGuard for element checking to preserve strict semantics
+    const elemChecker = state.serializer.buildStrictTypeGuard(elementType);
+
+    const allValid = ctx.callExpr(
+        (arr: any[], checker: (e: any) => boolean) => arr.every(checker),
+        input,
+        ctx.lit(elemChecker),
+    );
+
+    return ctx.and(isArray, allValid);
+};
+
+/**
+ * Strict tuple type guard - checks array length and element types using strict checking.
+ */
+const guardTupleStrict: TypeHandler = (type, input, ctx, state) => {
+    const tupleType = type as TypeTuple;
+
+    // Must be an array
+    let result: Slot<boolean> = ctx.callExpr(Array.isArray, input);
+
+    // Check length (for non-rest tuples)
+    const hasRest = tupleType.types.some(t => t.type.kind === ReflectionKind.rest);
+    if (!hasRest) {
+        result = ctx.and(result, ctx.eq(ctx.len(input), ctx.lit(tupleType.types.length)));
+    }
+
+    // Check each element type using strict type guard
+    for (let i = 0; i < tupleType.types.length; i++) {
+        const elemType = tupleType.types[i];
+        if (elemType.type.kind === ReflectionKind.rest) {
+            // Rest elements - use strict checker for rest type
+            const restChecker = state.serializer.buildStrictTypeGuard((elemType.type as any).type);
+            const restValid = ctx.callExpr(
+                (arr: any[], startIdx: number, checker: (e: any) => boolean) => {
+                    for (let j = startIdx; j < arr.length; j++) {
+                        if (!checker(arr[j])) return false;
+                    }
+                    return true;
+                },
+                input,
+                ctx.lit(i),
+                ctx.lit(restChecker),
+            );
+            result = ctx.and(result, restValid);
+            continue;
+        }
+        const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
+        const elemInput = ctx.at(input, i);
+        const elemCheck = ctx.callExpr(
+            (v: any, checker: (e: any) => boolean) => checker(v),
+            elemInput,
+            ctx.lit(elemChecker),
+        );
+        result = ctx.and(result, elemCheck);
+    }
+
+    return result;
+};
+
+/**
+ * Strict Object type guard - validates properties AND rejects unknown keys.
+ * Used for isStrict<T>() / assertStrict.
+ *
+ * Optimization: For objects without optional properties, we use a simple
+ * Object.keys().length check which is O(1). For objects with optional properties,
+ * we fall back to iteration.
+ */
+const guardObjectStrict: TypeHandler = (type, input, ctx, state) => {
+    const objType = type as TypeObjectLiteral | TypeClass;
+    const members = resolveTypeMembers(objType);
+
+    // Collect property info
+    const propNames: string[] = [];
+    let hasOptional = false;
+    for (const member of members) {
+        if (!isPropertyMemberType(member)) continue;
+        propNames.push(memberNameToString(member.name));
+        if (isOptional(member)) hasOptional = true;
+    }
+
+    // Start with basic object check
+    let result: Slot<boolean> = ctx.and(
+        ctx.isType(input, 'object'),
+        ctx.and(ctx.not(ctx.isNull(input)), ctx.not(ctx.callExpr(Array.isArray, input))),
+    );
+
+    // Check all known properties (same as guardObjectFast)
+    for (const member of members) {
+        if (!isPropertyMemberType(member)) continue;
+
+        const propName = memberNameToString(member.name);
+        const propType = member.type;
+        const isOpt = isOptional(member);
+        const propInput = input.get(propName);
+
+        if (!isOpt) {
+            const hasProp = ctx.has(input, propName);
+            const childState = state.forProperty(propName);
+            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+            result = ctx.and(result, ctx.and(hasProp, propCheck));
+        } else {
+            const hasProp = ctx.has(input, propName);
+            const childState = state.forProperty(propName);
+            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+            result = ctx.and(result, ctx.or(ctx.not(hasProp), propCheck));
+        }
+    }
+
+    // Check for unknown keys
+    if (!hasOptional) {
+        // Fast path: no optional properties, just check key count
+        // Object.keys(obj).length === expectedCount
+        const keysLength = ctx.callExpr((obj: any) => Object.keys(obj).length, input);
+        result = ctx.and(result, ctx.eq(keysLength, ctx.lit(propNames.length)));
+    } else {
+        // Slow path: has optional properties, need to iterate
+        const allowedKeys = new Set(propNames);
+        const checkUnknownKeys = ctx.callExpr(
+            (obj: any, allowed: Set<string>) => {
+                for (const key of Object.keys(obj)) {
+                    if (!allowed.has(key)) return false;
+                }
+                return true;
+            },
+            input,
+            ctx.lit(allowedKeys),
+        );
+        result = ctx.and(result, checkUnknownKeys);
+    }
+
+    return result;
+};
+
+/**
+ * Fast Date type guard - checks instanceof Date.
+ */
+const guardDateFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof Date, input);
+
+/**
+ * Fast Set type guard - checks instanceof Set.
+ */
+const guardSetFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof Set, input);
+
+/**
+ * Fast Map type guard - checks instanceof Map.
+ */
+const guardMapFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof Map, input);
+
+/**
+ * Fast RegExp type guard - checks instanceof RegExp.
+ */
+const guardRegExpFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof RegExp, input);
+
+/**
+ * Fast function type guard - checks typeof === 'function'.
+ */
+const guardFunctionFast: TypeHandler = (type, input, ctx, state) => ctx.isType(input, 'function');
+
+/**
+ * Fast enum type guard - checks if value is in enum values.
+ */
+const guardEnumFast: TypeHandler = (type, input, ctx, state) => {
+    const enumType = type as TypeEnum;
+    const values = enumType.enum ? Object.values(enumType.enum) : [];
+
+    if (values.length === 0) {
+        return ctx.lit(false);
+    }
+
+    // Build || chain for all enum values
+    let result: Slot<boolean> = ctx.eq(input, ctx.lit(values[0]));
+    for (let i = 1; i < values.length; i++) {
+        result = ctx.or(result, ctx.eq(input, ctx.lit(values[i])));
+    }
+    return result;
+};
+
+/**
+ * Fast tuple type guard - checks array length and element types.
+ */
+const guardTupleFast: TypeHandler = (type, input, ctx, state) => {
+    const tupleType = type as TypeTuple;
+
+    // Must be an array
+    let result: Slot<boolean> = ctx.callExpr(Array.isArray, input);
+
+    // Check length (for non-rest tuples)
+    const hasRest = tupleType.types.some(t => t.type.kind === ReflectionKind.rest);
+    if (!hasRest) {
+        result = ctx.and(result, ctx.eq(ctx.len(input), ctx.lit(tupleType.types.length)));
+    }
+
+    // Check each element type
+    for (let i = 0; i < tupleType.types.length; i++) {
+        const elemType = tupleType.types[i];
+        if (elemType.type.kind === ReflectionKind.rest) {
+            // Rest elements - skip detailed check for now
+            continue;
+        }
+        const elemInput = ctx.at(input, i);
+        const elemCheck = state.build(elemType.type, elemInput) as Slot<boolean>;
+        result = ctx.and(result, elemCheck);
+    }
+
+    return result;
+};
+
 // Registration
 export function registerDefaultHandlers(serializer: Serializer): void {
     const serializeRegistry = serializer.serializeRegistry;
@@ -2564,4 +2962,70 @@ export function registerDefaultTypeGuards(serializer: Serializer): void {
     typeGuards.addDecorator(1, isNanoIdType, guardNanoId);
     typeGuards.addDecorator(1, isUUIDType, guardUUID);
     typeGuards.addDecorator(1, isMongoIdType, guardMongoId);
+}
+
+/**
+ * Register fast type guards for the serializer.
+ * Fast guards return booleans directly without error collection.
+ */
+export function registerFastTypeGuards(serializer: Serializer): void {
+    const reg = serializer.fastTypeGuards;
+
+    // Primitives
+    reg.register(ReflectionKind.string, guardStringFast);
+    reg.register(ReflectionKind.number, guardNumberFast);
+    reg.register(ReflectionKind.boolean, guardBooleanFast);
+    reg.register(ReflectionKind.bigint, guardBigIntFast);
+    reg.register(ReflectionKind.null, guardNullFast);
+    reg.register(ReflectionKind.undefined, guardUndefinedFast);
+    reg.register(ReflectionKind.any, guardAnyFast);
+    reg.register(ReflectionKind.literal, guardLiteralFast);
+
+    // Compound types
+    reg.register(ReflectionKind.array, guardArrayFast);
+    reg.register(ReflectionKind.union, guardUnionFast);
+    reg.register(ReflectionKind.objectLiteral, guardObjectFast);
+    reg.register(ReflectionKind.class, guardObjectFast);
+    reg.register(ReflectionKind.enum, guardEnumFast);
+    reg.register(ReflectionKind.tuple, guardTupleFast);
+    reg.register(ReflectionKind.function, guardFunctionFast);
+    reg.register(ReflectionKind.regexp, guardRegExpFast);
+
+    // Class types
+    reg.registerClass(Date, guardDateFast);
+    reg.registerClass(Set, guardSetFast);
+    reg.registerClass(Map, guardMapFast);
+}
+
+/**
+ * Register strict type guard handlers (reject unknown keys).
+ * Used for isStrict<T>() / assertStrict.
+ */
+export function registerStrictTypeGuards(serializer: Serializer): void {
+    const reg = serializer.strictTypeGuards;
+
+    // Primitives - same as fast (no unknown keys concept)
+    reg.register(ReflectionKind.string, guardStringFast);
+    reg.register(ReflectionKind.number, guardNumberFast);
+    reg.register(ReflectionKind.boolean, guardBooleanFast);
+    reg.register(ReflectionKind.bigint, guardBigIntFast);
+    reg.register(ReflectionKind.null, guardNullFast);
+    reg.register(ReflectionKind.undefined, guardUndefinedFast);
+    reg.register(ReflectionKind.any, guardAnyFast);
+    reg.register(ReflectionKind.literal, guardLiteralFast);
+
+    // Compound types - use strict for objects and arrays
+    reg.register(ReflectionKind.array, guardArrayStrict);
+    reg.register(ReflectionKind.union, guardUnionFast);
+    reg.register(ReflectionKind.objectLiteral, guardObjectStrict);
+    reg.register(ReflectionKind.class, guardObjectStrict);
+    reg.register(ReflectionKind.enum, guardEnumFast);
+    reg.register(ReflectionKind.tuple, guardTupleStrict);
+    reg.register(ReflectionKind.function, guardFunctionFast);
+    reg.register(ReflectionKind.regexp, guardRegExpFast);
+
+    // Class types
+    reg.registerClass(Date, guardDateFast);
+    reg.registerClass(Set, guardSetFast);
+    reg.registerClass(Map, guardMapFast);
 }

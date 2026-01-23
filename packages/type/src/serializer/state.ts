@@ -121,8 +121,8 @@ export class BuildState {
     /** Slot containing runtime SerializationOptions */
     readonly optionsSlot: Slot<SerializationOptions>;
 
-    /** Validation mode: strict (is()), loose (validation with coercion), or undefined */
-    readonly validation: 'strict' | 'loose' | undefined;
+    /** Validation mode: strict, loose, fast (pure && chain), or undefined */
+    readonly validation: 'strict' | 'loose' | 'fast' | undefined;
 
     /** Current depth in the type tree */
     readonly depth: number;
@@ -152,7 +152,7 @@ export class BuildState {
         optionsSlot: Slot<SerializationOptions>,
         registry: HandlerRegistry,
         options: {
-            validation?: 'strict' | 'loose';
+            validation?: 'strict' | 'loose' | 'fast';
             depth?: number;
             maxDepth?: number;
             typeStack?: Set<Type>;
