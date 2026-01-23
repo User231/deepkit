@@ -2555,8 +2555,8 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
     const objType = type as TypeObjectLiteral | TypeClass;
     const members = resolveTypeMembers(objType);
 
-    // Start with object type check: typeof x === 'object' && x !== null && !Array.isArray(x)
-    let result: Slot<boolean> = ctx.and(
+    // Object type check: typeof x === 'object' && x !== null && !Array.isArray(x)
+    const isObject = ctx.and(
         ctx.isType(input, 'object'),
         ctx.and(ctx.not(ctx.isNull(input)), ctx.not(ctx.callExpr(Array.isArray, input))),
     );
@@ -2564,44 +2564,50 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
     // For class types, check if it's a Reference instance
     // Reference proxies throw when accessing properties, so we just check instanceof
     if (objType.kind === ReflectionKind.class && objType.classType) {
-        const isRef = ctx.callExpr(isReferenceInstance, input);
-        const isInstance = ctx.callExpr((v: any, cls: any) => v instanceof cls, input, ctx.lit(objType.classType));
-        // If it's a Reference, just check instanceof; otherwise check properties
-        const refResult = ctx.var_<boolean>(undefined as any);
-        ctx.when(
-            isRef,
-            () => {
-                ctx.setVar(refResult, isInstance);
-            },
-            () => {
-                // Full property checking for non-reference instances
-                let propResult: Slot<boolean> = ctx.lit(true);
-                for (const member of members) {
-                    if (!isPropertyMemberType(member)) continue;
+        // Wrap all property checks in object type guard to avoid 'in' on primitives in unions
+        const classResult = ctx.var_<boolean>(ctx.lit(false));
+        ctx.when(isObject, () => {
+            const isRef = ctx.callExpr(isReferenceInstance, input);
+            const isInstance = ctx.callExpr((v: any, cls: any) => v instanceof cls, input, ctx.lit(objType.classType));
+            // If it's a Reference, just check instanceof; otherwise check properties
+            ctx.when(
+                isRef,
+                () => {
+                    ctx.setVar(classResult, isInstance);
+                },
+                () => {
+                    // Full property checking for non-reference instances
+                    let propResult: Slot<boolean> = ctx.lit(true);
+                    for (const member of members) {
+                        if (!isPropertyMemberType(member)) continue;
 
-                    const propName = memberNameToString(member.name);
-                    const propType = member.type;
-                    const isOpt = isOptional(member);
-                    const propInput = input.get(propName);
+                        const propName = memberNameToString(member.name);
+                        const propType = member.type;
+                        const isOpt = isOptional(member);
+                        const propInput = input.get(propName);
 
-                    if (!isOpt) {
-                        const hasProp = ctx.has(input, propName);
-                        const childState = state.forProperty(propName);
-                        const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                        propResult = ctx.and(propResult, ctx.and(hasProp, propCheck));
-                    } else {
-                        // Optional: value must be undefined OR match type
-                        const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
-                        const childState = state.forProperty(propName);
-                        const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                        propResult = ctx.and(propResult, ctx.or(propIsUndefined, propCheck));
+                        if (!isOpt) {
+                            const hasProp = ctx.has(input, propName);
+                            const childState = state.forProperty(propName);
+                            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                            propResult = ctx.and(propResult, ctx.and(hasProp, propCheck));
+                        } else {
+                            // Optional: value must be undefined OR match type
+                            const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
+                            const childState = state.forProperty(propName);
+                            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                            propResult = ctx.and(propResult, ctx.or(propIsUndefined, propCheck));
+                        }
                     }
-                }
-                ctx.setVar(refResult, propResult);
-            },
-        );
-        return ctx.and(result, ctx.getVar(refResult));
+                    ctx.setVar(classResult, propResult);
+                },
+            );
+        });
+        return ctx.getVar(classResult);
     }
+
+    // For object literals, start with object check
+    let result = isObject;
 
     // For object literals, check all properties
     for (const member of members) {
