@@ -346,7 +346,9 @@ const handleArray: TypeHandler = (type, input, ctx, state) => {
     }
 
     // For deserialize or non-primitive arrays, need Array.isArray check
-    const result = ctx.var_<any[]>(ctx.arrExpr());
+    // Initialize to undefined - if input is not an array, return undefined
+    // so the type guard can catch it as invalid (don't silently coerce to [])
+    const result = ctx.var_<any>(ctx.lit(undefined));
     ctx.when(ctx.callExpr(Array.isArray, input), () => {
         ctx.setVar(
             result,
@@ -1122,11 +1124,30 @@ function buildObjectLiteralBody(
                             state.namingStrategy.getPropertyName(memberProp, state.serializer.name) || subPropName;
                         const prefixedName = prefix + serializedSubName;
                         const subPropInput = embeddedInput.get(subPropName);
-                        ctx.set(
-                            result,
-                            prefixedName,
-                            state.forProperty(prefixedName).build(memberProp.type, subPropInput),
-                        );
+
+                        // For optional/nullable embedded properties, convert undefined to null
+                        const isOptOrNull = isOptional(memberProp) || isNullable(memberProp);
+                        if (isOptOrNull) {
+                            ctx.when(
+                                ctx.isNullish(subPropInput),
+                                () => {
+                                    ctx.set(result, prefixedName, ctx.lit(null));
+                                },
+                                () => {
+                                    ctx.set(
+                                        result,
+                                        prefixedName,
+                                        state.forProperty(prefixedName).build(memberProp.type, subPropInput),
+                                    );
+                                },
+                            );
+                        } else {
+                            ctx.set(
+                                result,
+                                prefixedName,
+                                state.forProperty(prefixedName).build(memberProp.type, subPropInput),
+                            );
+                        }
                     }
                 };
 
@@ -1195,29 +1216,30 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     if (embedded) {
         const properties = members.filter(isPropertyMemberType) as (TypeProperty | TypePropertySignature)[];
 
-        if (embedded.prefix === undefined) {
-            // Single-property embedded without prefix: accept raw value and create class instance
-            if (properties.length === 1) {
-                const prop = properties[0];
-                const propName = memberNameToString(prop.name);
-                const propType = prop.type;
+        // Single-property embedded (regardless of prefix) used directly: accept raw value
+        // The prefix setting only matters when embedded as property of another type
+        if (properties.length === 1) {
+            const prop = properties[0];
+            const propName = memberNameToString(prop.name);
+            const propType = prop.type;
 
-                // Convert the input value to the property type
-                const converted = state.forProperty(propName).build(propType, input);
+            // Convert the input value to the property type
+            const converted = state.forProperty(propName).build(propType, input);
 
-                // Create class instance with the converted value
-                const ctorProps = getDeepConstructorProperties(classType);
-                if (ctorProps.length > 0 && ctorProps.some(p => memberNameToString(p.name) === propName)) {
-                    // Constructor takes the property as argument
-                    return ctx.newExpr(classRef, converted);
-                } else {
-                    // Create instance and set property
-                    const instance = ctx.let(ctx.newExpr(classRef));
-                    ctx.set(instance, propName, converted);
-                    return instance;
-                }
+            // Create class instance with the converted value
+            const ctorProps = getDeepConstructorProperties(classType);
+            if (ctorProps.length > 0 && ctorProps.some(p => memberNameToString(p.name) === propName)) {
+                // Constructor takes the property as argument
+                return ctx.newExpr(classRef, converted);
+            } else {
+                // Create instance and set property
+                const instance = ctx.let(ctx.newExpr(classRef));
+                ctx.set(instance, propName, converted);
+                return instance;
             }
-        } else if (embedded.prefix !== '') {
+        }
+
+        if (embedded.prefix !== undefined && embedded.prefix !== '') {
             // Multi-property embedded with non-empty prefix: read from prefixed input keys
             const prefix = embedded.prefix;
             const result = ctx.var_<any>(undefined);
@@ -1452,17 +1474,20 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             }
         };
 
-        ctx.callExpr(
-            processIndexSignature,
-            input,
-            result,
-            ctx.lit(explicitProps),
-            ctx.lit(valueType),
-            ctx.lit(state),
-            ctx.lit(valueAllowsNull),
-            ctx.lit(indexType),
-            ctx.lit(ReflectionKind),
-            ctx.lit(extendTemplateLiteral),
+        // Use ctx.let() to force the call to be emitted in generated code
+        ctx.let(
+            ctx.callExpr(
+                processIndexSignature,
+                input,
+                result,
+                ctx.lit(explicitProps),
+                ctx.lit(valueType),
+                ctx.lit(state),
+                ctx.lit(valueAllowsNull),
+                ctx.lit(indexType),
+                ctx.lit(ReflectionKind),
+                ctx.lit(extendTemplateLiteral),
+            ),
         );
     };
 
@@ -1499,22 +1524,31 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             if (excluded.includes('*') || excluded.includes(state.serializer.name)) continue;
             const propType = memberType.type;
             const propInput = input.get(serializedName);
-            ctx.when(ctx.has(input, serializedName), () => {
-                ctx.when(
-                    ctx.not(ctx.isNullish(propInput)),
-                    () => {
-                        ctx.set(result, propName, state.build(propType, propInput));
-                    },
-                    () => {
-                        // When deserializing null, set the appropriate "no value" representation
-                        if (isNullable(memberType)) {
-                            ctx.set(result, propName, ctx.lit(null));
-                        } else if (isOptional(memberType)) {
-                            ctx.set(result, propName, ctx.lit(undefined));
-                        }
-                    },
-                );
-            });
+            ctx.when(
+                ctx.has(input, serializedName),
+                () => {
+                    ctx.when(
+                        ctx.not(ctx.isNullish(propInput)),
+                        () => {
+                            ctx.set(result, propName, state.build(propType, propInput));
+                        },
+                        () => {
+                            // When deserializing null, set the appropriate "no value" representation
+                            if (isNullable(memberType)) {
+                                ctx.set(result, propName, ctx.lit(null));
+                            } else if (isOptional(memberType)) {
+                                ctx.set(result, propName, ctx.lit(undefined));
+                            }
+                        },
+                    );
+                },
+                () => {
+                    // Handle missing properties - set nullable to null (overrides class default)
+                    if (isNullable(memberType)) {
+                        ctx.set(result, propName, ctx.lit(null));
+                    }
+                },
+            );
         }
 
         // Process embedded properties with prefix
@@ -1702,22 +1736,31 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             if (excluded.includes('*') || excluded.includes(state.serializer.name)) continue;
             const propType = memberType.type;
             const propInput = input.get(serializedName);
-            ctx.when(ctx.has(input, serializedName), () => {
-                ctx.when(
-                    ctx.not(ctx.isNullish(propInput)),
-                    () => {
-                        ctx.set(result, propName, state.build(propType, propInput));
-                    },
-                    () => {
-                        // When deserializing null, set the appropriate "no value" representation
-                        if (isNullable(memberType)) {
-                            ctx.set(result, propName, ctx.lit(null));
-                        } else if (isOptional(memberType)) {
-                            ctx.set(result, propName, ctx.lit(undefined));
-                        }
-                    },
-                );
-            });
+            ctx.when(
+                ctx.has(input, serializedName),
+                () => {
+                    ctx.when(
+                        ctx.not(ctx.isNullish(propInput)),
+                        () => {
+                            ctx.set(result, propName, state.build(propType, propInput));
+                        },
+                        () => {
+                            // When deserializing null, set the appropriate "no value" representation
+                            if (isNullable(memberType)) {
+                                ctx.set(result, propName, ctx.lit(null));
+                            } else if (isOptional(memberType)) {
+                                ctx.set(result, propName, ctx.lit(undefined));
+                            }
+                        },
+                    );
+                },
+                () => {
+                    // Handle missing properties - set nullable to null (overrides class default)
+                    if (isNullable(memberType)) {
+                        ctx.set(result, propName, ctx.lit(null));
+                    }
+                },
+            );
         }
 
         // Process embedded properties with prefix
@@ -1744,22 +1787,31 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
         if (excluded.includes('*') || excluded.includes(state.serializer.name)) continue;
         const propType = memberType.type;
         const propInput = input.get(serializedName);
-        ctx.when(ctx.has(input, serializedName), () => {
-            ctx.when(
-                ctx.not(ctx.isNullish(propInput)),
-                () => {
-                    ctx.set(result, propName, state.build(propType, propInput));
-                },
-                () => {
-                    // When deserializing null, set the appropriate "no value" representation
-                    if (isNullable(memberType)) {
-                        ctx.set(result, propName, ctx.lit(null));
-                    } else if (isOptional(memberType)) {
-                        ctx.set(result, propName, ctx.lit(undefined));
-                    }
-                },
-            );
-        });
+        ctx.when(
+            ctx.has(input, serializedName),
+            () => {
+                ctx.when(
+                    ctx.not(ctx.isNullish(propInput)),
+                    () => {
+                        ctx.set(result, propName, state.build(propType, propInput));
+                    },
+                    () => {
+                        // When deserializing null, set the appropriate "no value" representation
+                        if (isNullable(memberType)) {
+                            ctx.set(result, propName, ctx.lit(null));
+                        } else if (isOptional(memberType)) {
+                            ctx.set(result, propName, ctx.lit(undefined));
+                        }
+                    },
+                );
+            },
+            () => {
+                // Handle missing properties - set nullable to null (overrides class default)
+                if (isNullable(memberType)) {
+                    ctx.set(result, propName, ctx.lit(null));
+                }
+            },
+        );
     }
 
     // Process embedded properties with prefix
@@ -1771,7 +1823,12 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     return result;
 };
 
-const serializeDate: TypeHandler = (type, input, ctx, state) => ctx.callExpr((d: Date) => d.toISOString(), input);
+const serializeDate: TypeHandler = (type, input, ctx, state) =>
+    ctx.ternary(
+        ctx.and(input, ctx.isInstance(input, Date)),
+        ctx.callExpr((d: Date) => d.toISOString(), input),
+        input, // Return undefined/null as-is
+    );
 const deserializeDate: TypeHandler = (type, input, ctx, state) => ctx.newExpr(Date, input);
 
 // RegExp serialization - use literal string form (e.g. "/abc/i")
@@ -2257,7 +2314,7 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                 const reflection = ReflectionClass.from((objType as TypeClass).classType);
                 if (reflection.validationMethod) {
                     const methodName = reflection.validationMethod;
-                    // Call the validator method on the instance
+                    // Call the validator method on the instance and return whether valid
                     const callClassValidator = (
                         obj: any,
                         validatorMethod: string | symbol | number,
@@ -2265,16 +2322,18 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                         basePath: string,
                         validatorErrorClass: typeof ValidatorError,
                         validationErrorItemClass: typeof ValidationErrorItem,
-                    ): void => {
-                        if (!obj || typeof obj[validatorMethod] !== 'function') return;
+                    ): boolean => {
+                        if (!obj || typeof obj[validatorMethod] !== 'function') return true;
                         const result = obj[validatorMethod]();
                         if (result instanceof validatorErrorClass) {
                             if (errors) {
                                 errors.push(new validationErrorItemClass(basePath, result.code, result.message));
                             }
+                            return false;
                         }
+                        return true;
                     };
-                    ctx.callExpr(
+                    const validatorValid = ctx.callExpr(
                         callClassValidator,
                         input,
                         ctx.lit(methodName),
@@ -2283,6 +2342,7 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                         ctx.lit(ValidatorError),
                         ctx.lit(ValidationErrorItem),
                     );
+                    ctx.when(ctx.not(validatorValid), () => ctx.setVar(score, ctx.lit(0)));
                 }
             }
         },
@@ -3142,6 +3202,7 @@ const guardLiteralFast: TypeHandler = (type, input, ctx, state) => {
 
 /**
  * Fast array type guard - checks Array.isArray and element types.
+ * Uses buildFastTypeGuard for element checking which handles recursive types via caching.
  */
 const guardArrayFast: TypeHandler = (type, input, ctx, state) => {
     const arrType = type as TypeArray;
@@ -3155,7 +3216,7 @@ const guardArrayFast: TypeHandler = (type, input, ctx, state) => {
     }
 
     // For typed arrays: Array.isArray(x) && x.every(elem => check(elem))
-    // Build element checker using nested fast type guard
+    // buildFastTypeGuard handles recursive types via caching
     const elemChecker = state.serializer.buildFastTypeGuard(elementType);
 
     const allValid = ctx.callExpr(
@@ -3283,6 +3344,7 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
     if (indexSignature) {
         const valueType = indexSignature.type;
         const indexType = indexSignature.index;
+        // Use buildFastTypeGuard which handles recursive types via caching
         const fastChecker = state.serializer.buildFastTypeGuard(valueType);
 
         // Runtime function to validate all keys in the object against index signature
@@ -3339,6 +3401,7 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
 /**
  * Strict array type guard - checks Array.isArray and element types using strict checking.
  * This ensures nested objects in arrays also reject unknown keys.
+ * Uses buildStrictTypeGuard for element checking which handles recursive types via caching.
  */
 const guardArrayStrict: TypeHandler = (type, input, ctx, state) => {
     const arrType = type as TypeArray;
@@ -3352,7 +3415,7 @@ const guardArrayStrict: TypeHandler = (type, input, ctx, state) => {
     }
 
     // For typed arrays: Array.isArray(x) && x.every(elem => strictCheck(elem))
-    // Use buildStrictTypeGuard for element checking to preserve strict semantics
+    // buildStrictTypeGuard handles recursive types via caching
     const elemChecker = state.serializer.buildStrictTypeGuard(elementType);
 
     const allValid = ctx.callExpr(
@@ -3366,6 +3429,7 @@ const guardArrayStrict: TypeHandler = (type, input, ctx, state) => {
 
 /**
  * Strict tuple type guard - checks array length and element types using strict checking.
+ * Uses buildStrictTypeGuard for element checking which handles recursive types via caching.
  */
 const guardTupleStrict: TypeHandler = (type, input, ctx, state) => {
     const tupleType = type as TypeTuple;
@@ -3626,21 +3690,17 @@ const guardTupleFast: TypeHandler = (type, input, ctx, state) => {
             result = ctx.and(result, elemCheck);
         }
 
-        // Check rest elements at runtime
+        // Check rest elements using buildFastTypeGuard for proper recursion handling
         if (restType) {
-            const fastChecker = state.serializer.buildFastTypeGuard(restType);
+            const restChecker = state.serializer.buildFastTypeGuard(restType);
+            // Extract rest elements and check all with .every()
             const restValid = ctx.callExpr(
-                (arr: any[], startIdx: number, endOffset: number, checker: (e: any) => boolean) => {
-                    const endIdx = arr.length - endOffset;
-                    for (let j = startIdx; j < endIdx; j++) {
-                        if (!checker(arr[j])) return false;
-                    }
-                    return true;
-                },
+                (arr: any[], start: number, end: number, checker: (e: any) => boolean) =>
+                    arr.slice(start, end).every(checker),
                 input,
                 ctx.lit(restIndex),
-                ctx.lit(afterRest),
-                ctx.lit(fastChecker),
+                ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(afterRest)),
+                ctx.lit(restChecker),
             );
             result = ctx.and(result, restValid);
         }

@@ -440,12 +440,19 @@ export class JITContext implements Context {
      * For undefined values, uses _context.name pattern for monomorphic optimization.
      */
     addExtern(value: any, name: string = 'ext'): string {
+        // Sanitize name to be a valid JavaScript identifier
+        // Remove spaces, leading digits, and invalid characters
+        let sanitized = name.replace(/[^a-zA-Z0-9_$]/g, '_');
+        if (sanitized.length === 0 || /^[0-9]/.test(sanitized)) {
+            sanitized = '_' + sanitized;
+        }
+
         if (value === undefined) {
             // For undefined values, use _context.varName to get monomorphic types
-            const freeName = this.reserveName(name);
+            const freeName = this.reserveName(sanitized);
             return '_context.' + freeName;
         }
-        const freeName = this.reserveName(name);
+        const freeName = this.reserveName(sanitized);
         this.externs.set(freeName, value);
         return freeName;
     }
