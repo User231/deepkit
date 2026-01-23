@@ -8,7 +8,7 @@
  * You should have received a copy of the MIT License along with this program.
  */
 import { ReceiveType, resolveReceiveType } from './reflection/reflection.js';
-import { getTypeJitContainer } from './reflection/type.js';
+import { getTypeJitContainer, validationAnnotation } from './reflection/type.js';
 import { Guard, Serializer, serializer } from './serializer/index.js';
 import { NoTypeReceived } from './utils.js';
 import { ValidationError, ValidationErrorItem } from './validator.js';
@@ -185,20 +185,29 @@ export function assert<T>(
 
     if (!type) throw new NoTypeReceived('assert() called without type parameter');
 
-    // Fast path: use fast type guard
     const resolved = resolveReceiveType(type);
     const jit = getTypeJitContainer(resolved);
-    if (!jit.__isFast) {
-        jit.__isFast = ser.buildFastTypeGuard(resolved);
+
+    // Check if type has validators - if so, skip fast path since fast guards don't run validators
+    const hasValidators = validationAnnotation.getAnnotations(resolved).length > 0;
+
+    if (!hasValidators) {
+        // Fast path: use fast type guard (no validators to run)
+        if (!jit.__isFast) {
+            jit.__isFast = ser.buildFastTypeGuard(resolved);
+        }
+
+        if (jit.__isFast(data)) {
+            return; // Valid, no validators to run
+        }
     }
 
-    if (!jit.__isFast(data)) {
-        // Slow path: collect detailed errors
-        if (!jit.__is) {
-            jit.__is = ser.buildTypeGuard(resolved, false);
-        }
-        const errors: ValidationErrorItem[] = [];
-        jit.__is(data, { errors });
+    // Slow path: use regular type guard with validators and error collection
+    if (!jit.__is) {
+        jit.__is = ser.buildTypeGuard(resolved, false);
+    }
+    const errors: ValidationErrorItem[] = [];
+    if (!jit.__is(data, { errors })) {
         throw new ValidationError(errors, resolved);
     }
 }

@@ -398,7 +398,7 @@ const handleTuple: TypeHandler = (type, input, ctx, state) => {
                 afterCount: number,
                 rt: Type,
                 st: BuildStateBase,
-            ): void => {
+            ): number => {
                 const restEnd = inputArr.length - afterCount;
                 for (let j = restIdx; j < restEnd; j++) {
                     // Build each rest element - need to serialize at runtime
@@ -408,15 +408,19 @@ const handleTuple: TypeHandler = (type, input, ctx, state) => {
                         direction === 'serialize' ? serializer.buildSerializer(rt) : serializer.buildDeserializer(rt);
                     resultArr.push(fn(inputArr[j], {}));
                 }
+                return 0; // Return value forces the call to be emitted
             };
-            ctx.callExpr(
-                processRest,
-                input,
-                result,
-                ctx.lit(restIndex),
-                ctx.lit(afterRest),
-                ctx.lit(restType),
-                ctx.lit(state),
+            // Use ctx.let() to force the call to be emitted in generated code
+            ctx.let(
+                ctx.callExpr(
+                    processRest,
+                    input,
+                    result,
+                    ctx.lit(restIndex),
+                    ctx.lit(afterRest),
+                    ctx.lit(restType),
+                    ctx.lit(state),
+                ),
             );
         }
 
@@ -584,6 +588,16 @@ function buildObjectLiteralBody(
     const literalProps: LiteralProp[] = [];
     const incrementalProps: IncrementalProp[] = [];
 
+    // Properties that need embedded prefix flattening
+    interface EmbeddedProp {
+        memberType: TypeProperty | TypePropertySignature;
+        propName: string;
+        embeddedType: TypeClass | TypeObjectLiteral;
+        prefix: string;
+        propGroups: string[];
+    }
+    const embeddedProps: EmbeddedProp[] = [];
+
     // First pass: categorize all properties
     for (const member of members) {
         if (member.kind === ReflectionKind.indexSignature) {
@@ -601,6 +615,23 @@ function buildObjectLiteralBody(
 
         const propGroups = groupAnnotation.getAnnotations(memberType.type) || [];
         const propType = memberType.type;
+
+        // Check if this property has an embedded type with prefix
+        const embedded = embeddedAnnotation.getFirst(propType);
+        if (embedded && embedded.prefix !== undefined) {
+            // Embedded type with prefix - needs flattening into parent
+            if (propType.kind === ReflectionKind.class || propType.kind === ReflectionKind.objectLiteral) {
+                embeddedProps.push({
+                    memberType,
+                    propName,
+                    embeddedType: propType as TypeClass | TypeObjectLiteral,
+                    prefix: embedded.prefix,
+                    propGroups,
+                });
+                continue;
+            }
+        }
+
         const inputKey = isDeserialize ? serializedName : propName;
         const outputKey = isDeserialize ? propName : serializedName;
         const propInput = input.get(inputKey);
@@ -781,7 +812,7 @@ function buildObjectLiteralBody(
             indexTypeArg: Type,
             reflectionKind: typeof ReflectionKind,
             extendTemplateLiteralFn: typeof extendTemplateLiteral,
-        ): void => {
+        ): number => {
             for (const key of Object.keys(inputObj)) {
                 if (explicitKeys.has(key)) continue;
 
@@ -822,20 +853,143 @@ function buildObjectLiteralBody(
                     resultObj[key] = fn(value, {});
                 }
             }
+            return 0; // Return value forces the call to be emitted
         };
 
-        ctx.callExpr(
-            processIndexSignature,
-            input,
-            result,
-            ctx.lit(explicitProps),
-            ctx.lit(valueType),
-            ctx.lit(state),
-            ctx.lit(valueAllowsNull),
-            ctx.lit(indexType),
-            ctx.lit(ReflectionKind),
-            ctx.lit(extendTemplateLiteral),
+        // Use ctx.let() to force the call to be emitted in generated code
+        ctx.let(
+            ctx.callExpr(
+                processIndexSignature,
+                input,
+                result,
+                ctx.lit(explicitProps),
+                ctx.lit(valueType),
+                ctx.lit(state),
+                ctx.lit(valueAllowsNull),
+                ctx.lit(indexType),
+                ctx.lit(ReflectionKind),
+                ctx.lit(extendTemplateLiteral),
+            ),
         );
+    }
+
+    // Handle embedded properties with prefix (flatten into parent)
+    for (const embeddedProp of embeddedProps) {
+        const { memberType, propName, embeddedType, prefix, propGroups } = embeddedProp;
+        const embeddedMembers = resolveTypeMembers(embeddedType);
+        const isOpt = isOptional(memberType);
+
+        const buildEmbeddedBody = () => {
+            if (isDeserialize) {
+                // Deserialize: read prefixed properties from input and create embedded object
+                const embeddedResult = ctx.var_<any>(undefined);
+
+                // Check if all required prefixed properties exist
+                const requiredKeys: string[] = [];
+                for (const member of embeddedMembers) {
+                    if (!isPropertyMemberType(member)) continue;
+                    const memberProp = member as TypeProperty | TypePropertySignature;
+                    const subPropName = memberNameToString(memberProp.name);
+                    const prefixedName = prefix + subPropName;
+                    if (!isOptional(memberProp)) {
+                        requiredKeys.push(prefixedName);
+                    }
+                }
+
+                // Build the embedded object from prefixed properties
+                const buildEmbedded = () => {
+                    if (embeddedType.kind === ReflectionKind.class) {
+                        // Create class instance
+                        const ctorProps = getDeepConstructorProperties(embeddedType);
+                        if (ctorProps.length > 0) {
+                            // Class with constructor - pass constructor args
+                            const args: Slot[] = [];
+                            for (const ctorProp of ctorProps) {
+                                const subPropName = memberNameToString(ctorProp.name);
+                                const prefixedName = prefix + subPropName;
+                                const propInput = input.get(prefixedName);
+                                args.push(state.forProperty(prefixedName).build(ctorProp.type, propInput));
+                            }
+                            ctx.setVar(embeddedResult, ctx.newExpr(embeddedType.classType, ...args));
+                        } else {
+                            // Class without constructor - create and assign
+                            const instance = ctx.let(ctx.newExpr(embeddedType.classType));
+                            for (const member of embeddedMembers) {
+                                if (!isPropertyMemberType(member)) continue;
+                                const memberProp = member as TypeProperty | TypePropertySignature;
+                                const subPropName = memberNameToString(memberProp.name);
+                                const prefixedName = prefix + subPropName;
+                                const propInput = input.get(prefixedName);
+                                ctx.set(
+                                    instance,
+                                    subPropName,
+                                    state.forProperty(prefixedName).build(memberProp.type, propInput),
+                                );
+                            }
+                            ctx.setVar(embeddedResult, instance);
+                        }
+                    } else {
+                        // Object literal
+                        const obj = ctx.let(ctx.objExpr());
+                        for (const member of embeddedMembers) {
+                            if (!isPropertyMemberType(member)) continue;
+                            const memberProp = member as TypeProperty | TypePropertySignature;
+                            const subPropName = memberNameToString(memberProp.name);
+                            const prefixedName = prefix + subPropName;
+                            const propInput = input.get(prefixedName);
+                            ctx.set(
+                                obj,
+                                subPropName,
+                                state.forProperty(prefixedName).build(memberProp.type, propInput),
+                            );
+                        }
+                        ctx.setVar(embeddedResult, obj);
+                    }
+                };
+
+                if (isOpt && requiredKeys.length > 0) {
+                    // Optional embedded with required properties - only build if at least one exists
+                    const hasAny = ctx.callExpr(
+                        (obj: any, keys: string[]) => keys.some(k => k in obj),
+                        input,
+                        ctx.lit(requiredKeys),
+                    );
+                    ctx.when(hasAny, buildEmbedded);
+                } else {
+                    buildEmbedded();
+                }
+
+                ctx.set(result, propName, ctx.getVar(embeddedResult));
+            } else {
+                // Serialize: read embedded object and flatten its properties with prefix
+                const embeddedInput = input.get(propName);
+
+                const serializeEmbedded = () => {
+                    for (const member of embeddedMembers) {
+                        if (!isPropertyMemberType(member)) continue;
+                        const memberProp = member as TypeProperty | TypePropertySignature;
+                        const subPropName = memberNameToString(memberProp.name);
+                        const prefixedName = prefix + subPropName;
+                        const subPropInput = embeddedInput.get(subPropName);
+                        ctx.set(
+                            result,
+                            prefixedName,
+                            state.forProperty(prefixedName).build(memberProp.type, subPropInput),
+                        );
+                    }
+                };
+
+                if (isOpt) {
+                    ctx.when(ctx.not(ctx.isNullish(embeddedInput)), serializeEmbedded);
+                } else {
+                    serializeEmbedded();
+                }
+            }
+        };
+
+        // Check groups
+        const groupCheck = ctx.callExpr(isGroupAllowed, state.optionsSlot, ctx.lit(propGroups));
+        ctx.when(groupCheck, buildEmbeddedBody);
     }
 
     return result;
@@ -866,6 +1020,33 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     const classRef = classType.classType;
     const clazz = ReflectionClass.from(classRef);
     const members = resolveTypeMembers(classType);
+
+    // Check for embedded annotation (single-property class)
+    const embedded = embeddedAnnotation.getFirst(classType);
+    if (embedded && embedded.prefix === undefined) {
+        // Single-property embedded without prefix: accept raw value and create class instance
+        const properties = members.filter(isPropertyMemberType) as (TypeProperty | TypePropertySignature)[];
+        if (properties.length === 1) {
+            const prop = properties[0];
+            const propName = memberNameToString(prop.name);
+            const propType = prop.type;
+
+            // Convert the input value to the property type
+            const converted = state.forProperty(propName).build(propType, input);
+
+            // Create class instance with the converted value
+            const ctorProps = getDeepConstructorProperties(classType);
+            if (ctorProps.length > 0 && ctorProps.some(p => memberNameToString(p.name) === propName)) {
+                // Constructor takes the property as argument
+                return ctx.newExpr(classRef, converted);
+            } else {
+                // Create instance and set property
+                const instance = ctx.let(ctx.newExpr(classRef));
+                ctx.set(instance, propName, converted);
+                return instance;
+            }
+        }
+    }
 
     // Track which properties are handled by constructor
     const constructorPropNames = new Set<string>();
@@ -966,10 +1147,12 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             if (prop.kind === ReflectionKind.property && prop.default !== undefined) {
                 const defaultFn = prop.default;
                 const propNameStr = property.getName();
-                const applyDefault = (obj: any, fn: () => any, name: string) => {
+                const applyDefault = (obj: any, fn: () => any, name: string): number => {
                     obj[name] = fn.apply(obj);
+                    return 0;
                 };
-                ctx.callExpr(applyDefault, result, ctx.lit(defaultFn), ctx.lit(propNameStr));
+                // Use ctx.let() to force the call to be emitted in generated code
+                ctx.let(ctx.callExpr(applyDefault, result, ctx.lit(defaultFn), ctx.lit(propNameStr)));
             }
         }
 
@@ -2555,6 +2738,17 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
     const objType = type as TypeObjectLiteral | TypeClass;
     const members = resolveTypeMembers(objType);
 
+    // Collect explicit property names and index signatures
+    const explicitProps = new Set<string>();
+    let indexSignature: TypeIndexSignature | undefined;
+    for (const member of members) {
+        if (member.kind === ReflectionKind.indexSignature) {
+            indexSignature = member;
+        } else if (isPropertyMemberType(member)) {
+            explicitProps.add(memberNameToString(member.name));
+        }
+    }
+
     // Object type check: typeof x === 'object' && x !== null && !Array.isArray(x)
     const isObject = ctx.and(
         ctx.isType(input, 'object'),
@@ -2634,6 +2828,60 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
         }
     }
 
+    // Handle index signatures (e.g., { [key: string]: number })
+    if (indexSignature) {
+        const valueType = indexSignature.type;
+        const indexType = indexSignature.index;
+        const fastChecker = state.serializer.buildFastTypeGuard(valueType);
+
+        // Runtime function to validate all keys in the object against index signature
+        const validateIndexSignature = (
+            obj: any,
+            explicit: Set<string>,
+            checker: (v: any) => boolean,
+            idxType: Type,
+            reflectionKind: typeof ReflectionKind,
+            extendTemplateLiteralFn: typeof extendTemplateLiteral,
+        ): boolean => {
+            for (const key of Object.keys(obj)) {
+                if (explicit.has(key)) continue;
+
+                // Check if key matches the index signature pattern
+                if (idxType.kind === reflectionKind.templateLiteral) {
+                    const keyLiteral = { kind: reflectionKind.literal, literal: key } as any;
+                    if (!extendTemplateLiteralFn(keyLiteral, idxType as any)) {
+                        continue; // Key doesn't match template, skip
+                    }
+                } else if (idxType.kind === reflectionKind.number) {
+                    const numKey = Number(key);
+                    if (isNaN(numKey) || key === '') {
+                        continue; // Key is not numeric, skip
+                    }
+                }
+                // For string index signatures, all keys match
+
+                const value = obj[key];
+                if (value === undefined) continue; // Skip undefined values
+
+                if (!checker(value)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        const indexValid = ctx.callExpr(
+            validateIndexSignature,
+            input,
+            ctx.lit(explicitProps),
+            ctx.lit(fastChecker),
+            ctx.lit(indexType),
+            ctx.lit(ReflectionKind),
+            ctx.lit(extendTemplateLiteral),
+        );
+        result = ctx.and(result, indexValid);
+    }
+
     return result;
 };
 
@@ -2674,40 +2922,88 @@ const guardTupleStrict: TypeHandler = (type, input, ctx, state) => {
     // Must be an array
     let result: Slot<boolean> = ctx.callExpr(Array.isArray, input);
 
-    // Check length (for non-rest tuples)
-    const hasRest = tupleType.types.some(t => t.type.kind === ReflectionKind.rest);
-    if (!hasRest) {
-        result = ctx.and(result, ctx.eq(ctx.len(input), ctx.lit(tupleType.types.length)));
+    // Find rest element position if any
+    let restIndex = -1;
+    let restType: Type | undefined;
+    for (let i = 0; i < tupleType.types.length; i++) {
+        const member = tupleType.types[i];
+        if (member.type.kind === ReflectionKind.rest) {
+            restIndex = i;
+            restType = (member.type as any).type;
+            break;
+        }
     }
 
-    // Check each element type using strict type guard
-    for (let i = 0; i < tupleType.types.length; i++) {
-        const elemType = tupleType.types[i];
-        if (elemType.type.kind === ReflectionKind.rest) {
-            // Rest elements - use strict checker for rest type
-            const restChecker = state.serializer.buildStrictTypeGuard((elemType.type as any).type);
+    if (restIndex === -1) {
+        // No rest element - simple case
+        result = ctx.and(result, ctx.eq(ctx.len(input), ctx.lit(tupleType.types.length)));
+        for (let i = 0; i < tupleType.types.length; i++) {
+            const elemType = tupleType.types[i];
+            const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
+            const elemInput = ctx.at(input, i);
+            const elemCheck = ctx.callExpr(
+                (v: any, checker: (e: any) => boolean) => checker(v),
+                elemInput,
+                ctx.lit(elemChecker),
+            );
+            result = ctx.and(result, elemCheck);
+        }
+    } else {
+        // Has rest element - need to handle variable length
+        const beforeRest = restIndex;
+        const afterRest = tupleType.types.length - restIndex - 1;
+
+        // Check minimum length
+        const minLength = beforeRest + afterRest;
+        result = ctx.and(result, ctx.gte(ctx.len(input), ctx.lit(minLength)));
+
+        // Check elements before rest
+        for (let i = 0; i < beforeRest; i++) {
+            const elemType = tupleType.types[i];
+            const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
+            const elemInput = ctx.at(input, i);
+            const elemCheck = ctx.callExpr(
+                (v: any, checker: (e: any) => boolean) => checker(v),
+                elemInput,
+                ctx.lit(elemChecker),
+            );
+            result = ctx.and(result, elemCheck);
+        }
+
+        // Check rest elements at runtime
+        if (restType) {
+            const strictChecker = state.serializer.buildStrictTypeGuard(restType);
             const restValid = ctx.callExpr(
-                (arr: any[], startIdx: number, checker: (e: any) => boolean) => {
-                    for (let j = startIdx; j < arr.length; j++) {
+                (arr: any[], startIdx: number, endOffset: number, checker: (e: any) => boolean) => {
+                    const endIdx = arr.length - endOffset;
+                    for (let j = startIdx; j < endIdx; j++) {
                         if (!checker(arr[j])) return false;
                     }
                     return true;
                 },
                 input,
-                ctx.lit(i),
-                ctx.lit(restChecker),
+                ctx.lit(restIndex),
+                ctx.lit(afterRest),
+                ctx.lit(strictChecker),
             );
             result = ctx.and(result, restValid);
-            continue;
         }
-        const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
-        const elemInput = ctx.at(input, i);
-        const elemCheck = ctx.callExpr(
-            (v: any, checker: (e: any) => boolean) => checker(v),
-            elemInput,
-            ctx.lit(elemChecker),
-        );
-        result = ctx.and(result, elemCheck);
+
+        // Check elements after rest (from the end)
+        for (let i = 0; i < afterRest; i++) {
+            const memberIdx = restIndex + 1 + i;
+            const elemType = tupleType.types[memberIdx];
+            const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
+            // Access from end of array: arr[arr.length - (afterRest - i)]
+            const offset = afterRest - i;
+            const inputIdx = ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(offset));
+            const elemCheck = ctx.callExpr(
+                (v: any, checker: (e: any) => boolean) => checker(v),
+                ctx.at(input, inputIdx),
+                ctx.lit(elemChecker),
+            );
+            result = ctx.and(result, elemCheck);
+        }
     }
 
     return result;
@@ -2841,22 +3137,73 @@ const guardTupleFast: TypeHandler = (type, input, ctx, state) => {
     // Must be an array
     let result: Slot<boolean> = ctx.callExpr(Array.isArray, input);
 
-    // Check length (for non-rest tuples)
-    const hasRest = tupleType.types.some(t => t.type.kind === ReflectionKind.rest);
-    if (!hasRest) {
-        result = ctx.and(result, ctx.eq(ctx.len(input), ctx.lit(tupleType.types.length)));
+    // Find rest element position if any
+    let restIndex = -1;
+    let restType: Type | undefined;
+    for (let i = 0; i < tupleType.types.length; i++) {
+        const member = tupleType.types[i];
+        if (member.type.kind === ReflectionKind.rest) {
+            restIndex = i;
+            restType = (member.type as any).type;
+            break;
+        }
     }
 
-    // Check each element type
-    for (let i = 0; i < tupleType.types.length; i++) {
-        const elemType = tupleType.types[i];
-        if (elemType.type.kind === ReflectionKind.rest) {
-            // Rest elements - skip detailed check for now
-            continue;
+    if (restIndex === -1) {
+        // No rest element - simple case
+        result = ctx.and(result, ctx.eq(ctx.len(input), ctx.lit(tupleType.types.length)));
+        for (let i = 0; i < tupleType.types.length; i++) {
+            const elemType = tupleType.types[i];
+            const elemInput = ctx.at(input, i);
+            const elemCheck = state.build(elemType.type, elemInput) as Slot<boolean>;
+            result = ctx.and(result, elemCheck);
         }
-        const elemInput = ctx.at(input, i);
-        const elemCheck = state.build(elemType.type, elemInput) as Slot<boolean>;
-        result = ctx.and(result, elemCheck);
+    } else {
+        // Has rest element - need to handle variable length
+        const beforeRest = restIndex;
+        const afterRest = tupleType.types.length - restIndex - 1;
+
+        // Check minimum length: must have at least beforeRest + afterRest elements
+        const minLength = beforeRest + afterRest;
+        result = ctx.and(result, ctx.gte(ctx.len(input), ctx.lit(minLength)));
+
+        // Check elements before rest
+        for (let i = 0; i < beforeRest; i++) {
+            const elemType = tupleType.types[i];
+            const elemInput = ctx.at(input, i);
+            const elemCheck = state.build(elemType.type, elemInput) as Slot<boolean>;
+            result = ctx.and(result, elemCheck);
+        }
+
+        // Check rest elements at runtime
+        if (restType) {
+            const fastChecker = state.serializer.buildFastTypeGuard(restType);
+            const restValid = ctx.callExpr(
+                (arr: any[], startIdx: number, endOffset: number, checker: (e: any) => boolean) => {
+                    const endIdx = arr.length - endOffset;
+                    for (let j = startIdx; j < endIdx; j++) {
+                        if (!checker(arr[j])) return false;
+                    }
+                    return true;
+                },
+                input,
+                ctx.lit(restIndex),
+                ctx.lit(afterRest),
+                ctx.lit(fastChecker),
+            );
+            result = ctx.and(result, restValid);
+        }
+
+        // Check elements after rest (from the end)
+        for (let i = 0; i < afterRest; i++) {
+            const memberIdx = restIndex + 1 + i;
+            const elemType = tupleType.types[memberIdx];
+            // Access from end of array: arr[arr.length - (afterRest - i)]
+            const offset = afterRest - i;
+            const inputIdx = ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(offset));
+            const elemCheck = state.build(elemType.type, ctx.at(input, inputIdx)) as Slot<boolean>;
+            result = ctx.and(result, elemCheck);
+        }
     }
 
     return result;
