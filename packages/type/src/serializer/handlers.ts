@@ -451,6 +451,7 @@ const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
 
         if (properties.length === 1) {
             // Single property embedded: serialize to just the value, deserialize from just the value
+            // This applies regardless of prefix setting when used directly (not as a property of another type)
             const prop = properties[0];
             const propName = memberNameToString(prop.name);
             const propType = prop.type;
@@ -476,8 +477,74 @@ const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
                 return state.forProperty(propName).build(propType, propInput);
             }
         }
-        // For multi-property embedded, fall through to normal handling
-        // (multi-property embedded uses prefix-based flattening)
+
+        // Multi-property embedded with non-empty prefix used directly: apply prefix transformation
+        if (embedded.prefix !== undefined && embedded.prefix !== '') {
+            const prefix = embedded.prefix;
+
+            if (isDeserialize) {
+                // Deserialize: read from prefixed input keys, create object with unprefixed keys
+                const result = ctx.var_<any>(undefined);
+
+                if (objType.kind === ReflectionKind.class) {
+                    const classType = objType as TypeClass;
+                    const ctorProps = getDeepConstructorProperties(classType);
+                    if (ctorProps.length > 0) {
+                        // Constructor takes arguments
+                        const args: Slot[] = [];
+                        for (const ctorProp of ctorProps) {
+                            const subPropName = memberNameToString(ctorProp.name);
+                            // Use naming strategy to get serialized name (handles MapName, etc.)
+                            const serializedSubName =
+                                state.namingStrategy.getPropertyName(ctorProp, state.serializer.name) || subPropName;
+                            const prefixedName = prefix + serializedSubName;
+                            const propInput = input.get(prefixedName);
+                            args.push(state.forProperty(subPropName).build(ctorProp.type, propInput));
+                        }
+                        ctx.setVar(result, ctx.newExpr(classType.classType, ...args));
+                    } else {
+                        // No constructor - create instance and assign
+                        const instance = ctx.let(ctx.newExpr(classType.classType));
+                        for (const prop of properties) {
+                            const subPropName = memberNameToString(prop.name);
+                            const serializedName =
+                                state.namingStrategy.getPropertyName(prop, state.serializer.name) || subPropName;
+                            const prefixedName = prefix + serializedName;
+                            const propInput = input.get(prefixedName);
+                            ctx.set(instance, subPropName, state.forProperty(subPropName).build(prop.type, propInput));
+                        }
+                        ctx.setVar(result, instance);
+                    }
+                } else {
+                    // Object literal
+                    const obj = ctx.let(ctx.objExpr());
+                    for (const prop of properties) {
+                        const subPropName = memberNameToString(prop.name);
+                        const serializedName =
+                            state.namingStrategy.getPropertyName(prop, state.serializer.name) || subPropName;
+                        const prefixedName = prefix + serializedName;
+                        const propInput = input.get(prefixedName);
+                        ctx.set(obj, subPropName, state.forProperty(subPropName).build(prop.type, propInput));
+                    }
+                    ctx.setVar(result, obj);
+                }
+
+                return ctx.getVar(result);
+            } else {
+                // Serialize: read from unprefixed input keys, write to prefixed output keys
+                const entries: Record<string, Slot> = {};
+                for (const prop of properties) {
+                    const subPropName = memberNameToString(prop.name);
+                    const serializedName =
+                        state.namingStrategy.getPropertyName(prop, state.serializer.name) || subPropName;
+                    const prefixedName = prefix + serializedName;
+                    const propInput = input.get(subPropName);
+                    entries[prefixedName] = state.forProperty(subPropName).build(prop.type, propInput);
+                }
+                return ctx.objFrom(entries);
+            }
+        }
+        // For multi-property embedded without prefix (or empty prefix) used directly, fall through to normal handling
     }
 
     // Check for circular references during serialization
@@ -595,6 +662,8 @@ function buildObjectLiteralBody(
         embeddedType: TypeClass | TypeObjectLiteral;
         prefix: string;
         propGroups: string[];
+        isUnion: boolean; // True if embedded is part of a union (needs runtime type check for serialize)
+        originalType: Type; // Original property type (needed for fallback handling in unions)
     }
     const embeddedProps: EmbeddedProp[] = [];
 
@@ -616,17 +685,57 @@ function buildObjectLiteralBody(
         const propGroups = groupAnnotation.getAnnotations(memberType.type) || [];
         const propType = memberType.type;
 
-        // Check if this property has an embedded type with prefix
-        const embedded = embeddedAnnotation.getFirst(propType);
-        if (embedded && embedded.prefix !== undefined) {
-            // Embedded type with prefix - needs flattening into parent
-            if (propType.kind === ReflectionKind.class || propType.kind === ReflectionKind.objectLiteral) {
+        // Check if this property has an embedded type (directly or in a union)
+        let embedded = embeddedAnnotation.getFirst(propType);
+        let embeddedType: TypeClass | TypeObjectLiteral | undefined;
+        let isUnion = false;
+
+        if (embedded && (propType.kind === ReflectionKind.class || propType.kind === ReflectionKind.objectLiteral)) {
+            embeddedType = propType as TypeClass | TypeObjectLiteral;
+        } else if (propType.kind === ReflectionKind.union) {
+            // Check union members for embedded types
+            const unionType = propType as TypeUnion;
+            for (const member of unionType.types) {
+                const memberEmbedded = embeddedAnnotation.getFirst(member);
+                if (
+                    memberEmbedded &&
+                    (member.kind === ReflectionKind.class || member.kind === ReflectionKind.objectLiteral)
+                ) {
+                    embedded = memberEmbedded;
+                    embeddedType = member as TypeClass | TypeObjectLiteral;
+                    isUnion = true;
+                    break;
+                }
+            }
+        }
+
+        if (embedded && embeddedType) {
+            const embeddedMembers = resolveTypeMembers(embeddedType);
+            const embeddedProperties = embeddedMembers.filter(isPropertyMemberType) as (
+                | TypeProperty
+                | TypePropertySignature
+            )[];
+
+            // Determine if this is a multi-property embedded or has explicit prefix
+            const isSingleProp = embeddedProperties.length === 1;
+            const hasExplicitPrefix = embedded.prefix !== undefined;
+
+            // Flattening rules:
+            // - Single-property with no prefix: normal handling (not flattened)
+            // - Single-property with prefix: flatten with explicit prefix
+            // - Multi-property with no prefix: flatten with property name + '_' as default prefix
+            // - Multi-property with prefix: flatten with explicit prefix
+            if (hasExplicitPrefix || !isSingleProp) {
+                // Use explicit prefix or default to property name + '_'
+                const prefix = embedded.prefix !== undefined ? embedded.prefix : propName + '_';
                 embeddedProps.push({
                     memberType,
                     propName,
-                    embeddedType: propType as TypeClass | TypeObjectLiteral,
-                    prefix: embedded.prefix,
+                    embeddedType,
+                    prefix,
                     propGroups,
+                    isUnion,
+                    originalType: propType,
                 });
                 continue;
             }
@@ -875,7 +984,7 @@ function buildObjectLiteralBody(
 
     // Handle embedded properties with prefix (flatten into parent)
     for (const embeddedProp of embeddedProps) {
-        const { memberType, propName, embeddedType, prefix, propGroups } = embeddedProp;
+        const { memberType, propName, embeddedType, prefix, propGroups, isUnion, originalType } = embeddedProp;
         const embeddedMembers = resolveTypeMembers(embeddedType);
         const isOpt = isOptional(memberType);
 
@@ -890,7 +999,9 @@ function buildObjectLiteralBody(
                     if (!isPropertyMemberType(member)) continue;
                     const memberProp = member as TypeProperty | TypePropertySignature;
                     const subPropName = memberNameToString(memberProp.name);
-                    const prefixedName = prefix + subPropName;
+                    const serializedSubName =
+                        state.namingStrategy.getPropertyName(memberProp, state.serializer.name) || subPropName;
+                    const prefixedName = prefix + serializedSubName;
                     if (!isOptional(memberProp)) {
                         requiredKeys.push(prefixedName);
                     }
@@ -906,7 +1017,10 @@ function buildObjectLiteralBody(
                             const args: Slot[] = [];
                             for (const ctorProp of ctorProps) {
                                 const subPropName = memberNameToString(ctorProp.name);
-                                const prefixedName = prefix + subPropName;
+                                const serializedSubName =
+                                    state.namingStrategy.getPropertyName(ctorProp, state.serializer.name) ||
+                                    subPropName;
+                                const prefixedName = prefix + serializedSubName;
                                 const propInput = input.get(prefixedName);
                                 args.push(state.forProperty(prefixedName).build(ctorProp.type, propInput));
                             }
@@ -918,7 +1032,10 @@ function buildObjectLiteralBody(
                                 if (!isPropertyMemberType(member)) continue;
                                 const memberProp = member as TypeProperty | TypePropertySignature;
                                 const subPropName = memberNameToString(memberProp.name);
-                                const prefixedName = prefix + subPropName;
+                                const serializedSubName =
+                                    state.namingStrategy.getPropertyName(memberProp, state.serializer.name) ||
+                                    subPropName;
+                                const prefixedName = prefix + serializedSubName;
                                 const propInput = input.get(prefixedName);
                                 ctx.set(
                                     instance,
@@ -935,7 +1052,9 @@ function buildObjectLiteralBody(
                             if (!isPropertyMemberType(member)) continue;
                             const memberProp = member as TypeProperty | TypePropertySignature;
                             const subPropName = memberNameToString(memberProp.name);
-                            const prefixedName = prefix + subPropName;
+                            const serializedSubName =
+                                state.namingStrategy.getPropertyName(memberProp, state.serializer.name) || subPropName;
+                            const prefixedName = prefix + serializedSubName;
                             const propInput = input.get(prefixedName);
                             ctx.set(
                                 obj,
@@ -947,10 +1066,39 @@ function buildObjectLiteralBody(
                     }
                 };
 
-                if (isOpt && requiredKeys.length > 0) {
-                    // Optional embedded with required properties - only build if at least one exists
+                // Collect all prefixed keys (not just required) for union detection
+                const allPrefixedKeys: string[] = [];
+                for (const member of embeddedMembers) {
+                    if (!isPropertyMemberType(member)) continue;
+                    const memberProp = member as TypeProperty | TypePropertySignature;
+                    const subPropName = memberNameToString(memberProp.name);
+                    const serializedSubName =
+                        state.namingStrategy.getPropertyName(memberProp, state.serializer.name) || subPropName;
+                    allPrefixedKeys.push(prefix + serializedSubName);
+                }
+
+                const deserializeFallback = () => {
+                    // For unions, deserialize from the original property name
+                    const serializedName = state.namingStrategy.getPropertyName(memberType, state.serializer.name);
+                    const fallbackInput = input.get(serializedName || propName);
+                    ctx.when(ctx.has(input, serializedName || propName), () => {
+                        ctx.setVar(embeddedResult, state.build(originalType, fallbackInput));
+                    });
+                };
+
+                if (isUnion) {
+                    // For unions, check if any prefixed keys exist
+                    const hasPrefixed = ctx.callExpr(
+                        (obj: any, keys: string[]) => keys.some(k => k in obj && obj[k] !== undefined),
+                        input,
+                        ctx.lit(allPrefixedKeys),
+                    );
+                    ctx.when(hasPrefixed, buildEmbedded, deserializeFallback);
+                } else if (isOpt && requiredKeys.length > 0) {
+                    // Optional embedded with required properties - only build if at least one has a defined value
+                    // (explicit undefined should not trigger object creation)
                     const hasAny = ctx.callExpr(
-                        (obj: any, keys: string[]) => keys.some(k => k in obj),
+                        (obj: any, keys: string[]) => keys.some(k => k in obj && obj[k] !== undefined),
                         input,
                         ctx.lit(requiredKeys),
                     );
@@ -969,7 +1117,10 @@ function buildObjectLiteralBody(
                         if (!isPropertyMemberType(member)) continue;
                         const memberProp = member as TypeProperty | TypePropertySignature;
                         const subPropName = memberNameToString(memberProp.name);
-                        const prefixedName = prefix + subPropName;
+                        // Use naming strategy to get serialized name (handles MapName, etc.)
+                        const serializedSubName =
+                            state.namingStrategy.getPropertyName(memberProp, state.serializer.name) || subPropName;
+                        const prefixedName = prefix + serializedSubName;
                         const subPropInput = embeddedInput.get(subPropName);
                         ctx.set(
                             result,
@@ -979,7 +1130,25 @@ function buildObjectLiteralBody(
                     }
                 };
 
-                if (isOpt) {
+                const serializeFallback = () => {
+                    // For unions, serialize as regular property when value is not the embedded type
+                    const serializedName = state.namingStrategy.getPropertyName(memberType, state.serializer.name);
+                    ctx.set(result, serializedName || propName, state.build(originalType, embeddedInput));
+                };
+
+                if (isUnion) {
+                    // For unions, check at runtime if the value is an instance of the embedded class
+                    const classRef =
+                        embeddedType.kind === ReflectionKind.class ? (embeddedType as TypeClass).classType : Object; // For object literals, check if it's an object
+
+                    const isEmbeddedInstance = ctx.callExpr(
+                        (val: any, cls: any) => val instanceof cls,
+                        embeddedInput,
+                        ctx.lit(classRef),
+                    );
+
+                    ctx.when(isEmbeddedInstance, serializeEmbedded, serializeFallback);
+                } else if (isOpt) {
                     ctx.when(ctx.not(ctx.isNullish(embeddedInput)), serializeEmbedded);
                 } else {
                     serializeEmbedded();
@@ -1021,30 +1190,66 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     const clazz = ReflectionClass.from(classRef);
     const members = resolveTypeMembers(classType);
 
-    // Check for embedded annotation (single-property class)
+    // Check for embedded annotation
     const embedded = embeddedAnnotation.getFirst(classType);
-    if (embedded && embedded.prefix === undefined) {
-        // Single-property embedded without prefix: accept raw value and create class instance
+    if (embedded) {
         const properties = members.filter(isPropertyMemberType) as (TypeProperty | TypePropertySignature)[];
-        if (properties.length === 1) {
-            const prop = properties[0];
-            const propName = memberNameToString(prop.name);
-            const propType = prop.type;
 
-            // Convert the input value to the property type
-            const converted = state.forProperty(propName).build(propType, input);
+        if (embedded.prefix === undefined) {
+            // Single-property embedded without prefix: accept raw value and create class instance
+            if (properties.length === 1) {
+                const prop = properties[0];
+                const propName = memberNameToString(prop.name);
+                const propType = prop.type;
 
-            // Create class instance with the converted value
-            const ctorProps = getDeepConstructorProperties(classType);
-            if (ctorProps.length > 0 && ctorProps.some(p => memberNameToString(p.name) === propName)) {
-                // Constructor takes the property as argument
-                return ctx.newExpr(classRef, converted);
-            } else {
-                // Create instance and set property
-                const instance = ctx.let(ctx.newExpr(classRef));
-                ctx.set(instance, propName, converted);
-                return instance;
+                // Convert the input value to the property type
+                const converted = state.forProperty(propName).build(propType, input);
+
+                // Create class instance with the converted value
+                const ctorProps = getDeepConstructorProperties(classType);
+                if (ctorProps.length > 0 && ctorProps.some(p => memberNameToString(p.name) === propName)) {
+                    // Constructor takes the property as argument
+                    return ctx.newExpr(classRef, converted);
+                } else {
+                    // Create instance and set property
+                    const instance = ctx.let(ctx.newExpr(classRef));
+                    ctx.set(instance, propName, converted);
+                    return instance;
+                }
             }
+        } else if (embedded.prefix !== '') {
+            // Multi-property embedded with non-empty prefix: read from prefixed input keys
+            const prefix = embedded.prefix;
+            const result = ctx.var_<any>(undefined);
+
+            const ctorProps = getDeepConstructorProperties(classType);
+            if (ctorProps.length > 0) {
+                // Constructor takes arguments
+                const args: Slot[] = [];
+                for (const ctorProp of ctorProps) {
+                    const subPropName = memberNameToString(ctorProp.name);
+                    const serializedSubName =
+                        state.namingStrategy.getPropertyName(ctorProp, state.serializer.name) || subPropName;
+                    const prefixedName = prefix + serializedSubName;
+                    const propInput = input.get(prefixedName);
+                    args.push(state.forProperty(subPropName).build(ctorProp.type, propInput));
+                }
+                ctx.setVar(result, ctx.newExpr(classRef, ...args));
+            } else {
+                // No constructor - create instance and assign
+                const instance = ctx.let(ctx.newExpr(classRef));
+                for (const prop of properties) {
+                    const subPropName = memberNameToString(prop.name);
+                    const serializedSubName =
+                        state.namingStrategy.getPropertyName(prop, state.serializer.name) || subPropName;
+                    const prefixedName = prefix + serializedSubName;
+                    const propInput = input.get(prefixedName);
+                    ctx.set(instance, subPropName, state.forProperty(subPropName).build(prop.type, propInput));
+                }
+                ctx.setVar(result, instance);
+            }
+
+            return ctx.getVar(result);
         }
     }
 
@@ -1055,6 +1260,16 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     const explicitProps = new Set<string>();
     let indexSignature: TypeIndexSignature | undefined;
 
+    // Collect embedded properties with prefix for special handling
+    interface EmbeddedPropInfo {
+        memberType: TypeProperty | TypePropertySignature;
+        propName: string;
+        embeddedType: TypeClass | TypeObjectLiteral;
+        prefix: string;
+    }
+    const embeddedProps: EmbeddedPropInfo[] = [];
+    const embeddedPropNames = new Set<string>();
+
     for (const member of members) {
         if (member.kind === ReflectionKind.indexSignature) {
             indexSignature = member;
@@ -1063,8 +1278,124 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
         if (isPropertyMemberType(member)) {
             const propName = memberNameToString((member as TypeProperty | TypePropertySignature).name);
             explicitProps.add(propName);
+
+            // Check for embedded type
+            const memberType = member as TypeProperty | TypePropertySignature;
+            const propType = memberType.type;
+            const embeddedInfo = embeddedAnnotation.getFirst(propType);
+            if (
+                embeddedInfo &&
+                (propType.kind === ReflectionKind.class || propType.kind === ReflectionKind.objectLiteral)
+            ) {
+                const embeddedType = propType as TypeClass | TypeObjectLiteral;
+                const embeddedMembers = resolveTypeMembers(embeddedType);
+                const embeddedProperties = embeddedMembers.filter(isPropertyMemberType) as (
+                    | TypeProperty
+                    | TypePropertySignature
+                )[];
+
+                // Flattening rules:
+                // - Single-property with no prefix: normal handling (not flattened)
+                // - Single-property with prefix: flatten with explicit prefix
+                // - Multi-property with no prefix: flatten with property name + '_' as default prefix
+                // - Multi-property with prefix: flatten with explicit prefix
+                const isSingleProp = embeddedProperties.length === 1;
+                const hasExplicitPrefix = embeddedInfo.prefix !== undefined;
+
+                if (hasExplicitPrefix || !isSingleProp) {
+                    const prefix = embeddedInfo.prefix !== undefined ? embeddedInfo.prefix : propName + '_';
+                    embeddedProps.push({
+                        memberType,
+                        propName,
+                        embeddedType,
+                        prefix,
+                    });
+                    embeddedPropNames.add(propName);
+                }
+            }
         }
     }
+
+    // Helper function to process embedded properties with prefix on a result object
+    const processEmbeddedProps = (result: Slot<any>): void => {
+        for (const embProp of embeddedProps) {
+            const { memberType, propName, embeddedType, prefix } = embProp;
+            const embeddedMembers = resolveTypeMembers(embeddedType);
+            const isOpt = isOptional(memberType);
+
+            // Collect all prefixed property names that need to be read
+            const prefixedNames: string[] = [];
+            for (const m of embeddedMembers) {
+                if (!isPropertyMemberType(m)) continue;
+                const subPropName = memberNameToString((m as TypeProperty | TypePropertySignature).name);
+                const serializedName =
+                    state.namingStrategy.getPropertyName(
+                        m as TypeProperty | TypePropertySignature,
+                        state.serializer.name,
+                    ) || subPropName;
+                prefixedNames.push(prefix + serializedName);
+            }
+
+            const buildEmbedded = () => {
+                if (embeddedType.kind === ReflectionKind.class) {
+                    const ctorProps = getDeepConstructorProperties(embeddedType);
+                    if (ctorProps.length > 0) {
+                        // Constructor takes arguments
+                        const args: Slot[] = [];
+                        for (const ctorProp of ctorProps) {
+                            const subPropName = memberNameToString(ctorProp.name);
+                            const serializedName =
+                                state.namingStrategy.getPropertyName(ctorProp, state.serializer.name) || subPropName;
+                            const prefixedName = prefix + serializedName;
+                            const propInput = input.get(prefixedName);
+                            args.push(state.forProperty(subPropName).build(ctorProp.type, propInput));
+                        }
+                        ctx.set(result, propName, ctx.newExpr(embeddedType.classType, ...args));
+                    } else {
+                        // No constructor - create instance and assign
+                        const instance = ctx.let(ctx.newExpr(embeddedType.classType));
+                        for (const m of embeddedMembers) {
+                            if (!isPropertyMemberType(m)) continue;
+                            const mProp = m as TypeProperty | TypePropertySignature;
+                            const subPropName = memberNameToString(mProp.name);
+                            const serializedName =
+                                state.namingStrategy.getPropertyName(mProp, state.serializer.name) || subPropName;
+                            const prefixedName = prefix + serializedName;
+                            const propInput = input.get(prefixedName);
+                            ctx.set(instance, subPropName, state.forProperty(subPropName).build(mProp.type, propInput));
+                        }
+                        ctx.set(result, propName, instance);
+                    }
+                } else {
+                    // Object literal
+                    const obj = ctx.let(ctx.objExpr());
+                    for (const m of embeddedMembers) {
+                        if (!isPropertyMemberType(m)) continue;
+                        const mProp = m as TypeProperty | TypePropertySignature;
+                        const subPropName = memberNameToString(mProp.name);
+                        const serializedName =
+                            state.namingStrategy.getPropertyName(mProp, state.serializer.name) || subPropName;
+                        const prefixedName = prefix + serializedName;
+                        const propInput = input.get(prefixedName);
+                        ctx.set(obj, subPropName, state.forProperty(subPropName).build(mProp.type, propInput));
+                    }
+                    ctx.set(result, propName, obj);
+                }
+            };
+
+            if (isOpt && prefixedNames.length > 0) {
+                // Optional embedded - only build if at least one prefixed key has a defined value
+                const hasAny = ctx.callExpr(
+                    (obj: any, keys: string[]) => keys.some(k => k in obj && obj[k] !== undefined),
+                    input,
+                    ctx.lit(prefixedNames),
+                );
+                ctx.when(hasAny, buildEmbedded);
+            } else {
+                buildEmbedded();
+            }
+        }
+    };
 
     // Helper function to process index signature properties on a result object
     const processIndexSignatureOnResult = (result: Slot<any>): void => {
@@ -1156,11 +1487,12 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             }
         }
 
-        // Set properties from input
+        // Set properties from input (skip embedded props with prefix)
         for (const member of members) {
             if (!isPropertyMemberType(member)) continue;
             const memberType = member as TypeProperty | TypePropertySignature;
             const propName = memberNameToString(memberType.name);
+            if (embeddedPropNames.has(propName)) continue; // Skip embedded with prefix
             const serializedName = state.namingStrategy.getPropertyName(memberType, state.serializer.name);
             if (!serializedName) continue;
             const excluded = excludedAnnotation.getAnnotations(memberType.type);
@@ -1184,6 +1516,9 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
                 );
             });
         }
+
+        // Process embedded properties with prefix
+        processEmbeddedProps(result);
 
         // Process index signature properties
         processIndexSignatureOnResult(result);
@@ -1220,6 +1555,114 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
                 continue;
             }
 
+            // Check if this constructor parameter is an embedded type with prefix
+            const paramEmbedded = embeddedAnnotation.getFirst(property.type);
+            const propType = property.type;
+            if (
+                paramEmbedded &&
+                (propType.kind === ReflectionKind.class || propType.kind === ReflectionKind.objectLiteral)
+            ) {
+                const embeddedType = propType as TypeClass | TypeObjectLiteral;
+                const embeddedMembers = resolveTypeMembers(embeddedType);
+                const embeddedProperties = embeddedMembers.filter(isPropertyMemberType) as (
+                    | TypeProperty
+                    | TypePropertySignature
+                )[];
+
+                // Flattening rules:
+                // - Single-property with no prefix: normal handling (not flattened)
+                // - Single-property with prefix: flatten with explicit prefix
+                // - Multi-property with no prefix: flatten with property name + '_' as default prefix
+                // - Multi-property with prefix: flatten with explicit prefix
+                const isSingleProp = embeddedProperties.length === 1;
+                const hasExplicitPrefix = paramEmbedded.prefix !== undefined;
+
+                if (hasExplicitPrefix || !isSingleProp) {
+                    const prefix = paramEmbedded.prefix !== undefined ? paramEmbedded.prefix : param.getName() + '_';
+
+                    // Collect prefixed keys for optional check
+                    const prefixedKeys: string[] = [];
+                    for (const m of embeddedMembers) {
+                        if (!isPropertyMemberType(m)) continue;
+                        const subPropName = memberNameToString((m as TypeProperty | TypePropertySignature).name);
+                        const serializedName =
+                            state.namingStrategy.getPropertyName(
+                                m as TypeProperty | TypePropertySignature,
+                                state.serializer.name,
+                            ) || subPropName;
+                        prefixedKeys.push(prefix + serializedName);
+                    }
+
+                    const argValue = ctx.var_<any>(ctx.lit(undefined));
+
+                    const buildEmbeddedArg = () => {
+                        if (propType.kind === ReflectionKind.class) {
+                            const embClass = propType as TypeClass;
+                            const ctorProps = getDeepConstructorProperties(embClass);
+                            if (ctorProps.length > 0) {
+                                const args: Slot[] = [];
+                                for (const ctorProp of ctorProps) {
+                                    const subPropName = memberNameToString(ctorProp.name);
+                                    const serializedName =
+                                        state.namingStrategy.getPropertyName(ctorProp, state.serializer.name) ||
+                                        subPropName;
+                                    const prefixedName = prefix + serializedName;
+                                    const propInput = input.get(prefixedName);
+                                    args.push(state.forProperty(subPropName).build(ctorProp.type, propInput));
+                                }
+                                ctx.setVar(argValue, ctx.newExpr(embClass.classType, ...args));
+                            } else {
+                                const instance = ctx.let(ctx.newExpr(embClass.classType));
+                                for (const m of embeddedMembers) {
+                                    if (!isPropertyMemberType(m)) continue;
+                                    const mProp = m as TypeProperty | TypePropertySignature;
+                                    const subPropName = memberNameToString(mProp.name);
+                                    const serializedName =
+                                        state.namingStrategy.getPropertyName(mProp, state.serializer.name) ||
+                                        subPropName;
+                                    const prefixedName = prefix + serializedName;
+                                    const propInput = input.get(prefixedName);
+                                    ctx.set(
+                                        instance,
+                                        subPropName,
+                                        state.forProperty(subPropName).build(mProp.type, propInput),
+                                    );
+                                }
+                                ctx.setVar(argValue, instance);
+                            }
+                        } else {
+                            const obj = ctx.let(ctx.objExpr());
+                            for (const m of embeddedMembers) {
+                                if (!isPropertyMemberType(m)) continue;
+                                const mProp = m as TypeProperty | TypePropertySignature;
+                                const subPropName = memberNameToString(mProp.name);
+                                const serializedName =
+                                    state.namingStrategy.getPropertyName(mProp, state.serializer.name) || subPropName;
+                                const prefixedName = prefix + serializedName;
+                                const propInput = input.get(prefixedName);
+                                ctx.set(obj, subPropName, state.forProperty(subPropName).build(mProp.type, propInput));
+                            }
+                            ctx.setVar(argValue, obj);
+                        }
+                    };
+
+                    const isOpt = isOptional(property.property);
+                    if (isOpt && prefixedKeys.length > 0) {
+                        const hasAny = ctx.callExpr(
+                            (obj: any, keys: string[]) => keys.some(k => k in obj && obj[k] !== undefined),
+                            input,
+                            ctx.lit(prefixedKeys),
+                        );
+                        ctx.when(hasAny, buildEmbeddedArg);
+                    } else {
+                        buildEmbeddedArg();
+                    }
+
+                    constructorArgs.push(ctx.getVar(argValue));
+                    continue;
+                }
+            }
+
             const serializedName = state.namingStrategy.getPropertyName(property.property, state.serializer.name);
             const inputKey = serializedName || param.getName();
             const propInput = input.get(inputKey);
@@ -1246,12 +1689,13 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
         // Create instance using constructor
         const result = ctx.let(ctx.newExpr(classRef, ...constructorArgs));
 
-        // Set non-constructor properties
+        // Set non-constructor properties (skip embedded props with prefix)
         for (const member of members) {
             if (!isPropertyMemberType(member)) continue;
             const memberType = member as TypeProperty | TypePropertySignature;
             const propName = memberNameToString(memberType.name);
             if (constructorPropNames.has(propName)) continue;
+            if (embeddedPropNames.has(propName)) continue; // Skip embedded with prefix
             const serializedName = state.namingStrategy.getPropertyName(memberType, state.serializer.name);
             if (!serializedName) continue;
             const excluded = excludedAnnotation.getAnnotations(memberType.type);
@@ -1276,6 +1720,9 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             });
         }
 
+        // Process embedded properties with prefix
+        processEmbeddedProps(result);
+
         // Process index signature properties
         processIndexSignatureOnResult(result);
 
@@ -1285,11 +1732,12 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     // No constructor - use simple new classRef()
     const result = ctx.let(ctx.newExpr(classRef));
 
-    // Set all properties
+    // Set all properties (skip embedded props with prefix)
     for (const member of members) {
         if (!isPropertyMemberType(member)) continue;
         const memberType = member as TypeProperty | TypePropertySignature;
         const propName = memberNameToString(memberType.name);
+        if (embeddedPropNames.has(propName)) continue; // Skip embedded with prefix
         const serializedName = state.namingStrategy.getPropertyName(memberType, state.serializer.name);
         if (!serializedName) continue;
         const excluded = excludedAnnotation.getAnnotations(memberType.type);
@@ -1313,6 +1761,9 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             );
         });
     }
+
+    // Process embedded properties with prefix
+    processEmbeddedProps(result);
 
     // Process index signature properties
     processIndexSignatureOnResult(result);
