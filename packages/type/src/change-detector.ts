@@ -558,7 +558,14 @@ function createJITChangeDetectorForSnapshot(
             }
 
             // Merge detected changes into changeSet
-            ctx.callExpr<void>((cs: ItemChanges<any>, c: Record<string, any>) => cs.mergeSet(c), changeSet, changes);
+            // Note: ctx.let() is needed to ensure the call is emitted (callExpr alone is just an expression)
+            ctx.let(
+                ctx.callExpr<void>(
+                    (cs: ItemChanges<any>, c: Record<string, any>) => cs.mergeSet(c),
+                    changeSet,
+                    changes,
+                ),
+            );
 
             // Return changeSet if not empty, undefined otherwise
             return ctx.ternary(ctx.get<boolean>(changeSet, 'empty'), ctx.lit(undefined), changeSet);

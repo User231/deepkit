@@ -65,6 +65,16 @@ export class Serializer {
     /** Registry for strict type guards (reject unknown keys) */
     readonly strictTypeGuards = new HandlerRegistry();
 
+    /** Cache for built fast type guard functions (prevents infinite recursion for recursive types) */
+    private readonly fastTypeGuardCache = new Map<Type, (data: unknown) => boolean>();
+
+    /** Cache for built strict type guard functions (prevents infinite recursion for recursive types) */
+    private readonly strictTypeGuardCache = new Map<Type, (data: unknown) => boolean>();
+
+    /** Types currently being built (for recursive type detection) */
+    private readonly buildingFastTypeGuards = new Set<Type>();
+    private readonly buildingStrictTypeGuards = new Set<Type>();
+
     constructor(public name: string = 'json') {
         this.registerSerializers();
         this.registerTypeGuards();
@@ -209,6 +219,8 @@ export class Serializer {
      * Generated code returns a simple boolean without error collection infrastructure.
      * Use this for maximum performance when you only need to know if data matches the type.
      *
+     * Uses caching to handle recursive types without infinite recursion.
+     *
      * @example
      * ```typescript
      * const isFast = serializer.buildFastTypeGuard<User>(typeOf<User>());
@@ -221,12 +233,37 @@ export class Serializer {
      * @returns A fast type guard function
      */
     buildFastTypeGuard<T>(type: Type): (data: unknown) => data is T {
-        return jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
-            const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.fastTypeGuards, {
-                validation: 'fast',
-            });
-            return state.build(type, data);
-        }) as (data: unknown) => data is T;
+        // Return cached function if available
+        const cached = this.fastTypeGuardCache.get(type);
+        if (cached) return cached as (data: unknown) => data is T;
+
+        // Detect recursive call during build (type is still being built)
+        if (this.buildingFastTypeGuards.has(type)) {
+            // Return a lazy wrapper that will call the cached function once it's built
+            return ((data: unknown) => {
+                const fn = this.fastTypeGuardCache.get(type);
+                if (!fn) throw new Error('Recursive type guard not yet initialized');
+                return fn(data);
+            }) as (data: unknown) => data is T;
+        }
+
+        // Mark as building to detect recursion
+        this.buildingFastTypeGuards.add(type);
+
+        try {
+            const fn = jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
+                const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.fastTypeGuards, {
+                    validation: 'fast',
+                });
+                return state.build(type, data);
+            }) as (data: unknown) => data is T;
+
+            // Cache before returning
+            this.fastTypeGuardCache.set(type, fn as (data: unknown) => boolean);
+            return fn;
+        } finally {
+            this.buildingFastTypeGuards.delete(type);
+        }
     }
 
     /**
@@ -234,6 +271,8 @@ export class Serializer {
      *
      * Similar to buildFastTypeGuard but also checks for extra/unknown properties.
      * This corresponds to "assertStrict" in benchmark terminology.
+     *
+     * Uses caching to handle recursive types without infinite recursion.
      *
      * @example
      * ```typescript
@@ -246,12 +285,37 @@ export class Serializer {
      * @returns A strict type guard function
      */
     buildStrictTypeGuard<T>(type: Type): (data: unknown) => data is T {
-        return jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
-            const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.strictTypeGuards, {
-                validation: 'strict',
-            });
-            return state.build(type, data);
-        }) as (data: unknown) => data is T;
+        // Return cached function if available
+        const cached = this.strictTypeGuardCache.get(type);
+        if (cached) return cached as (data: unknown) => data is T;
+
+        // Detect recursive call during build (type is still being built)
+        if (this.buildingStrictTypeGuards.has(type)) {
+            // Return a lazy wrapper that will call the cached function once it's built
+            return ((data: unknown) => {
+                const fn = this.strictTypeGuardCache.get(type);
+                if (!fn) throw new Error('Recursive type guard not yet initialized');
+                return fn(data);
+            }) as (data: unknown) => data is T;
+        }
+
+        // Mark as building to detect recursion
+        this.buildingStrictTypeGuards.add(type);
+
+        try {
+            const fn = jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
+                const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.strictTypeGuards, {
+                    validation: 'strict',
+                });
+                return state.build(type, data);
+            }) as (data: unknown) => data is T;
+
+            // Cache before returning
+            this.strictTypeGuardCache.set(type, fn as (data: unknown) => boolean);
+            return fn;
+        } finally {
+            this.buildingStrictTypeGuards.delete(type);
+        }
     }
 }
 

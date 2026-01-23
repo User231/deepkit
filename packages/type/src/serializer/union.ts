@@ -16,7 +16,10 @@ import {
     TypeEnum,
     TypeLiteral,
     TypeObjectLiteral,
+    TypeProperty,
+    TypePropertySignature,
     TypeUnion,
+    embeddedAnnotation,
     getEnumValueIndexMatcher,
     isGlobalTypeClass,
     isPropertyMemberType,
@@ -383,6 +386,53 @@ function buildScoredUnion(type: TypeUnion, input: Slot, ctx: Context, state: Bui
                 });
             });
         });
+    }
+
+    // Pre-pass for single-property embedded types
+    // These can be deserialized from a raw value matching the property type
+    // Must run before primitive checks to take precedence over loose string matching
+    if (isDeserialize) {
+        for (const member of sortedMembers) {
+            if (member.kind !== ReflectionKind.class && member.kind !== ReflectionKind.objectLiteral) continue;
+
+            const embedded = embeddedAnnotation.getFirst(member);
+            if (!embedded) continue;
+
+            const memberType = member as TypeClass | TypeObjectLiteral;
+            const embeddedMembers = resolveTypeMembers(memberType);
+            const properties = embeddedMembers.filter(isPropertyMemberType) as (TypeProperty | TypePropertySignature)[];
+
+            // Only handle single-property embedded types
+            // When used directly (not as property of another type), prefix doesn't matter
+            if (properties.length !== 1) continue;
+
+            const prop = properties[0];
+            const propType = prop.type;
+
+            // Check if input matches the property's type
+            ctx.when(ctx.not(ctx.getVar(matched)), () => {
+                let typeCheck: Slot<boolean> | undefined;
+
+                // Generate type check based on the property's type
+                if (propType.kind === ReflectionKind.number) {
+                    typeCheck = ctx.isType(input, 'number');
+                } else if (propType.kind === ReflectionKind.string) {
+                    typeCheck = ctx.isType(input, 'string');
+                } else if (propType.kind === ReflectionKind.boolean) {
+                    typeCheck = ctx.isType(input, 'boolean');
+                } else if (propType.kind === ReflectionKind.bigint) {
+                    typeCheck = ctx.isType(input, 'bigint');
+                }
+
+                if (typeCheck) {
+                    ctx.when(typeCheck, () => {
+                        const memberResult = state.build(member, input);
+                        ctx.setVar(result, memberResult);
+                        ctx.setVar(matched, ctx.lit(true));
+                    });
+                }
+            });
+        }
     }
 
     // Check if union contains both bigint and number (special case)
