@@ -273,12 +273,19 @@ export function visit(type: Type, visitor: (type: Type, path: string) => false |
         if (!entry) break;
         const type = entry.type;
 
-        const jit = getTypeJitContainer(type);
-        if (jit.visitStack && jit.visitStack.id === stackId && jit.visitStack.depth < entry.depth) {
-            if (onCircular) onCircular();
-            return;
+        // Only track circular references for structural types (class, objectLiteral)
+        // that can actually have cycles. Primitive types like number/string are often
+        // singleton objects that would incorrectly trigger circular detection when
+        // used in multiple places (e.g., id: number and priority: number).
+        const isStructuralType = type.kind === ReflectionKind.class || type.kind === ReflectionKind.objectLiteral;
+        if (isStructuralType) {
+            const jit = getTypeJitContainer(type);
+            if (jit.visitStack && jit.visitStack.id === stackId && jit.visitStack.depth < entry.depth) {
+                if (onCircular) onCircular();
+                return;
+            }
+            jit.visitStack = { id: stackId, depth: entry.depth };
         }
-        jit.visitStack = { id: stackId, depth: entry.depth };
         if (visitor(type, entry.path) === false) return;
 
         switch (type.kind) {

@@ -9,14 +9,20 @@
  */
 import type { Context, Slot } from '@deepkit/core';
 import type { ClassType } from '@deepkit/core';
-import { isInteger, isNumeric, isObject } from '@deepkit/core';
+import { isInteger, isNumeric, isObject, stringifyValueWithType } from '@deepkit/core';
 import { TypeNumberBrand } from '@deepkit/type-spec';
 
-import { arrayBufferToBase64, base64ToArrayBuffer, base64ToTypedArray, typedArrayToBase64 } from '../core.js';
-import { createReference } from '../reference.js';
+import {
+    arrayBufferToBase64,
+    base64ToArrayBuffer,
+    base64ToTypedArray,
+    typedArrayToBase64,
+    unpopulatedSymbol,
+} from '../core.js';
+import { createReference, isReferenceInstance } from '../reference.js';
 import { extendTemplateLiteral, isExtendable } from '../reflection/extends.js';
 import { resolveRuntimeType } from '../reflection/processor.js';
-import { ReflectionClass } from '../reflection/reflection.js';
+import { ReflectionClass, hasCircularReference } from '../reflection/reflection.js';
 import {
     BinaryBigIntType,
     ReflectionKind,
@@ -39,9 +45,11 @@ import {
     TypeUnion,
     binaryBigIntAnnotation,
     binaryTypes,
+    embeddedAnnotation,
     excludedAnnotation,
     getConstructorProperties,
     getDeepConstructorProperties,
+    getEnumValueIndexMatcher,
     groupAnnotation,
     hasDefaultValue,
     isMongoIdType,
@@ -56,10 +64,11 @@ import {
     resolveTypeMembers,
     stringifyType,
 } from '../reflection/type.js';
-import { ValidationErrorItem } from '../validator.js';
+import { ValidationErrorItem, ValidatorError } from '../validator.js';
 import type { BuildStateBase, HandlerRegistry, TypeGuardRegistry, TypeHandler } from './registry.js';
 import type { Serializer } from './serializer.js';
 import type { BuildState } from './state.js';
+import { isGroupAllowed } from './state.js';
 
 // ============================================================================
 // Validation Error Helpers
@@ -88,39 +97,443 @@ function guardWithError(
     return ctx.getVar(score);
 }
 
-// Primitive Serializers
+/**
+ * Create a guard with a "Cannot convert X to Y" style error message.
+ * The message format matches what state.throw_() uses.
+ */
+function guardWithTypeError(
+    ctx: Context,
+    state: BuildStateBase,
+    input: Slot,
+    condition: Slot<boolean>,
+    expectedType: string,
+): Slot<number> {
+    const score = ctx.var_(ctx.ternary(condition, ctx.lit(1000), ctx.lit(0)));
+    const errorsSlot = state.optionsSlot.get('errors' as any);
+    ctx.when(ctx.and(errorsSlot, ctx.eq(ctx.getVar(score), ctx.lit(0))), () => {
+        // Generate "Cannot convert <type> <value> to <expected>" message
+        const valueStr = ctx.callExpr(stringifyValueWithType, input);
+        const errorMsg = ctx.concat(ctx.lit('Cannot convert '), valueStr, ctx.lit(' to '), ctx.lit(expectedType));
+        const errorItem = ctx.newExpr(ValidationErrorItem, state.pathSlot(), ctx.lit('type'), errorMsg, input);
+        ctx.push(errorsSlot, errorItem);
+    });
+    return ctx.getVar(score);
+}
+
+function isSignedNumericString(value: string): boolean {
+    if (!value) return false;
+    let candidate = value;
+    if (candidate[0] === '-' || candidate[0] === '+') {
+        candidate = candidate.slice(1);
+        if (!candidate) return false;
+    }
+    return isNumeric(candidate);
+}
+
+function isSignedIntegerString(value: string): boolean {
+    if (!value) return false;
+    let candidate = value;
+    if (candidate[0] === '-' || candidate[0] === '+') {
+        candidate = candidate.slice(1);
+        if (!candidate) return false;
+    }
+    if (candidate.includes('.')) return false;
+    return isNumeric(candidate);
+}
+
+function getBinaryBigIntMode(type: Type): BinaryBigIntType | undefined {
+    const annotation = binaryBigIntAnnotation.getFirst(type);
+    if (annotation !== undefined) return annotation;
+    if (type.typeName === 'BinaryBigInt') return BinaryBigIntType.unsigned;
+    if (type.typeName === 'SignedBinaryBigInt') return BinaryBigIntType.signed;
+    const originNames = type.originTypes?.map(origin => origin.typeName) || [];
+    if (originNames.includes('BinaryBigInt')) return BinaryBigIntType.unsigned;
+    if (originNames.includes('SignedBinaryBigInt')) return BinaryBigIntType.signed;
+    return undefined;
+}
+
+// Primitive Serializers (serialize direction - pass through)
 const handleString: TypeHandler = (type, input, ctx, state) => input;
 const handleNumber: TypeHandler = (type, input, ctx, state) => input;
 const handleBoolean: TypeHandler = (type, input, ctx, state) => input;
-const handleBigInt: TypeHandler = (type, input, ctx, state) => input;
+const handleBigInt: TypeHandler = (type, input, ctx, state) => ctx.callExpr(String, input);
 const handleNull: TypeHandler = (type, input, ctx, state) => ctx.lit(null);
 const handleUndefined: TypeHandler = (type, input, ctx, state) => ctx.lit(undefined);
+const serializeUndefined: TypeHandler = (type, input, ctx, state) => ctx.lit(null); // JSON has no undefined
 const handleAny: TypeHandler = (type, input, ctx, state) => input;
 const handleUnknown: TypeHandler = (type, input, ctx, state) => input;
+
+// Primitive Deserializers (deserialize direction - coerce types)
+const deserializeString: TypeHandler = (type, input, ctx, state) => {
+    const result = ctx.var_(input);
+    const isLoose = state.isLoose();
+
+    ctx.when(
+        ctx.and(
+            isLoose,
+            ctx.or(ctx.isType(input, 'number'), ctx.or(ctx.isType(input, 'boolean'), ctx.isType(input, 'bigint'))),
+        ),
+        () => {
+            ctx.setVar(result, ctx.callExpr(String, input));
+        },
+    );
+
+    return ctx.getVar(result);
+};
+
+const deserializeNumber: TypeHandler = (type, input, ctx, state) => {
+    const numberType = type as TypeNumber;
+    const brand = numberType.brand;
+    const isLoose = state.isLoose();
+
+    const canCoerceString = ctx.var_(ctx.lit(false));
+    ctx.when(ctx.and(isLoose, ctx.isType(input, 'string')), () => {
+        ctx.setVar(canCoerceString, ctx.callExpr(isSignedNumericString, input));
+    });
+    const canCoerceBoolean = ctx.and(isLoose, ctx.isType(input, 'boolean'));
+
+    const coerced = ctx.ternary(
+        ctx.isType(input, 'number'),
+        input,
+        ctx.ternary(
+            canCoerceBoolean,
+            ctx.ternary(input, ctx.lit(1), ctx.lit(0)),
+            ctx.ternary(ctx.getVar(canCoerceString), ctx.callExpr(Number, input), input),
+        ),
+    );
+
+    // Apply brand constraints (integer, int8, int16, etc.)
+    const isNumber = ctx.isType(coerced, 'number');
+    if (brand === TypeNumberBrand.integer) {
+        return ctx.ternary(isNumber, ctx.callExpr(Math.trunc, coerced), coerced);
+    }
+    if (brand === TypeNumberBrand.int8) {
+        return ctx.ternary(
+            isNumber,
+            ctx.callExpr((v: number) => Math.max(-128, Math.min(127, Math.trunc(v))), coerced),
+            coerced,
+        );
+    }
+    if (brand === TypeNumberBrand.uint8) {
+        return ctx.ternary(
+            isNumber,
+            ctx.callExpr((v: number) => Math.max(0, Math.min(255, Math.trunc(v))), coerced),
+            coerced,
+        );
+    }
+    if (brand === TypeNumberBrand.int16) {
+        return ctx.ternary(
+            isNumber,
+            ctx.callExpr((v: number) => Math.max(-32768, Math.min(32767, Math.trunc(v))), coerced),
+            coerced,
+        );
+    }
+    if (brand === TypeNumberBrand.uint16) {
+        return ctx.ternary(
+            isNumber,
+            ctx.callExpr((v: number) => Math.max(0, Math.min(65535, Math.trunc(v))), coerced),
+            coerced,
+        );
+    }
+    if (brand === TypeNumberBrand.int32) {
+        return ctx.ternary(
+            isNumber,
+            ctx.callExpr((v: number) => v | 0, coerced),
+            coerced,
+        );
+    }
+    if (brand === TypeNumberBrand.uint32) {
+        return ctx.ternary(
+            isNumber,
+            ctx.callExpr((v: number) => v >>> 0, coerced),
+            coerced,
+        );
+    }
+    if (brand === TypeNumberBrand.float32) {
+        return ctx.ternary(isNumber, ctx.callExpr(Math.fround, coerced), coerced);
+    }
+
+    return coerced;
+};
+
+const deserializeBoolean: TypeHandler = (type, input, ctx, state) => {
+    const isLoose = state.isLoose();
+    const result = ctx.var_(input);
+    const truthy = ctx.or(
+        ctx.eq(input, ctx.lit('true')),
+        ctx.or(ctx.eq(input, ctx.lit('1')), ctx.eq(input, ctx.lit(1))),
+    );
+    const falsy = ctx.or(
+        ctx.eq(input, ctx.lit('false')),
+        ctx.or(ctx.eq(input, ctx.lit('0')), ctx.eq(input, ctx.lit(0))),
+    );
+
+    ctx.when(ctx.isType(input, 'boolean'), () => ctx.setVar(result, input));
+    ctx.when(ctx.and(isLoose, ctx.not(ctx.isType(input, 'boolean'))), () => {
+        ctx.when(truthy, () => ctx.setVar(result, ctx.lit(true)));
+        ctx.when(falsy, () => ctx.setVar(result, ctx.lit(false)));
+    });
+
+    return ctx.getVar(result);
+};
+
+const deserializeBigInt: TypeHandler = (type, input, ctx, state) => {
+    const isLoose = state.isLoose();
+    const canCoerceString = ctx.var_(ctx.lit(false));
+    ctx.when(ctx.and(isLoose, ctx.isType(input, 'string')), () => {
+        ctx.setVar(canCoerceString, ctx.callExpr(isSignedIntegerString, input));
+    });
+    const canCoerceNumber = ctx.and(isLoose, ctx.isType(input, 'number'));
+    const result = ctx.var_(
+        ctx.ternary(
+            ctx.isType(input, 'bigint'),
+            input,
+            ctx.ternary(ctx.or(ctx.getVar(canCoerceString), canCoerceNumber), ctx.callExpr(BigInt, input), input),
+        ),
+    );
+    return ctx.getVar(result);
+};
+
+const serializeBinaryBigInt: TypeHandler = (type, input, ctx, state) => {
+    const annotation = getBinaryBigIntMode(type);
+    const result = ctx.var_(input);
+
+    ctx.when(ctx.lit(annotation === BinaryBigIntType.unsigned), () => {
+        ctx.when(ctx.lt(ctx.getVar(result), ctx.lit(0n)), () => {
+            ctx.setVar(result, ctx.lit(0n));
+        });
+    });
+
+    return ctx.callExpr(String, ctx.getVar(result));
+};
+
+const deserializeBinaryBigInt: TypeHandler = (type, input, ctx, state) => {
+    const annotation = getBinaryBigIntMode(type);
+    const base = deserializeBigInt(type, input, ctx, state);
+    const result = ctx.var_(base);
+
+    ctx.when(
+        ctx.and(ctx.lit(annotation === BinaryBigIntType.unsigned), ctx.isType(ctx.getVar(result), 'bigint')),
+        () => {
+            ctx.when(ctx.lt(ctx.getVar(result), ctx.lit(0n)), () => {
+                ctx.setVar(result, ctx.lit(0n));
+            });
+        },
+    );
+
+    return ctx.getVar(result);
+};
 
 const handleArray: TypeHandler = (type, input, ctx, state) => {
     const arrType = type as TypeArray;
     const elementType = arrType.type;
     if (elementType.kind === ReflectionKind.any) return input;
-    return ctx.map(input, (elem, idx) => state.build(elementType, elem));
+
+    // Handle unpopulated relations (BackReference that wasn't loaded)
+    // Return empty array for unpopulatedSymbol
+    const result = ctx.var_<any[]>(ctx.arrExpr());
+    const isUnpopulated = ctx.eq(input, ctx.lit(unpopulatedSymbol));
+    ctx.when(ctx.and(ctx.not(isUnpopulated), ctx.callExpr(Array.isArray, input)), () => {
+        ctx.setVar(
+            result,
+            ctx.map(input, (elem, idx) => state.build(elementType, elem)),
+        );
+    });
+    return ctx.getVar(result);
 };
 
 const handleTuple: TypeHandler = (type, input, ctx, state) => {
     const tupleType = type as TypeTuple;
     const result = ctx.let(ctx.arrExpr());
+
+    // Find rest element position if any
+    let restIndex = -1;
+    let restType: Type | undefined;
     for (let i = 0; i < tupleType.types.length; i++) {
         const member = tupleType.types[i];
-        ctx.push(result, state.build(member.type, input.at(i)));
+        if (member.type.kind === ReflectionKind.rest) {
+            restIndex = i;
+            restType = (member.type as any).type;
+            break;
+        }
     }
+
+    if (restIndex === -1) {
+        // No rest element - simple case
+        for (let i = 0; i < tupleType.types.length; i++) {
+            const member = tupleType.types[i];
+            ctx.push(result, state.build(member.type, input.at(i)));
+        }
+    } else {
+        // Has rest element
+        const beforeRest = restIndex;
+        const afterRest = tupleType.types.length - restIndex - 1;
+
+        // Elements before rest
+        for (let i = 0; i < beforeRest; i++) {
+            const member = tupleType.types[i];
+            ctx.push(result, state.build(member.type, input.at(i)));
+        }
+
+        // Rest elements - iterate from restIndex to (length - afterRest)
+        if (restType) {
+            const processRest = (
+                inputArr: any[],
+                resultArr: any[],
+                restIdx: number,
+                afterCount: number,
+                rt: Type,
+                st: BuildStateBase,
+            ): void => {
+                const restEnd = inputArr.length - afterCount;
+                for (let j = restIdx; j < restEnd; j++) {
+                    // Build each rest element - need to serialize at runtime
+                    const serializer = (st as any).serializer;
+                    const direction = (st as any).direction;
+                    const fn =
+                        direction === 'serialize' ? serializer.buildSerializer(rt) : serializer.buildDeserializer(rt);
+                    resultArr.push(fn(inputArr[j], {}));
+                }
+            };
+            ctx.callExpr(
+                processRest,
+                input,
+                result,
+                ctx.lit(restIndex),
+                ctx.lit(afterRest),
+                ctx.lit(restType),
+                ctx.lit(state),
+            );
+        }
+
+        // Elements after rest (from the end)
+        for (let i = 0; i < afterRest; i++) {
+            const memberIdx = restIndex + 1 + i;
+            const member = tupleType.types[memberIdx];
+            // Access from end of array: arr[arr.length - (afterRest - i)]
+            const offset = afterRest - i;
+            const inputIdx = ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(offset));
+            ctx.push(result, state.build(member.type, input.at(inputIdx)));
+        }
+    }
+
     return result;
 };
 
 const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
     const objType = type as TypeObjectLiteral | TypeClass;
-    const result = ctx.let(ctx.objExpr());
     const members = resolveTypeMembers(objType);
     const isDeserialize = state.direction === 'deserialize';
 
+    // Check for embedded annotation
+    const embedded = embeddedAnnotation.getFirst(objType);
+    if (embedded) {
+        // Get properties only (not methods, index signatures, etc.)
+        const properties = members.filter(isPropertyMemberType) as (TypeProperty | TypePropertySignature)[];
+
+        if (properties.length === 1) {
+            // Single property embedded: serialize to just the value, deserialize from just the value
+            const prop = properties[0];
+            const propName = memberNameToString(prop.name);
+            const propType = prop.type;
+
+            if (isDeserialize) {
+                // Deserialization: accept raw value and create object/class with it
+                const result = ctx.var_<any>(undefined);
+                const converted = state.forProperty(propName).build(propType, input);
+
+                if (objType.kind === ReflectionKind.class) {
+                    // Create class instance
+                    ctx.setVar(result, ctx.newExpr(objType.classType, converted));
+                } else {
+                    // Create object literal
+                    const obj = ctx.let(ctx.objExpr());
+                    ctx.set(obj, propName, converted);
+                    ctx.setVar(result, obj);
+                }
+                return ctx.getVar(result);
+            } else {
+                // Serialization: extract the property value
+                const propInput = input.get(propName);
+                return state.forProperty(propName).build(propType, propInput);
+            }
+        }
+        // For multi-property embedded, fall through to normal handling
+        // (multi-property embedded uses prefix-based flattening)
+    }
+
+    // Check if input is an object (not null, not primitive)
+    const isObjectCheck = ctx.and(ctx.isType(input, 'object'), ctx.not(ctx.isNull(input)));
+
+    // Check for circular references during serialization
+    const hasCircular = !isDeserialize && hasCircularReference(objType);
+
+    const result = ctx.var_<any>(undefined);
+
+    ctx.when(
+        isObjectCheck,
+        () => {
+            if (hasCircular) {
+                // Runtime circular reference check using _stack in options
+                const checkCircular = (data: any, stack: any[] | undefined, opts: any): any[] | undefined => {
+                    if (data && typeof data === 'object') {
+                        if (stack) {
+                            if (stack.includes(data)) return undefined; // Already seen - signal to skip
+                        } else {
+                            stack = [];
+                            opts._stack = stack;
+                        }
+                        stack.push(data);
+                    }
+                    return stack;
+                };
+
+                const popStack = (stack: any[] | undefined): void => {
+                    if (stack) stack.pop();
+                };
+
+                // Check and push to stack, returns undefined if circular
+                const stackSlot = ctx.callExpr(
+                    checkCircular,
+                    input,
+                    state.optionsSlot.get('_stack' as any),
+                    state.optionsSlot,
+                );
+
+                // If stack is undefined (circular detected), return undefined
+                ctx.when(ctx.neq(stackSlot, ctx.lit(undefined)), () => {
+                    const innerResult = ctx.let(ctx.objExpr());
+                    buildObjectLiteralBody(objType, members, input, innerResult, ctx, state, isDeserialize);
+                    ctx.callExpr(popStack, stackSlot);
+                    ctx.setVar(result, innerResult);
+                });
+            } else {
+                const innerResult = ctx.let(ctx.objExpr());
+                buildObjectLiteralBody(objType, members, input, innerResult, ctx, state, isDeserialize);
+                ctx.setVar(result, innerResult);
+            }
+        },
+        () => {
+            // Not an object - throw error
+            state.throw_(type, input);
+        },
+    );
+
+    return ctx.getVar(result);
+};
+
+/**
+ * Build the body of object literal serialization/deserialization.
+ */
+function buildObjectLiteralBody(
+    objType: TypeObjectLiteral | TypeClass,
+    members: Type[],
+    input: Slot,
+    result: Slot,
+    ctx: Context,
+    state: BuildStateBase,
+    isDeserialize: boolean,
+): void {
     // Collect explicit property names for index signature handling
     const explicitProps = new Set<string>();
     let indexSignature: TypeIndexSignature | undefined;
@@ -138,51 +551,69 @@ const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
         if (!serializedName) continue;
         const excluded = excludedAnnotation.getAnnotations(memberType.type);
         if (excluded.includes('*') || excluded.includes(state.serializer.name)) continue;
+
+        // Get groups for this property (compile-time)
+        const propGroups = groupAnnotation.getAnnotations(memberType.type) || [];
+
         const propType = memberType.type;
         // For serialize: read from propName, write to serializedName
         // For deserialize: read from serializedName, write to propName
         const inputKey = isDeserialize ? serializedName : propName;
         const outputKey = isDeserialize ? propName : serializedName;
         const propInput = input.get(inputKey);
-        ctx.when(
-            ctx.has(input, inputKey),
-            () => {
-                ctx.when(
-                    ctx.not(ctx.isNullish(propInput)),
-                    () => {
-                        ctx.set(result, outputKey, state.build(propType, propInput));
-                    },
-                    () => {
-                        // Handle null/undefined values based on direction
-                        if (isDeserialize) {
-                            // Deserialize: null → undefined for optional, null for nullable
-                            if (isNullable(memberType)) {
-                                ctx.set(result, outputKey, ctx.lit(null));
-                            } else if (isOptional(memberType)) {
-                                ctx.set(result, outputKey, ctx.lit(undefined));
+
+        // Build the property handling (will be wrapped in group check if needed)
+        const buildPropBody = () => {
+            ctx.when(
+                ctx.has(input, inputKey),
+                () => {
+                    ctx.when(
+                        ctx.not(ctx.isNullish(propInput)),
+                        () => {
+                            ctx.set(result, outputKey, state.build(propType, propInput));
+                        },
+                        () => {
+                            // Handle null/undefined values based on direction
+                            if (isDeserialize) {
+                                // Deserialize: null → undefined for optional, null for nullable
+                                if (isNullable(memberType)) {
+                                    ctx.set(result, outputKey, ctx.lit(null));
+                                } else if (isOptional(memberType)) {
+                                    ctx.set(result, outputKey, ctx.lit(undefined));
+                                }
+                            } else {
+                                // Serialize: undefined → null for optional/nullable
+                                if (isNullable(memberType) || isOptional(memberType)) {
+                                    ctx.set(result, outputKey, ctx.lit(null));
+                                }
                             }
-                        } else {
-                            // Serialize: undefined → null for optional/nullable
-                            if (isNullable(memberType) || isOptional(memberType)) {
-                                ctx.set(result, outputKey, ctx.lit(null));
-                            }
-                        }
-                    },
-                );
-            },
-            () => {
-                // Handle missing properties - set nullable to null
-                if (isNullable(memberType)) {
-                    ctx.set(result, outputKey, ctx.lit(null));
-                }
-            },
-        );
+                        },
+                    );
+                },
+                () => {
+                    // Handle missing properties - set nullable to null
+                    if (isNullable(memberType)) {
+                        ctx.set(result, outputKey, ctx.lit(null));
+                    }
+                },
+            );
+        };
+
+        // Only check groups at runtime if property actually has groups
+        if (propGroups.length > 0) {
+            const groupCheck = ctx.callExpr(isGroupAllowed, state.optionsSlot, ctx.lit(propGroups));
+            ctx.when(groupCheck, buildPropBody);
+        } else {
+            // No groups - always include property
+            buildPropBody();
+        }
     }
 
     // Handle index signature (e.g., Record<string, T> or { [key: string]: T })
     if (indexSignature) {
         const valueType = indexSignature.type;
         const valueAllowsNull = isNullable(indexSignature) || isOptional(indexSignature);
+        const indexType = indexSignature.index;
 
         // Iterate over all keys in input that aren't explicit properties
         const processIndexSignature = (
@@ -192,9 +623,33 @@ const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
             valueTypeArg: Type,
             stateArg: BuildStateBase,
             valueAllowsNullArg: boolean,
+            indexTypeArg: Type,
+            reflectionKind: typeof ReflectionKind,
+            extendTemplateLiteralFn: typeof extendTemplateLiteral,
         ): void => {
             for (const key of Object.keys(inputObj)) {
                 if (explicitKeys.has(key)) continue;
+
+                // Check if key matches the index signature pattern
+                if (indexTypeArg.kind === reflectionKind.templateLiteral) {
+                    // For template literal index signatures, check if key matches the pattern
+                    const keyLiteral = { kind: reflectionKind.literal, literal: key } as any;
+                    if (!extendTemplateLiteralFn(keyLiteral, indexTypeArg as any)) {
+                        // Key doesn't match template pattern - set to undefined
+                        resultObj[key] = undefined;
+                        continue;
+                    }
+                } else if (indexTypeArg.kind === reflectionKind.number) {
+                    // For number index signatures, check if key is numeric
+                    const numKey = Number(key);
+                    if (isNaN(numKey) || key === '') {
+                        // Key is not numeric - set to undefined
+                        resultObj[key] = undefined;
+                        continue;
+                    }
+                }
+                // For string index signatures, all keys match
+
                 const value = inputObj[key];
                 if (value === undefined) {
                     if (valueAllowsNullArg) {
@@ -222,14 +677,28 @@ const handleObjectLiteral: TypeHandler = (type, input, ctx, state) => {
             ctx.lit(valueType),
             ctx.lit(state),
             ctx.lit(valueAllowsNull),
+            ctx.lit(indexType),
+            ctx.lit(ReflectionKind),
+            ctx.lit(extendTemplateLiteral),
         );
     }
-
-    return result;
-};
+}
 
 const handleLiteral: TypeHandler = (type, input, ctx, state) => ctx.lit((type as TypeLiteral).literal);
 const handleEnum: TypeHandler = (type, input, ctx, state) => input;
+const deserializeEnum: TypeHandler = (type, input, ctx, state) => {
+    const enumType = type as TypeEnum;
+    const matcher = getEnumValueIndexMatcher(enumType);
+    return ctx.callExpr(
+        (value: any, match: (v: any) => number, values: Array<any>) => {
+            const idx = match(value);
+            return idx === -1 ? value : values[idx];
+        },
+        input,
+        ctx.lit(matcher),
+        ctx.lit(enumType.values),
+    );
+};
 const handlePromise: TypeHandler = (type, input, ctx, state) => state.build((type as any).type, input);
 
 /**
@@ -265,6 +734,7 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
 
         const valueType = indexSignature.type;
         const valueAllowsNull = isNullable(indexSignature) || isOptional(indexSignature);
+        const indexType = indexSignature.index;
 
         const processIndexSignature = (
             inputObj: any,
@@ -273,9 +743,33 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             valueTypeArg: Type,
             stateArg: BuildStateBase,
             valueAllowsNullArg: boolean,
+            indexTypeArg: Type,
+            reflectionKind: typeof ReflectionKind,
+            extendTemplateLiteralFn: typeof extendTemplateLiteral,
         ): void => {
             for (const key of Object.keys(inputObj)) {
                 if (explicitKeys.has(key)) continue;
+
+                // Check if key matches the index signature pattern
+                if (indexTypeArg.kind === reflectionKind.templateLiteral) {
+                    // For template literal index signatures, check if key matches the pattern
+                    const keyLiteral = { kind: reflectionKind.literal, literal: key } as any;
+                    if (!extendTemplateLiteralFn(keyLiteral, indexTypeArg as any)) {
+                        // Key doesn't match template pattern - set to undefined
+                        resultObj[key] = undefined;
+                        continue;
+                    }
+                } else if (indexTypeArg.kind === reflectionKind.number) {
+                    // For number index signatures, check if key is numeric
+                    const numKey = Number(key);
+                    if (isNaN(numKey) || key === '') {
+                        // Key is not numeric - set to undefined
+                        resultObj[key] = undefined;
+                        continue;
+                    }
+                }
+                // For string index signatures, all keys match
+
                 const value = inputObj[key];
                 if (value === undefined) {
                     if (valueAllowsNullArg) {
@@ -297,6 +791,9 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             ctx.lit(valueType),
             ctx.lit(state),
             ctx.lit(valueAllowsNull),
+            ctx.lit(indexType),
+            ctx.lit(ReflectionKind),
+            ctx.lit(extendTemplateLiteral),
         );
     };
 
@@ -486,6 +983,29 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
 const serializeDate: TypeHandler = (type, input, ctx, state) => ctx.callExpr((d: Date) => d.toISOString(), input);
 const deserializeDate: TypeHandler = (type, input, ctx, state) => ctx.newExpr(Date, input);
 
+// RegExp serialization - use literal string form (e.g. "/abc/i")
+const serializeRegExp: TypeHandler = (type, input, ctx, state) => ctx.callExpr((r: RegExp) => r.toString(), input);
+
+const deserializeRegExp: TypeHandler = (type, input, ctx, state) =>
+    ctx.callExpr((v: any) => {
+        if (v instanceof RegExp) return v;
+        if (v && typeof v === 'object' && '$regex' in v) {
+            return new RegExp(v.$regex, v.$options || '');
+        }
+        if (typeof v === 'string') {
+            if (v.startsWith('/') && v.length > 1) {
+                const lastSlash = v.lastIndexOf('/');
+                if (lastSlash > 0) {
+                    const pattern = v.slice(1, lastSlash);
+                    const flags = v.slice(lastSlash + 1);
+                    return new RegExp(pattern, flags);
+                }
+            }
+            return new RegExp(v);
+        }
+        return v;
+    }, input);
+
 const serializeSet: TypeHandler = (type, input, ctx, state) => {
     const classType = type as TypeClass;
     const elementType = classType.arguments?.[0] || { kind: ReflectionKind.any };
@@ -609,23 +1129,19 @@ const guardNumberBranded: TypeHandler = (type, input, ctx, state) => {
               ? 'float32'
               : 'number';
     const score = ctx.var_(ctx.lit(0));
-    ctx.when(
-        ctx.not(ctx.isType(input, 'number')),
-        () => {
-            ctx.when(errorsSlot, () => {
-                ctx.push(
-                    errorsSlot,
-                    ctx.newExpr(
-                        ValidationErrorItem,
-                        state.pathSlot(),
-                        ctx.lit('type'),
-                        ctx.lit('Not a ' + brandName),
-                        input,
-                    ),
-                );
-            });
-        },
-        () => {
+
+    // Helper to push error with "Cannot convert X to Y" format (consistent with objects)
+    const pushTypeError = () => {
+        ctx.when(errorsSlot, () => {
+            const valueStr = ctx.callExpr(stringifyValueWithType, input);
+            const errorMsg = ctx.concat(ctx.lit('Cannot convert '), valueStr, ctx.lit(' to ' + brandName));
+            ctx.push(errorsSlot, ctx.newExpr(ValidationErrorItem, state.pathSlot(), ctx.lit('type'), errorMsg, input));
+        });
+    };
+
+    ctx.when(ctx.not(ctx.isType(input, 'number')), pushTypeError, () => {
+        const isNan = ctx.callExpr(Number.isNaN, input);
+        ctx.when(isNan, pushTypeError, () => {
             if (numType.brand !== undefined && numType.brand < TypeNumberBrand.float) {
                 // Integer brands: check integer and range
                 const range = integerRanges[numType.brand];
@@ -633,71 +1149,20 @@ const guardNumberBranded: TypeHandler = (type, input, ctx, state) => {
                 if (range) {
                     const [min, max] = range;
                     const inRange = ctx.and(ctx.gte(input, ctx.lit(min)), ctx.lte(input, ctx.lit(max)));
-                    ctx.when(
-                        ctx.not(ctx.and(isInt, inRange)),
-                        () => {
-                            ctx.when(errorsSlot, () => {
-                                ctx.push(
-                                    errorsSlot,
-                                    ctx.newExpr(
-                                        ValidationErrorItem,
-                                        state.pathSlot(),
-                                        ctx.lit('type'),
-                                        ctx.lit('Not a ' + brandName),
-                                        input,
-                                    ),
-                                );
-                            });
-                        },
-                        () => ctx.setVar(score, ctx.lit(1000)),
-                    );
+                    ctx.when(ctx.not(ctx.and(isInt, inRange)), pushTypeError, () => ctx.setVar(score, ctx.lit(1000)));
                 } else {
                     // Generic integer (no specific range)
-                    ctx.when(
-                        ctx.not(isInt),
-                        () => {
-                            ctx.when(errorsSlot, () => {
-                                ctx.push(
-                                    errorsSlot,
-                                    ctx.newExpr(
-                                        ValidationErrorItem,
-                                        state.pathSlot(),
-                                        ctx.lit('type'),
-                                        ctx.lit('Not a ' + brandName),
-                                        input,
-                                    ),
-                                );
-                            });
-                        },
-                        () => ctx.setVar(score, ctx.lit(1000)),
-                    );
+                    ctx.when(ctx.not(isInt), pushTypeError, () => ctx.setVar(score, ctx.lit(1000)));
                 }
             } else if (numType.brand === TypeNumberBrand.float32) {
                 // float32: check range
                 const inRange = ctx.and(ctx.gte(input, ctx.lit(-float32Max)), ctx.lte(input, ctx.lit(float32Max)));
-                ctx.when(
-                    ctx.not(inRange),
-                    () => {
-                        ctx.when(errorsSlot, () => {
-                            ctx.push(
-                                errorsSlot,
-                                ctx.newExpr(
-                                    ValidationErrorItem,
-                                    state.pathSlot(),
-                                    ctx.lit('type'),
-                                    ctx.lit('Not a float32'),
-                                    input,
-                                ),
-                            );
-                        });
-                    },
-                    () => ctx.setVar(score, ctx.lit(1000)),
-                );
+                ctx.when(ctx.not(inRange), pushTypeError, () => ctx.setVar(score, ctx.lit(1000)));
             } else {
                 ctx.setVar(score, ctx.lit(1000));
             }
-        },
-    );
+        });
+    });
     return ctx.getVar(score);
 };
 
@@ -878,82 +1343,28 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                 );
             }
 
-            // Handle methods - check that each method member is a function with matching signature
-            for (const member of methodMembers) {
-                const methodName = memberNameToString(member.name);
-                const methodInput = input.get(methodName);
-                const hasMethod = ctx.has(input, methodName);
+            // For object literals, validate method signature properties as functions
+            // (For class types, methods are on the prototype, but for object literals they should be on the data)
+            if (objType.kind === ReflectionKind.objectLiteral) {
+                for (const member of methodMembers) {
+                    const methodName = memberNameToString(member.name);
+                    const methodInput = input.get(methodName);
+                    const hasMethod = ctx.has(input, methodName);
 
-                // Create a TypeFunction from the method signature for comparison
-                const methodAsFunction: TypeFunction = {
-                    kind: ReflectionKind.function,
-                    parameters: member.parameters,
-                    return: member.return,
-                };
+                    // Convert method signature to function type for validation
+                    const funcType: TypeFunction = {
+                        kind: ReflectionKind.function,
+                        name: member.name,
+                        parameters: member.parameters || [],
+                        return: member.return || { kind: ReflectionKind.void },
+                    };
 
-                // Runtime validator for method signatures
-                const validateMethod = (
-                    fn: any,
-                    expectedType: TypeFunction,
-                    errors: ValidationErrorItem[] | undefined,
-                    path: string,
-                    isExtendableFn: typeof isExtendable,
-                    resolveRuntimeTypeFn: typeof resolveRuntimeType,
-                    reflectionKind: typeof ReflectionKind,
-                ): number => {
-                    if (typeof fn !== 'function') {
-                        if (errors) errors.push(new ValidationErrorItem(path, 'type', 'Not a function', fn));
-                        return 0;
-                    }
-
-                    // If the function has __type, validate against expected method signature
-                    if ('__type' in fn) {
-                        const actualType = resolveRuntimeTypeFn(fn);
-                        if (actualType && actualType.kind === reflectionKind.function) {
-                            if (!isExtendableFn(actualType, expectedType)) {
-                                if (errors)
-                                    errors.push(new ValidationErrorItem(path, 'type', 'Method signature mismatch', fn));
-                                return 0;
-                            }
-                        }
-                    }
-                    // Functions without __type pass (treated as any => any)
-                    return 1000;
-                };
-
-                ctx.when(
-                    ctx.not(hasMethod),
-                    () => {
-                        // Methods are not optional by default
-                        ctx.setVar(score, ctx.lit(0));
-                        ctx.when(errorsSlot, () =>
-                            ctx.push(
-                                errorsSlot,
-                                ctx.newExpr(
-                                    ValidationErrorItem,
-                                    state.forProperty(methodName).pathSlot(),
-                                    ctx.lit('type'),
-                                    ctx.lit('Not a function'),
-                                    ctx.lit(undefined),
-                                ),
-                            ),
-                        );
-                    },
-                    () => {
-                        // Validate the method using runtime check
-                        const methodScore = ctx.callExpr(
-                            validateMethod,
-                            methodInput,
-                            ctx.lit(methodAsFunction),
-                            errorsSlot,
-                            state.forProperty(methodName).pathSlot(),
-                            ctx.lit(isExtendable),
-                            ctx.lit(resolveRuntimeType),
-                            ctx.lit(ReflectionKind),
-                        );
+                    ctx.when(hasMethod, () => {
+                        const childState = state.forProperty(methodName);
+                        const methodScore = childState.build(funcType, methodInput);
                         ctx.when(ctx.eq(methodScore, ctx.lit(0)), () => ctx.setVar(score, ctx.lit(0)));
-                    },
-                );
+                    });
+                }
             }
 
             // Handle index signatures (e.g., { [key: string]: SomeType; [key: number]: OtherType })
@@ -966,6 +1377,7 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                     errors: ValidationErrorItem[] | undefined,
                     basePath: string,
                     reflectionKind: typeof ReflectionKind,
+                    extendTemplateLiteralFn: typeof extendTemplateLiteral,
                 ): number => {
                     let valid = true;
                     for (const key of Object.keys(obj)) {
@@ -974,8 +1386,7 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                         const isNumericKey = !isNaN(numKey) && key !== '';
 
                         // Find the matching index signature for this key
-                        // Numeric keys use number index signature if available, otherwise string
-                        // String (non-numeric) keys use string index signature
+                        // Priority: 1) number (for numeric keys), 2) template literal, 3) string (fallback)
                         let matchingSig: TypeIndexSignature | undefined;
 
                         for (const sig of signatures) {
@@ -985,6 +1396,14 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                                     matchingSig = sig;
                                     break; // Number signature takes precedence for numeric keys
                                 }
+                            } else if (sig.index.kind === reflectionKind.templateLiteral) {
+                                // Template literal signature (e.g., `a${number}`)
+                                // Check if the key matches the template pattern
+                                const keyLiteral = { kind: reflectionKind.literal, literal: key } as any;
+                                if (extendTemplateLiteralFn(keyLiteral, sig.index as any)) {
+                                    matchingSig = sig;
+                                    break; // Template literal match takes precedence over string
+                                }
                             } else if (sig.index.kind === reflectionKind.string) {
                                 // String index signature matches all keys (fallback)
                                 if (!matchingSig) matchingSig = sig;
@@ -993,6 +1412,10 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
 
                         if (!matchingSig) {
                             // No matching signature for this key - the key type doesn't match any index signature
+                            // If the value is undefined, silently skip (this is expected from deserialization)
+                            if (obj[key] === undefined) {
+                                continue;
+                            }
                             valid = false;
                             if (errors)
                                 errors.push(
@@ -1033,8 +1456,43 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                     errorsSlot,
                     state.pathSlot(),
                     ctx.lit(ReflectionKind),
+                    ctx.lit(extendTemplateLiteral),
                 );
                 ctx.when(ctx.eq(indexScore, ctx.lit(0)), () => ctx.setVar(score, ctx.lit(0)));
+            }
+
+            // For class types, check if there's a class-level validator method
+            if (objType.kind === ReflectionKind.class) {
+                const reflection = ReflectionClass.from((objType as TypeClass).classType);
+                if (reflection.validationMethod) {
+                    const methodName = reflection.validationMethod;
+                    // Call the validator method on the instance
+                    const callClassValidator = (
+                        obj: any,
+                        validatorMethod: string | symbol | number,
+                        errors: ValidationErrorItem[] | undefined,
+                        basePath: string,
+                        validatorErrorClass: typeof ValidatorError,
+                        validationErrorItemClass: typeof ValidationErrorItem,
+                    ): void => {
+                        if (!obj || typeof obj[validatorMethod] !== 'function') return;
+                        const result = obj[validatorMethod]();
+                        if (result instanceof validatorErrorClass) {
+                            if (errors) {
+                                errors.push(new validationErrorItemClass(basePath, result.code, result.message));
+                            }
+                        }
+                    };
+                    ctx.callExpr(
+                        callClassValidator,
+                        input,
+                        ctx.lit(methodName),
+                        errorsSlot,
+                        state.pathSlot(),
+                        ctx.lit(ValidatorError),
+                        ctx.lit(ValidationErrorItem),
+                    );
+                }
             }
         },
     );
@@ -1092,6 +1550,13 @@ const guardUnion: TypeHandler = (type, input, ctx, state) => {
     const errorsSlot = state.optionsSlot.get('errors' as any);
     const typeStr = stringifyType(type);
 
+    // Helper to get type name for error prefixing
+    const getTypeName = (t: Type): string => {
+        if (t.kind === ReflectionKind.objectLiteral && t.typeName) return t.typeName;
+        if (t.kind === ReflectionKind.class && t.classType) return t.classType.name;
+        return '';
+    };
+
     // Use runtime function for proper union validation with constraint-specific errors (#577)
     const validateUnion = (
         value: any,
@@ -1103,6 +1568,7 @@ const guardUnion: TypeHandler = (type, input, ctx, state) => {
         getBaseTypeKindFn: (type: Type) => ReflectionKind,
         valueMatchesBaseTypeFn: (value: any, type: Type) => boolean,
         reflectionKind: typeof ReflectionKind,
+        getTypeNameFn: (t: Type) => string,
     ): number => {
         // First pass: try to find a member that fully validates
         for (const member of members) {
@@ -1110,8 +1576,9 @@ const guardUnion: TypeHandler = (type, input, ctx, state) => {
             if (validator(value, {})) return 1000;
         }
 
-        // Second pass: find members whose base type matches and collect constraint errors
+        // Second pass: find members whose base type matches and collect all errors
         const matchingMemberErrors: ValidationErrorItem[] = [];
+        let hasConstraintErrors = false;
 
         for (const member of members) {
             if (valueMatchesBaseTypeFn(value, member)) {
@@ -1120,18 +1587,37 @@ const guardUnion: TypeHandler = (type, input, ctx, state) => {
                 const validator = serializer.buildTypeGuard(member, false);
                 validator(value, { errors: memberErrors });
 
-                // If we got constraint-specific errors (not just type errors), use them
+                const typeName = getTypeNameFn(member);
+
                 for (const err of memberErrors) {
+                    // Include constraint errors (non-type errors)
                     if (err.code !== 'type') {
-                        // Prefix the error path with the current path
+                        hasConstraintErrors = true;
                         const fullPath = path && err.path ? path + '.' + err.path : path || err.path;
+                        matchingMemberErrors.push(new ValidationErrorItem(fullPath, err.code, err.message, err.value));
+                    }
+                    // Include type errors with specific paths (e.g., missing required fields)
+                    else if (err.path && err.path.length > 0) {
+                        // Prefix with type name to indicate which member the error is from
+                        const prefixedPath = typeName ? typeName + '.' + err.path : err.path;
+                        const fullPath = path && prefixedPath ? path + '.' + prefixedPath : path || prefixedPath;
                         matchingMemberErrors.push(new ValidationErrorItem(fullPath, err.code, err.message, err.value));
                     }
                 }
             }
         }
 
-        // If we have constraint-specific errors from matching base types, use those
+        // If we have constraint errors, prioritize those
+        if (hasConstraintErrors && errors) {
+            for (const err of matchingMemberErrors) {
+                if (err.code !== 'type') {
+                    errors.push(err);
+                }
+            }
+            return 0;
+        }
+
+        // If we have type errors from specific fields, use those
         if (matchingMemberErrors.length > 0 && errors) {
             for (const err of matchingMemberErrors) {
                 errors.push(err);
@@ -1139,8 +1625,17 @@ const guardUnion: TypeHandler = (type, input, ctx, state) => {
             return 0;
         }
 
-        // No base type matched or only type errors - show generic union error
-        if (errors) errors.push(new ValidationErrorItem(path, 'type', 'Cannot convert to ' + typeDescription, value));
+        // No base type matched - show generic union error
+        if (errors) {
+            errors.push(
+                new ValidationErrorItem(
+                    path,
+                    'type',
+                    `Cannot convert ${stringifyValueWithType(value)} to ${typeDescription}`,
+                    value,
+                ),
+            );
+        }
         return 0;
     };
 
@@ -1155,12 +1650,26 @@ const guardUnion: TypeHandler = (type, input, ctx, state) => {
         ctx.lit(getBaseTypeKind),
         ctx.lit(valueMatchesBaseType),
         ctx.lit(ReflectionKind),
+        ctx.lit(getTypeName),
     );
 };
 const guardTuple: TypeHandler = (type, input, ctx, state) => {
     const tupleType = type as TypeTuple;
     const score = ctx.var_(ctx.lit(1000));
     const errorsSlot = state.optionsSlot.get('errors' as any);
+
+    // Find rest element position if any
+    let restIndex = -1;
+    let restType: Type | undefined;
+    for (let i = 0; i < tupleType.types.length; i++) {
+        const member = tupleType.types[i];
+        if (member.type.kind === ReflectionKind.rest) {
+            restIndex = i;
+            restType = (member.type as any).type;
+            break;
+        }
+    }
+
     ctx.when(
         ctx.not(ctx.callExpr(Array.isArray, input)),
         () => {
@@ -1173,14 +1682,91 @@ const guardTuple: TypeHandler = (type, input, ctx, state) => {
             );
         },
         () => {
-            for (let i = 0; i < tupleType.types.length; i++) {
-                const member = tupleType.types[i];
-                const elemName = member.name || String(i);
-                ctx.when(ctx.eq(ctx.getVar(score), ctx.lit(1000)), () => {
-                    const childState = state.forProperty(String(elemName));
-                    const elemScore = childState.build(member.type, input.at(i));
-                    ctx.when(ctx.eq(elemScore, ctx.lit(0)), () => ctx.setVar(score, ctx.lit(0)));
-                });
+            if (restIndex === -1) {
+                // No rest element - simple case
+                for (let i = 0; i < tupleType.types.length; i++) {
+                    const member = tupleType.types[i];
+                    const elemName = member.name || String(i);
+                    ctx.when(ctx.eq(ctx.getVar(score), ctx.lit(1000)), () => {
+                        const childState = state.forProperty(String(elemName));
+                        const elemScore = childState.build(member.type, input.at(i));
+                        ctx.when(ctx.eq(elemScore, ctx.lit(0)), () => ctx.setVar(score, ctx.lit(0)));
+                    });
+                }
+            } else {
+                // Has rest element - need to handle variable length
+                const beforeRest = restIndex;
+                const afterRest = tupleType.types.length - restIndex - 1;
+
+                // Validate elements before rest
+                for (let i = 0; i < beforeRest; i++) {
+                    const member = tupleType.types[i];
+                    const elemName = member.name || String(i);
+                    ctx.when(ctx.eq(ctx.getVar(score), ctx.lit(1000)), () => {
+                        const childState = state.forProperty(String(elemName));
+                        const elemScore = childState.build(member.type, input.at(i));
+                        ctx.when(ctx.eq(elemScore, ctx.lit(0)), () => ctx.setVar(score, ctx.lit(0)));
+                    });
+                }
+
+                // Validate rest elements at runtime
+                if (restType) {
+                    const validateRest = (
+                        inputArr: any[],
+                        restIdx: number,
+                        afterCount: number,
+                        rt: Type,
+                        st: BuildStateBase,
+                        errorsArr: ValidationErrorItem[] | undefined,
+                    ): boolean => {
+                        const restEnd = inputArr.length - afterCount;
+                        for (let j = restIdx; j < restEnd; j++) {
+                            const serializer = (st as any).serializer;
+                            const guardFn = serializer.buildTypeGuard(rt, true);
+                            const errors: ValidationErrorItem[] = [];
+                            if (!guardFn(inputArr[j], { errors })) {
+                                if (errorsArr) {
+                                    for (const err of errors) {
+                                        errorsArr.push(
+                                            new ValidationErrorItem(String(j), err.code, err.message, err.value),
+                                        );
+                                    }
+                                }
+                                return false;
+                            }
+                        }
+                        return true;
+                    };
+                    ctx.when(ctx.eq(ctx.getVar(score), ctx.lit(1000)), () => {
+                        const restValid = ctx.callExpr(
+                            validateRest,
+                            input,
+                            ctx.lit(restIndex),
+                            ctx.lit(afterRest),
+                            ctx.lit(restType),
+                            ctx.lit(state),
+                            errorsSlot,
+                        );
+                        ctx.when(ctx.not(restValid), () => ctx.setVar(score, ctx.lit(0)));
+                    });
+                }
+
+                // Validate elements after rest (from the end)
+                for (let i = 0; i < afterRest; i++) {
+                    const memberIdx = restIndex + 1 + i;
+                    const member = tupleType.types[memberIdx];
+                    const offset = afterRest - i;
+                    ctx.when(ctx.eq(ctx.getVar(score), ctx.lit(1000)), () => {
+                        const inputIdx = ctx.callExpr(
+                            (arr: any[], off: number) => arr.length - off,
+                            input,
+                            ctx.lit(offset),
+                        );
+                        const childState = state.forIndex(inputIdx);
+                        const elemScore = childState.build(member.type, input.at(inputIdx));
+                        ctx.when(ctx.eq(elemScore, ctx.lit(0)), () => ctx.setVar(score, ctx.lit(0)));
+                    });
+                }
             }
         },
     );
@@ -1189,6 +1775,9 @@ const guardTuple: TypeHandler = (type, input, ctx, state) => {
 
 const guardDateExact: TypeHandler = (type, input, ctx, state) =>
     guardWithError(ctx, state, input, ctx.isInstance(input, Date), 'type', 'Not a Date');
+
+const guardRegExp: TypeHandler = (type, input, ctx, state) =>
+    guardWithError(ctx, state, input, ctx.isInstance(input, RegExp), 'type', 'Not a RegExp');
 
 const guardFunction: TypeHandler = (type, input, ctx, state) => {
     const funcType = type as TypeFunction;
@@ -1402,6 +1991,30 @@ const guardMap: TypeHandler = (type, input, ctx, state) => {
 };
 
 /**
+ * Serialize Reference types.
+ * Outputs only the primary key value, regardless of whether the input is a full object.
+ */
+const serializeReference: TypeHandler = (type, input, ctx, state) => {
+    const classType = type as TypeClass;
+    const reflection = ReflectionClass.from(classType);
+    const primaryKeyProperty = reflection.getPrimary();
+
+    if (!primaryKeyProperty) {
+        // No primary key - just serialize as normal class
+        return handleObjectLiteral(type, input, ctx, state);
+    }
+
+    const pkName = String(primaryKeyProperty.getName());
+    const pkType = primaryKeyProperty.type;
+
+    // Get the primary key value from the input
+    const pkValue = input.get(pkName);
+
+    // Serialize the primary key value
+    return state.build(pkType, pkValue);
+};
+
+/**
  * Deserialize Reference types.
  * When a type has Reference annotation, it can accept either:
  * - A full object (deserialize as normal class)
@@ -1436,20 +2049,60 @@ const deserializeReference: TypeHandler = (type, input, ctx, state) => {
         return createReferenceFn(classRef, { [pkPropertyName]: pkValue });
     };
 
-    // If object, deserialize as class; otherwise create reference from primary key
-    return ctx.ternary(
+    // Use ctx.when for lazy evaluation - deserializeClass contains checks like 'id' in input
+    // which would fail if input is a primitive
+    const result = ctx.var_<any>(undefined);
+
+    ctx.when(
         isObj,
-        // Deserialize as full class using deserializeClass directly to avoid recursion
-        deserializeClass(type, input, ctx, state),
-        // Create reference from primary key
-        ctx.callExpr(
-            createReferenceFromPk,
-            state.build(pkType, input), // Deserialize the PK value
-            ctx.lit(classType.classType),
-            ctx.lit(pkName),
-            ctx.lit(createReference),
-        ),
+        () => {
+            // Check if the object has only the primary key (reference shorthand like { id: 34 })
+            const isPkOnlyObj = ctx.callExpr(
+                (obj: any, pkProperty: string) => {
+                    const keys = Object.keys(obj);
+                    return keys.length === 1 && keys[0] === pkProperty;
+                },
+                input,
+                ctx.lit(pkName),
+            );
+            ctx.when(
+                isPkOnlyObj,
+                () => {
+                    // Create reference from the PK-only object
+                    const pkValue = input.get(pkName);
+                    ctx.setVar(
+                        result,
+                        ctx.callExpr(
+                            createReferenceFromPk,
+                            state.build(pkType, pkValue),
+                            ctx.lit(classType.classType),
+                            ctx.lit(pkName),
+                            ctx.lit(createReference),
+                        ),
+                    );
+                },
+                () => {
+                    // Deserialize as full class
+                    ctx.setVar(result, deserializeClass(type, input, ctx, state));
+                },
+            );
+        },
+        () => {
+            // Create reference from primitive primary key
+            ctx.setVar(
+                result,
+                ctx.callExpr(
+                    createReferenceFromPk,
+                    state.build(pkType, input), // Deserialize the PK value
+                    ctx.lit(classType.classType),
+                    ctx.lit(pkName),
+                    ctx.lit(createReference),
+                ),
+            );
+        },
     );
+
+    return ctx.getVar(result);
 };
 
 /**
@@ -1468,7 +2121,7 @@ const guardReference: TypeHandler = (type, input, ctx, state) => {
     }
 
     const primaryKeyProperty = reflection.getPrimary();
-
+    const pkName = String(primaryKeyProperty.getName());
     const pkType = primaryKeyProperty.type;
     const score = ctx.var_(ctx.lit(0));
 
@@ -1481,9 +2134,53 @@ const guardReference: TypeHandler = (type, input, ctx, state) => {
     ctx.when(
         isObj,
         () => {
-            // If it's an object, validate as the class type (using guardObject directly to avoid recursion)
-            const objScore = guardObject(type, input, ctx, state);
-            ctx.setVar(score, objScore);
+            // Check if it's a reference instance (created by createReference)
+            // OR an object with only the primary key property (like { id: 34 })
+            // Reference instances throw when accessing non-PK properties, so we only validate the PK
+            const isRef = ctx.callExpr(isReferenceInstance, input);
+            // Check if object has only the primary key property (reference shorthand)
+            const isPkOnlyObj = ctx.callExpr(
+                (obj: any, pkProperty: string) => {
+                    const keys = Object.keys(obj);
+                    return keys.length === 1 && keys[0] === pkProperty;
+                },
+                input,
+                ctx.lit(pkName),
+            );
+            const shouldValidatePkOnly = ctx.or(isRef, isPkOnlyObj);
+            ctx.when(
+                shouldValidatePkOnly,
+                () => {
+                    // For reference instances or PK-only objects, only validate the primary key
+                    const pkValue = input.get(pkName);
+                    const pkScore = state.build(pkType, pkValue);
+                    ctx.when(
+                        ctx.gt(pkScore, ctx.lit(0)),
+                        () => {
+                            ctx.setVar(score, ctx.lit(1000));
+                        },
+                        () => {
+                            ctx.when(errorsSlot, () => {
+                                ctx.push(
+                                    errorsSlot,
+                                    ctx.newExpr(
+                                        ValidationErrorItem,
+                                        state.pathSlot(),
+                                        ctx.lit('type'),
+                                        ctx.lit('Reference has invalid primary key'),
+                                        input,
+                                    ),
+                                );
+                            });
+                        },
+                    );
+                },
+                () => {
+                    // If it's a regular object with more properties, validate as the class type
+                    const objScore = guardObject(type, input, ctx, state);
+                    ctx.setVar(score, objScore);
+                },
+            );
         },
         () => {
             // Otherwise, check if it matches the primary key type
@@ -1607,16 +2304,16 @@ export function registerDefaultHandlers(serializer: Serializer): void {
     const serializeRegistry = serializer.serializeRegistry;
     const deserializeRegistry = serializer.deserializeRegistry;
     serializeRegistry.register(ReflectionKind.string, handleString);
-    deserializeRegistry.register(ReflectionKind.string, handleString);
+    deserializeRegistry.register(ReflectionKind.string, deserializeString);
     serializeRegistry.register(ReflectionKind.number, handleNumber);
-    deserializeRegistry.register(ReflectionKind.number, handleNumber);
+    deserializeRegistry.register(ReflectionKind.number, deserializeNumber);
     serializeRegistry.register(ReflectionKind.boolean, handleBoolean);
-    deserializeRegistry.register(ReflectionKind.boolean, handleBoolean);
+    deserializeRegistry.register(ReflectionKind.boolean, deserializeBoolean);
     serializeRegistry.register(ReflectionKind.bigint, handleBigInt);
-    deserializeRegistry.register(ReflectionKind.bigint, handleBigInt);
+    deserializeRegistry.register(ReflectionKind.bigint, deserializeBigInt);
     serializeRegistry.register(ReflectionKind.null, handleNull);
     deserializeRegistry.register(ReflectionKind.null, handleNull);
-    serializeRegistry.register(ReflectionKind.undefined, handleUndefined);
+    serializeRegistry.register(ReflectionKind.undefined, serializeUndefined);
     deserializeRegistry.register(ReflectionKind.undefined, handleUndefined);
     serializeRegistry.register(ReflectionKind.any, handleAny);
     deserializeRegistry.register(ReflectionKind.any, handleAny);
@@ -1634,11 +2331,14 @@ export function registerDefaultHandlers(serializer: Serializer): void {
     deserializeRegistry.register(ReflectionKind.literal, handleLiteral);
     // Note: Union handlers are registered separately via registerUnionHandler() from union.ts
     serializeRegistry.register(ReflectionKind.enum, handleEnum);
-    deserializeRegistry.register(ReflectionKind.enum, handleEnum);
+    deserializeRegistry.register(ReflectionKind.enum, deserializeEnum);
     serializeRegistry.register(ReflectionKind.promise, handlePromise);
     deserializeRegistry.register(ReflectionKind.promise, handlePromise);
     serializeRegistry.registerClass(Date, serializeDate);
     deserializeRegistry.registerClass(Date, deserializeDate);
+    // RegExp has its own ReflectionKind.regexp, not ReflectionKind.class
+    serializeRegistry.register(ReflectionKind.regexp, serializeRegExp);
+    deserializeRegistry.register(ReflectionKind.regexp, deserializeRegExp);
     serializeRegistry.registerClass(Set, serializeSet);
     deserializeRegistry.registerClass(Set, deserializeSet);
     serializeRegistry.registerClass(Map, serializeMap);
@@ -1657,7 +2357,12 @@ export function registerDefaultHandlers(serializer: Serializer): void {
     }
 
     // Reference types - decorator handler for types with Reference annotation
+    serializeRegistry.addDecorator(isReferenceType, serializeReference);
     deserializeRegistry.addDecorator(isReferenceType, deserializeReference);
+
+    // Binary BigInt types (unsigned/signed)
+    serializeRegistry.addDecorator(type => getBinaryBigIntMode(type) !== undefined, serializeBinaryBigInt);
+    deserializeRegistry.addDecorator(type => getBinaryBigIntMode(type) !== undefined, deserializeBinaryBigInt);
 
     // Special string type decorators (NanoId, UUID, MongoId)
     deserializeRegistry.addDecorator(isNanoIdType, deserializeNanoId);
@@ -1687,6 +2392,8 @@ export function registerDefaultTypeGuards(serializer: Serializer): void {
     typeGuards.registerClass(1, Date, guardDateExact);
     typeGuards.registerClass(1, Set, guardSet);
     typeGuards.registerClass(1, Map, guardMap);
+    // RegExp has its own ReflectionKind.regexp, not ReflectionKind.class
+    typeGuards.register(1, ReflectionKind.regexp, guardRegExp);
 
     // Binary type guards
     typeGuards.registerBinary(1, guardTypedArray);

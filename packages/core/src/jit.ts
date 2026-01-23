@@ -297,7 +297,12 @@ export const canJIT = detectNewFunction();
  * Set to 0 to always JIT immediately (old behavior).
  * Set to Infinity to never JIT (always Exec mode).
  */
-let jitThreshold = 10;
+let jitThreshold = 0;
+
+/**
+ * Debug mode - when true, logs generated JIT code to console.
+ */
+let jitDebug = false;
 
 /**
  * Set the global JIT threshold.
@@ -305,6 +310,13 @@ let jitThreshold = 10;
  */
 export function setJitThreshold(threshold: number): void {
     jitThreshold = threshold;
+}
+
+/**
+ * Enable/disable JIT debug mode (logs generated code).
+ */
+export function setJitDebug(debug: boolean): void {
+    jitDebug = debug;
 }
 
 /**
@@ -787,10 +799,14 @@ export class JITContext implements Context {
         // Use spread on Map keys/values for named parameters
         const externNames = [...this.externs.keys()];
         const externValues = [...this.externs.values()];
-        const fn = new Function(
-            ...externNames,
-            `'use strict';return function(${argNames}){'use strict';\n${this.code}}`,
-        );
+        const fnBody = `'use strict';return function(${argNames}){'use strict';\n${this.code}}`;
+        if (jitDebug) {
+            console.log('=== JIT Generated Code ===');
+            console.log('Externs:', externNames);
+            console.log('Body:\n' + fnBody);
+            console.log('==========================\n');
+        }
+        const fn = new Function(...externNames, fnBody);
         return fn(...externValues) as T;
     }
 
