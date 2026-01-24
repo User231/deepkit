@@ -30,6 +30,8 @@ export interface BuildStateBase {
     readonly rejectUnknownKeys: boolean;
     /** Whether currently checking union members (skip error-adding in post-hook) */
     readonly inUnionContext: boolean;
+    /** Whether to collect errors during union member checks (for #577 error filtering) */
+    readonly collectUnionMemberErrors: boolean;
     readonly serializer: {
         name: string;
         typeGuards: HandlerRegistry;
@@ -45,6 +47,8 @@ export interface BuildStateBase {
     forIndex(index: Slot<number>): BuildStateBase;
     /** Fork state for checking a union member (sets inUnionContext=true). */
     forUnionMember(): BuildStateBase;
+    /** Fork state for checking a union member while collecting errors (#577). */
+    forUnionMemberCollecting(): BuildStateBase;
     /** Check if loose mode is enabled (options.loosely !== false). */
     isLoose(): Slot<boolean>;
 }

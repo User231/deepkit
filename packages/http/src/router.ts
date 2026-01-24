@@ -96,12 +96,15 @@ export class UploadedFile {
     // hash!: string | 'sha1' | 'md5' | 'sha256' | null;
 }
 
-serializer.typeGuards.getRegistry(1).registerClass(UploadedFile, (type, state) => {
-    state.setContext({ UploadedFileSymbol });
-    state.addSetterAndReportErrorIfInvalid(
-        'uploadSecurity',
-        'Not an uploaded file',
-        `typeof ${state.accessor} === 'object' && ${state.accessor} !== null && ${state.accessor}.validator === UploadedFileSymbol`,
+// Register type guard for UploadedFile - validates that the file was provided by the framework
+serializer.typeGuards.registerClass(UploadedFile, (type, input, ctx, state) => {
+    // Check if input is an UploadedFile with valid validator symbol
+    return ctx.and(
+        ctx.isType(input, 'object'),
+        ctx.and(
+            ctx.not(ctx.isNull(input)),
+            ctx.callExpr((v: any, sym: symbol) => v.validator === sym, input, ctx.lit(UploadedFileSymbol)),
+        ),
     );
 });
 

@@ -70,6 +70,11 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
     const errorsSlot = state.optionsSlot.get('errors' as any);
     const pathExpr = state.pathSlot();
 
+    // Check if we should add errors:
+    // - Don't add if in union context (unless collectUnionMemberErrors is true)
+    // This matches the behavior in handlers.ts post-hook
+    const shouldAddErrors = !state.inUnionContext || state.collectUnionMemberErrors;
+
     for (const validation of annotations) {
         const { name, args } = validation;
 
@@ -122,18 +127,20 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
                     ctx.when(error, () => {
                         ctx.setVar(valid, ctx.lit(false));
 
-                        // Push error to errors array if it exists
-                        ctx.when(errorsSlot, () => {
-                            const errorItem = ctx.callExpr(
-                                (err: ValidatorError, path: string, value: any) => {
-                                    return new ValidationErrorItem(path, err.code, err.message, value);
-                                },
-                                error,
-                                pathExpr,
-                                input,
-                            );
-                            ctx.push(errorsSlot, errorItem);
-                        });
+                        // Push error to errors array if it exists AND we should add errors
+                        if (shouldAddErrors) {
+                            ctx.when(errorsSlot, () => {
+                                const errorItem = ctx.callExpr(
+                                    (err: ValidatorError, path: string, value: any) => {
+                                        return new ValidationErrorItem(path, err.code, err.message, value);
+                                    },
+                                    error,
+                                    pathExpr,
+                                    input,
+                                );
+                                ctx.push(errorsSlot, errorItem);
+                            });
+                        }
                     });
                 });
             }
@@ -150,19 +157,21 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
                     ctx.when(error, () => {
                         ctx.setVar(valid, ctx.lit(false));
 
-                        // Push error to errors array if it exists
-                        ctx.when(errorsSlot, () => {
-                            // Create ValidationErrorItem and push to errors array
-                            const errorItem = ctx.callExpr(
-                                (err: ValidatorError, path: string, value: any) => {
-                                    return new ValidationErrorItem(path, err.code, err.message, value);
-                                },
-                                error,
-                                pathExpr,
-                                input,
-                            );
-                            ctx.push(errorsSlot, errorItem);
-                        });
+                        // Push error to errors array if it exists AND we should add errors
+                        if (shouldAddErrors) {
+                            ctx.when(errorsSlot, () => {
+                                // Create ValidationErrorItem and push to errors array
+                                const errorItem = ctx.callExpr(
+                                    (err: ValidatorError, path: string, value: any) => {
+                                        return new ValidationErrorItem(path, err.code, err.message, value);
+                                    },
+                                    error,
+                                    pathExpr,
+                                    input,
+                                );
+                                ctx.push(errorsSlot, errorItem);
+                            });
+                        }
                     });
                 });
             }

@@ -70,6 +70,7 @@ import type { BuildStateBase, HandlerRegistry, TypeGuardRegistry, TypeHandler } 
 import type { Serializer } from './serializer.js';
 import type { BuildState } from './state.js';
 import { isGroupAllowed } from './state.js';
+import { UNION_LITERAL_THRESHOLD } from './union.js';
 
 // ============================================================================
 // Validation Error Helpers
@@ -1437,7 +1438,7 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             indexTypeArg: Type,
             reflectionKind: typeof ReflectionKind,
             extendTemplateLiteralFn: typeof extendTemplateLiteral,
-        ): void => {
+        ): number => {
             for (const key of Object.keys(inputObj)) {
                 if (explicitKeys.has(key)) continue;
 
@@ -1472,19 +1473,23 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
                     resultObj[key] = fn(value, {});
                 }
             }
+            return 0; // Return value forces the call to be emitted
         };
 
-        ctx.callExpr(
-            processIndexSignature,
-            input,
-            result,
-            ctx.lit(explicitProps),
-            ctx.lit(valueType),
-            ctx.lit(state),
-            ctx.lit(valueAllowsNull),
-            ctx.lit(indexType),
-            ctx.lit(ReflectionKind),
-            ctx.lit(extendTemplateLiteral),
+        // Use ctx.let() to force the call to be emitted in generated code
+        ctx.let(
+            ctx.callExpr(
+                processIndexSignature,
+                input,
+                result,
+                ctx.lit(explicitProps),
+                ctx.lit(valueType),
+                ctx.lit(state),
+                ctx.lit(valueAllowsNull),
+                ctx.lit(indexType),
+                ctx.lit(ReflectionKind),
+                ctx.lit(extendTemplateLiteral),
+            ),
         );
     };
 
@@ -3401,25 +3406,62 @@ const guardArrayFast: TypeHandler = (type, input, ctx, state) => {
 
 /**
  * Fast union type guard - builds || chain for all members.
+ * For large literal unions (>= UNION_LITERAL_THRESHOLD), uses Set.has() for O(1) lookup.
  */
 const guardUnionFast: TypeHandler = (type, input, ctx, state) => {
     const unionType = type as TypeUnion;
 
-    // Use a child state with inUnionContext=true to suppress error collection
-    // for member checks - only the union as a whole should report an error
-    const memberState = state.forUnionMember();
+    // Check if all members are literals - if so and large enough, use Set optimization
+    const isAllLiterals = unionType.types.every(t => t.kind === ReflectionKind.literal);
+    if (isAllLiterals && unionType.types.length >= UNION_LITERAL_THRESHOLD) {
+        // Build a Set of all literal values for O(1) lookup
+        const literals = unionType.types.map(t => (t as TypeLiteral).literal);
+        const literalSet = new Set(literals);
 
-    // Build || chain: member1Check || member2Check || ...
-    let result: Slot<boolean> = ctx.lit(false);
-    for (const member of unionType.types) {
-        const memberCheck = memberState.build(member, input) as Slot<boolean>;
-        result = ctx.or(result, memberCheck);
+        // Check if input is in the set
+        const hasCheck = ctx.callExpr((set: Set<any>, value: any) => set.has(value), ctx.lit(literalSet), input);
+
+        // If collecting errors and check failed, add error
+        if (state.collectErrors && !state.inUnionContext) {
+            const errorsSlot = state.optionsSlot.get('errors' as any);
+            const resultVar = ctx.var_(hasCheck);
+            ctx.when(ctx.and(errorsSlot, ctx.not(ctx.getVar(resultVar))), () => {
+                const expectedType = stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim();
+                const valueStr = ctx.callExpr(stringifyValueWithType, input);
+                const errorMsg = ctx.concat(
+                    ctx.lit('Cannot convert '),
+                    valueStr,
+                    ctx.lit(' to '),
+                    ctx.lit(expectedType),
+                );
+                const errorItem = ctx.newExpr(ValidationErrorItem, state.pathSlot(), ctx.lit('type'), errorMsg, input);
+                ctx.push(errorsSlot, errorItem);
+            });
+            return ctx.getVar(resultVar);
+        }
+
+        return hasCheck;
     }
 
-    // If collecting errors and all members failed, add ONE error for the union
+    // For error-collecting validation, use forUnionMember to suppress member errors
+    // and add a single union error if all members fail
+    // Note: #577 (showing constraint errors instead of generic union errors) requires
+    // a more complex implementation that's not yet complete
     if (state.collectErrors && !state.inUnionContext) {
+        // Use forUnionMember which suppresses error collection during member checks
+        const memberState = state.forUnionMember();
+
+        // Build || chain: member1Check || member2Check || ...
+        let result: Slot<boolean> = ctx.lit(false);
+        for (const member of unionType.types) {
+            const memberCheck = memberState.build(member, input) as Slot<boolean>;
+            result = ctx.or(result, memberCheck);
+        }
+
         const errorsSlot = state.optionsSlot.get('errors' as any);
         const resultVar = ctx.var_(result);
+
+        // When validation fails, add a generic union error
         ctx.when(ctx.and(errorsSlot, ctx.not(ctx.getVar(resultVar))), () => {
             const expectedType = stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim();
             const valueStr = ctx.callExpr(stringifyValueWithType, input);
@@ -3427,7 +3469,18 @@ const guardUnionFast: TypeHandler = (type, input, ctx, state) => {
             const errorItem = ctx.newExpr(ValidationErrorItem, state.pathSlot(), ctx.lit('type'), errorMsg, input);
             ctx.push(errorsSlot, errorItem);
         });
+
         return ctx.getVar(resultVar);
+    }
+
+    // For non-error-collecting (fast) validation, just build || chain
+    const memberState = state.forUnionMember();
+
+    // Build || chain: member1Check || member2Check || ...
+    let result: Slot<boolean> = ctx.lit(false);
+    for (const member of unionType.types) {
+        const memberCheck = memberState.build(member, input) as Slot<boolean>;
+        result = ctx.or(result, memberCheck);
     }
 
     return result;
@@ -4390,7 +4443,8 @@ export function registerTypeGuards(serializer: Serializer): void {
         }
 
         // If inside a union context, skip error adding - the union handler will add ONE error
-        if (state.inUnionContext) {
+        // BUT if collectUnionMemberErrors is true (#577), we need to collect errors for filtering
+        if (state.inUnionContext && !state.collectUnionMemberErrors) {
             return next();
         }
 

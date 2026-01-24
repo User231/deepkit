@@ -33,7 +33,7 @@ import type { BuildStateBase, TypeHandler } from './registry.js';
  * When a union has this many or more literal members, we use Set.has()
  * instead of generating individual if-else statements.
  */
-export const UNION_LITERAL_THRESHOLD = 50;
+export const UNION_LITERAL_THRESHOLD = 5;
 
 /**
  * Information about a discriminator property in a union.

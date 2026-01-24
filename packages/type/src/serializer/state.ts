@@ -133,6 +133,9 @@ export class BuildState {
     /** Whether currently checking union members (skip error-adding in post-hook) */
     readonly inUnionContext: boolean;
 
+    /** Whether to collect errors during union member checks (for #577 error filtering) */
+    readonly collectUnionMemberErrors: boolean;
+
     /** Current depth in the type tree */
     readonly depth: number;
 
@@ -165,6 +168,7 @@ export class BuildState {
             collectErrors?: boolean;
             rejectUnknownKeys?: boolean;
             inUnionContext?: boolean;
+            collectUnionMemberErrors?: boolean;
             depth?: number;
             maxDepth?: number;
             typeStack?: Set<Type>;
@@ -182,6 +186,7 @@ export class BuildState {
         this.collectErrors = options.collectErrors ?? false;
         this.rejectUnknownKeys = options.rejectUnknownKeys ?? false;
         this.inUnionContext = options.inUnionContext ?? false;
+        this.collectUnionMemberErrors = options.collectUnionMemberErrors ?? false;
         this.depth = options.depth ?? 0;
         this.maxDepth = options.maxDepth ?? BuildState.DEFAULT_MAX_DEPTH;
         this.typeStack = options.typeStack ?? new Set();
@@ -309,6 +314,7 @@ export class BuildState {
             collectErrors: this.collectErrors,
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: this.inUnionContext,
+            collectUnionMemberErrors: this.collectUnionMemberErrors,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -327,6 +333,7 @@ export class BuildState {
             collectErrors: this.collectErrors,
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: this.inUnionContext,
+            collectUnionMemberErrors: this.collectUnionMemberErrors,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -346,6 +353,7 @@ export class BuildState {
             collectErrors: this.collectErrors,
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: this.inUnionContext,
+            collectUnionMemberErrors: this.collectUnionMemberErrors,
             depth: this.depth,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -366,6 +374,29 @@ export class BuildState {
             collectErrors: this.collectErrors,
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: true,
+            collectUnionMemberErrors: false, // Don't collect when just checking
+            depth: this.depth + 1,
+            maxDepth: this.maxDepth,
+            typeStack: this.typeStack,
+            fnCache: this.fnCache,
+            pathSegments: this.pathSegments,
+            namingStrategy: this.namingStrategy,
+        });
+    }
+
+    /**
+     * Fork state for checking a union member while collecting errors (#577).
+     * Unlike forUnionMember(), this allows errors to be collected during member checks
+     * so they can be filtered later to show specific constraint errors.
+     * Sets inUnionContext=true to prevent nested unions from double-collecting.
+     */
+    forUnionMemberCollecting(): BuildState {
+        return new BuildState(this.direction, this.serializer, this.ctx, this.optionsSlot, this.registry, {
+            validation: this.validation,
+            collectErrors: this.collectErrors,
+            rejectUnknownKeys: this.rejectUnknownKeys,
+            inUnionContext: true, // Prevent nested unions from using this path
+            collectUnionMemberErrors: true, // But DO collect errors for filtering
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
