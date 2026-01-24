@@ -7,8 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { ReceiveType, resolveReceiveType } from './reflection/reflection.js';
-import { getTypeJitContainer, validationAnnotation } from './reflection/type.js';
+import { ReceiveType, resolveReceiveType, visit } from './reflection/reflection.js';
+import { Type, getTypeJitContainer, validationAnnotation } from './reflection/type.js';
 import { Guard, Serializer, serializer } from './serializer/index.js';
 import { NoTypeReceived } from './utils.js';
 import { ValidationError, ValidationErrorItem } from './validator.js';
@@ -49,7 +49,10 @@ export function is<T>(
     receiveType?: ReceiveType<T>,
 ): data is T {
     // Detect which overload is being used
-    if (serializerOrType instanceof Serializer || errors !== undefined || receiveType !== undefined) {
+    // Note: We only check serializerOrType instanceof Serializer and errors !== undefined
+    // because the type compiler injects types into ALL ReceiveType<T> parameters,
+    // so receiveType is always defined when using is<T>(data) syntax.
+    if (serializerOrType instanceof Serializer || errors !== undefined) {
         // Old API: is(data, serializer, errors, type)
         const ser = serializerOrType instanceof Serializer ? serializerOrType : serializer;
         const type = receiveType || (serializerOrType instanceof Serializer ? undefined : serializerOrType);
@@ -62,15 +65,16 @@ export function is<T>(
         return jit.__is(data, { errors: errors || [] });
     }
 
-    // New API: is(data, type) - fast type guard
+    // New API: is(data, type) - type guard with loose mode (allows extra keys)
     const type = serializerOrType as ReceiveType<T> | undefined;
     if (!type) throw new NoTypeReceived('is() called without type parameter');
     const resolved = resolveReceiveType(type);
     const jit = getTypeJitContainer(resolved);
-    if (!jit.__isFast) {
-        jit.__isFast = serializer.buildFastTypeGuard(resolved);
+    if (!jit.__isLoose) {
+        // Use buildTypeGuard with loose mode: validates constraints but allows extra keys
+        jit.__isLoose = serializer.buildTypeGuard(resolved, true);
     }
-    return jit.__isFast(data);
+    return jit.__isLoose(data, {});
 }
 
 /**
@@ -157,6 +161,22 @@ export function typeGuardStrict<T>(receiveType?: ReceiveType<T>): (data: unknown
  *
  * @deprecated signature: `assert(data, serializer, type)` - use `assert(data, type)` instead
  */
+
+/**
+ * Check if a type or any of its nested members have validation annotations.
+ * Uses the visit() function to traverse the type tree.
+ */
+function hasValidatorsDeep(type: Type): boolean {
+    let found = false;
+    visit(type, t => {
+        if (validationAnnotation.getAnnotations(t).length > 0) {
+            found = true;
+            return false; // Stop visiting
+        }
+    });
+    return found;
+}
+
 export function assert<T>(data: unknown, receiveType?: ReceiveType<T>): asserts data is T;
 /**
  * @deprecated Use `assert(data, type)` instead.
@@ -188,8 +208,9 @@ export function assert<T>(
     const resolved = resolveReceiveType(type);
     const jit = getTypeJitContainer(resolved);
 
-    // Check if type has validators - if so, skip fast path since fast guards don't run validators
-    const hasValidators = validationAnnotation.getAnnotations(resolved).length > 0;
+    // Check if type has validators anywhere in the structure - if so, skip fast path
+    // since fast guards don't run validators
+    const hasValidators = hasValidatorsDeep(resolved);
 
     if (!hasValidators) {
         // Fast path: use fast type guard (no validators to run)

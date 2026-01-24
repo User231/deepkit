@@ -1266,7 +1266,8 @@ test('class validator', () => {
     const reflection = ReflectionClass.from(Email);
     expect(reflection.validationMethod).toBe('validator');
 
-    expect(validate<Email>(new Email(''))).toEqual([{ path: '', code: 'email', message: 'Invalid email' }]);
+    const emptyEmail = new Email('');
+    expect(validate<Email>(emptyEmail)).toEqual([{ path: '', code: 'email', message: 'Invalid email', value: emptyEmail }]);
     expect(validate<Email>(new Email('asd'))).toEqual([]);
 });
 

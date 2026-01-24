@@ -1474,20 +1474,17 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
             }
         };
 
-        // Use ctx.let() to force the call to be emitted in generated code
-        ctx.let(
-            ctx.callExpr(
-                processIndexSignature,
-                input,
-                result,
-                ctx.lit(explicitProps),
-                ctx.lit(valueType),
-                ctx.lit(state),
-                ctx.lit(valueAllowsNull),
-                ctx.lit(indexType),
-                ctx.lit(ReflectionKind),
-                ctx.lit(extendTemplateLiteral),
-            ),
+        ctx.callExpr(
+            processIndexSignature,
+            input,
+            result,
+            ctx.lit(explicitProps),
+            ctx.lit(valueType),
+            ctx.lit(state),
+            ctx.lit(valueAllowsNull),
+            ctx.lit(indexType),
+            ctx.lit(ReflectionKind),
+            ctx.lit(extendTemplateLiteral),
         );
     };
 
@@ -1823,12 +1820,14 @@ const deserializeClass: TypeHandler = (type, input, ctx, state) => {
     return result;
 };
 
-const serializeDate: TypeHandler = (type, input, ctx, state) =>
-    ctx.ternary(
-        ctx.and(input, ctx.isInstance(input, Date)),
+const serializeDate: TypeHandler = (type, input, ctx, state) => {
+    // Handle undefined/null values - return as-is
+    return ctx.ternary(
+        ctx.or(ctx.eq(input, ctx.lit(undefined)), ctx.isNull(input)),
+        input,
         ctx.callExpr((d: Date) => d.toISOString(), input),
-        input, // Return undefined/null as-is
     );
+};
 const deserializeDate: TypeHandler = (type, input, ctx, state) => ctx.newExpr(Date, input);
 
 // RegExp serialization - use literal string form (e.g. "/abc/i")
@@ -2314,7 +2313,7 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                 const reflection = ReflectionClass.from((objType as TypeClass).classType);
                 if (reflection.validationMethod) {
                     const methodName = reflection.validationMethod;
-                    // Call the validator method on the instance and return whether valid
+                    // Call the validator method on the instance
                     const callClassValidator = (
                         obj: any,
                         validatorMethod: string | symbol | number,
@@ -2322,18 +2321,16 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                         basePath: string,
                         validatorErrorClass: typeof ValidatorError,
                         validationErrorItemClass: typeof ValidationErrorItem,
-                    ): boolean => {
-                        if (!obj || typeof obj[validatorMethod] !== 'function') return true;
+                    ): void => {
+                        if (!obj || typeof obj[validatorMethod] !== 'function') return;
                         const result = obj[validatorMethod]();
                         if (result instanceof validatorErrorClass) {
                             if (errors) {
                                 errors.push(new validationErrorItemClass(basePath, result.code, result.message));
                             }
-                            return false;
                         }
-                        return true;
                     };
-                    const validatorValid = ctx.callExpr(
+                    ctx.callExpr(
                         callClassValidator,
                         input,
                         ctx.lit(methodName),
@@ -2342,7 +2339,6 @@ const guardObject: TypeHandler = (type, input, ctx, state) => {
                         ctx.lit(ValidatorError),
                         ctx.lit(ValidationErrorItem),
                     );
-                    ctx.when(ctx.not(validatorValid), () => ctx.setVar(score, ctx.lit(0)));
                 }
             }
         },
@@ -3157,6 +3153,128 @@ const deserializeMongoId: TypeHandler = (type, input, ctx, state) => {
 // Used by buildFastTypeGuard() for maximum performance type checking.
 
 /**
+ * Fast template literal type guard - returns boolean.
+ */
+const guardTemplateLiteralFast: TypeHandler = (type, input, ctx, state) => {
+    const isString = ctx.isType(input, 'string');
+    const matchesPattern = ctx.callExpr(
+        (v: any, t: Type): boolean => {
+            if (typeof v !== 'string') return false;
+            try {
+                return extendTemplateLiteral({ kind: ReflectionKind.literal, literal: v }, t as TypeTemplateLiteral);
+            } catch {
+                return false;
+            }
+        },
+        input,
+        ctx.lit(type),
+    );
+    return ctx.and(isString, matchesPattern);
+};
+
+/**
+ * Fast typed array type guard - returns boolean.
+ */
+const guardTypedArrayFast: TypeHandler = (type, input, ctx, state) => {
+    const classType = (type as TypeClass).classType;
+    return ctx.isInstance(input, classType);
+};
+
+/**
+ * Fast NanoId type guard - returns boolean.
+ */
+const guardNanoIdFast: TypeHandler = (type, input, ctx, state) => {
+    const isString = ctx.isType(input, 'string');
+    const hasCorrectLength = ctx.eq(input.get('length'), ctx.lit(21));
+    return ctx.and(isString, hasCorrectLength);
+};
+
+/**
+ * Fast UUID type guard - returns boolean.
+ */
+const guardUUIDFast: TypeHandler = (type, input, ctx, state) => {
+    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const isString = ctx.isType(input, 'string');
+    const matchesPattern = ctx.callExpr(
+        (pattern: RegExp, value: string) => pattern.test(value),
+        ctx.lit(uuidPattern),
+        input,
+    );
+    return ctx.and(isString, matchesPattern);
+};
+
+/**
+ * Fast MongoId type guard - returns boolean.
+ */
+const guardMongoIdFast: TypeHandler = (type, input, ctx, state) => {
+    const mongoIdPattern = /^[0-9a-fA-F]{24}$/;
+    const isString = ctx.isType(input, 'string');
+    const isEmpty = ctx.eq(input, ctx.lit(''));
+    const matchesPattern = ctx.callExpr(
+        (pattern: RegExp, value: string) => pattern.test(value),
+        ctx.lit(mongoIdPattern),
+        input,
+    );
+    return ctx.and(isString, ctx.or(isEmpty, matchesPattern));
+};
+
+/**
+ * Fast Reference type guard - returns boolean.
+ * Accepts either a full object or the primary key type.
+ * For reference instances (lazy-loaded), only validates the primary key.
+ */
+const guardReferenceFast: TypeHandler = (type, input, ctx, state) => {
+    const classType = type as TypeClass;
+    const reflection = ReflectionClass.from(classType);
+
+    // Check if the class has a primary key
+    if (!reflection.getPrimaries().length) {
+        // No primary key - validate as normal object
+        return guardObjectStrict(type, input, ctx, state);
+    }
+
+    const primaryKeyProperty = reflection.getPrimary();
+    const pkName = String(primaryKeyProperty.getName());
+    const pkType = primaryKeyProperty.type;
+    const result = ctx.var_<boolean>(ctx.lit(false));
+
+    // Check if input is an object
+    const isObj = ctx.and(
+        ctx.isType(input, 'object'),
+        ctx.and(ctx.not(ctx.isNull(input)), ctx.not(ctx.callExpr(Array.isArray, input))),
+    );
+
+    ctx.when(
+        isObj,
+        () => {
+            // Check if it's a reference instance (lazy-loaded proxy)
+            // Reference instances throw when accessing non-PK properties, so only validate PK
+            const isRef = ctx.callExpr(isReferenceInstance, input);
+            ctx.when(
+                isRef,
+                () => {
+                    // Reference instance - only validate the primary key
+                    const pkInput = input.get(pkName);
+                    const pkCheck = state.forProperty(pkName).build(pkType, pkInput) as Slot<boolean>;
+                    ctx.setVar(result, pkCheck);
+                },
+                () => {
+                    // Full object - validate all properties with guardObjectStrict
+                    ctx.setVar(result, guardObjectStrict(type, input, ctx, state) as Slot<boolean>);
+                },
+            );
+        },
+        () => {
+            // Not an object - check if it matches the primary key type
+            const pkCheck = state.build(pkType, input) as Slot<boolean>;
+            ctx.setVar(result, pkCheck);
+        },
+    );
+
+    return ctx.getVar(result);
+};
+
+/**
  * Fast string type guard - returns boolean directly.
  */
 const guardStringFast: TypeHandler = (type, input, ctx, state) => ctx.isType(input, 'string');
@@ -3166,6 +3284,51 @@ const guardStringFast: TypeHandler = (type, input, ctx, state) => ctx.isType(inp
  */
 const guardNumberFast: TypeHandler = (type, input, ctx, state) =>
     ctx.and(ctx.isType(input, 'number'), ctx.not(ctx.callExpr(Number.isNaN, input)));
+
+/**
+ * Check if a type is a branded number (integer, int8, float32, etc.)
+ */
+function isBrandedNumber(type: Type): boolean {
+    return type.kind === ReflectionKind.number && (type as TypeNumber).brand !== undefined;
+}
+
+/**
+ * Branded number type guard - checks integer constraints and range limits.
+ */
+const guardNumberBrandedFast: TypeHandler = (type, input, ctx, state) => {
+    const numType = type as TypeNumber;
+    const brand = numType.brand;
+
+    // Base check: must be a number and not NaN
+    const isNum = ctx.and(ctx.isType(input, 'number'), ctx.not(ctx.callExpr(Number.isNaN, input)));
+
+    if (brand === undefined) {
+        return isNum;
+    }
+
+    // Integer brands: check integer and range
+    if (brand < TypeNumberBrand.float) {
+        const range = integerRanges[brand];
+        const isInt = ctx.callExpr(Number.isInteger, input);
+        if (range) {
+            const [min, max] = range;
+            const inRange = ctx.and(ctx.gte(input, ctx.lit(min)), ctx.lte(input, ctx.lit(max)));
+            return ctx.and(isNum, ctx.and(isInt, inRange));
+        } else {
+            // Generic integer (no specific range)
+            return ctx.and(isNum, isInt);
+        }
+    }
+
+    // float32: check range
+    if (brand === TypeNumberBrand.float32) {
+        const inRange = ctx.and(ctx.gte(input, ctx.lit(-float32Max)), ctx.lte(input, ctx.lit(float32Max)));
+        return ctx.and(isNum, inRange);
+    }
+
+    // Other float brands: just check is number
+    return isNum;
+};
 
 /**
  * Fast boolean type guard.
@@ -3202,7 +3365,7 @@ const guardLiteralFast: TypeHandler = (type, input, ctx, state) => {
 
 /**
  * Fast array type guard - checks Array.isArray and element types.
- * Uses buildFastTypeGuard for element checking which handles recursive types via caching.
+ * Uses inline element checking via state.build() to preserve circular reference detection.
  */
 const guardArrayFast: TypeHandler = (type, input, ctx, state) => {
     const arrType = type as TypeArray;
@@ -3215,17 +3378,25 @@ const guardArrayFast: TypeHandler = (type, input, ctx, state) => {
         return isArray;
     }
 
-    // For typed arrays: Array.isArray(x) && x.every(elem => check(elem))
-    // buildFastTypeGuard handles recursive types via caching
-    const elemChecker = state.serializer.buildFastTypeGuard(elementType);
+    // For typed arrays: Array.isArray(x) && all elements match type
+    // Pre-trigger any extracted function creation BEFORE entering the loop
+    // This ensures fnSlot variables are declared at the right scope level
+    const dummyInput = ctx.lit(undefined as any);
+    state.build(elementType, dummyInput);
 
-    const allValid = ctx.callExpr(
-        (arr: any[], checker: (e: any) => boolean) => arr.every(checker),
-        input,
-        ctx.lit(elemChecker),
-    );
+    // Now use inline loop with state.build() - any extracted functions are already created
+    const allValid = ctx.var_<boolean>(ctx.lit(true));
+    ctx.when(isArray, () => {
+        ctx.loop(input, (elem, idx) => {
+            const elemCheck = state.build(elementType, elem) as Slot<boolean>;
+            // If any element fails, set allValid to false
+            ctx.when(ctx.not(elemCheck), () => {
+                ctx.setVar(allValid, ctx.lit(false));
+            });
+        });
+    });
 
-    return ctx.and(isArray, allValid);
+    return ctx.and(isArray, ctx.getVar(allValid));
 };
 
 /**
@@ -3234,12 +3405,31 @@ const guardArrayFast: TypeHandler = (type, input, ctx, state) => {
 const guardUnionFast: TypeHandler = (type, input, ctx, state) => {
     const unionType = type as TypeUnion;
 
+    // Use a child state with inUnionContext=true to suppress error collection
+    // for member checks - only the union as a whole should report an error
+    const memberState = state.forUnionMember();
+
     // Build || chain: member1Check || member2Check || ...
     let result: Slot<boolean> = ctx.lit(false);
     for (const member of unionType.types) {
-        const memberCheck = state.build(member, input) as Slot<boolean>;
+        const memberCheck = memberState.build(member, input) as Slot<boolean>;
         result = ctx.or(result, memberCheck);
     }
+
+    // If collecting errors and all members failed, add ONE error for the union
+    if (state.collectErrors && !state.inUnionContext) {
+        const errorsSlot = state.optionsSlot.get('errors' as any);
+        const resultVar = ctx.var_(result);
+        ctx.when(ctx.and(errorsSlot, ctx.not(ctx.getVar(resultVar))), () => {
+            const expectedType = stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim();
+            const valueStr = ctx.callExpr(stringifyValueWithType, input);
+            const errorMsg = ctx.concat(ctx.lit('Cannot convert '), valueStr, ctx.lit(' to '), ctx.lit(expectedType));
+            const errorItem = ctx.newExpr(ValidationErrorItem, state.pathSlot(), ctx.lit('type'), errorMsg, input);
+            ctx.push(errorsSlot, errorItem);
+        });
+        return ctx.getVar(resultVar);
+    }
+
     return result;
 };
 
@@ -3341,58 +3531,60 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
     }
 
     // Handle index signatures (e.g., { [key: string]: number })
+    // Uses inline value checking via forIn + state.build() to preserve circular reference detection
     if (indexSignature) {
         const valueType = indexSignature.type;
         const indexType = indexSignature.index;
-        // Use buildFastTypeGuard which handles recursive types via caching
-        const fastChecker = state.serializer.buildFastTypeGuard(valueType);
 
-        // Runtime function to validate all keys in the object against index signature
-        const validateIndexSignature = (
-            obj: any,
-            explicit: Set<string>,
-            checker: (v: any) => boolean,
-            idxType: Type,
-            reflectionKind: typeof ReflectionKind,
-            extendTemplateLiteralFn: typeof extendTemplateLiteral,
-        ): boolean => {
-            for (const key of Object.keys(obj)) {
-                if (explicit.has(key)) continue;
+        const indexValid = ctx.var_<boolean>(ctx.lit(true));
 
+        ctx.forIn(input, (key, value) => {
+            // Skip explicit properties
+            const isExplicit = ctx.callExpr(
+                (explicit: Set<string>, k: string) => explicit.has(k),
+                ctx.lit(explicitProps),
+                key,
+            );
+            ctx.when(ctx.not(isExplicit), () => {
                 // Check if key matches the index signature pattern
-                if (idxType.kind === reflectionKind.templateLiteral) {
-                    const keyLiteral = { kind: reflectionKind.literal, literal: key } as any;
-                    if (!extendTemplateLiteralFn(keyLiteral, idxType as any)) {
-                        continue; // Key doesn't match template, skip
-                    }
-                } else if (idxType.kind === reflectionKind.number) {
-                    const numKey = Number(key);
-                    if (isNaN(numKey) || key === '') {
-                        continue; // Key is not numeric, skip
-                    }
+                let keyMatches: Slot<boolean>;
+                if (indexType.kind === ReflectionKind.templateLiteral) {
+                    // Template literal key - check if key matches pattern
+                    keyMatches = ctx.callExpr(
+                        (k: string, idxType: Type, fn: typeof extendTemplateLiteral, kind: typeof ReflectionKind) => {
+                            const keyLiteral = { kind: kind.literal, literal: k } as any;
+                            return fn(keyLiteral, idxType as any);
+                        },
+                        key,
+                        ctx.lit(indexType),
+                        ctx.lit(extendTemplateLiteral),
+                        ctx.lit(ReflectionKind),
+                    );
+                } else if (indexType.kind === ReflectionKind.number) {
+                    // Numeric key - check if key can be parsed as number
+                    keyMatches = ctx.callExpr((k: string) => {
+                        const numKey = Number(k);
+                        return !isNaN(numKey) && k !== '';
+                    }, key);
+                } else {
+                    // String index signature - all keys match
+                    keyMatches = ctx.lit(true);
                 }
-                // For string index signatures, all keys match
 
-                const value = obj[key];
-                if (value === undefined) continue; // Skip undefined values
+                ctx.when(keyMatches, () => {
+                    // Skip undefined values
+                    ctx.when(ctx.neq(value, ctx.lit(undefined)), () => {
+                        // Check value type using inline state.build() for circular reference detection
+                        const valueCheck = state.build(valueType, value) as Slot<boolean>;
+                        ctx.when(ctx.not(valueCheck), () => {
+                            ctx.setVar(indexValid, ctx.lit(false));
+                        });
+                    });
+                });
+            });
+        });
 
-                if (!checker(value)) {
-                    return false;
-                }
-            }
-            return true;
-        };
-
-        const indexValid = ctx.callExpr(
-            validateIndexSignature,
-            input,
-            ctx.lit(explicitProps),
-            ctx.lit(fastChecker),
-            ctx.lit(indexType),
-            ctx.lit(ReflectionKind),
-            ctx.lit(extendTemplateLiteral),
-        );
-        result = ctx.and(result, indexValid);
+        result = ctx.and(result, ctx.getVar(indexValid));
     }
 
     return result;
@@ -3401,7 +3593,7 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
 /**
  * Strict array type guard - checks Array.isArray and element types using strict checking.
  * This ensures nested objects in arrays also reject unknown keys.
- * Uses buildStrictTypeGuard for element checking which handles recursive types via caching.
+ * Uses inline element checking via state.build() to preserve circular reference detection.
  */
 const guardArrayStrict: TypeHandler = (type, input, ctx, state) => {
     const arrType = type as TypeArray;
@@ -3409,27 +3601,45 @@ const guardArrayStrict: TypeHandler = (type, input, ctx, state) => {
 
     const isArray = ctx.callExpr(Array.isArray, input);
 
+    // Add error when input is not an array and collectErrors is enabled
+    if (state.collectErrors) {
+        const errorsSlot = state.optionsSlot.get('errors' as any);
+        ctx.when(ctx.and(errorsSlot, ctx.not(isArray)), () => {
+            const errorItem = ctx.newExpr(
+                ValidationErrorItem,
+                state.pathSlot(),
+                ctx.lit('type'),
+                ctx.lit('Not an array'),
+                input,
+            );
+            ctx.push(errorsSlot, errorItem);
+        });
+    }
+
     // For any[] just check Array.isArray
     if (elementType.kind === ReflectionKind.any) {
         return isArray;
     }
 
-    // For typed arrays: Array.isArray(x) && x.every(elem => strictCheck(elem))
-    // buildStrictTypeGuard handles recursive types via caching
-    const elemChecker = state.serializer.buildStrictTypeGuard(elementType);
+    // For typed arrays: Array.isArray(x) && all elements match type
+    // Use inline loop with state.forIndex() to include array index in error paths
+    const allValid = ctx.var_<boolean>(ctx.lit(true));
+    ctx.when(isArray, () => {
+        ctx.loop(input, (elem, idx) => {
+            const elemState = state.forIndex(idx);
+            const elemCheck = elemState.build(elementType, elem) as Slot<boolean>;
+            // If any element fails, set allValid to false
+            ctx.when(ctx.not(elemCheck), () => {
+                ctx.setVar(allValid, ctx.lit(false));
+            });
+        });
+    });
 
-    const allValid = ctx.callExpr(
-        (arr: any[], checker: (e: any) => boolean) => arr.every(checker),
-        input,
-        ctx.lit(elemChecker),
-    );
-
-    return ctx.and(isArray, allValid);
+    return ctx.and(isArray, ctx.getVar(allValid));
 };
 
 /**
  * Strict tuple type guard - checks array length and element types using strict checking.
- * Uses buildStrictTypeGuard for element checking which handles recursive types via caching.
  */
 const guardTupleStrict: TypeHandler = (type, input, ctx, state) => {
     const tupleType = type as TypeTuple;
@@ -3451,16 +3661,14 @@ const guardTupleStrict: TypeHandler = (type, input, ctx, state) => {
 
     if (restIndex === -1) {
         // No rest element - simple case
+        // Use inline state.forIndex() or forProperty() to include tuple index/name in error paths
         result = ctx.and(result, ctx.eq(ctx.len(input), ctx.lit(tupleType.types.length)));
         for (let i = 0; i < tupleType.types.length; i++) {
             const elemType = tupleType.types[i];
-            const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
             const elemInput = ctx.at(input, i);
-            const elemCheck = ctx.callExpr(
-                (v: any, checker: (e: any) => boolean) => checker(v),
-                elemInput,
-                ctx.lit(elemChecker),
-            );
+            // Use named path if element has a name, otherwise use numeric index
+            const elemState = elemType.name ? state.forProperty(elemType.name) : state.forIndex(ctx.lit(i));
+            const elemCheck = elemState.build(elemType.type, elemInput) as Slot<boolean>;
             result = ctx.and(result, elemCheck);
         }
     } else {
@@ -3472,51 +3680,45 @@ const guardTupleStrict: TypeHandler = (type, input, ctx, state) => {
         const minLength = beforeRest + afterRest;
         result = ctx.and(result, ctx.gte(ctx.len(input), ctx.lit(minLength)));
 
-        // Check elements before rest
+        // Check elements before rest using inline state.build()
         for (let i = 0; i < beforeRest; i++) {
             const elemType = tupleType.types[i];
-            const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
             const elemInput = ctx.at(input, i);
-            const elemCheck = ctx.callExpr(
-                (v: any, checker: (e: any) => boolean) => checker(v),
-                elemInput,
-                ctx.lit(elemChecker),
-            );
+            const elemCheck = state.build(elemType.type, elemInput) as Slot<boolean>;
             result = ctx.and(result, elemCheck);
         }
 
-        // Check rest elements at runtime
+        // Check rest elements using inline loop with state.build() for circular reference detection
         if (restType) {
-            const strictChecker = state.serializer.buildStrictTypeGuard(restType);
-            const restValid = ctx.callExpr(
-                (arr: any[], startIdx: number, endOffset: number, checker: (e: any) => boolean) => {
-                    const endIdx = arr.length - endOffset;
-                    for (let j = startIdx; j < endIdx; j++) {
-                        if (!checker(arr[j])) return false;
-                    }
-                    return true;
-                },
-                input,
-                ctx.lit(restIndex),
-                ctx.lit(afterRest),
-                ctx.lit(strictChecker),
-            );
-            result = ctx.and(result, restValid);
+            const restValid = ctx.var_<boolean>(ctx.lit(true));
+            // Loop from restIndex to (arr.length - afterRest)
+            ctx.loop(input, (elem, idx) => {
+                // Check if index is in rest range: idx >= restIndex && idx < arr.length - afterRest
+                const inRestRange = ctx.and(
+                    ctx.gte(idx, ctx.lit(restIndex)),
+                    ctx.lt(
+                        idx,
+                        ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(afterRest)),
+                    ),
+                );
+                ctx.when(inRestRange, () => {
+                    const elemCheck = state.build(restType, elem) as Slot<boolean>;
+                    ctx.when(ctx.not(elemCheck), () => {
+                        ctx.setVar(restValid, ctx.lit(false));
+                    });
+                });
+            });
+            result = ctx.and(result, ctx.getVar(restValid));
         }
 
-        // Check elements after rest (from the end)
+        // Check elements after rest (from the end) using inline state.build()
         for (let i = 0; i < afterRest; i++) {
             const memberIdx = restIndex + 1 + i;
             const elemType = tupleType.types[memberIdx];
-            const elemChecker = state.serializer.buildStrictTypeGuard(elemType.type);
             // Access from end of array: arr[arr.length - (afterRest - i)]
             const offset = afterRest - i;
             const inputIdx = ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(offset));
-            const elemCheck = ctx.callExpr(
-                (v: any, checker: (e: any) => boolean) => checker(v),
-                ctx.at(input, inputIdx),
-                ctx.lit(elemChecker),
-            );
+            const elemCheck = state.build(elemType.type, ctx.at(input, inputIdx)) as Slot<boolean>;
             result = ctx.and(result, elemCheck);
         }
     }
@@ -3536,67 +3738,289 @@ const guardObjectStrict: TypeHandler = (type, input, ctx, state) => {
     const objType = type as TypeObjectLiteral | TypeClass;
     const members = resolveTypeMembers(objType);
 
-    // Collect property info
+    // Collect property info, methods, and index signatures
     const propNames: string[] = [];
+    const explicitProps = new Set<string>();
     let hasOptional = false;
+    const indexSignatures: TypeIndexSignature[] = [];
+    const methods: (TypeMethod | TypeMethodSignature)[] = [];
     for (const member of members) {
-        if (!isPropertyMemberType(member)) continue;
-        propNames.push(memberNameToString(member.name));
-        if (isOptional(member)) hasOptional = true;
+        if (member.kind === ReflectionKind.indexSignature) {
+            indexSignatures.push(member);
+        } else if (isPropertyMemberType(member)) {
+            const propName = memberNameToString(member.name);
+            propNames.push(propName);
+            explicitProps.add(propName);
+            if (isOptional(member)) hasOptional = true;
+        } else if (member.kind === ReflectionKind.method || member.kind === ReflectionKind.methodSignature) {
+            methods.push(member as TypeMethod | TypeMethodSignature);
+            const methodName = memberNameToString(member.name);
+            propNames.push(methodName);
+            explicitProps.add(methodName);
+        }
     }
 
-    // Start with basic object check
-    let result: Slot<boolean> = ctx.and(
+    // Basic object check
+    const isObject = ctx.and(
         ctx.isType(input, 'object'),
         ctx.and(ctx.not(ctx.isNull(input)), ctx.not(ctx.callExpr(Array.isArray, input))),
     );
 
-    // Check all known properties (same as guardObjectFast)
-    for (const member of members) {
-        if (!isPropertyMemberType(member)) continue;
+    // Result variable - will be set inside object check
+    const result = ctx.var_<boolean>(ctx.lit(false));
 
-        const propName = memberNameToString(member.name);
-        const propType = member.type;
-        const isOpt = isOptional(member);
-        const propInput = input.get(propName);
+    // Add error when input is not an object and collectErrors is enabled
+    if (state.collectErrors) {
+        const errorsSlot = state.optionsSlot.get('errors' as any);
+        ctx.when(ctx.and(errorsSlot, ctx.not(isObject)), () => {
+            const errorItem = ctx.newExpr(
+                ValidationErrorItem,
+                state.pathSlot(),
+                ctx.lit('type'),
+                ctx.lit('Not an object'),
+                input,
+            );
+            ctx.push(errorsSlot, errorItem);
+        });
+    }
 
-        if (!isOpt) {
-            const hasProp = ctx.has(input, propName);
-            const childState = state.forProperty(propName);
-            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-            result = ctx.and(result, ctx.and(hasProp, propCheck));
-        } else {
-            // Optional: value must be undefined OR match type
-            const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
-            const childState = state.forProperty(propName);
-            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-            result = ctx.and(result, ctx.or(propIsUndefined, propCheck));
+    // Only check properties if input is actually an object
+    ctx.when(isObject, () => {
+        let propertyCheck: Slot<boolean> = ctx.lit(true);
+
+        // Check all known properties
+        for (const member of members) {
+            if (!isPropertyMemberType(member)) continue;
+
+            const propName = memberNameToString(member.name);
+            const propType = member.type;
+            const isOpt = isOptional(member);
+            const propInput = input.get(propName);
+
+            if (!isOpt) {
+                const hasProp = ctx.has(input, propName);
+                const childState = state.forProperty(propName);
+                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                propertyCheck = ctx.and(propertyCheck, ctx.and(hasProp, propCheck));
+            } else {
+                // Optional: value must be undefined, null, OR match type
+                // Only run type guard when value is present to avoid adding errors for undefined
+                const propIsNullOrUndefined = ctx.or(ctx.eq(propInput, ctx.lit(undefined)), ctx.isNull(propInput));
+                const propValid = ctx.var_<boolean>(ctx.lit(true));
+                ctx.when(ctx.not(propIsNullOrUndefined), () => {
+                    const childState = state.forProperty(propName);
+                    const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                    ctx.setVar(propValid, propCheck);
+                });
+                propertyCheck = ctx.and(propertyCheck, ctx.getVar(propValid));
+            }
+        }
+
+        // Check all methods - but only for objectLiteral types
+        // For class types, methods are on the prototype and shouldn't be validated on instance data
+        if (objType.kind === ReflectionKind.objectLiteral) {
+            for (const method of methods) {
+                const methodName = memberNameToString(method.name);
+                const methodInput = input.get(methodName);
+                const isOpt = isOptional(method);
+
+                if (!isOpt) {
+                    const hasMethod = ctx.has(input, methodName);
+                    const childState = state.forProperty(methodName);
+                    // Use build() to go through the registry and use signature validation
+                    const methodCheck = childState.build(method, methodInput) as Slot<boolean>;
+                    propertyCheck = ctx.and(propertyCheck, ctx.and(hasMethod, methodCheck));
+                } else {
+                    // Optional: value must be undefined, null, OR match method type
+                    const methodIsNullOrUndefined = ctx.or(
+                        ctx.eq(methodInput, ctx.lit(undefined)),
+                        ctx.isNull(methodInput),
+                    );
+                    const childState = state.forProperty(methodName);
+                    const methodCheck = childState.build(method, methodInput) as Slot<boolean>;
+                    propertyCheck = ctx.and(propertyCheck, ctx.or(methodIsNullOrUndefined, methodCheck));
+                }
+            }
+        }
+
+        ctx.setVar(result, propertyCheck);
+    });
+
+    // Handle index signatures (e.g., { [key: string]: number })
+    if (indexSignatures.length > 0) {
+        const indexValid = ctx.var_<boolean>(ctx.lit(true));
+
+        // Runtime function to validate index signature values with error collection
+        const validateIndexSignatureValue = (
+            obj: any,
+            key: string,
+            value: any,
+            signatures: TypeIndexSignature[],
+            explicit: Set<string>,
+            serializer: any,
+            basePath: string,
+            errors: ValidationErrorItem[] | undefined,
+            kind: typeof ReflectionKind,
+            ValidationErrorItemClass: typeof ValidationErrorItem,
+            extendTemplateLiteralFn: typeof extendTemplateLiteral,
+        ): boolean => {
+            if (explicit.has(key)) return true;
+            if (value === undefined) return true;
+
+            // Check if key is numeric
+            const numKey = Number(key);
+            const isNumericKey = !isNaN(numKey) && key !== '';
+
+            // Find matching signature
+            let matchedSignature: TypeIndexSignature | undefined;
+            let stringSignature: TypeIndexSignature | undefined;
+            for (const sig of signatures) {
+                if (sig.index.kind === kind.number && isNumericKey) {
+                    matchedSignature = sig;
+                    break;
+                } else if (sig.index.kind === kind.templateLiteral) {
+                    // Template literal index signature - check if key matches pattern
+                    const keyLiteral = { kind: kind.literal, literal: key } as any;
+                    if (extendTemplateLiteralFn(keyLiteral, sig.index as any)) {
+                        matchedSignature = sig;
+                        break; // Template literal match takes precedence
+                    }
+                } else if (sig.index.kind === kind.string) {
+                    stringSignature = sig;
+                }
+            }
+            if (!matchedSignature) matchedSignature = stringSignature;
+            // If no matching signature found, key is not allowed by any index signature
+            // Return false to reject the key
+            if (!matchedSignature) return false;
+
+            // Build path: basePath.key
+            const valuePath = basePath ? `${basePath}.${key}` : key;
+
+            // Validate with error collection
+            // Create a temporary errors array, then post-process to prepend base path
+            const typeGuard = serializer.buildTypeGuard(matchedSignature.type, true);
+            if (errors) {
+                const tempErrors: ValidationErrorItem[] = [];
+                const isValid = typeGuard(value, { errors: tempErrors });
+                // Copy errors to main array, prepending the base path (basePath.key)
+                for (const err of tempErrors) {
+                    const fullPath = err.path ? `${valuePath}.${err.path}` : valuePath;
+                    errors.push(new ValidationErrorItemClass(fullPath, err.code, err.message, err.value));
+                }
+                return isValid;
+            } else {
+                return typeGuard(value, {});
+            }
+        };
+
+        // Index signature validation needs to be inside the object check
+        ctx.when(ctx.getVar(result), () => {
+            const errorsSlot = state.optionsSlot.get('errors' as any);
+
+            ctx.forIn(input, (key, value) => {
+                const keyValid = ctx.callExpr(
+                    validateIndexSignatureValue,
+                    input,
+                    key,
+                    value,
+                    ctx.lit(indexSignatures),
+                    ctx.lit(explicitProps),
+                    ctx.lit(state.serializer),
+                    state.pathSlot(),
+                    errorsSlot,
+                    ctx.lit(ReflectionKind),
+                    ctx.lit(ValidationErrorItem),
+                    ctx.lit(extendTemplateLiteral),
+                );
+                ctx.when(ctx.not(keyValid), () => {
+                    ctx.setVar(indexValid, ctx.lit(false));
+                });
+            });
+
+            ctx.when(ctx.not(ctx.getVar(indexValid)), () => {
+                ctx.setVar(result, ctx.lit(false));
+            });
+        });
+    }
+
+    // Only check for unknown keys if rejectUnknownKeys is enabled (isStrict mode)
+    // and there's no index signature (index signatures accept any key matching the pattern)
+    if (state.rejectUnknownKeys && indexSignatures.length === 0) {
+        ctx.when(ctx.getVar(result), () => {
+            if (!hasOptional) {
+                // Fast path: no optional properties, just check key count
+                // Object.keys(obj).length === expectedCount
+                const keysLength = ctx.callExpr((obj: any) => Object.keys(obj).length, input);
+                ctx.when(ctx.neq(keysLength, ctx.lit(propNames.length)), () => {
+                    ctx.setVar(result, ctx.lit(false));
+                });
+            } else {
+                // Slow path: has optional properties, need to iterate
+                const allowedKeys = new Set(propNames);
+                const checkUnknownKeys = ctx.callExpr(
+                    (obj: any, allowed: Set<string>) => {
+                        for (const key of Object.keys(obj)) {
+                            if (!allowed.has(key)) return false;
+                        }
+                        return true;
+                    },
+                    input,
+                    ctx.lit(allowedKeys),
+                );
+                ctx.when(ctx.not(checkUnknownKeys), () => {
+                    ctx.setVar(result, ctx.lit(false));
+                });
+            }
+        });
+    }
+
+    // For class types, check if there's a class-level validator method
+    if (state.collectErrors && objType.kind === ReflectionKind.class) {
+        const reflection = ReflectionClass.from((objType as TypeClass).classType);
+        if (reflection.validationMethod) {
+            const methodName = reflection.validationMethod;
+            const errorsSlot = state.optionsSlot.get('errors' as any);
+            // Call the validator method on the instance
+            const callClassValidator = (
+                obj: any,
+                validatorMethod: string | symbol | number,
+                errors: ValidationErrorItem[] | undefined,
+                basePath: string,
+                validatorErrorClass: typeof ValidatorError,
+                validationErrorItemClass: typeof ValidationErrorItem,
+            ): void => {
+                if (!obj || typeof obj[validatorMethod] !== 'function') return;
+                const validationResult = obj[validatorMethod]();
+                if (validationResult instanceof validatorErrorClass) {
+                    if (errors) {
+                        errors.push(
+                            new validationErrorItemClass(
+                                basePath,
+                                validationResult.code,
+                                validationResult.message,
+                                obj,
+                            ),
+                        );
+                    }
+                }
+            };
+            // Call the validator - use ctx.let to ensure the statement is emitted
+            ctx.let(
+                ctx.callExpr(
+                    callClassValidator,
+                    input,
+                    ctx.lit(methodName),
+                    errorsSlot,
+                    state.pathSlot(),
+                    ctx.lit(ValidatorError),
+                    ctx.lit(ValidationErrorItem),
+                ),
+            );
         }
     }
 
-    // Check for unknown keys
-    if (!hasOptional) {
-        // Fast path: no optional properties, just check key count
-        // Object.keys(obj).length === expectedCount
-        const keysLength = ctx.callExpr((obj: any) => Object.keys(obj).length, input);
-        result = ctx.and(result, ctx.eq(keysLength, ctx.lit(propNames.length)));
-    } else {
-        // Slow path: has optional properties, need to iterate
-        const allowedKeys = new Set(propNames);
-        const checkUnknownKeys = ctx.callExpr(
-            (obj: any, allowed: Set<string>) => {
-                for (const key of Object.keys(obj)) {
-                    if (!allowed.has(key)) return false;
-                }
-                return true;
-            },
-            input,
-            ctx.lit(allowedKeys),
-        );
-        result = ctx.and(result, checkUnknownKeys);
-    }
-
-    return result;
+    return ctx.getVar(result);
 };
 
 /**
@@ -3605,14 +4029,89 @@ const guardObjectStrict: TypeHandler = (type, input, ctx, state) => {
 const guardDateFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof Date, input);
 
 /**
- * Fast Set type guard - checks instanceof Set.
+ * Set type guard - checks instanceof Set and validates element types.
  */
-const guardSetFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof Set, input);
+const guardSetFast: TypeHandler = (type, input, ctx, state) => {
+    const classType = type as TypeClass;
+    const elementType = classType.arguments?.[0] || { kind: ReflectionKind.any };
+
+    const isSet = ctx.callExpr((v: any) => v instanceof Set, input);
+
+    // If element type is any, just check instanceof
+    if (elementType.kind === ReflectionKind.any) {
+        return isSet;
+    }
+
+    // Validate element types using runtime function
+    const validateSetElements = (set: Set<any>, elemType: Type, serializer: any): boolean => {
+        for (const elem of set) {
+            const validator = serializer.buildFastTypeGuard(elemType);
+            if (!validator(elem)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const result = ctx.var_<boolean>(ctx.lit(false));
+    ctx.when(isSet, () => {
+        const elementsValid = ctx.callExpr(validateSetElements, input, ctx.lit(elementType), ctx.lit(state.serializer));
+        ctx.setVar(result, elementsValid);
+    });
+
+    return ctx.getVar(result);
+};
 
 /**
- * Fast Map type guard - checks instanceof Map.
+ * Map type guard - checks instanceof Map and validates key/value types.
  */
-const guardMapFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof Map, input);
+const guardMapFast: TypeHandler = (type, input, ctx, state) => {
+    const classType = type as TypeClass;
+    const keyType = classType.arguments?.[0] || { kind: ReflectionKind.any };
+    const valueType = classType.arguments?.[1] || { kind: ReflectionKind.any };
+
+    const isMap = ctx.callExpr((v: any) => v instanceof Map, input);
+
+    // If both key and value types are any, just check instanceof
+    if (keyType.kind === ReflectionKind.any && valueType.kind === ReflectionKind.any) {
+        return isMap;
+    }
+
+    // Validate key and value types using runtime function
+    const validateMapEntries = (map: Map<any, any>, kType: Type, vType: Type, serializer: any): boolean => {
+        for (const [key, value] of map) {
+            // Validate key
+            if (kType.kind !== ReflectionKind.any) {
+                const keyValidator = serializer.buildFastTypeGuard(kType);
+                if (!keyValidator(key)) {
+                    return false;
+                }
+            }
+            // Validate value
+            if (vType.kind !== ReflectionKind.any) {
+                const valueValidator = serializer.buildFastTypeGuard(vType);
+                if (!valueValidator(value)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    const result = ctx.var_<boolean>(ctx.lit(false));
+    ctx.when(isMap, () => {
+        const entriesValid = ctx.callExpr(
+            validateMapEntries,
+            input,
+            ctx.lit(keyType),
+            ctx.lit(valueType),
+            ctx.lit(state.serializer),
+        );
+        ctx.setVar(result, entriesValid);
+    });
+
+    return ctx.getVar(result);
+};
 
 /**
  * Fast RegExp type guard - checks instanceof RegExp.
@@ -3620,9 +4119,44 @@ const guardMapFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: 
 const guardRegExpFast: TypeHandler = (type, input, ctx, state) => ctx.callExpr((v: any) => v instanceof RegExp, input);
 
 /**
- * Fast function type guard - checks typeof === 'function'.
+ * Function type guard - checks typeof === 'function' and validates signature if __type is present.
  */
-const guardFunctionFast: TypeHandler = (type, input, ctx, state) => ctx.isType(input, 'function');
+const guardFunctionFast: TypeHandler = (type, input, ctx, state) => {
+    const funcType = type as TypeFunction;
+
+    // Runtime validator that checks function type compatibility
+    const validateFunction = (
+        fn: any,
+        expectedType: TypeFunction,
+        isExtendableFn: typeof isExtendable,
+        resolveRuntimeTypeFn: typeof resolveRuntimeType,
+        reflectionKind: typeof ReflectionKind,
+    ): boolean => {
+        if (typeof fn !== 'function') return false;
+
+        // If the value function has __type, validate against the expected type
+        if ('__type' in fn) {
+            const actualType = resolveRuntimeTypeFn(fn);
+            if (actualType && actualType.kind === reflectionKind.function) {
+                // Use isExtendable to check if actual function type extends expected type
+                if (!isExtendableFn(actualType, expectedType)) {
+                    return false;
+                }
+            }
+        }
+        // Functions without __type are treated as any => any, which passes
+        return true;
+    };
+
+    return ctx.callExpr(
+        validateFunction,
+        input,
+        ctx.lit(funcType),
+        ctx.lit(isExtendable),
+        ctx.lit(resolveRuntimeType),
+        ctx.lit(ReflectionKind),
+    );
+};
 
 /**
  * Fast enum type guard - checks if value is in enum values.
@@ -3690,19 +4224,27 @@ const guardTupleFast: TypeHandler = (type, input, ctx, state) => {
             result = ctx.and(result, elemCheck);
         }
 
-        // Check rest elements using buildFastTypeGuard for proper recursion handling
+        // Check rest elements using inline loop with state.build() for circular reference detection
         if (restType) {
-            const restChecker = state.serializer.buildFastTypeGuard(restType);
-            // Extract rest elements and check all with .every()
-            const restValid = ctx.callExpr(
-                (arr: any[], start: number, end: number, checker: (e: any) => boolean) =>
-                    arr.slice(start, end).every(checker),
-                input,
-                ctx.lit(restIndex),
-                ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(afterRest)),
-                ctx.lit(restChecker),
-            );
-            result = ctx.and(result, restValid);
+            const restValid = ctx.var_<boolean>(ctx.lit(true));
+            // Loop from restIndex to (arr.length - afterRest)
+            ctx.loop(input, (elem, idx) => {
+                // Check if index is in rest range: idx >= restIndex && idx < arr.length - afterRest
+                const inRestRange = ctx.and(
+                    ctx.gte(idx, ctx.lit(restIndex)),
+                    ctx.lt(
+                        idx,
+                        ctx.callExpr((arr: any[], off: number) => arr.length - off, input, ctx.lit(afterRest)),
+                    ),
+                );
+                ctx.when(inRestRange, () => {
+                    const elemCheck = state.build(restType, elem) as Slot<boolean>;
+                    ctx.when(ctx.not(elemCheck), () => {
+                        ctx.setVar(restValid, ctx.lit(false));
+                    });
+                });
+            });
+            result = ctx.and(result, ctx.getVar(restValid));
         }
 
         // Check elements after rest (from the end)
@@ -3791,85 +4333,14 @@ export function registerDefaultHandlers(serializer: Serializer): void {
     deserializeRegistry.addDecorator(isMongoIdType, deserializeMongoId);
 }
 
-export function registerDefaultTypeGuards(serializer: Serializer): void {
-    const typeGuards = serializer.typeGuards;
-    typeGuards.register(1, ReflectionKind.string, guardStringExact);
-    typeGuards.register(1, ReflectionKind.number, guardNumberBranded);
-    typeGuards.register(1, ReflectionKind.boolean, guardBooleanExact);
-    typeGuards.register(1, ReflectionKind.bigint, guardBigIntExact);
-    typeGuards.register(1, ReflectionKind.null, guardNull);
-    typeGuards.register(1, ReflectionKind.undefined, guardUndefined);
-    typeGuards.register(1, ReflectionKind.any, guardAny);
-    typeGuards.register(20, ReflectionKind.any, guardAny);
-    typeGuards.register(1, ReflectionKind.literal, guardLiteral);
-    typeGuards.register(1, ReflectionKind.enum, guardEnum);
-    typeGuards.register(1, ReflectionKind.array, guardArrayTyped);
-    typeGuards.register(1, ReflectionKind.tuple, guardTuple);
-    typeGuards.register(1, ReflectionKind.objectLiteral, guardObject);
-    typeGuards.register(1, ReflectionKind.class, guardObject);
-    typeGuards.register(1, ReflectionKind.union, guardUnion);
-    typeGuards.register(1, ReflectionKind.function, guardFunction);
-    typeGuards.register(1, ReflectionKind.templateLiteral, guardTemplateLiteral);
-    typeGuards.registerClass(1, Date, guardDateExact);
-    typeGuards.registerClass(1, Set, guardSet);
-    typeGuards.registerClass(1, Map, guardMap);
-    // RegExp has its own ReflectionKind.regexp, not ReflectionKind.class
-    typeGuards.register(1, ReflectionKind.regexp, guardRegExp);
-
-    // Binary type guards
-    typeGuards.registerBinary(1, guardTypedArray);
-    typeGuards.registerBinary(10, guardTypedArrayLoose);
-
-    // Reference type guard - decorator handler
-    typeGuards.addDecorator(1, isReferenceType, guardReference);
-
-    // Special string type guards (NanoId, UUID, MongoId)
-    typeGuards.addDecorator(1, isNanoIdType, guardNanoId);
-    typeGuards.addDecorator(1, isUUIDType, guardUUID);
-    typeGuards.addDecorator(1, isMongoIdType, guardMongoId);
-}
-
 /**
- * Register fast type guards for the serializer.
- * Fast guards return booleans directly without error collection.
+ * Register unified type guards for the serializer.
+ * Behavior is controlled by state.collectErrors and state.rejectUnknownKeys flags.
  */
-export function registerFastTypeGuards(serializer: Serializer): void {
-    const reg = serializer.fastTypeGuards;
+export function registerTypeGuards(serializer: Serializer): void {
+    const reg = serializer.typeGuards;
 
     // Primitives
-    reg.register(ReflectionKind.string, guardStringFast);
-    reg.register(ReflectionKind.number, guardNumberFast);
-    reg.register(ReflectionKind.boolean, guardBooleanFast);
-    reg.register(ReflectionKind.bigint, guardBigIntFast);
-    reg.register(ReflectionKind.null, guardNullFast);
-    reg.register(ReflectionKind.undefined, guardUndefinedFast);
-    reg.register(ReflectionKind.any, guardAnyFast);
-    reg.register(ReflectionKind.literal, guardLiteralFast);
-
-    // Compound types
-    reg.register(ReflectionKind.array, guardArrayFast);
-    reg.register(ReflectionKind.union, guardUnionFast);
-    reg.register(ReflectionKind.objectLiteral, guardObjectFast);
-    reg.register(ReflectionKind.class, guardObjectFast);
-    reg.register(ReflectionKind.enum, guardEnumFast);
-    reg.register(ReflectionKind.tuple, guardTupleFast);
-    reg.register(ReflectionKind.function, guardFunctionFast);
-    reg.register(ReflectionKind.regexp, guardRegExpFast);
-
-    // Class types
-    reg.registerClass(Date, guardDateFast);
-    reg.registerClass(Set, guardSetFast);
-    reg.registerClass(Map, guardMapFast);
-}
-
-/**
- * Register strict type guard handlers (reject unknown keys).
- * Used for isStrict<T>() / assertStrict.
- */
-export function registerStrictTypeGuards(serializer: Serializer): void {
-    const reg = serializer.strictTypeGuards;
-
-    // Primitives - same as fast (no unknown keys concept)
     reg.register(ReflectionKind.string, guardStringFast);
     reg.register(ReflectionKind.number, guardNumberFast);
     reg.register(ReflectionKind.boolean, guardBooleanFast);
@@ -3887,10 +4358,220 @@ export function registerStrictTypeGuards(serializer: Serializer): void {
     reg.register(ReflectionKind.enum, guardEnumFast);
     reg.register(ReflectionKind.tuple, guardTupleStrict);
     reg.register(ReflectionKind.function, guardFunctionFast);
+    reg.register(ReflectionKind.method, guardFunctionFast);
+    reg.register(ReflectionKind.methodSignature, guardFunctionFast);
     reg.register(ReflectionKind.regexp, guardRegExpFast);
+    reg.register(ReflectionKind.templateLiteral, guardTemplateLiteralFast);
 
     // Class types
     reg.registerClass(Date, guardDateFast);
     reg.registerClass(Set, guardSetFast);
     reg.registerClass(Map, guardMapFast);
+
+    // Binary type guards
+    reg.registerBinary(guardTypedArrayFast);
+
+    // Reference type guard - decorator handler
+    reg.addDecorator(isReferenceType, guardReferenceFast);
+
+    // Branded number type guard (integer, int8, int16, etc.)
+    reg.addDecorator(isBrandedNumber, guardNumberBrandedFast);
+
+    // Special string type guards (NanoId, UUID, MongoId)
+    reg.addDecorator(isNanoIdType, guardNanoIdFast);
+    reg.addDecorator(isUUIDType, guardUUIDFast);
+    reg.addDecorator(isMongoIdType, guardMongoIdFast);
+
+    // Post-hook to add error messages when collectErrors is true
+    reg.addPostHook((type, input, ctx, state, next) => {
+        // If not collecting errors, just run the handler
+        if (!state.collectErrors) {
+            return next();
+        }
+
+        // If inside a union context, skip error adding - the union handler will add ONE error
+        if (state.inUnionContext) {
+            return next();
+        }
+
+        // Skip compound types that handle their own error collection:
+        // - Union: handled above (adds error when all members fail)
+        // - Array/Tuple: errors come from element checks with path info
+        // - Object/Class (with properties): errors come from property checks with path info
+        // But NOT built-in classes like Date, Set, Map which have simple type guards
+        if (
+            type.kind === ReflectionKind.union ||
+            type.kind === ReflectionKind.array ||
+            type.kind === ReflectionKind.tuple ||
+            type.kind === ReflectionKind.objectLiteral
+        ) {
+            return next();
+        }
+
+        // For class types, only skip user-defined classes (with properties)
+        // Built-in classes (Date, Set, Map, typed arrays) use simple guards that need the post-hook
+        if (type.kind === ReflectionKind.class) {
+            const classType = (type as TypeClass).classType;
+            // Built-in classes that have simple guards and need post-hook error handling
+            const builtinClasses = [Date, Set, Map, RegExp, ArrayBuffer, ...binaryTypes];
+            const isBuiltinClass = builtinClasses.includes(classType);
+            if (!isBuiltinClass) {
+                return next();
+            }
+        }
+
+        // Track error count before running the handler
+        const errorsSlot = state.optionsSlot.get('errors' as any);
+        const errorCountBefore = ctx.var_(ctx.ternary(errorsSlot, errorsSlot.get('length' as any), ctx.lit(0)));
+
+        // Run the handler
+        const result = next() as Slot<boolean>;
+
+        // Only add error if:
+        // 1. Validation failed (result is false)
+        // 2. No errors were added by child handlers (error count unchanged)
+        // This prevents duplicate errors from compound types
+        ctx.when(ctx.and(errorsSlot, ctx.not(result)), () => {
+            const errorCountAfter = errorsSlot.get('length' as any);
+            ctx.when(ctx.eq(ctx.getVar(errorCountBefore), errorCountAfter), () => {
+                // Special types with custom messages
+                if (isNanoIdType(type)) {
+                    const errorMsg = ctx.lit('Not a valid NanoId');
+                    const errorItem = ctx.newExpr(
+                        ValidationErrorItem,
+                        state.pathSlot(),
+                        ctx.lit('type'),
+                        errorMsg,
+                        input,
+                    );
+                    ctx.push(errorsSlot, errorItem);
+                    return;
+                }
+                if (isUUIDType(type)) {
+                    const errorMsg = ctx.lit('Not a valid UUID');
+                    const errorItem = ctx.newExpr(
+                        ValidationErrorItem,
+                        state.pathSlot(),
+                        ctx.lit('type'),
+                        errorMsg,
+                        input,
+                    );
+                    ctx.push(errorsSlot, errorItem);
+                    return;
+                }
+                if (isMongoIdType(type)) {
+                    const errorMsg = ctx.lit('Not a valid MongoId');
+                    const errorItem = ctx.newExpr(
+                        ValidationErrorItem,
+                        state.pathSlot(),
+                        ctx.lit('type'),
+                        errorMsg,
+                        input,
+                    );
+                    ctx.push(errorsSlot, errorItem);
+                    return;
+                }
+
+                const expectedType = stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim();
+                // Error message format depends on type:
+                // - string, boolean, bigint, Date: always "Not a X"
+                // - number: "Cannot convert X to number" for non-undefined values
+                // - others: "Not a X" for undefined, "Cannot convert" otherwise
+                const isDateType = type.kind === ReflectionKind.class && (type as TypeClass).classType === Date;
+                const useSimpleMessage =
+                    type.kind === ReflectionKind.string ||
+                    type.kind === ReflectionKind.boolean ||
+                    type.kind === ReflectionKind.bigint ||
+                    isDateType;
+
+                if (useSimpleMessage) {
+                    const errorMsg = ctx.lit(`Not a ${expectedType}`);
+                    const errorItem = ctx.newExpr(
+                        ValidationErrorItem,
+                        state.pathSlot(),
+                        ctx.lit('type'),
+                        errorMsg,
+                        input,
+                    );
+                    ctx.push(errorsSlot, errorItem);
+                } else if (type.kind === ReflectionKind.number) {
+                    // Numbers: "Not a number" for undefined, "Cannot convert" otherwise
+                    ctx.when(
+                        ctx.eq(input, ctx.lit(undefined)),
+                        () => {
+                            const errorMsg = ctx.lit(`Not a ${expectedType}`);
+                            const errorItem = ctx.newExpr(
+                                ValidationErrorItem,
+                                state.pathSlot(),
+                                ctx.lit('type'),
+                                errorMsg,
+                                input,
+                            );
+                            ctx.push(errorsSlot, errorItem);
+                        },
+                        () => {
+                            const valueStr = ctx.callExpr(stringifyValueWithType, input);
+                            const errorMsg = ctx.concat(
+                                ctx.lit('Cannot convert '),
+                                valueStr,
+                                ctx.lit(' to '),
+                                ctx.lit(expectedType),
+                            );
+                            const errorItem = ctx.newExpr(
+                                ValidationErrorItem,
+                                state.pathSlot(),
+                                ctx.lit('type'),
+                                errorMsg,
+                                input,
+                            );
+                            ctx.push(errorsSlot, errorItem);
+                        },
+                    );
+                } else {
+                    // Other types: "Not a X" for undefined, "Cannot convert" otherwise
+                    ctx.when(
+                        ctx.eq(input, ctx.lit(undefined)),
+                        () => {
+                            const errorMsg = ctx.lit(`Not a ${expectedType}`);
+                            const errorItem = ctx.newExpr(
+                                ValidationErrorItem,
+                                state.pathSlot(),
+                                ctx.lit('type'),
+                                errorMsg,
+                                input,
+                            );
+                            ctx.push(errorsSlot, errorItem);
+                        },
+                        () => {
+                            const valueStr = ctx.callExpr(stringifyValueWithType, input);
+                            const errorMsg = ctx.concat(
+                                ctx.lit('Cannot convert '),
+                                valueStr,
+                                ctx.lit(' to '),
+                                ctx.lit(expectedType),
+                            );
+                            const errorItem = ctx.newExpr(
+                                ValidationErrorItem,
+                                state.pathSlot(),
+                                ctx.lit('type'),
+                                errorMsg,
+                                input,
+                            );
+                            ctx.push(errorsSlot, errorItem);
+                        },
+                    );
+                }
+            });
+        });
+
+        return result;
+    });
 }
+
+// Legacy exports (deprecated, alias to registerTypeGuards)
+/** @deprecated Use registerTypeGuards instead */
+export const registerDefaultTypeGuards = registerTypeGuards;
+/** @deprecated Use registerTypeGuards instead */
+export const registerFastTypeGuards = registerTypeGuards;
+/** @deprecated Use registerTypeGuards instead */
+export const registerStrictTypeGuards = registerTypeGuards;

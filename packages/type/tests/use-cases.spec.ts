@@ -147,9 +147,12 @@ test('custom iterable manual', () => {
                 );
             },
             () => {
-                ctx.callExpr(() => {
-                    throw new Error('Expected array');
-                }, input);
+                // ctx.let() is needed to emit the call expression
+                ctx.let(
+                    ctx.callExpr(() => {
+                        throw new Error('Expected array');
+                    }, input),
+                );
             },
         );
         return ctx.getVar(result);

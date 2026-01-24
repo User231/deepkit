@@ -42,15 +42,15 @@ function getFunctionFromType(fnType: Type): Function | undefined {
  *
  * This hook:
  * 1. Lets the main type guard run first
- * 2. If type guard passes (score > 0), runs validation annotations
- * 3. Returns adjusted score (0 if validation fails)
+ * 2. If type guard passes (true), runs validation annotations
+ * 3. Returns false if validation fails
  *
  * @example
  * ```typescript
  * // With type: string & MinLength<3>
- * // 1. Type guard returns 1000 (string matches)
+ * // 1. Type guard returns true (string matches)
  * // 2. MinLength validator runs
- * // 3. If length < 3, score becomes 0 and error is added
+ * // 3. If length < 3, returns false and error is added
  * ```
  */
 export const validationHook: TypeHook = (type, input, ctx, state, next) => {
@@ -63,8 +63,8 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
         return typeResult;
     }
 
-    // Create mutable score
-    const valid = ctx.var_(typeResult);
+    // Create mutable valid flag (boolean)
+    const valid = ctx.var_(typeResult as Slot<boolean>);
 
     // Get the errors array from state's optionsSlot
     const errorsSlot = state.optionsSlot.get('errors' as any);
@@ -100,7 +100,7 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
                     }
                 }
 
-                ctx.when(ctx.gt(ctx.getVar(valid), ctx.lit(0)), () => {
+                ctx.when(ctx.getVar(valid), () => {
                     // Call validator function with (value, type, options)
                     const error = ctx.callExpr(
                         (fn: ValidateFunction, value: any, t: Type, opts: any, expectedParam: string) => {
@@ -120,7 +120,7 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
                     );
 
                     ctx.when(error, () => {
-                        ctx.setVar(valid, ctx.lit(0));
+                        ctx.setVar(valid, ctx.lit(false));
 
                         // Push error to errors array if it exists
                         ctx.when(errorsSlot, () => {
@@ -144,11 +144,11 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
                 // Create validator with args
                 const validatorFn = validatorFactory(...args);
 
-                ctx.when(ctx.gt(ctx.getVar(valid), ctx.lit(0)), () => {
+                ctx.when(ctx.getVar(valid), () => {
                     const error = ctx.callExpr(validatorFn, input);
 
                     ctx.when(error, () => {
-                        ctx.setVar(valid, ctx.lit(0));
+                        ctx.setVar(valid, ctx.lit(false));
 
                         // Push error to errors array if it exists
                         ctx.when(errorsSlot, () => {
@@ -175,10 +175,9 @@ export const validationHook: TypeHook = (type, input, ctx, state, next) => {
 /**
  * Register validation hook on type guards.
  */
-export function registerValidationHook(serializer: { typeGuards: any }): void {
-    // Add post-hook to the strict (specificality 1) registry
-    const strictRegistry = serializer.typeGuards.getRegistry(1);
-    strictRegistry.addPostHook(validationHook);
+export function registerValidationHook(serializer: { typeGuards: { addPostHook(hook: TypeHook): void } }): void {
+    // Add post-hook to the unified type guards registry
+    serializer.typeGuards.addPostHook(validationHook);
 }
 
 /**

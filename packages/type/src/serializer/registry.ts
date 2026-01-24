@@ -24,9 +24,15 @@ export interface BuildStateBase {
     readonly ctx: Context;
     readonly depth: number;
     readonly optionsSlot: Slot<any>;
+    /** Whether to collect validation errors (for buildTypeGuard with error collection) */
+    readonly collectErrors: boolean;
+    /** Whether to reject unknown object keys (for strict type guards) */
+    readonly rejectUnknownKeys: boolean;
+    /** Whether currently checking union members (skip error-adding in post-hook) */
+    readonly inUnionContext: boolean;
     readonly serializer: {
         name: string;
-        typeGuards: TypeGuardRegistry;
+        typeGuards: HandlerRegistry;
         buildTypeGuard<T>(type: Type, withLoose?: boolean): (data: any, state?: { errors?: any[] }) => data is T;
         buildFastTypeGuard<T>(type: Type): (data: unknown) => data is T;
         buildStrictTypeGuard<T>(type: Type): (data: unknown) => data is T;
@@ -37,6 +43,8 @@ export interface BuildStateBase {
     pathSlot(): Slot<string>;
     forProperty(name: string): BuildStateBase;
     forIndex(index: Slot<number>): BuildStateBase;
+    /** Fork state for checking a union member (sets inUnionContext=true). */
+    forUnionMember(): BuildStateBase;
     /** Check if loose mode is enabled (options.loosely !== false). */
     isLoose(): Slot<boolean>;
 }
@@ -305,6 +313,10 @@ export class HandlerRegistry {
 
 /**
  * Registry for type guards organized by specificality level.
+ *
+ * @deprecated Use HandlerRegistry instead. The Serializer now uses a single
+ * unified HandlerRegistry for type guards with behavior controlled by
+ * BuildState flags (collectErrors, rejectUnknownKeys).
  *
  * Specificality levels determine when guards activate:
  * - Negative values: Loose mode only (string coercion)

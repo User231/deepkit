@@ -124,6 +124,15 @@ export class BuildState {
     /** Validation mode: strict, loose, fast (pure && chain), or undefined */
     readonly validation: 'strict' | 'loose' | 'fast' | undefined;
 
+    /** Whether to collect validation errors (for buildTypeGuard with error collection) */
+    readonly collectErrors: boolean;
+
+    /** Whether to reject unknown object keys (for strict type guards) */
+    readonly rejectUnknownKeys: boolean;
+
+    /** Whether currently checking union members (skip error-adding in post-hook) */
+    readonly inUnionContext: boolean;
+
     /** Current depth in the type tree */
     readonly depth: number;
 
@@ -153,6 +162,9 @@ export class BuildState {
         registry: HandlerRegistry,
         options: {
             validation?: 'strict' | 'loose' | 'fast';
+            collectErrors?: boolean;
+            rejectUnknownKeys?: boolean;
+            inUnionContext?: boolean;
             depth?: number;
             maxDepth?: number;
             typeStack?: Set<Type>;
@@ -167,6 +179,9 @@ export class BuildState {
         this.optionsSlot = optionsSlot;
         this.registry = registry;
         this.validation = options.validation;
+        this.collectErrors = options.collectErrors ?? false;
+        this.rejectUnknownKeys = options.rejectUnknownKeys ?? false;
+        this.inUnionContext = options.inUnionContext ?? false;
         this.depth = options.depth ?? 0;
         this.maxDepth = options.maxDepth ?? BuildState.DEFAULT_MAX_DEPTH;
         this.typeStack = options.typeStack ?? new Set();
@@ -291,6 +306,9 @@ export class BuildState {
     forProperty(name: string): BuildState {
         return new BuildState(this.direction, this.serializer, this.ctx, this.optionsSlot, this.registry, {
             validation: this.validation,
+            collectErrors: this.collectErrors,
+            rejectUnknownKeys: this.rejectUnknownKeys,
+            inUnionContext: this.inUnionContext,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -306,6 +324,9 @@ export class BuildState {
     forIndex(index: Slot<number>): BuildState {
         return new BuildState(this.direction, this.serializer, this.ctx, this.optionsSlot, this.registry, {
             validation: this.validation,
+            collectErrors: this.collectErrors,
+            rejectUnknownKeys: this.rejectUnknownKeys,
+            inUnionContext: this.inUnionContext,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -322,7 +343,30 @@ export class BuildState {
     forRegistry(registry: HandlerRegistry): BuildState {
         return new BuildState(this.direction, this.serializer, this.ctx, this.optionsSlot, registry, {
             validation: this.validation,
+            collectErrors: this.collectErrors,
+            rejectUnknownKeys: this.rejectUnknownKeys,
+            inUnionContext: this.inUnionContext,
             depth: this.depth,
+            maxDepth: this.maxDepth,
+            typeStack: this.typeStack,
+            fnCache: this.fnCache,
+            pathSegments: this.pathSegments,
+            namingStrategy: this.namingStrategy,
+        });
+    }
+
+    /**
+     * Fork state for checking a union member.
+     * Error collection is suppressed so that failing members don't add errors.
+     * The union handler itself will add ONE error if all members fail.
+     */
+    forUnionMember(): BuildState {
+        return new BuildState(this.direction, this.serializer, this.ctx, this.optionsSlot, this.registry, {
+            validation: this.validation,
+            collectErrors: this.collectErrors,
+            rejectUnknownKeys: this.rejectUnknownKeys,
+            inUnionContext: true,
+            depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
             fnCache: this.fnCache,
@@ -402,6 +446,8 @@ export class BuildState {
                     // Create a fresh state for the extracted function
                     const childState = new BuildState(self.direction, self.serializer, ctx, opts, self.registry, {
                         validation: self.validation,
+                        collectErrors: self.collectErrors,
+                        rejectUnknownKeys: self.rejectUnknownKeys,
                         depth: 0, // Reset depth
                         maxDepth: self.maxDepth,
                         typeStack: new Set(), // Fresh stack

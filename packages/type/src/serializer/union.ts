@@ -281,8 +281,7 @@ function buildScoredUnion(type: TypeUnion, input: Slot, ctx: Context, state: Bui
     const result = ctx.var_<any>(undefined);
     const matched = ctx.var_(false);
 
-    // Get the guard registry and check loose mode
-    const guardRegistry = state.serializer.typeGuards.getRegistry(1);
+    // Check loose mode
     const isLoose = ctx.neq(state.optionsSlot.get('loosely'), ctx.lit(false));
 
     // Sort members: put more specific types first (bigint/number before string)

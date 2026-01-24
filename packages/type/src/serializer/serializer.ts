@@ -20,7 +20,7 @@ import {
 } from '../reflection/type.js';
 import { ValidationErrorItem } from '../validator.js';
 import { NamingStrategy } from './naming.js';
-import { HandlerRegistry, TypeGuardRegistry } from './registry.js';
+import { HandlerRegistry } from './registry.js';
 import { BuildState, SerializationOptions } from './state.js';
 
 export type SerializeFunction<T = any, R = any> = (data: T, options?: SerializationOptions) => R;
@@ -53,32 +53,24 @@ export class Serializer {
     /** Registry for deserialization handlers */
     readonly deserializeRegistry = new HandlerRegistry('deserialize');
 
-    /** Registry for type guards at different specificality levels */
-    readonly typeGuards = new TypeGuardRegistry();
+    /** Registry for type guards (unified: fast, strict, and error-collecting all use this) */
+    readonly typeGuards = new HandlerRegistry();
 
-    /** Registry for validator handlers */
-    readonly validators = new HandlerRegistry();
-
-    /** Registry for fast type guards (pure && chain, no error collection) */
-    readonly fastTypeGuards = new HandlerRegistry();
-
-    /** Registry for strict type guards (reject unknown keys) */
-    readonly strictTypeGuards = new HandlerRegistry();
-
-    /** Cache for built fast type guard functions (prevents infinite recursion for recursive types) */
+    /** Cache for built fast type guard functions */
     private readonly fastTypeGuardCache = new Map<Type, (data: unknown) => boolean>();
 
-    /** Cache for built strict type guard functions (prevents infinite recursion for recursive types) */
+    /** Cache for built strict type guard functions */
     private readonly strictTypeGuardCache = new Map<Type, (data: unknown) => boolean>();
 
-    /** Types currently being built (for recursive type detection) */
+    /** Types currently being built as fast guards (for recursive type detection) */
     private readonly buildingFastTypeGuards = new Set<Type>();
+
+    /** Types currently being built as strict guards (for recursive type detection) */
     private readonly buildingStrictTypeGuards = new Set<Type>();
 
     constructor(public name: string = 'json') {
         this.registerSerializers();
         this.registerTypeGuards();
-        this.registerValidators();
     }
 
     /**
@@ -104,21 +96,16 @@ export class Serializer {
     }
 
     /**
-     * Register default validators. Override in subclasses to customize.
-     */
-    protected registerValidators(): void {
-        // Validators will be registered via registerDefaultValidators() from validation.ts
-    }
-
-    /**
      * Clear all registries.
      */
     clear(): void {
         this.serializeRegistry.clear();
         this.deserializeRegistry.clear();
         this.typeGuards.clear();
-        this.validators.clear();
-        this.fastTypeGuards.clear();
+        this.fastTypeGuardCache.clear();
+        this.strictTypeGuardCache.clear();
+        this.buildingFastTypeGuards.clear();
+        this.buildingStrictTypeGuards.clear();
     }
 
     /**
@@ -174,16 +161,15 @@ export class Serializer {
             (ctx: Context, data: Slot<any>, stateArg: Slot<{ errors?: ValidationErrorItem[] }>) => {
                 const optionsSlot = ctx.lazyLet(ctx.ternary(stateArg, stateArg, ctx.objExpr()));
 
-                const guardRegistry = this.typeGuards.getRegistry(1);
-                const state = new BuildState('validate', this, ctx, optionsSlot, guardRegistry, {
+                const state = new BuildState('validate', this, ctx, optionsSlot, this.typeGuards, {
                     validation: 'strict',
+                    collectErrors: true,
+                    rejectUnknownKeys: false,
                 });
 
-                // For validation, we return a boolean score > 0
+                // For validation, we return a boolean
                 const result = state.build(type, data);
-
-                // Convert score to boolean
-                return ctx.gt(result, ctx.lit(0));
+                return result as Slot<boolean>;
             },
         );
     }
@@ -202,13 +188,14 @@ export class Serializer {
             (ctx: Context, data: Slot<any>, stateArg: Slot<{ errors?: ValidationErrorItem[] }>) => {
                 const optionsSlot = ctx.lazyLet(ctx.ternary(stateArg, stateArg, ctx.objExpr()));
 
-                const guardRegistry = this.typeGuards.getRegistry(1);
-                const state = new BuildState('validate', this, ctx, optionsSlot, guardRegistry, {
+                const state = new BuildState('validate', this, ctx, optionsSlot, this.typeGuards, {
                     validation: withLoose ? 'loose' : 'strict',
+                    collectErrors: true,
+                    rejectUnknownKeys: false,
                 });
 
                 const result = state.build(type, data);
-                return ctx.gt(result, ctx.lit(0));
+                return result as Slot<boolean>;
             },
         ) as Guard<T>;
     }
@@ -252,8 +239,10 @@ export class Serializer {
 
         try {
             const fn = jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
-                const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.fastTypeGuards, {
+                const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.typeGuards, {
                     validation: 'fast',
+                    collectErrors: false,
+                    rejectUnknownKeys: false,
                 });
                 return state.build(type, data);
             }) as (data: unknown) => data is T;
@@ -304,8 +293,10 @@ export class Serializer {
 
         try {
             const fn = jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
-                const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.strictTypeGuards, {
+                const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.typeGuards, {
                     validation: 'strict',
+                    collectErrors: false,
+                    rejectUnknownKeys: true,
                 });
                 return state.build(type, data);
             }) as (data: unknown) => data is T;

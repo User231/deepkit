@@ -24,7 +24,9 @@ test('remove guard for string', () => {
     expect(handlers.length).toBeGreaterThan(0);
 });
 
-test('TypeGuardRegistry', () => {
+test('TypeGuards HandlerRegistry', () => {
+    // In the consolidated API, typeGuards is now a single HandlerRegistry (not TypeGuardRegistry)
+    // Handlers are registered directly without specificality levels
     const serializer = new Serializer();
     serializer.clear();
 
@@ -36,15 +38,17 @@ test('TypeGuardRegistry', () => {
         return input;
     }
 
-    serializer.typeGuards.register(2, ReflectionKind.number, number2);
-    serializer.typeGuards.register(1, ReflectionKind.number, number1);
+    // Register handlers - they are executed in order (first registered runs first)
+    serializer.typeGuards.register(ReflectionKind.number, number1);
+    serializer.typeGuards.register(ReflectionKind.number, number2);
 
-    // The new method is getSortedLevels() instead of getSortedTemplateRegistries()
-    const registries = serializer.typeGuards.getSortedLevels();
+    // Get handlers via getKindHandlers
+    const handlers = serializer.typeGuards.getKindHandlers(ReflectionKind.number);
 
-    // New API returns HandlerRegistry objects, need to get handlers via getKindHandlers()
-    expect(registries[0][1].getKindHandlers(ReflectionKind.number)[0]).toBe(number1);
-    expect(registries[1][1].getKindHandlers(ReflectionKind.number)[0]).toBe(number2);
+    // Both handlers should be registered
+    expect(handlers.length).toBe(2);
+    expect(handlers[0]).toBe(number1);
+    expect(handlers[1]).toBe(number2);
 });
 
 test('HandlerRegistry basics', () => {
