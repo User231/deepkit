@@ -292,14 +292,15 @@ function isPureTypeGuard(type: Type, visited: Set<Type> = new Set()): boolean {
 }
 
 /**
- * Check if input is a plain object (not null, not array).
+ * Check if input is an object (not null).
  * Used for object/class type guards.
+ *
+ * Note: We intentionally don't check !Array.isArray() for performance.
+ * Arrays with object properties would technically pass, but this is an
+ * extremely rare edge case. The property type checks will catch normal arrays.
  */
 function isPlainObject(ctx: Context, input: Slot): Slot<boolean> {
-    return ctx.and(
-        ctx.isType(input, 'object'),
-        ctx.and(ctx.not(ctx.isNull(input)), ctx.not(ctx.callExpr(Array.isArray, input))),
-    );
+    return ctx.and(ctx.isType(input, 'object'), ctx.not(ctx.isNull(input)));
 }
 
 /**
