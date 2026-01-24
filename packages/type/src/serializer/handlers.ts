@@ -3443,34 +3443,132 @@ const guardUnionFast: TypeHandler = (type, input, ctx, state) => {
         return hasCheck;
     }
 
-    // For error-collecting validation, use forUnionMember to suppress member errors
-    // and add a single union error if all members fail
-    // Note: #577 (showing constraint errors instead of generic union errors) requires
-    // a more complex implementation that's not yet complete
+    // For error-collecting validation (#577), use runtime function to:
+    // 1. Try fast validation first (find any matching member)
+    // 2. If all fail, find members whose base type matches and collect specific constraint errors
+    // 3. Show constraint-specific errors instead of generic "Cannot convert" union error
     if (state.collectErrors && !state.inUnionContext) {
-        // Use forUnionMember which suppresses error collection during member checks
-        const memberState = state.forUnionMember();
-
-        // Build || chain: member1Check || member2Check || ...
-        let result: Slot<boolean> = ctx.lit(false);
-        for (const member of unionType.types) {
-            const memberCheck = memberState.build(member, input) as Slot<boolean>;
-            result = ctx.or(result, memberCheck);
-        }
-
         const errorsSlot = state.optionsSlot.get('errors' as any);
-        const resultVar = ctx.var_(result);
+        const typeStr = stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim();
 
-        // When validation fails, add a generic union error
-        ctx.when(ctx.and(errorsSlot, ctx.not(ctx.getVar(resultVar))), () => {
-            const expectedType = stringifyType(type).replace(/\n/g, '').replace(/\s+/g, ' ').trim();
-            const valueStr = ctx.callExpr(stringifyValueWithType, input);
-            const errorMsg = ctx.concat(ctx.lit('Cannot convert '), valueStr, ctx.lit(' to '), ctx.lit(expectedType));
-            const errorItem = ctx.newExpr(ValidationErrorItem, state.pathSlot(), ctx.lit('type'), errorMsg, input);
-            ctx.push(errorsSlot, errorItem);
-        });
+        // Helper to get type name for error prefixing
+        const getTypeName = (t: Type): string => {
+            if (t.kind === ReflectionKind.objectLiteral && (t as TypeObjectLiteral).typeName)
+                return (t as TypeObjectLiteral).typeName!;
+            if (t.kind === ReflectionKind.class && (t as TypeClass).classType) return (t as TypeClass).classType.name;
+            return '';
+        };
 
-        return ctx.getVar(resultVar);
+        // Runtime validation function that collects specific constraint errors (#577)
+        const validateUnion = (
+            value: any,
+            members: Type[],
+            serializer: Serializer,
+            errors: ValidationErrorItem[] | undefined,
+            path: string,
+            typeDescription: string,
+            getBaseTypeKindFn: (type: Type) => ReflectionKind,
+            valueMatchesBaseTypeFn: (value: any, type: Type) => boolean,
+            reflectionKind: typeof ReflectionKind,
+            getTypeNameFn: (t: Type) => string,
+        ): boolean => {
+            // First pass: try to find a member that fully validates (fast path)
+            for (const member of members) {
+                try {
+                    const validator = serializer.buildTypeGuard(member, false);
+                    if (validator(value, {})) return true;
+                } catch {
+                    // Validation threw (e.g., accessing property on undefined), treat as non-match
+                }
+            }
+
+            // Second pass: find members whose base type matches and collect all errors
+            const matchingMemberErrors: ValidationErrorItem[] = [];
+            let hasConstraintErrors = false;
+
+            for (const member of members) {
+                if (valueMatchesBaseTypeFn(value, member)) {
+                    // This member's base type matches - run full validation and collect errors
+                    const memberErrors: ValidationErrorItem[] = [];
+                    try {
+                        const validator = serializer.buildTypeGuard(member, false);
+                        validator(value, { errors: memberErrors });
+                    } catch {
+                        // Validation threw, skip this member
+                        continue;
+                    }
+
+                    const typeName = getTypeNameFn(member);
+
+                    for (const err of memberErrors) {
+                        // Include constraint errors (non-type errors)
+                        if (err.code !== 'type') {
+                            hasConstraintErrors = true;
+                            const fullPath = path && err.path ? path + '.' + err.path : path || err.path;
+                            matchingMemberErrors.push(
+                                new ValidationErrorItem(fullPath, err.code, err.message, err.value),
+                            );
+                        }
+                        // Include type errors with specific paths (e.g., missing required fields)
+                        else if (err.path && err.path.length > 0) {
+                            // Prefix with type name to indicate which member the error is from
+                            const prefixedPath = typeName ? typeName + '.' + err.path : err.path;
+                            const fullPath = path && prefixedPath ? path + '.' + prefixedPath : path || prefixedPath;
+                            matchingMemberErrors.push(
+                                new ValidationErrorItem(fullPath, err.code, err.message, err.value),
+                            );
+                        }
+                    }
+                }
+            }
+
+            // If we have constraint errors, prioritize those
+            if (hasConstraintErrors && errors) {
+                for (const err of matchingMemberErrors) {
+                    if (err.code !== 'type') {
+                        errors.push(err);
+                    }
+                }
+                return false;
+            }
+
+            // If we have type errors from specific fields, use those
+            if (matchingMemberErrors.length > 0 && errors) {
+                for (const err of matchingMemberErrors) {
+                    errors.push(err);
+                }
+                return false;
+            }
+
+            // No base type matched - show generic union error
+            if (errors) {
+                errors.push(
+                    new ValidationErrorItem(
+                        path,
+                        'type',
+                        `Cannot convert ${stringifyValueWithType(value)} to ${typeDescription}`,
+                        value,
+                    ),
+                );
+            }
+            return false;
+        };
+
+        const result = ctx.callExpr(
+            validateUnion,
+            input,
+            ctx.lit(unionType.types),
+            ctx.lit(state.serializer),
+            errorsSlot,
+            state.pathSlot(),
+            ctx.lit(typeStr),
+            ctx.lit(getBaseTypeKind),
+            ctx.lit(valueMatchesBaseType),
+            ctx.lit(ReflectionKind),
+            ctx.lit(getTypeName),
+        );
+
+        return result;
     }
 
     // For non-error-collecting (fast) validation, just build || chain
@@ -3526,29 +3624,61 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
                 },
                 () => {
                     // Full property checking for non-reference instances
-                    let propResult: Slot<boolean> = ctx.lit(true);
-                    for (const member of members) {
-                        if (!isPropertyMemberType(member)) continue;
+                    // When collecting errors, avoid short-circuit to check all properties
+                    if (state.collectErrors) {
+                        const propResults: Slot<boolean>[] = [];
+                        for (const member of members) {
+                            if (!isPropertyMemberType(member)) continue;
 
-                        const propName = memberNameToString(member.name);
-                        const propType = member.type;
-                        const isOpt = isOptional(member);
-                        const propInput = input.get(propName);
+                            const propName = memberNameToString(member.name);
+                            const propType = member.type;
+                            const isOpt = isOptional(member);
+                            const propInput = input.get(propName);
 
-                        if (!isOpt) {
-                            const hasProp = ctx.has(input, propName);
-                            const childState = state.forProperty(propName);
-                            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                            propResult = ctx.and(propResult, ctx.and(hasProp, propCheck));
-                        } else {
-                            // Optional: value must be undefined OR match type
-                            const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
-                            const childState = state.forProperty(propName);
-                            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                            propResult = ctx.and(propResult, ctx.or(propIsUndefined, propCheck));
+                            if (!isOpt) {
+                                const hasProp = ctx.has(input, propName);
+                                const childState = state.forProperty(propName);
+                                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                                const propValid = ctx.var_(ctx.and(hasProp, propCheck));
+                                propResults.push(ctx.getVar(propValid));
+                            } else {
+                                const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
+                                const childState = state.forProperty(propName);
+                                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                                const propValid = ctx.var_(ctx.or(propIsUndefined, propCheck));
+                                propResults.push(ctx.getVar(propValid));
+                            }
                         }
+                        let propResult: Slot<boolean> = ctx.lit(true);
+                        for (const pr of propResults) {
+                            propResult = ctx.and(propResult, pr);
+                        }
+                        ctx.setVar(classResult, propResult);
+                    } else {
+                        let propResult: Slot<boolean> = ctx.lit(true);
+                        for (const member of members) {
+                            if (!isPropertyMemberType(member)) continue;
+
+                            const propName = memberNameToString(member.name);
+                            const propType = member.type;
+                            const isOpt = isOptional(member);
+                            const propInput = input.get(propName);
+
+                            if (!isOpt) {
+                                const hasProp = ctx.has(input, propName);
+                                const childState = state.forProperty(propName);
+                                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                                propResult = ctx.and(propResult, ctx.and(hasProp, propCheck));
+                            } else {
+                                // Optional: value must be undefined OR match type
+                                const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
+                                const childState = state.forProperty(propName);
+                                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                                propResult = ctx.and(propResult, ctx.or(propIsUndefined, propCheck));
+                            }
+                        }
+                        ctx.setVar(classResult, propResult);
                     }
-                    ctx.setVar(classResult, propResult);
                 },
             );
         });
@@ -3559,27 +3689,66 @@ const guardObjectFast: TypeHandler = (type, input, ctx, state) => {
     let result = isObject;
 
     // For object literals, check all properties
-    for (const member of members) {
-        if (!isPropertyMemberType(member)) continue;
+    // When collecting errors, we need to ensure ALL properties are validated (no short-circuit)
+    // to collect errors from all invalid properties
+    if (state.collectErrors) {
+        // Store property check results in variables to avoid short-circuit evaluation
+        const propResults: Slot<boolean>[] = [];
 
-        const propName = memberNameToString(member.name);
-        const propType = member.type;
-        const isOpt = isOptional(member);
-        const propInput = input.get(propName);
+        for (const member of members) {
+            if (!isPropertyMemberType(member)) continue;
 
-        if (!isOpt) {
-            // Required: property must exist and match type
-            const hasProp = ctx.has(input, propName);
-            const childState = state.forProperty(propName);
-            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-            result = ctx.and(result, ctx.and(hasProp, propCheck));
-        } else {
-            // Optional: value must be undefined OR match type
-            // This handles both missing properties and explicit undefined values
-            const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
-            const childState = state.forProperty(propName);
-            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-            result = ctx.and(result, ctx.or(propIsUndefined, propCheck));
+            const propName = memberNameToString(member.name);
+            const propType = member.type;
+            const isOpt = isOptional(member);
+            const propInput = input.get(propName);
+
+            if (!isOpt) {
+                // Required: property must exist and match type
+                const hasProp = ctx.has(input, propName);
+                const childState = state.forProperty(propName);
+                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                // Store in variable to force evaluation (side effects like error collection happen)
+                const propValid = ctx.var_(ctx.and(hasProp, propCheck));
+                propResults.push(ctx.getVar(propValid));
+            } else {
+                // Optional: value must be undefined OR match type
+                const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
+                const childState = state.forProperty(propName);
+                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                const propValid = ctx.var_(ctx.or(propIsUndefined, propCheck));
+                propResults.push(ctx.getVar(propValid));
+            }
+        }
+
+        // Combine all results with && (short-circuit is OK here since all validations already ran)
+        for (const propResult of propResults) {
+            result = ctx.and(result, propResult);
+        }
+    } else {
+        // Fast path: use short-circuit && chain for performance
+        for (const member of members) {
+            if (!isPropertyMemberType(member)) continue;
+
+            const propName = memberNameToString(member.name);
+            const propType = member.type;
+            const isOpt = isOptional(member);
+            const propInput = input.get(propName);
+
+            if (!isOpt) {
+                // Required: property must exist and match type
+                const hasProp = ctx.has(input, propName);
+                const childState = state.forProperty(propName);
+                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                result = ctx.and(result, ctx.and(hasProp, propCheck));
+            } else {
+                // Optional: value must be undefined OR match type
+                // This handles both missing properties and explicit undefined values
+                const propIsUndefined = ctx.eq(propInput, ctx.lit(undefined));
+                const childState = state.forProperty(propName);
+                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                result = ctx.and(result, ctx.or(propIsUndefined, propCheck));
+            }
         }
     }
 
@@ -3841,31 +4010,71 @@ const guardObjectStrict: TypeHandler = (type, input, ctx, state) => {
     ctx.when(isObject, () => {
         let propertyCheck: Slot<boolean> = ctx.lit(true);
 
-        // Check all known properties
-        for (const member of members) {
-            if (!isPropertyMemberType(member)) continue;
+        // When collecting errors, we need to avoid short-circuit evaluation
+        // to collect ALL errors from ALL invalid properties
+        if (state.collectErrors) {
+            const propResults: Slot<boolean>[] = [];
 
-            const propName = memberNameToString(member.name);
-            const propType = member.type;
-            const isOpt = isOptional(member);
-            const propInput = input.get(propName);
+            // Check all known properties - store results in variables first
+            for (const member of members) {
+                if (!isPropertyMemberType(member)) continue;
 
-            if (!isOpt) {
-                const hasProp = ctx.has(input, propName);
-                const childState = state.forProperty(propName);
-                const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                propertyCheck = ctx.and(propertyCheck, ctx.and(hasProp, propCheck));
-            } else {
-                // Optional: value must be undefined, null, OR match type
-                // Only run type guard when value is present to avoid adding errors for undefined
-                const propIsNullOrUndefined = ctx.or(ctx.eq(propInput, ctx.lit(undefined)), ctx.isNull(propInput));
-                const propValid = ctx.var_<boolean>(ctx.lit(true));
-                ctx.when(ctx.not(propIsNullOrUndefined), () => {
+                const propName = memberNameToString(member.name);
+                const propType = member.type;
+                const isOpt = isOptional(member);
+                const propInput = input.get(propName);
+
+                if (!isOpt) {
+                    const hasProp = ctx.has(input, propName);
                     const childState = state.forProperty(propName);
                     const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                    ctx.setVar(propValid, propCheck);
-                });
-                propertyCheck = ctx.and(propertyCheck, ctx.getVar(propValid));
+                    // Store in variable to force evaluation before short-circuit
+                    const propValid = ctx.var_(ctx.and(hasProp, propCheck));
+                    propResults.push(ctx.getVar(propValid));
+                } else {
+                    // Optional: value must be undefined, null, OR match type
+                    const propIsNullOrUndefined = ctx.or(ctx.eq(propInput, ctx.lit(undefined)), ctx.isNull(propInput));
+                    const propValid = ctx.var_<boolean>(ctx.lit(true));
+                    ctx.when(ctx.not(propIsNullOrUndefined), () => {
+                        const childState = state.forProperty(propName);
+                        const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                        ctx.setVar(propValid, propCheck);
+                    });
+                    propResults.push(ctx.getVar(propValid));
+                }
+            }
+
+            // Combine all results (short-circuit OK here since all validations already ran)
+            for (const propResult of propResults) {
+                propertyCheck = ctx.and(propertyCheck, propResult);
+            }
+        } else {
+            // Fast path: use short-circuit && chain for performance
+            for (const member of members) {
+                if (!isPropertyMemberType(member)) continue;
+
+                const propName = memberNameToString(member.name);
+                const propType = member.type;
+                const isOpt = isOptional(member);
+                const propInput = input.get(propName);
+
+                if (!isOpt) {
+                    const hasProp = ctx.has(input, propName);
+                    const childState = state.forProperty(propName);
+                    const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                    propertyCheck = ctx.and(propertyCheck, ctx.and(hasProp, propCheck));
+                } else {
+                    // Optional: value must be undefined, null, OR match type
+                    // Only run type guard when value is present to avoid adding errors for undefined
+                    const propIsNullOrUndefined = ctx.or(ctx.eq(propInput, ctx.lit(undefined)), ctx.isNull(propInput));
+                    const propValid = ctx.var_<boolean>(ctx.lit(true));
+                    ctx.when(ctx.not(propIsNullOrUndefined), () => {
+                        const childState = state.forProperty(propName);
+                        const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                        ctx.setVar(propValid, propCheck);
+                    });
+                    propertyCheck = ctx.and(propertyCheck, ctx.getVar(propValid));
+                }
             }
         }
 
