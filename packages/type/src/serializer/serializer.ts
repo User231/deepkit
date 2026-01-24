@@ -62,11 +62,17 @@ export class Serializer {
     /** Cache for built strict type guard functions */
     private readonly strictTypeGuardCache = new Map<Type, (data: unknown) => boolean>();
 
+    /** Cache for built weak type guard functions (no NaN checks) */
+    private readonly weakTypeGuardCache = new Map<Type, (data: unknown) => boolean>();
+
     /** Types currently being built as fast guards (for recursive type detection) */
     private readonly buildingFastTypeGuards = new Set<Type>();
 
     /** Types currently being built as strict guards (for recursive type detection) */
     private readonly buildingStrictTypeGuards = new Set<Type>();
+
+    /** Types currently being built as weak guards (for recursive type detection) */
+    private readonly buildingWeakTypeGuards = new Set<Type>();
 
     constructor(public name: string = 'json') {
         this.registerSerializers();
@@ -104,8 +110,10 @@ export class Serializer {
         this.typeGuards.clear();
         this.fastTypeGuardCache.clear();
         this.strictTypeGuardCache.clear();
+        this.weakTypeGuardCache.clear();
         this.buildingFastTypeGuards.clear();
         this.buildingStrictTypeGuards.clear();
+        this.buildingWeakTypeGuards.clear();
     }
 
     /**
@@ -306,6 +314,62 @@ export class Serializer {
             return fn;
         } finally {
             this.buildingStrictTypeGuards.delete(type);
+        }
+    }
+
+    /**
+     * Build a weak type guard function (skips NaN checks for maximum speed).
+     *
+     * This is the fastest validation mode - it only checks structure/types but skips
+     * the Number.isNaN() check that other modes perform. Use when you trust your data
+     * won't contain NaN values, or when NaN is acceptable.
+     *
+     * Uses caching to handle recursive types without infinite recursion.
+     *
+     * @example
+     * ```typescript
+     * const isWeak = serializer.buildWeakTypeGuard<User>(typeOf<User>());
+     * isWeak({ name: 'John', age: 30 });  // true
+     * isWeak({ name: 'John', age: NaN }); // true (NaN not rejected!)
+     * ```
+     *
+     * @param type - The type to guard
+     * @returns A weak type guard function (fastest, no NaN check)
+     */
+    buildWeakTypeGuard<T>(type: Type): (data: unknown) => data is T {
+        // Return cached function if available
+        const cached = this.weakTypeGuardCache.get(type);
+        if (cached) return cached as (data: unknown) => data is T;
+
+        // Detect recursive call during build (type is still being built)
+        if (this.buildingWeakTypeGuards.has(type)) {
+            // Return a lazy wrapper that will call the cached function once it's built
+            return ((data: unknown) => {
+                const fn = this.weakTypeGuardCache.get(type);
+                if (!fn) throw new Error('Recursive type guard not yet initialized');
+                return fn(data);
+            }) as (data: unknown) => data is T;
+        }
+
+        // Mark as building to detect recursion
+        this.buildingWeakTypeGuards.add(type);
+
+        try {
+            const fn = jit.fn(jit.arg<unknown>(), (ctx: Context, data: Slot<unknown>) => {
+                const state = new BuildState('validate', this, ctx, ctx.objExpr(), this.typeGuards, {
+                    validation: 'fast',
+                    collectErrors: false,
+                    rejectUnknownKeys: false,
+                    skipNaN: true, // Key difference: skip NaN checks
+                });
+                return state.build(type, data);
+            }) as (data: unknown) => data is T;
+
+            // Cache before returning
+            this.weakTypeGuardCache.set(type, fn as (data: unknown) => boolean);
+            return fn;
+        } finally {
+            this.buildingWeakTypeGuards.delete(type);
         }
     }
 }

@@ -144,6 +144,57 @@ export function typeGuardStrict<T>(receiveType?: ReceiveType<T>): (data: unknown
 }
 
 // ============================================================================
+// Weak Type Guards (maximum performance, no NaN checks)
+// ============================================================================
+
+/**
+ * Weak type guard. Returns true if data matches type T.
+ * Skips NaN checks for maximum performance. Allows extra/unknown keys.
+ *
+ * This is the fastest validation mode - use when you trust your data won't
+ * contain NaN values, or when NaN is acceptable for number fields.
+ *
+ * Generated code uses pure && chain without NaN checks:
+ * `return typeof s0 === "object" && typeof s0.age === "number" && ...`
+ *
+ * @example
+ * ```typescript
+ * isWeak<{ age: number }>({ age: 30 });   // true
+ * isWeak<{ age: number }>({ age: NaN });  // true (NaN not rejected!)
+ * is<{ age: number }>({ age: NaN });      // false (regular is() rejects NaN)
+ * ```
+ */
+export function isWeak<T>(data: unknown, receiveType?: ReceiveType<T>): data is T {
+    if (!receiveType) throw new NoTypeReceived('isWeak() called without type parameter');
+    const type = resolveReceiveType(receiveType);
+    const jit = getTypeJitContainer(type);
+    if (!jit.__isWeak) {
+        jit.__isWeak = serializer.buildWeakTypeGuard(type);
+    }
+    return jit.__isWeak(data);
+}
+
+/**
+ * Pre-compiled weak type guard for repeated use.
+ * Skips NaN checks for maximum performance.
+ *
+ * @example
+ * ```typescript
+ * const isUserWeak = typeGuardWeak<User>();
+ * items.filter(isUserWeak); // Fastest filtering, but NaN passes
+ * ```
+ */
+export function typeGuardWeak<T>(receiveType?: ReceiveType<T>): (data: unknown) => data is T {
+    if (!receiveType) throw new NoTypeReceived('typeGuardWeak() called without type parameter');
+    const type = resolveReceiveType(receiveType);
+    const jit = getTypeJitContainer(type);
+    if (!jit.__isWeak) {
+        jit.__isWeak = serializer.buildWeakTypeGuard(type);
+    }
+    return jit.__isWeak;
+}
+
+// ============================================================================
 // Assertions
 // ============================================================================
 

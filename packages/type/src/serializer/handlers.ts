@@ -3655,20 +3655,27 @@ const numberGuards = {
     },
 
     /**
-     * Fast number type guard - checks typeof and not NaN.
+     * Fast number type guard - checks typeof and optionally not NaN.
+     * When state.skipNaN is true, skips the NaN check for maximum performance.
      */
-    fast: ((type, input, ctx, state) =>
-        ctx.and(ctx.isType(input, 'number'), ctx.not(ctx.callExpr(Number.isNaN, input)))) as TypeHandler,
+    fast: ((type, input, ctx, state) => {
+        const isNum = ctx.isType(input, 'number');
+        // In weak mode (skipNaN=true), skip the NaN check for maximum speed
+        if (state.skipNaN) return isNum;
+        return ctx.and(isNum, ctx.not(ctx.callExpr(Number.isNaN, input)));
+    }) as TypeHandler,
 
     /**
      * Fast branded number type guard - checks integer constraints and range limits.
+     * When state.skipNaN is true, skips the NaN check for maximum performance.
      */
     branded: ((type, input, ctx, state) => {
         const numType = type as TypeNumber;
         const brand = numType.brand;
 
-        // Base check: must be a number and not NaN
-        const isNum = ctx.and(ctx.isType(input, 'number'), ctx.not(ctx.callExpr(Number.isNaN, input)));
+        // Base check: must be a number, and optionally not NaN
+        const isNumRaw = ctx.isType(input, 'number');
+        const isNum = state.skipNaN ? isNumRaw : ctx.and(isNumRaw, ctx.not(ctx.callExpr(Number.isNaN, input)));
 
         if (brand === undefined) {
             return isNum;

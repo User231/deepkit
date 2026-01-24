@@ -13,7 +13,7 @@ import { isReferenceInstance } from '../src/reference.js';
 import { PrimaryKey, Reference, float, float32, int8, integer } from '../src/reflection/type.js';
 import { cast } from '../src/serializer-facade.js';
 import { Serializer, registerDefaultHandlers, registerDefaultTypeGuards } from '../src/serializer.js';
-import { is, isStrict, typeGuardStrict } from '../src/typeguard.js';
+import { is, isStrict, isWeak, typeGuardStrict, typeGuardWeak } from '../src/typeguard.js';
 
 test('primitive string', () => {
     expect(is<string>('a')).toEqual(true);
@@ -621,4 +621,81 @@ test('isStrict primitives', () => {
     expect(isStrict<number>(123)).toEqual(true);
     expect(isStrict<boolean>(true)).toEqual(true);
     expect(isStrict<null>(null)).toEqual(true);
+});
+
+// ============================================================================
+// isWeak tests (maximum performance, no NaN checks)
+// ============================================================================
+
+test('isWeak accepts NaN while is rejects it', () => {
+    // This is the key difference between isWeak and is
+    expect(is<number>(NaN)).toEqual(false); // Regular is() rejects NaN
+    expect(isWeak<number>(NaN)).toEqual(true); // Weak mode accepts NaN
+
+    // Object with NaN property
+    interface Point {
+        x: number;
+        y: number;
+    }
+    expect(is<Point>({ x: 1, y: NaN })).toEqual(false); // Rejects NaN
+    expect(isWeak<Point>({ x: 1, y: NaN })).toEqual(true); // Accepts NaN
+});
+
+test('isWeak basic type checking', () => {
+    // Still checks types correctly
+    expect(isWeak<string>('hello')).toEqual(true);
+    expect(isWeak<string>(123)).toEqual(false);
+    expect(isWeak<number>(123)).toEqual(true);
+    expect(isWeak<number>('hello')).toEqual(false);
+    expect(isWeak<boolean>(true)).toEqual(true);
+    expect(isWeak<boolean>('true')).toEqual(false);
+});
+
+test('isWeak objects', () => {
+    interface User {
+        id: number;
+        name: string;
+    }
+
+    // Valid objects pass
+    expect(isWeak<User>({ id: 1, name: 'John' })).toEqual(true);
+
+    // Wrong types fail
+    expect(isWeak<User>({ id: '1', name: 'John' })).toEqual(false);
+
+    // Extra keys allowed (like is(), unlike isStrict())
+    expect(isWeak<User>({ id: 1, name: 'John', extra: 'value' })).toEqual(true);
+});
+
+test('isWeak arrays', () => {
+    expect(isWeak<number[]>([1, 2, 3])).toEqual(true);
+    expect(isWeak<number[]>(['a', 'b'])).toEqual(false);
+
+    // Arrays with NaN pass in weak mode
+    expect(isWeak<number[]>([1, NaN, 3])).toEqual(true);
+    expect(is<number[]>([1, NaN, 3])).toEqual(false);
+});
+
+test('typeGuardWeak precompiled', () => {
+    interface Item {
+        value: number;
+    }
+
+    const isItemWeak = typeGuardWeak<Item>();
+
+    expect(isItemWeak({ value: 123 })).toEqual(true);
+    expect(isItemWeak({ value: NaN })).toEqual(true); // NaN passes
+    expect(isItemWeak({ value: 'string' })).toEqual(false);
+});
+
+test('isWeak nested objects', () => {
+    interface Nested {
+        inner: {
+            count: number;
+        };
+    }
+
+    expect(isWeak<Nested>({ inner: { count: 5 } })).toEqual(true);
+    expect(isWeak<Nested>({ inner: { count: NaN } })).toEqual(true); // NaN passes
+    expect(is<Nested>({ inner: { count: NaN } })).toEqual(false); // is() rejects
 });

@@ -136,6 +136,9 @@ export class BuildState {
     /** Whether to collect errors during union member checks (for #577 error filtering) */
     readonly collectUnionMemberErrors: boolean;
 
+    /** Whether to skip NaN checks on numbers (for weak/fastest mode) */
+    readonly skipNaN: boolean;
+
     /** Current depth in the type tree */
     readonly depth: number;
 
@@ -169,6 +172,7 @@ export class BuildState {
             rejectUnknownKeys?: boolean;
             inUnionContext?: boolean;
             collectUnionMemberErrors?: boolean;
+            skipNaN?: boolean;
             depth?: number;
             maxDepth?: number;
             typeStack?: Set<Type>;
@@ -187,6 +191,7 @@ export class BuildState {
         this.rejectUnknownKeys = options.rejectUnknownKeys ?? false;
         this.inUnionContext = options.inUnionContext ?? false;
         this.collectUnionMemberErrors = options.collectUnionMemberErrors ?? false;
+        this.skipNaN = options.skipNaN ?? false;
         this.depth = options.depth ?? 0;
         this.maxDepth = options.maxDepth ?? BuildState.DEFAULT_MAX_DEPTH;
         this.typeStack = options.typeStack ?? new Set();
@@ -315,6 +320,7 @@ export class BuildState {
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: this.inUnionContext,
             collectUnionMemberErrors: this.collectUnionMemberErrors,
+            skipNaN: this.skipNaN,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -334,6 +340,7 @@ export class BuildState {
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: this.inUnionContext,
             collectUnionMemberErrors: this.collectUnionMemberErrors,
+            skipNaN: this.skipNaN,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -354,6 +361,7 @@ export class BuildState {
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: this.inUnionContext,
             collectUnionMemberErrors: this.collectUnionMemberErrors,
+            skipNaN: this.skipNaN,
             depth: this.depth,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -375,6 +383,7 @@ export class BuildState {
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: true,
             collectUnionMemberErrors: false, // Don't collect when just checking
+            skipNaN: this.skipNaN,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -397,6 +406,7 @@ export class BuildState {
             rejectUnknownKeys: this.rejectUnknownKeys,
             inUnionContext: true, // Prevent nested unions from using this path
             collectUnionMemberErrors: true, // But DO collect errors for filtering
+            skipNaN: this.skipNaN,
             depth: this.depth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
@@ -479,6 +489,7 @@ export class BuildState {
                         validation: self.validation,
                         collectErrors: self.collectErrors,
                         rejectUnknownKeys: self.rejectUnknownKeys,
+                        skipNaN: self.skipNaN,
                         depth: 0, // Reset depth
                         maxDepth: self.maxDepth,
                         typeStack: new Set(), // Fresh stack

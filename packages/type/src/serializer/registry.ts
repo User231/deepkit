@@ -32,12 +32,15 @@ export interface BuildStateBase {
     readonly inUnionContext: boolean;
     /** Whether to collect errors during union member checks (for #577 error filtering) */
     readonly collectUnionMemberErrors: boolean;
+    /** Whether to skip NaN checks on numbers (for weak/fastest mode) */
+    readonly skipNaN: boolean;
     readonly serializer: {
         name: string;
         typeGuards: HandlerRegistry;
         buildTypeGuard<T>(type: Type, withLoose?: boolean): (data: any, state?: { errors?: any[] }) => data is T;
         buildFastTypeGuard<T>(type: Type): (data: unknown) => data is T;
         buildStrictTypeGuard<T>(type: Type): (data: unknown) => data is T;
+        buildWeakTypeGuard<T>(type: Type): (data: unknown) => data is T;
     };
     readonly namingStrategy: { getPropertyName(type: any, forSerializer: string): string | undefined };
     build(type: Type, input: Slot): Slot;
