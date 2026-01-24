@@ -159,6 +159,139 @@ function getBinaryBigIntMode(type: Type): BinaryBigIntType | undefined {
 // ============================================================================
 
 /**
+ * Check if a type's guard can use pure expression-only code (no statements).
+ * This enables the fast && chaining optimization for object guards.
+ *
+ * Pure types:
+ * - Primitives (string, number, boolean, bigint, null, undefined, symbol)
+ * - Literals
+ * - Unions of pure types
+ * - Objects with only pure property types (recursively checked)
+ *
+ * Impure types (generate statement code):
+ * - Map, Set, WeakMap, WeakSet (loop over entries)
+ * - Array with typed elements (loop over elements)
+ * - Tuple with rest elements (loop)
+ * - Types with custom validators
+ */
+function isPureTypeGuard(type: Type, visited: Set<Type> = new Set()): boolean {
+    if (visited.has(type)) return true; // Circular reference, assume pure
+    visited.add(type);
+
+    switch (type.kind) {
+        // Primitives are always pure
+        case ReflectionKind.string:
+        case ReflectionKind.number:
+        case ReflectionKind.boolean:
+        case ReflectionKind.bigint:
+        case ReflectionKind.null:
+        case ReflectionKind.undefined:
+        case ReflectionKind.symbol:
+        case ReflectionKind.literal:
+        case ReflectionKind.any:
+        case ReflectionKind.unknown:
+        case ReflectionKind.never:
+        case ReflectionKind.void:
+        case ReflectionKind.enum:
+        case ReflectionKind.regexp:
+            return true;
+
+        // Template literals are pure (regex check)
+        case ReflectionKind.templateLiteral:
+            return true;
+
+        // Unions are pure if all members are pure
+        case ReflectionKind.union:
+            return (type as TypeUnion).types.every(t => isPureTypeGuard(t, visited));
+
+        // Object literals are pure if all properties are pure
+        case ReflectionKind.objectLiteral: {
+            const members = resolveTypeMembers(type as TypeObjectLiteral);
+            for (const member of members) {
+                // Index signatures are impure (need loop)
+                if (member.kind === ReflectionKind.indexSignature) return false;
+                if (isPropertyMemberType(member)) {
+                    if (!isPureTypeGuard(member.type, visited)) return false;
+                }
+            }
+            return true;
+        }
+
+        // Classes can be pure if they have only pure properties and no validation method
+        case ReflectionKind.class: {
+            const classType = type as TypeClass;
+
+            // Built-in collection classes are impure (use loops for validation)
+            const builtinImpure = [
+                Map,
+                Set,
+                WeakMap,
+                WeakSet,
+                Date,
+                RegExp,
+                ArrayBuffer,
+                DataView,
+                Int8Array,
+                Uint8Array,
+                Uint8ClampedArray,
+                Int16Array,
+                Uint16Array,
+                Int32Array,
+                Uint32Array,
+                Float32Array,
+                Float64Array,
+                BigInt64Array,
+                BigUint64Array,
+            ];
+            if (builtinImpure.some(c => classType.classType === c)) return false;
+
+            const reflection = ReflectionClass.from(classType.classType);
+            if (reflection.validationMethod) return false;
+
+            const members = resolveTypeMembers(classType);
+            for (const member of members) {
+                if (member.kind === ReflectionKind.indexSignature) return false;
+                if (isPropertyMemberType(member)) {
+                    if (!isPureTypeGuard(member.type, visited)) return false;
+                }
+            }
+            return true;
+        }
+
+        // Tuples without rest elements are pure if all elements are pure
+        case ReflectionKind.tuple: {
+            const tupleType = type as TypeTuple;
+            for (const elem of tupleType.types) {
+                if (elem.type.kind === ReflectionKind.rest) return false; // Rest uses loop
+                if (!isPureTypeGuard(elem.type, visited)) return false;
+            }
+            return true;
+        }
+
+        // Arrays are impure (need loop for typed elements)
+        case ReflectionKind.array:
+            return false;
+
+        // These types are impure (generate loops/statements)
+        case ReflectionKind.function:
+        case ReflectionKind.method:
+        case ReflectionKind.methodSignature:
+        case ReflectionKind.promise:
+            return false;
+
+        // Intersections - check all types
+        case ReflectionKind.intersection: {
+            const types = (type as any).types as Type[];
+            return types.every(t => isPureTypeGuard(t, visited));
+        }
+
+        default:
+            // Unknown types, assume impure for safety
+            return false;
+    }
+}
+
+/**
  * Check if input is a plain object (not null, not array).
  * Used for object/class type guards.
  */
@@ -2486,6 +2619,88 @@ const objectGuards = {
         }
 
         const isObject = isPlainObject(ctx, input);
+
+        // Check if we need class validation method
+        let hasClassValidator = false;
+        if (objType.kind === ReflectionKind.class) {
+            const reflection = ReflectionClass.from((objType as TypeClass).classType);
+            hasClassValidator = !!reflection.validationMethod;
+        }
+
+        // Fast path: if the type is "pure" (all properties have expression-only guards),
+        // we can use direct && chaining without ctx.when() wrapper.
+        // This enables V8 to better optimize the generated code.
+        const canUsePurePath =
+            !state.collectErrors &&
+            indexSignatures.length === 0 &&
+            !state.rejectUnknownKeys &&
+            !hasClassValidator &&
+            isPureTypeGuard(type);
+
+        if (canUsePurePath) {
+            // Build property checks with direct && chaining (pure expressions only)
+            // In pure fast path: skip redundant "in" checks for required properties.
+            // For primitives, typeof undefined !== "type" is false, so missing properties are caught.
+            // The "in" check is only needed for error collection (to distinguish missing vs wrong type).
+            let propertyCheck: Slot<boolean> = ctx.lit(true);
+
+            for (const member of members) {
+                if (!isPropertyMemberType(member)) continue;
+
+                const propName = memberNameToString(member.name);
+                const propType = member.type;
+                const isOpt = isOptional(member);
+                const propInput = input.get(propName);
+
+                if (!isOpt) {
+                    // Skip "in" check - type check catches missing properties
+                    const childState = state.forProperty(propName);
+                    const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                    propertyCheck = ctx.and(propertyCheck, propCheck);
+                } else {
+                    // Optimized: use ctx.or() instead of var/when/setVar pattern
+                    const propIsNullOrUndefined = ctx.or(ctx.eq(propInput, ctx.lit(undefined)), ctx.isNull(propInput));
+                    const childState = state.forProperty(propName);
+                    const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                    propertyCheck = ctx.and(propertyCheck, ctx.or(propIsNullOrUndefined, propCheck));
+                }
+            }
+
+            // Handle methods for object literals
+            if (objType.kind === ReflectionKind.objectLiteral) {
+                for (const method of methods) {
+                    const methodName = memberNameToString(method.name);
+                    const methodInput = input.get(methodName);
+                    const isOpt = isOptional(method);
+
+                    if (!isOpt) {
+                        // Skip "in" check - type check catches missing properties
+                        const childState = state.forProperty(methodName);
+                        const methodCheck = childState.build(method, methodInput) as Slot<boolean>;
+                        propertyCheck = ctx.and(propertyCheck, methodCheck);
+                    } else {
+                        const methodIsNullOrUndefined = ctx.or(
+                            ctx.eq(methodInput, ctx.lit(undefined)),
+                            ctx.isNull(methodInput),
+                        );
+                        const childState = state.forProperty(methodName);
+                        const methodCheck = childState.build(method, methodInput) as Slot<boolean>;
+                        propertyCheck = ctx.and(propertyCheck, ctx.or(methodIsNullOrUndefined, methodCheck));
+                    }
+                }
+            }
+
+            // Direct return without intermediate variable
+            return ctx.and(isObject, propertyCheck);
+        }
+
+        // Standard path: uses result variable and ctx.when() for guarded property access.
+        // This is needed when:
+        // - collectErrors is true (need to track errors)
+        // - indexSignatures exist (need post-validation loop)
+        // - rejectUnknownKeys is true (need post-validation check)
+        // - hasClassValidator is true (need post-validation call)
+        // - Type is not pure (nested types generate statement code)
         const result = ctx.var_<boolean>(ctx.lit(false));
 
         if (state.collectErrors) {
@@ -2545,17 +2760,14 @@ const objectGuards = {
                         const propCheck = childState.build(propType, propInput) as Slot<boolean>;
                         propertyCheck = ctx.and(propertyCheck, ctx.and(hasProp, propCheck));
                     } else {
+                        // Optimized: use ctx.or() instead of var/when/setVar pattern
                         const propIsNullOrUndefined = ctx.or(
                             ctx.eq(propInput, ctx.lit(undefined)),
                             ctx.isNull(propInput),
                         );
-                        const propValid = ctx.var_<boolean>(ctx.lit(true));
-                        ctx.when(ctx.not(propIsNullOrUndefined), () => {
-                            const childState = state.forProperty(propName);
-                            const propCheck = childState.build(propType, propInput) as Slot<boolean>;
-                            ctx.setVar(propValid, propCheck);
-                        });
-                        propertyCheck = ctx.and(propertyCheck, ctx.getVar(propValid));
+                        const childState = state.forProperty(propName);
+                        const propCheck = childState.build(propType, propInput) as Slot<boolean>;
+                        propertyCheck = ctx.and(propertyCheck, ctx.or(propIsNullOrUndefined, propCheck));
                     }
                 }
             }
@@ -2644,23 +2856,21 @@ const objectGuards = {
             });
         }
 
-        if (state.collectErrors && objType.kind === ReflectionKind.class) {
+        if (state.collectErrors && objType.kind === ReflectionKind.class && hasClassValidator) {
             const reflection = ReflectionClass.from((objType as TypeClass).classType);
-            if (reflection.validationMethod) {
-                const methodName = reflection.validationMethod;
-                const errorsSlot = state.optionsSlot.get('errors' as any);
-                ctx.let(
-                    ctx.callExpr(
-                        objectGuards.callClassValidator,
-                        input,
-                        ctx.lit(methodName),
-                        errorsSlot,
-                        state.pathSlot(),
-                        ctx.lit(ValidatorError),
-                        ctx.lit(ValidationErrorItem),
-                    ),
-                );
-            }
+            const methodName = reflection.validationMethod!;
+            const errorsSlot = state.optionsSlot.get('errors' as any);
+            ctx.let(
+                ctx.callExpr(
+                    objectGuards.callClassValidator,
+                    input,
+                    ctx.lit(methodName),
+                    errorsSlot,
+                    state.pathSlot(),
+                    ctx.lit(ValidatorError),
+                    ctx.lit(ValidationErrorItem),
+                ),
+            );
         }
 
         return ctx.getVar(result);
