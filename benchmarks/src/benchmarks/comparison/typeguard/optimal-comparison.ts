@@ -6,9 +6,7 @@
  *
  * Run: node --import @deepkit/run benchmarks/optimal-comparison.ts
  */
-import { typeOf } from '../src/reflection/reflection.js';
-import { cast } from '../src/serializer-facade.js';
-import { createTypeGuardFunction, getSerializeFunction, serializer } from '../src/serializer/index.js';
+import { cast, createTypeGuardFunction, getSerializeFunction, serializer, typeOf } from '@deepkit/type';
 
 // Test interface (same as typescript-runtime-type-benchmarks)
 interface ToBeChecked {

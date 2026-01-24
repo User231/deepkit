@@ -19,3 +19,5 @@ packages/create-app/files/var
 .DS_Store
 *.sqlite
 *.sqlite-journal
+.mcp.json
+.claude/
