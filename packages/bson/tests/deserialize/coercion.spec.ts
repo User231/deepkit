@@ -4,7 +4,7 @@
  * BSON deserializer performs type coercion when the wire type doesn't match
  * the expected type but can be reasonably converted.
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { describe, test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';

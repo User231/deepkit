@@ -1,7 +1,7 @@
 /**
  * Deserialization tests for special types: Date, ObjectId, UUID, RegExp
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';

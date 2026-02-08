@@ -1,7 +1,7 @@
 /**
  * Serialization tests for string encoding: UTF-8, surrogate pairs, special characters
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';

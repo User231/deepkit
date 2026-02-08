@@ -1,7 +1,7 @@
 /**
  * Serialization tests for binary types: Uint8Array, ArrayBuffer, TypedArrays
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';

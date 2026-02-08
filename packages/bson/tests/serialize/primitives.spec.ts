@@ -1,7 +1,7 @@
 /**
  * Serialization tests for primitive types: string, number, boolean, null, undefined, bigint
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';

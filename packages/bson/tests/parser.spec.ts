@@ -1,7 +1,7 @@
 /**
  * Direct tests for parser functions
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { describe, test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';

@@ -1,7 +1,7 @@
 /**
  * Serialization tests for Maps and index signatures
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { test } from 'node:test';
 
 import { getBSONSerializer } from '../../index.js';

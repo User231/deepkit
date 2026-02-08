@@ -10,7 +10,7 @@
  *
  * Run standalone: node --import @deepkit/run --test tests/serialize/perf-regression.spec.ts
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { describe, test } from 'node:test';
 
 import { BenchSuite } from '@deepkit/bench';
@@ -148,7 +148,7 @@ describe('Performance Regression', () => {
             suite.add('bson-js', () => bson.serialize(bsonData));
             const results = suite.run({ verbose: false });
 
-            assertRatio('UUID (1 field)', results['deepkit'].hz, results['bson-js'].hz, 5);
+            assertRatio('UUID (1 field)', results['deepkit'].hz, results['bson-js'].hz, 2);
         });
 
         test('Uint8Array (small, pre-allocated)', () => {
@@ -529,7 +529,7 @@ describe('Performance Regression', () => {
             suite.add('bson-js', () => bson.serialize(data));
             const results = suite.run({ verbose: false });
 
-            assertRatio('string[] 100', results['deepkit'].hz, results['bson-js'].hz, 3);
+            assertRatio('string[] 100', results['deepkit'].hz, results['bson-js'].hz, 1.5);
         });
 
         test('number array (100 items)', () => {

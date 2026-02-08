@@ -1,7 +1,7 @@
 /**
  * Serialization tests for union types and literal unions
  */
-import bson from 'bson';
+import * as bson from 'bson';
 import { describe, test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';
