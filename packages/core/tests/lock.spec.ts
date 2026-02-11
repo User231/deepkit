@@ -1,10 +1,12 @@
-import { beforeAll, test } from 'node:test';
+import { before, test } from 'node:test';
+
 import { expect, fn } from '@deepkit/run/expect';
 
 import { Mutex, ProcessLock, ProcessLocker } from '../src/process-locker.js';
+
 let locker: ProcessLocker;
 
-beforeAll(async () => {
+before(async () => {
     locker = new ProcessLocker();
 });
 

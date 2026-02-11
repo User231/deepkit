@@ -1,7 +1,7 @@
 import { test } from 'node:test';
-import { expect, fn, spyOn } from '@deepkit/run/expect';
 
 import { App, AppModule } from '@deepkit/app';
+import { expect, fn, spyOn } from '@deepkit/run/expect';
 import { ReflectionClass } from '@deepkit/type';
 
 import { http } from '../src/decorator.js';

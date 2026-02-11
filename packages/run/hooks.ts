@@ -7,9 +7,10 @@ import { transpile } from './shared.js';
 async function resolveTs(specifier: string, context: any, nextResolve: Function) {
     // Try .ts/.tsx extension for .js imports or extensionless imports
     const ext = extname(specifier);
-    const variants = ext === '.js'
-        ? [specifier.replace(/\.js$/, '.ts'), specifier.replace(/\.js$/, '.tsx')]
-        : [`${specifier}.ts`, `${specifier}.tsx`];
+    const variants =
+        ext === '.js'
+            ? [specifier.replace(/\.js$/, '.ts'), specifier.replace(/\.js$/, '.tsx')]
+            : [`${specifier}.ts`, `${specifier}.tsx`];
 
     for (const tsSpecifier of variants) {
         try {

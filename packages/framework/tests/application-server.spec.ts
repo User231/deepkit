@@ -1,5 +1,4 @@
 import { afterEach, describe, it, test } from 'node:test';
-import { expect, fn, spyOn } from '@deepkit/run/expect';
 
 import { App } from '@deepkit/app';
 import { sleep } from '@deepkit/core';
@@ -7,6 +6,7 @@ import { HttpRequest, http } from '@deepkit/http';
 import { InjectorContext } from '@deepkit/injector';
 import { ConsoleTransport, Logger, MemoryLoggerTransport } from '@deepkit/logger';
 import { rpc } from '@deepkit/rpc';
+import { expect, fn, spyOn } from '@deepkit/run/expect';
 
 import { ApplicationServer } from '../src/application-server.js';
 import { FrameworkModule } from '../src/module.js';
@@ -16,8 +16,7 @@ import { RpcServer, RpcServerInterface, WebWorker } from '../src/worker.js';
 Error.stackTraceLimit = 50;
 
 describe('application-server', () => {
-    afterEach(() => {
-    });
+    afterEach(() => {});
 
     test('testing app api', async () => {
         @rpc.controller('test')

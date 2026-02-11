@@ -1,16 +1,17 @@
-import { afterAll, beforeAll, beforeEach, describe, test } from 'node:test';
-import { expect, fn } from '@deepkit/run/expect';
 import { FindOptions, MongoClient as MongoMongoClient } from 'mongodb';
+import { after, before, beforeEach, describe, test } from 'node:test';
 
 import { sleep } from '@deepkit/core';
 import { ConsoleLogger, LoggerLevel, MemoryLogger } from '@deepkit/logger';
 import { Database } from '@deepkit/orm';
+import { expect, fn } from '@deepkit/run/expect';
 import { AutoIncrement, PrimaryKey, ReflectionClass } from '@deepkit/type';
 
 import { MongoDatabaseAdapter } from '../src/adapter.js';
 import { MongoClient } from '../src/client/client.js';
 import { FindCommand } from '../src/client/command/find.js';
 import { MongoEnv, MongoInstance, createMongoClientFactory } from './client/env-setup.js';
+
 test('logger', () => {
     const logger = new ConsoleLogger();
     logger.level = LoggerLevel.debug;
@@ -38,7 +39,7 @@ describe('replica set, primary secondary', () => {
     let secondary1: MongoInstance;
     const createClient = createMongoClientFactory(mongoEnv);
 
-    beforeAll(async () => {
+    before(async () => {
         [primary, secondary1] = await Promise.all([mongoEnv.addMongo('primary', 'rs1'), mongoEnv.addMongo('secondary1', 'rs1')]);
 
         await mongoEnv.execute(
@@ -58,7 +59,7 @@ describe('replica set, primary secondary', () => {
         await mongoEnv.reset();
     });
 
-    afterAll(async () => {
+    after(async () => {
         createClient.closeAll();
         await mongoEnv.closeAll();
     });

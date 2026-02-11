@@ -1,4 +1,5 @@
-import { describe, test } from 'node:test';
+import { afterEach, describe, test } from 'node:test';
+
 import { expect } from '@deepkit/run/expect';
 
 import { Builder, Ref, VarRef, arg, canJIT, fn, fnExec, fnJIT, getJitThreshold, getRuntimeCapabilities, setJitThreshold } from '../src/jit.js';

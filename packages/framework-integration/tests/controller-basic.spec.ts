@@ -1,6 +1,5 @@
-import { afterAll, test } from 'node:test';
-import { expect, fn } from '@deepkit/run/expect';
 import { fail } from 'assert';
+import { after, test } from 'node:test';
 import { Observable } from 'rxjs';
 import { bufferCount, first, skip } from 'rxjs/operators';
 import ws from 'ws';
@@ -8,13 +7,14 @@ import ws from 'ws';
 import { isArray } from '@deepkit/core';
 import { ObserverTimer } from '@deepkit/core-rxjs';
 import { ClientProgress, JSONError, rpc } from '@deepkit/rpc';
+import { expect, fn } from '@deepkit/run/expect';
 import { ValidationError, ValidationErrorItem, entity } from '@deepkit/type';
 
 import { appModuleForControllers, closeAllCreatedServers, createServerClientPair, subscribeAndWait } from './util.js';
 
 // @ts-ignore
 global['WebSocket'] = ws;
-afterAll(async () => {
+after(async () => {
     await closeAllCreatedServers();
 });
 

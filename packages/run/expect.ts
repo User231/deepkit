@@ -208,8 +208,25 @@ interface ExpectStatic {
     stringContaining(expected: string): AsymmetricMatcher;
 }
 
+interface AsyncMatchers {
+    toBe(expected: unknown): Promise<void>;
+    toEqual(expected: unknown): Promise<void>;
+    toContain(expected: unknown): Promise<void>;
+    toMatchObject(expected: object): Promise<void>;
+    toMatch(expected: string | RegExp): Promise<void>;
+    toThrow(expected?: string | RegExp | Function): Promise<void>;
+    toThrowError(expected?: string | RegExp | Function): Promise<void>;
+    toBeInstanceOf(expected: Function): Promise<void>;
+    toBeDefined(): Promise<void>;
+    toBeUndefined(): Promise<void>;
+    toBeTruthy(): Promise<void>;
+    toBeFalsy(): Promise<void>;
+}
+
 interface Expect extends Matchers {
     not: Matchers;
+    rejects: AsyncMatchers;
+    resolves: AsyncMatchers;
 }
 
 function expectImpl(actual: unknown): Expect {
@@ -420,7 +437,11 @@ function expectImpl(actual: unknown): Expect {
         toHaveBeenCalled() {
             const mock = actual as MockFunction;
             assert.ok(mock._isMock, 'not.toHaveBeenCalled called on non-mock.');
-            assert.strictEqual(mock.calls.length, 0, `Expected mock NOT to have been called, but it was called ${mock.calls.length} times`);
+            assert.strictEqual(
+                mock.calls.length,
+                0,
+                `Expected mock NOT to have been called, but it was called ${mock.calls.length} times`,
+            );
         },
         toHaveBeenCalledWith(...args: unknown[]) {
             const mock = actual as MockFunction;
@@ -429,10 +450,7 @@ function expectImpl(actual: unknown): Expect {
                 if (call.length !== args.length) return false;
                 return args.every((arg, i) => matchesWithAsymmetric(call[i], arg));
             });
-            assert.ok(
-                !found,
-                `Expected mock NOT to have been called with ${formatValue(args)}`,
-            );
+            assert.ok(!found, `Expected mock NOT to have been called with ${formatValue(args)}`);
         },
         toBeTruthy() {
             assert.ok(!actual, `Expected ${formatValue(actual)} NOT to be truthy`);
@@ -462,7 +480,71 @@ function expectImpl(actual: unknown): Expect {
         },
     };
 
-    return { ...matchers, not: negated };
+    // Build rejects/resolves async matchers
+    const rejectsMatchers: AsyncMatchers = {} as any;
+    const resolvesMatchers: AsyncMatchers = {} as any;
+
+    for (const key of [
+        'toBe',
+        'toEqual',
+        'toContain',
+        'toMatchObject',
+        'toMatch',
+        'toThrow',
+        'toThrowError',
+        'toBeInstanceOf',
+        'toBeDefined',
+        'toBeUndefined',
+        'toBeTruthy',
+        'toBeFalsy',
+    ] as const) {
+        (rejectsMatchers as any)[key] = async (...args: any[]) => {
+            try {
+                const value = typeof actual === 'function' ? actual() : actual;
+                await value;
+                assert.fail(`Expected promise to reject, but it resolved`);
+            } catch (err: any) {
+                if (key === 'toThrow' || key === 'toThrowError') {
+                    if (args.length === 0) return; // just checking it throws
+                    const expected = args[0];
+                    if (typeof expected === 'string') {
+                        assert.ok(
+                            err.message?.includes(expected),
+                            `Expected error message to contain "${expected}", got "${err.message}"`,
+                        );
+                    } else if (expected instanceof RegExp) {
+                        assert.match(err.message, expected);
+                    } else if (typeof expected === 'function') {
+                        assert.ok(
+                            err instanceof expected,
+                            `Expected error to be instance of ${expected.name}, got ${err.constructor?.name}`,
+                        );
+                    }
+                } else if (key === 'toBeInstanceOf') {
+                    assert.ok(
+                        err instanceof args[0],
+                        `Expected rejected value to be instance of ${args[0].name}, got ${err.constructor?.name}`,
+                    );
+                } else if (key === 'toMatchObject') {
+                    if (!jestMatchObject(err, args[0])) {
+                        assert.fail(
+                            `Expected rejected value to match object:\nActual: ${formatValue(err)}\nExpected: ${formatValue(args[0])}`,
+                        );
+                    }
+                } else {
+                    // For other matchers, run them on the rejected error
+                    (expectImpl(err) as any)[key](...args);
+                }
+            }
+        };
+        (resolvesMatchers as any)[key] = async (...args: any[]) => {
+            const value = typeof actual === 'function' ? actual() : actual;
+            const result = await value;
+            (expectImpl(result) as any)[key](...args);
+        };
+    }
+
+    return { ...matchers, not: negated, rejects: rejectsMatchers, resolves: resolvesMatchers };
 }
 
 function _expect(actual: unknown): Expect {
@@ -481,15 +563,21 @@ _expect.any = function (constructor: Function): AsymmetricMatcher {
             if (constructor === Function) return typeof actual === 'function';
             return actual instanceof constructor;
         },
-        toString() { return `Any<${constructor.name}>`; },
+        toString() {
+            return `Any<${constructor.name}>`;
+        },
     };
 };
 
 _expect.anything = function (): AsymmetricMatcher {
     return {
         [ASYMMETRIC]: true,
-        check(actual: unknown) { return actual !== null && actual !== undefined; },
-        toString() { return 'Anything'; },
+        check(actual: unknown) {
+            return actual !== null && actual !== undefined;
+        },
+        toString() {
+            return 'Anything';
+        },
     };
 };
 
@@ -498,11 +586,11 @@ _expect.arrayContaining = function (expected: unknown[]): AsymmetricMatcher {
         [ASYMMETRIC]: true,
         check(actual: unknown) {
             if (!Array.isArray(actual)) return false;
-            return expected.every(exp =>
-                actual.some(act => matchesWithAsymmetric(act, exp)),
-            );
+            return expected.every(exp => actual.some(act => matchesWithAsymmetric(act, exp)));
         },
-        toString() { return `ArrayContaining<${formatValue(expected)}>`; },
+        toString() {
+            return `ArrayContaining<${formatValue(expected)}>`;
+        },
     };
 };
 
@@ -516,7 +604,9 @@ _expect.objectContaining = function (expected: object): AsymmetricMatcher {
             }
             return true;
         },
-        toString() { return `ObjectContaining<${formatValue(expected)}>`; },
+        toString() {
+            return `ObjectContaining<${formatValue(expected)}>`;
+        },
     };
 };
 
@@ -526,7 +616,9 @@ _expect.stringContaining = function (expected: string): AsymmetricMatcher {
         check(actual: unknown) {
             return typeof actual === 'string' && actual.includes(expected);
         },
-        toString() { return `StringContaining<${expected}>`; },
+        toString() {
+            return `StringContaining<${expected}>`;
+        },
     };
 };
 
@@ -579,7 +671,9 @@ export function fn(impl?: (...args: any[]) => any): MockFunction {
 export function spyOn(obj: any, method: string): MockFunction & { mockRestore(): void } {
     const original = obj[method];
     const spy = fn((...args: any[]) => original.apply(obj, args)) as MockFunction & { mockRestore(): void };
-    spy.mockRestore = () => { obj[method] = original; };
+    spy.mockRestore = () => {
+        obj[method] = original;
+    };
     obj[method] = spy;
     return spy;
 }
