@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, describe, test } from 'node:test';
+import { expect, fn } from '@deepkit/run/expect';
 import { FindOptions, MongoClient as MongoMongoClient } from 'mongodb';
 
 import { sleep } from '@deepkit/core';
@@ -10,9 +11,6 @@ import { MongoDatabaseAdapter } from '../src/adapter.js';
 import { MongoClient } from '../src/client/client.js';
 import { FindCommand } from '../src/client/command/find.js';
 import { MongoEnv, MongoInstance, createMongoClientFactory } from './client/env-setup.js';
-
-jest.setTimeout(60 * 1000);
-
 test('logger', () => {
     const logger = new ConsoleLogger();
     logger.level = LoggerLevel.debug;

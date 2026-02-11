@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, jest, test } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, describe, it, test } from 'node:test';
+import { expect, fn } from '@deepkit/run/expect';
 
 import { sleep } from '@deepkit/core';
 import { EventDispatcher } from '@deepkit/event';
@@ -12,9 +13,6 @@ import { MongoConnectionError } from '../../src/client/error.js';
 import { Host } from '../../src/client/host.js';
 import { mongoBinarySerializer } from '../../src/mongo-serializer.js';
 import { MongoEnv, MongoInstance, createMongoClientFactory } from './env-setup.js';
-
-jest.setTimeout(60 * 1000);
-
 test('nix', () => {});
 
 describe('basic', () => {
