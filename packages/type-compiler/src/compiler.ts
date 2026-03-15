@@ -653,6 +653,11 @@ export class ReflectionTransformer implements CustomTransformer {
         //if it's not a TS/TSX file, we do not transform it
         if (sourceFile.scriptKind !== ScriptKind.TS && sourceFile.scriptKind !== ScriptKind.TSX) return sourceFile;
 
+        // Skip transformation when running under Angular's ngtsc compiler (e.g. ng-packagr).
+        // The deepkit type transformer modifies the AST in ways incompatible with Angular's
+        // partial/full compilation modes, causing runtime errors during Angular's emit phase.
+        if ((this.compilerOptions as any).compilationMode) return sourceFile;
+
         if ((sourceFile as any).deepkitTransformed) return sourceFile;
         this.embedAssignType = false;
         this.addImports = [];
