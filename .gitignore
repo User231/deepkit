@@ -18,3 +18,7 @@ packages/create-app/files/var
 .vs
 .fleet
 .DS_Store
+*.tsbuildinfo
+packages/desktop-ui/docs.json
+packages/devtool/dist.zip
+packages/devtool/.angular
