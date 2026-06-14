@@ -1,14 +1,92 @@
-import {
-    BaseParser,
-    Writer,
-    deserializeBSONWithoutOptimiser,
-    getBSONDeserializer,
-    getBSONSerializer,
-    getBSONSizer,
-    stringByteLength,
-} from '@deepkit/bson';
+import { deserializeBSONWithoutOptimiser, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 import { createBuffer } from '@deepkit/core';
 import { AnalyticData, FrameData, FrameEnd, FrameStart, FrameType, getTypeOfCategory } from '@deepkit/stopwatch';
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+function stringByteLength(str: string): number {
+    return textEncoder.encode(str).byteLength;
+}
+
+/**
+ * Minimal little-endian binary writer.
+ *
+ * Replaces the `Writer` that `@deepkit/bson` used to export (removed in the v2 rewrite, which
+ * switched serialization to the zero-copy `[buffer, size]` tuple API). This module only needs a
+ * handful of primitive writes for its custom stopwatch frame format.
+ */
+class Writer {
+    public dataView: DataView;
+    public offset = 0;
+
+    constructor(public buffer: Uint8Array) {
+        this.dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    }
+
+    writeByte(v: number): void {
+        this.buffer[this.offset++] = v;
+    }
+
+    writeUint32(v: number): void {
+        this.dataView.setUint32(this.offset, v, true);
+        this.offset += 4;
+    }
+
+    writeDouble(v: number): void {
+        this.dataView.setFloat64(this.offset, v, true);
+        this.offset += 8;
+    }
+
+    writeBuffer(buf: Uint8Array): void {
+        this.buffer.set(buf, this.offset);
+        this.offset += buf.byteLength;
+    }
+
+    writeString(str: string): void {
+        const bytes = textEncoder.encode(str);
+        this.buffer.set(bytes, this.offset);
+        this.offset += bytes.byteLength;
+    }
+}
+
+/**
+ * Minimal little-endian binary parser. Replaces the removed `@deepkit/bson` `BaseParser`.
+ */
+class BaseParser {
+    public offset = 0;
+    public dataView: DataView;
+
+    constructor(public buffer: Uint8Array) {
+        this.dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    }
+
+    eatByte(): number {
+        return this.buffer[this.offset++];
+    }
+
+    eatUInt32(): number {
+        const v = this.dataView.getUint32(this.offset, true);
+        this.offset += 4;
+        return v;
+    }
+
+    peekUInt32(): number {
+        return this.dataView.getUint32(this.offset, true);
+    }
+
+    eatDouble(): number {
+        const v = this.dataView.getFloat64(this.offset, true);
+        this.offset += 8;
+        return v;
+    }
+
+    eatString(size: number): string {
+        const str = textDecoder.decode(this.buffer.subarray(this.offset, this.offset + size));
+        this.offset += size;
+        return str;
+    }
+}
 
 export function encodeFrames(frames: (FrameStart | FrameEnd)[]): Uint8Array {
     //cid = id and worker, as compound key
@@ -52,24 +130,33 @@ export function encodeFrames(frames: (FrameStart | FrameEnd)[]): Uint8Array {
 }
 
 export function encodeFrameData(dataItems: FrameData[]): Uint8Array {
-    //<cid uint32><bson document>
+    //<cid uint32><category uint8><bson document>
+    // Pre-serialize each BSON body up front. getBSONSerializer now returns a [buffer, size]
+    // tuple over a SHARED scratch buffer, so we copy each result (slice) before the next call.
+    const bodies: (Uint8Array | undefined)[] = [];
     let size = 0;
     for (const data of dataItems) {
-        let dataSize = 4; //always has uint32
         const type = getTypeOfCategory(data.category);
-        if (type) dataSize = getBSONSizer(undefined, type)(data.data);
-        size += (32 + 8) / 8 + dataSize;
+        let body: Uint8Array | undefined;
+        if (type) {
+            const [buffer, bsonSize] = getBSONSerializer(type)(data.data);
+            body = buffer.slice(0, bsonSize);
+        }
+        bodies.push(body);
+        size += (32 + 8) / 8 + (body ? body.byteLength : 4);
     }
 
     const buffer = createBuffer(size);
     const writer = new Writer(buffer);
 
-    for (const data of dataItems) {
+    for (let i = 0; i < dataItems.length; i++) {
+        const data = dataItems[i];
         writer.writeUint32(data.cid);
         writer.writeByte(data.category);
-        const type = getTypeOfCategory(data.category);
-        if (type) {
-            getBSONSerializer(type)(data.data, { writer });
+        const body = bodies[i];
+        if (body) {
+            //BSON document contains its own size prefix at the beginning
+            writer.writeBuffer(body);
         } else {
             writer.writeUint32(0);
         }
