@@ -166,6 +166,42 @@ export class HandlerRegistry<Ctx extends SerializerBuildContext = SerializerBuil
     }
 
     /**
+     * Replace ALL handlers for a ReflectionKind with a single handler.
+     *
+     * Unlike `register`/`append`/`prepend` (which chain — each handler receives the
+     * previous one's output), this clears any existing handlers for the kind first.
+     * Needed by serializer subclasses (e.g. @deepkit/sql) that must *override* a default
+     * handler's behavior rather than run after it.
+     */
+    replaceKind<T extends Type = Type>(kind: ReflectionKind, handler: TypeHandler<T, Ctx>): this {
+        this.kindHandlers.set(kind, [handler]);
+        this.invalidateCache();
+        return this;
+    }
+
+    /**
+     * Replace ALL handlers for a specific class type with a single handler.
+     * See {@link replaceKind} for why this exists (override vs chain).
+     */
+    replaceClass<T extends Type = Type>(classType: ClassType, handler: TypeHandler<T, Ctx>): this {
+        this.classHandlers.set(classType, [handler]);
+        this.invalidateCache();
+        return this;
+    }
+
+    /**
+     * Replace the handlers for ALL binary types (ArrayBuffer, TypedArrays) with a single
+     * handler. See {@link replaceKind} for why this exists (override vs chain).
+     */
+    replaceBinary<T extends Type = Type>(handler: TypeHandler<T, Ctx>): this {
+        for (const binaryType of binaryTypes) {
+            this.classHandlers.set(binaryType, [handler]);
+        }
+        this.invalidateCache();
+        return this;
+    }
+
+    /**
      * Register a handler based on an annotation/decorator predicate.
      * First matching predicate wins.
      */
