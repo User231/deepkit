@@ -84,12 +84,12 @@ test('update (patch) by _id — partial serialize wraps ids', async () => {
     assert.strictEqual(back.logins, 5);
 });
 
-// SKIP: blocked by a pre-existing v2 issue unrelated to the BSON/serializer migration —
-// the ORM's doPersist runs `validate(item, schema.type)`, and v2's @deepkit/type validator
-// validates a `& Reference` field against its foreign-key type (MongoId), so a *hydrated*
-// reference object fails with "Not a valid MongoId". Reference→FK *serialization* works (see
-// mongo-serializer.spec.ts). Tracked separately; needs a validation-layer fix in @deepkit/type/orm.
-test('reference (& Reference) stored as foreign key and joined back', { skip: 'v2 reference-validation gap (validates hydrated reference as FK MongoId)' }, async () => {
+// A hydrated `& Reference` (full instance) is persisted as its foreign key. The ORM's
+// doPersist runs `validate(item, schema.type)`; @deepkit/type's reference guard accepts
+// either a hydrated instance (carrying the PK) or the FK value itself — see the
+// `guardReferenceFast` fix in packages/type/src/serializer/handlers.ts (it emits each
+// branch's guard conditionally so the non-matching branch can't push spurious errors).
+test('reference (& Reference) stored as foreign key and joined back', async () => {
     const database = db();
     await database.query(User).deleteMany();
     await database.query(Group).deleteMany();

@@ -3680,12 +3680,29 @@ export const guardReferenceFast: JsonTypeHandler = (type, input, b, state) => {
     const pkType = pkProperty.type;
     const pkName = String(pkProperty.getName());
 
-    const isObj = b.and(b.isType(input, 'object'), b.not(b.isNull(input)));
-    const pkInput = input.get(pkName);
-    const pkCheck = state.forProperty(pkName).build(pkType, pkInput) as Ref<boolean>;
-    const directCheck = state.build(pkType, input) as Ref<boolean>;
+    // A reference value is valid as EITHER:
+    //   1. a hydrated instance of the referenced class (an object carrying the PK), or
+    //   2. the foreign-key value itself (the PK primitive).
+    // We must emit each branch's guard CODE conditionally (via if_, not ternary): the
+    // guards built by state.build() emit their error-collection side effects into the
+    // current block, so a ternary — which only selects the boolean result — would let
+    // the non-applicable branch push spurious errors in validate()/collectErrors mode
+    // (e.g. validating a hydrated reference against the FK type, or `input.id` on a
+    // primitive FK). if_ scopes those statements to the branch actually taken.
+    const result = b.var_<boolean>(b.lit(false));
+    b.if_(
+        b.and(b.isType(input, 'object'), b.not(b.isNull(input))),
+        () => {
+            // Hydrated reference: validate only the PK property against the FK type.
+            b.setVar(result, state.forProperty(pkName).build(pkType, input.get(pkName)) as Ref<boolean>);
+        },
+        () => {
+            // Foreign-key value: validate the input directly against the FK type.
+            b.setVar(result, state.build(pkType, input) as Ref<boolean>);
+        },
+    );
 
-    return b.ternary(isObj, pkCheck, directCheck);
+    return b.getVar(result);
 };
 
 // ============================================================================
