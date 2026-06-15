@@ -31,7 +31,7 @@ class User {
 
 const databases: Database[] = [];
 function db(): Database {
-    const d = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/deepkit_mig_test'));
+    const d = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/deepkit_mig_test`));
     d.register(User, Group);
     databases.push(d);
     return d;

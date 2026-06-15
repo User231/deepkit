@@ -17,7 +17,7 @@ test('simple', async () => {
         constructor(public name: string) {}
     }
 
-    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/test'));
+    const database = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/test`));
     await database.query(Test).deleteMany();
 
     {
@@ -47,7 +47,7 @@ test('unit of work', async () => {
         constructor(public name: string) {}
     }
 
-    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/test'));
+    const database = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/test`));
     await database.query(Test).deleteMany();
 
     const session = database.createSession();
@@ -77,7 +77,7 @@ test('repository', async () => {
         constructor(public name: string) {}
     }
 
-    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/test'));
+    const database = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/test`));
     await database.query(Test).deleteMany();
     const item = new Test('asda');
     await database.persist(item);
@@ -106,7 +106,7 @@ test('session', async () => {
         constructor(public name: string) {}
     }
 
-    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/test'));
+    const database = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/test`));
     await database.query(Test).deleteMany();
 
     await database.session(async session => {
@@ -152,7 +152,7 @@ test('errors raw', async () => {
         constructor(public name: string) {}
     }
 
-    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/test'));
+    const database = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/test`));
     let called: DatabaseErrorEvent | undefined;
     database.listen(onDatabaseError, event => {
         called = event;
@@ -173,7 +173,7 @@ test('errors query', async () => {
         constructor(public name: string) {}
     }
 
-    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/test'));
+    const database = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/test`));
     let called: DatabaseErrorEvent | undefined;
     database.listen(onDatabaseError, event => {
         called = event;

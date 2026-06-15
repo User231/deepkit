@@ -51,7 +51,7 @@ test('Composite index in ClassSchema', async () => {
 });
 
 test('migrate()', async () => {
-    const db = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1/testing`), [Model, ModelCompositeIndex]);
+    const db = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/testing`), [Model, ModelCompositeIndex]);
     await db.query(Model).deleteMany();
 
     await db.migrate();
