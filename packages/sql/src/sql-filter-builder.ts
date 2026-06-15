@@ -74,7 +74,11 @@ export class SQLFilterBuilder {
         const sql: string[] = [];
 
         for (const filter of filters) {
-            sql.push(this.conditions(filter, 'AND'));
+            const condition = this.conditions(filter, 'AND');
+            //skip empty sub-conditions (e.g. an empty `{}` filter object) so we never emit a
+            //dangling `( AND ...)`/`( OR ...)` which is invalid SQL
+            if (condition === '') continue;
+            sql.push(condition);
         }
 
         if (sql.length > 1) return '(' + sql.join(` ${join} `) + ')';
