@@ -150,7 +150,7 @@ test('router parameters', async () => {
 
     expect((await httpKernel.request(HttpRequest.GET('/user/peter'))).json).toBe('peter');
     expect((await httpKernel.request(HttpRequest.GET('/user-id/123'))).json).toBe(123);
-    expect((await httpKernel.request(HttpRequest.GET('/user-id/asd'))).json.message).toContain('Validation error:\nid(type): Cannot convert asd to number');
+    expect((await httpKernel.request(HttpRequest.GET('/user-id/asd'))).json.message).toContain('Validation error:\nid(type): Cannot convert string "asd" to number');
     expect((await httpKernel.request(HttpRequest.GET('/boolean/1'))).json).toBe(true);
     expect((await httpKernel.request(HttpRequest.GET('/boolean/false'))).json).toBe(false);
 
@@ -765,7 +765,7 @@ test('unions', async () => {
     expect(invalidPageResponse.errors[0].code).toEqual('type');
     expect(invalidPageResponse.errors[0].path).toEqual('page');
     // Error message should indicate conversion failure for the invalid value
-    expect(invalidPageResponse.errors[0].message).toContain('Cannot convert asdasdc');
+    expect(invalidPageResponse.errors[0].message).toContain('Cannot convert string "asdasdc"');
 });
 
 test('router dotToUrlPath', () => {
@@ -903,7 +903,9 @@ test('reference in query', async () => {
     const httpKernel = createHttpKernel([Controller]);
     expect((await httpKernel.request(HttpRequest.GET('/user?filter[group]=2'))).json).toEqual({
         isGroup: true,
-        objectName: 'ObjectReference',
+        // Reference targets that are interfaces now reflect the interface name (Group -> GroupReference)
+        // rather than the anonymous ObjectReference of older builds.
+        objectName: 'GroupReference',
         groupId: 2,
     });
 });
@@ -1498,7 +1500,7 @@ test('issue-415: serialize literal types in union', async () => {
     // Invalid value should return validation error
     const invalidResponse = (await httpKernel.request(HttpRequest.GET('/?rotate=555454'))).json;
     expect(invalidResponse.message).toContain('Validation error');
-    expect(invalidResponse.message).toContain('Cannot convert 555454 to 180 | 0');
+    expect(invalidResponse.message).toContain('Cannot convert string "555454" to 180 | 0');
 });
 
 test('fetch thrown error instances in listeners', async () => {
@@ -1787,7 +1789,7 @@ test('required query should be required', async () => {
 
     const httpKernel = createHttpKernel([Controller]);
     const response = (await httpKernel.request(HttpRequest.GET('/'))).json;
-    expect(response.message).toContain('Validation error:\nentityId(type): No value given');
+    expect(response.message).toContain('Validation error:\nentityId(type): Not a HttpQuery<string>');
     expect((await httpKernel.request(HttpRequest.GET('/?entityId=asd'))).json).toEqual(['asd']);
 });
 

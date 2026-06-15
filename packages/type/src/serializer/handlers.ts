@@ -397,7 +397,23 @@ const anyGuards = {
 // Primitive Serialize Handlers
 // ============================================================================
 
-export const handleString: JsonTypeHandler = (type, input, b, state) => input;
+// Serialize-side string coercion mirrors deserializeString: a numeric/boolean/bigint value in a
+// string-typed field is stringified on the way out. Deepkit v1 did this (`'' + value`); the v2
+// jit-rewrite dropped it (handler became a pass-through), which silently changed output for
+// mismatched-but-common cases (e.g. a route returning `1` for a `string` response). Restored here.
+export const handleString: JsonTypeHandler = (type, input, b, state) => {
+    const result = b.var_(input);
+    b.if_(
+        b.and(
+            state.isLoose(),
+            b.or(b.isType(input, 'number'), b.or(b.isType(input, 'boolean'), b.isType(input, 'bigint'))),
+        ),
+        () => {
+            b.setVar(result, b.call(String, input));
+        },
+    );
+    return b.getVar(result);
+};
 export const handleNumber: JsonTypeHandler = (type, input, b, state) => input;
 export const handleBoolean: JsonTypeHandler = (type, input, b, state) => input;
 export const handleBigInt: JsonTypeHandler = (type, input, b, state) => b.call(String, input);
@@ -3527,19 +3543,29 @@ export const serializeReference: JsonTypeHandler = (type, input, b, state) => {
     // Check if input is a reference instance
     const result = b.var_<any>(undefined);
 
-    b.if_(
-        b.call(isReferenceInstance, input),
-        () => {
-            // It's a reference - get the primary key value
-            const pkValue = input.get(pkName);
-            b.setVar(result, state.build(pkType, pkValue));
-        },
-        () => {
-            // Full object - serialize the primary key
-            const pkValue = input.get(pkName);
-            b.setVar(result, state.build(pkType, pkValue));
-        },
+    // An unpopulated reference (undefined / null / unpopulatedSymbol — what a lazy-loaded relation
+    // getter yields when UnpopulatedCheck isn't Throw) carries no primary key to read, so leave the
+    // result undefined (the property is omitted) instead of dereferencing `.id` off it and crashing.
+    const populated = b.and(
+        b.not(b.isType(input, 'undefined')),
+        b.and(b.not(b.isNull(input)), b.not(b.eq(input, b.lit(unpopulatedSymbol)))),
     );
+
+    b.if_(populated, () => {
+        b.if_(
+            b.call(isReferenceInstance, input),
+            () => {
+                // It's a reference - get the primary key value
+                const pkValue = input.get(pkName);
+                b.setVar(result, state.build(pkType, pkValue));
+            },
+            () => {
+                // Full object - serialize the primary key
+                const pkValue = input.get(pkName);
+                b.setVar(result, state.build(pkType, pkValue));
+            },
+        );
+    });
 
     return b.getVar(result);
 };

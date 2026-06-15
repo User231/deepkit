@@ -9,6 +9,7 @@ import {
     ReflectionParameter,
     Type,
     ValidationError,
+    ValidationErrorItem,
     assertType,
     findMember,
     getSerializeFunction,
@@ -276,6 +277,44 @@ export function buildRequestParser(
     );
 }
 
+/**
+ * Re-emit each validation error produced for a single route parameter under the parameter's name.
+ *
+ * The JIT type guard builds error paths relative to the value it was handed (root = `''` for a
+ * scalar, the field name for an object property). It has no notion of *which* route parameter that
+ * value came from, so a bad `?page=` reports `(type): …` and a bad `:id` reports `(type): …`. The
+ * router knows the name, so we prefix it here: scalar errors become `page(type): …` and nested
+ * object errors `entity.field(type): …`, matching the public path semantics every other Deepkit
+ * surface (cast/validate) already produces.
+ */
+function prefixValidationErrors(target: ValidationErrorItem[], source: ValidationErrorItem[], root: string): void {
+    for (const item of source) {
+        const path = item.path ? root + '.' + item.path : root;
+        target.push(new ValidationErrorItem(path, item.code, item.message, item.value));
+    }
+}
+
+/**
+ * Deserialize a single route parameter, re-anchoring any thrown validation error under the
+ * parameter's name. Lenient scalar deserializers (e.g. `number`) leave an unconvertible value
+ * untouched for the validator to reject, but union/literal deserializers *throw* a rootless
+ * `ValidationError` directly — without this the response would read `(type): Cannot convert …`
+ * instead of `page(type): …`. A deserializer throw already aborts the whole parse, so re-throwing
+ * the prefixed error preserves that fail-fast behavior; it only corrects the path.
+ */
+function coerceParam(converter: (value: any, options: { loosely: boolean }) => any, rawValue: any, root: string): any {
+    try {
+        return converter(rawValue, { loosely: true });
+    } catch (error) {
+        if (error instanceof ValidationError) {
+            const prefixed: ValidationErrorItem[] = [];
+            prefixValidationErrors(prefixed, error.errors, root);
+            throw new ValidationError(prefixed);
+        }
+        throw error;
+    }
+}
+
 export function getRequestParserCodeForParameters(
     compiler: CompilerContext,
     parseOptions: HttpParserOptions,
@@ -289,6 +328,8 @@ export function getRequestParserCodeForParameters(
     },
 ) {
     compiler.set({ DependenciesUnmetError });
+    const prefixErrorsVar = compiler.reserveVariable('prefixValidationErrors', prefixValidationErrors);
+    const coerceParamVar = compiler.reserveVariable('coerceParam', coerceParam);
     let enableParseBody = false;
     let requiresAsyncParameters = false;
     const setParameters: string[] = [];
@@ -377,22 +418,25 @@ export function getRequestParserCodeForParameters(
             const accessor = queryPath ? `['` + queryPath.replace(/\./g, `']['`) + `']` : '';
             const queryAccessor = parameter.header ? `_headers${accessor}` : queryPath ? `_query${accessor}` : '_query';
 
+            const rootJson = JSON.stringify(parameter.typePath || parameter.getName());
             const optionalQuery =
                 isOptional(parameter.parameter.parameter) || hasDefaultValue(parameter.parameter.parameter);
             if (optionalQuery) {
                 setParameters.push(
-                    `parameters.${parameter.parameter.name} = ${queryAccessor} === undefined ? undefined : ${converterVar}(${queryAccessor}, {loosely: true});`,
+                    `parameters.${parameter.parameter.name} = ${queryAccessor} === undefined ? undefined : ${coerceParamVar}(${converterVar}, ${queryAccessor}, ${rootJson});`,
                 );
             } else {
                 setParameters.push(
-                    `parameters.${parameter.parameter.name} = ${converterVar}(${queryAccessor}, {loosely: true});`,
+                    `parameters.${parameter.parameter.name} = ${coerceParamVar}(${converterVar}, ${queryAccessor}, ${rootJson});`,
                 );
             }
 
             parameterNames.push(`parameters.${parameter.parameter.name}`);
             // Optional/defaulted query params: when absent the value is left undefined so the
             // handler's own default applies — validating undefined would (on v2) reject it.
-            const validateQueryCall = `${validatorVar}(parameters.${parameter.parameter.name}, {errors: validationErrors}, ${JSON.stringify(parameter.typePath || parameter.getName())});`;
+            // Validate into a scratch array, then re-emit each error under the parameter's name so
+            // the path reads `page(type)` / `entity.field(type)` instead of a rootless `(type)`.
+            const validateQueryCall = `{ const _errs = []; ${validatorVar}(parameters.${parameter.parameter.name}, {errors: _errs}); ${prefixErrorsVar}(validationErrors, _errs, ${JSON.stringify(parameter.typePath || parameter.getName())}); }`;
             parameterValidator.push(
                 optionalQuery
                     ? `if (parameters.${parameter.parameter.name} !== undefined) ${validateQueryCall}`
@@ -415,13 +459,14 @@ export function getRequestParserCodeForParameters(
                     );
                     const converterVar = compiler.reserveVariable('argumentConverter', converted);
                     setParameters.push(
-                        `parameters.${parameter.parameter.name} = ${converterVar}(_match[${1 + (parameter.regexPosition || 0)}], {loosely: true});`,
+                        `parameters.${parameter.parameter.name} = ${coerceParamVar}(${converterVar}, _match[${1 + (parameter.regexPosition || 0)}], ${JSON.stringify(parameter.getName())});`,
                     );
 
                     const validator = getValidatorFunction(undefined, type);
                     const validatorVar = compiler.reserveVariable('argumentValidator', validator);
+                    // Re-emit under the parameter's name so a bad `:id` reports `id(type): …`.
                     parameterValidator.push(
-                        `${validatorVar}(parameters.${parameter.parameter.name}, {errors: validationErrors}, ${JSON.stringify(parameter.getName())});`,
+                        `{ const _errs = []; ${validatorVar}(parameters.${parameter.parameter.name}, {errors: _errs}); ${prefixErrorsVar}(validationErrors, _errs, ${JSON.stringify(parameter.getName())}); }`,
                     );
                 } else {
                     setParameters.push(

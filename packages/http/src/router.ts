@@ -24,6 +24,7 @@ import {
     Type,
     ValidationError,
     entity,
+    pushTypeErrorWhen,
     serializer,
 } from '@deepkit/type';
 
@@ -99,13 +100,21 @@ export class UploadedFile {
 // Register type guard for UploadedFile - validates that the file was provided by the framework
 serializer.typeGuards.registerClass(UploadedFile, (type, input, b, state) => {
     // Check if input is an UploadedFile with valid validator symbol
-    return b.and(
-        b.isType(input, 'object'),
+    const valid = b.var_(
         b.and(
-            b.not(b.isNull(input)),
-            b.call((v: any, sym: symbol) => v.validator === sym, input, b.lit(UploadedFileSymbol)),
+            b.isType(input, 'object'),
+            b.and(
+                b.not(b.isNull(input)),
+                b.call((v: any, sym: symbol) => v.validator === sym, input, b.lit(UploadedFileSymbol)),
+            ),
         ),
     );
+    // The error-collection post-hook skips user-defined classes (it assumes the default class
+    // handler emitted per-property errors), but a custom class guard like this one replaces that
+    // handler and emits nothing on its own. Without this, validate()/HttpBody validation would
+    // silently accept a spoofed file object (its `validator` symbol absent) — a security hole.
+    pushTypeErrorWhen(b, state, input, b.not(b.getVar(valid)), 'Not an uploaded file');
+    return b.getVar(valid);
 });
 
 export interface RouteFunctionControllerAction {

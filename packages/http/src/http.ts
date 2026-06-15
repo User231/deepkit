@@ -522,11 +522,25 @@ export class HttpResultFormatter {
     handleType<T>(type: Type, instance: T, context: HttpResultFormatterContext, route?: RouteConfig): void {
         this.setContentTypeIfNotSetAlready(context.response, this.jsonContentType);
         const serializerToUse = route && route?.serializer ? route.serializer : serializer;
-        context.response.end(
-            JSON.stringify(
-                serialize(instance, route ? route.serializationOptions : undefined, serializerToUse, undefined, type),
-            ),
-        );
+        // Unpopulated relations must be skipped, not throw, while serializing the response — same
+        // guard handleUnknown() uses for the untyped path.
+        const oldCheck = typeSettings.unpopulatedCheck;
+        try {
+            typeSettings.unpopulatedCheck = UnpopulatedCheck.None;
+            context.response.end(
+                JSON.stringify(
+                    serialize(
+                        instance,
+                        route ? route.serializationOptions : undefined,
+                        serializerToUse,
+                        undefined,
+                        type,
+                    ),
+                ),
+            );
+        } finally {
+            typeSettings.unpopulatedCheck = oldCheck;
+        }
     }
 
     handleStream(stream: stream.Readable, context: HttpResultFormatterContext): void {
@@ -952,27 +966,37 @@ export class HttpListener {
             event.result instanceof stream.Readable
         ) {
             // don't do anything
-        } else if (event.result instanceof JSONResponse) {
-            const schema =
-                (event.result._statusCode && event.route.getSchemaForResponse(event.result._statusCode)) ||
-                event.route.returnType;
+            return;
+        }
 
-            if (!schema || !event.result.autoSerializing) return;
+        // Unpopulated relations must be skipped, not throw, while serializing the response.
+        const oldCheck = typeSettings.unpopulatedCheck;
+        typeSettings.unpopulatedCheck = UnpopulatedCheck.None;
+        try {
+            if (event.result instanceof JSONResponse) {
+                const schema =
+                    (event.result._statusCode && event.route.getSchemaForResponse(event.result._statusCode)) ||
+                    event.route.returnType;
 
-            const serializerToUse = event.route && event.route.serializer ? event.route.serializer : serializer;
-            const serialize = getSerializeFunction(schema, serializerToUse.serializeRegistry);
-            event.result.json = serialize(event.result.json, event.route.serializationOptions);
-        } else if (event.route.returnType && event.route.returnType.kind !== ReflectionKind.any) {
-            const serializerToUse = event.route && event.route.serializer ? event.route.serializer : serializer;
-            const serialize = getSerializeFunction(event.route.returnType, serializerToUse.serializeRegistry);
-            event.result = serialize(event.result, event.route.serializationOptions);
-        } else {
-            const schema = event.route.getSchemaForResponse(200);
-            if (!schema) return;
+                if (!schema || !event.result.autoSerializing) return;
 
-            const serializerToUse = event.route && event.route.serializer ? event.route.serializer : serializer;
-            const serialize = getSerializeFunction(schema, serializerToUse.serializeRegistry);
-            event.result = serialize(event.result, event.route.serializationOptions);
+                const serializerToUse = event.route && event.route.serializer ? event.route.serializer : serializer;
+                const serialize = getSerializeFunction(schema, serializerToUse.serializeRegistry);
+                event.result.json = serialize(event.result.json, event.route.serializationOptions);
+            } else if (event.route.returnType && event.route.returnType.kind !== ReflectionKind.any) {
+                const serializerToUse = event.route && event.route.serializer ? event.route.serializer : serializer;
+                const serialize = getSerializeFunction(event.route.returnType, serializerToUse.serializeRegistry);
+                event.result = serialize(event.result, event.route.serializationOptions);
+            } else {
+                const schema = event.route.getSchemaForResponse(200);
+                if (!schema) return;
+
+                const serializerToUse = event.route && event.route.serializer ? event.route.serializer : serializer;
+                const serialize = getSerializeFunction(schema, serializerToUse.serializeRegistry);
+                event.result = serialize(event.result, event.route.serializationOptions);
+            }
+        } finally {
+            typeSettings.unpopulatedCheck = oldCheck;
         }
     }
 
