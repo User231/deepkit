@@ -54,7 +54,7 @@ type SqlTypeHandler<T extends Type = Type> = TypeHandler<T, JsonBuildContext>;
  * for the common cases. (Edge case: serializing a bare property value as the root — depth 0 —
  * is not treated as a direct property; the old code's `[property, this]` shape was rare.)
  */
-function isDirectEntityColumn(ctx: JsonBuildContext): boolean {
+export function isDirectEntityColumn(ctx: JsonBuildContext): boolean {
     return ctx.depth === 1;
 }
 

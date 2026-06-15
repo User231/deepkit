@@ -7,21 +7,28 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { SqlSerializer, isDirectPropertyOfEntity } from '@deepkit/sql';
+import { SqlSerializer, isDirectEntityColumn } from '@deepkit/sql';
 import { ReflectionKind } from '@deepkit/type';
 
 class SQLiteSerializer extends SqlSerializer {
     name = 'sqlite';
-    protected registerSerializers() {
+
+    protected override registerSerializers() {
         super.registerSerializers();
 
-        this.serializeRegistry.registerClass(Date, (type, state) => {
-            state.addSetter(`${state.accessor}.toJSON();`);
-        });
+        // SQLite has no native date type — store dates as ISO strings.
+        this.serializeRegistry.replaceClass(Date, (type, input, b) =>
+            b.ternary(
+                b.isNullish(input),
+                input,
+                b.call((d: Date) => d.toJSON(), input),
+            ),
+        );
 
-        this.serializeRegistry.append(ReflectionKind.boolean, (type, state) => {
-            if (!isDirectPropertyOfEntity(state)) return;
-            state.addSetter(`${state.accessor} ? 1 : 0`);
+        // SQLite has no boolean type — store direct entity columns as 0/1.
+        this.serializeRegistry.append(ReflectionKind.boolean, (type, input, b, ctx) => {
+            if (!isDirectEntityColumn(ctx)) return input;
+            return b.ternary(input, b.lit(1), b.lit(0));
         });
     }
 }

@@ -7,8 +7,28 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
+import type { Type } from '@deepkit/type';
 
 let PROCESS_UNIQUE: Uint8Array | undefined = undefined;
+
+/**
+ * Wraps a value together with its reflected {@link Type} so that the runtime
+ * (`any`) BSON serialization path can encode it with full type fidelity even
+ * when the surrounding property is typed `any`.
+ *
+ * This is the mechanism MongoDB query filters / update documents use: a filter
+ * like `{ _id: '…' }` is statically `any`, but the value is really a `MongoId`
+ * (or `UUID` / `BinaryBigInt`). The mongo serializer wraps such values in a
+ * `BSONValue`, and {@link serializeAnyPropertyRuntime} dispatches on the
+ * embedded type to emit the correct BSON representation (ObjectId / UUID binary
+ * / BinaryBigInt binary) instead of a plain string/long.
+ */
+export class BSONValue {
+    constructor(
+        public value: any,
+        public type: Type,
+    ) {}
+}
 
 function getUnique(): Uint8Array {
     if (PROCESS_UNIQUE) return PROCESS_UNIQUE;

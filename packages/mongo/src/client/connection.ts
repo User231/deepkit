@@ -10,7 +10,7 @@
 import { Socket, createConnection } from 'net';
 import { TLSSocket, connect as createTLSConnection } from 'tls';
 
-import { BSONBinarySerializer, BsonStreamReader, Writer, getBSONSerializer, getBSONSizer } from '@deepkit/bson';
+import { BSONStreamReader, getBSONSerializer } from '@deepkit/bson';
 import { arrayRemoveItem, asyncOperation, formatError } from '@deepkit/core';
 import { DataEvent, EventDispatcher, EventTokenSync } from '@deepkit/event';
 import { Logger } from '@deepkit/logger';
@@ -26,6 +26,7 @@ import { MongoClientConfig, detectTopology, updateKnownHosts, updateStaleness } 
 import { MongoConnectionError, MongoError } from './error.js';
 import { Host } from './host.js';
 import { CommandOptions, ConnectionOptions } from './options.js';
+import { Writer } from './writer.js';
 
 export enum MongoConnectionStatus {
     pending = 'pending',
@@ -115,7 +116,6 @@ export class MongoConnectionPool {
 
     constructor(
         protected config: MongoClientConfig,
-        protected serializer: BSONBinarySerializer,
         protected stats: MongoStats,
         public logger: Logger,
         public eventDispatcher: EventDispatcher,
@@ -459,7 +459,6 @@ export class MongoConnectionPool {
             this.connectionId++,
             host,
             this.config,
-            this.serializer,
             connection => {
                 arrayRemoveItem(host.connections, connection);
                 arrayRemoveItem(this.connections, connection);
@@ -745,7 +744,7 @@ export class MongoConnection {
 
     public transaction?: WeakRef<MongoDatabaseTransaction>;
 
-    responseParser: BsonStreamReader;
+    responseParser: BSONStreamReader;
     error?: Error;
 
     bytesReceived: number = 0;
@@ -758,13 +757,12 @@ export class MongoConnection {
         public id: number,
         public host: Host,
         protected config: MongoClientConfig,
-        protected serializer: BSONBinarySerializer,
         protected onClose: (connection: MongoConnection) => void,
         protected onRelease: (connection: MongoConnection) => void,
         protected onSent: (bytes: number) => void,
         protected onReceived: (bytes: number) => void,
     ) {
-        this.responseParser = new BsonStreamReader(this.onResponse.bind(this));
+        this.responseParser = new BSONStreamReader(this.onResponse.bind(this));
 
         if (this.config.options.ssl === true) {
             const options: { [name: string]: any } = {
@@ -962,37 +960,30 @@ export class MongoConnection {
 
     protected sendMessage<T>(type: Type, message: T) {
         //todo: check if we can just reuse an older buffer, or maybe we cache the buffer to commands
-        const messageSerializer = getBSONSerializer(type);
-        const messageSizer = getBSONSizer(this.serializer, type);
-
-        const buffer = Buffer.allocUnsafe(16 + 4 + 1 + messageSizer(message));
-        // const buffer = Buffer.alloc(16 + 4 + 10 + 1 + 4 + 4 + calculateObjectSize(message));
-
-        const writer = new Writer(buffer);
-
-        //header, 16 bytes
         const messageId = ++this.messageId;
-        writer.writeInt32(10); //messageLength, 4
-        writer.writeInt32(messageId); //requestID, 4
-        writer.writeInt32(0); //responseTo, 4
-        writer.writeInt32(2013); //OP_MSG, 4
-        // writer.writeInt32(2004); //OP_QUERY, 4
-
-        //OP_MSG, 5 bytes
-        writer.writeUint32(0); //message flags, 4
-        writer.writeByte(0); //kind 0, 1
-
-        // //OP_QUERY, 5 bytes
-        // writer.writeUint32(0); //message flags, 4
-        // writer.writeAsciiString('admin.$cmd'); //collection name, 10
-        // writer.writeByte(0); //null, 1
-        // writer.writeInt32(0); //skip, 4
-        // writer.writeInt32(1); //return, 4
 
         try {
-            const section = messageSerializer(message);
+            // getBSONSerializer returns [sharedBuffer, size]; the shared buffer is reused
+            // across all serializers and is only valid until the next serialize call, so we
+            // copy the section into the message buffer immediately (nothing else serializes
+            // in between).
+            const [section, sectionSize] = getBSONSerializer(type)(message);
+
+            const buffer = Buffer.allocUnsafe(16 + 4 + 1 + sectionSize);
+            const writer = new Writer(buffer);
+
+            //header, 16 bytes
+            writer.writeInt32(10); //messageLength, 4 (backfilled below)
+            writer.writeInt32(messageId); //requestID, 4
+            writer.writeInt32(0); //responseTo, 4
+            writer.writeInt32(2013); //OP_MSG, 4
+
+            //OP_MSG, 5 bytes
+            writer.writeUint32(0); //message flags, 4
+            writer.writeByte(0); //kind 0, 1
+
             // console.log('send', this.id, message);
-            writer.writeBuffer(section);
+            writer.writeBuffer(section.subarray(0, sectionSize));
 
             const messageLength = writer.offset;
             writer.offset = 0;

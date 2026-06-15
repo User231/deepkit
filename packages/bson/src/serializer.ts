@@ -56,6 +56,7 @@ import { TypeNumberBrand } from '@deepkit/type-spec';
 
 import { BSONBuildState, PropertyName } from './context.js';
 import { BSONError, CircularReferenceError, TypeNotSerializableError } from './errors.js';
+import { BSONValue } from './model.js';
 import {
     BSONType,
     BSON_BINARY_SUBTYPE_DEFAULT,
@@ -628,6 +629,13 @@ export function serializeAnyPropertyRuntime(
         return offset;
     }
 
+    // Type-carrying wrapper: a value whose correct BSON encoding depends on its
+    // reflected type rather than its JS runtime type (MongoId/UUID/BinaryBigInt
+    // inside an `any`-typed property, e.g. MongoDB filters/updates).
+    if (typeof value === 'object' && value instanceof BSONValue) {
+        return serializeBSONValueRuntime(buffer, view, offset, name, value);
+    }
+
     const typeofValue = typeof value;
 
     if (typeofValue === 'string') {
@@ -691,10 +699,74 @@ export function serializeAnyPropertyRuntime(
         return writeRegExpData(buffer, offset, value);
     }
 
+    // Binary (Uint8Array/Buffer and ArrayBuffer) → BSON binary, subtype 0x00.
+    if (value instanceof Uint8Array || value instanceof ArrayBuffer) {
+        const bytes = value instanceof ArrayBuffer ? new Uint8Array(value) : value;
+        buffer[offset++] = BSONType.BINARY;
+        offset = writeName(buffer, offset, name);
+        view.setInt32(offset, bytes.length, true);
+        offset += 4;
+        buffer[offset++] = BSON_BINARY_SUBTYPE_DEFAULT;
+        buffer.set(bytes, offset);
+        return offset + bytes.length;
+    }
+
     // Plain object
     buffer[offset++] = BSONType.OBJECT;
     offset = writeName(buffer, offset, name);
     return serializeAnyObjectRuntime(buffer, view, offset, value);
+}
+
+/**
+ * Runtime serialization of a {@link BSONValue} wrapper. Emits the BSON encoding
+ * implied by the embedded reflected type (MongoId → ObjectId, UUID → binary
+ * subtype 0x04, BinaryBigInt → binary subtype 0x00) so that type-annotated
+ * values survive an `any`-typed property. Falls back to the JS-runtime path for
+ * any other embedded type.
+ */
+function serializeBSONValueRuntime(
+    buffer: Uint8Array,
+    view: DataView,
+    offset: number,
+    name: string | number,
+    wrapped: BSONValue,
+): number {
+    const inner = wrapped.value;
+
+    if (inner === undefined) return offset;
+    if (inner === null) {
+        buffer[offset++] = BSONType.NULL;
+        return writeName(buffer, offset, name);
+    }
+
+    const type = wrapped.type;
+
+    if (isMongoIdType(type)) {
+        buffer[offset++] = BSONType.OID;
+        offset = writeName(buffer, offset, name);
+        return writeObjectIdBranchless(buffer, offset, inner);
+    }
+
+    if (isUUIDType(type)) {
+        buffer[offset++] = BSONType.BINARY;
+        offset = writeName(buffer, offset, name);
+        view.setInt32(offset, UUID_BYTE_LENGTH, true);
+        offset += 4;
+        buffer[offset++] = BSON_BINARY_SUBTYPE_UUID;
+        return writeUUIDBranchless(buffer, offset, inner);
+    }
+
+    const binaryBigInt = binaryBigIntAnnotation.getFirst(type);
+    if (binaryBigInt !== undefined) {
+        buffer[offset++] = BSONType.BINARY;
+        offset = writeName(buffer, offset, name);
+        return binaryBigInt === BinaryBigIntType.signed
+            ? writeSignedBinaryBigInt(buffer, view, offset, inner)
+            : writeBinaryBigInt(buffer, view, offset, inner);
+    }
+
+    // Unwrap and serialize by JS runtime type.
+    return serializeAnyPropertyRuntime(buffer, view, offset, name, inner);
 }
 
 /**

@@ -3,6 +3,10 @@ import {
     Excluded,
     ReflectionClass,
     ReflectionKind,
+    registerDefaultHandlers,
+    registerTypeGuards,
+    registerUnionHandler,
+    registerValidationHook,
     resolveTypeMembers,
     serialize,
     Serializer,
@@ -128,19 +132,19 @@ export function findPartsOfUrlForType(type: Type, paths: string[] = [], prefix: 
     }
 }
 
-const stateSerializer: Serializer = new class extends Serializer {
-    protected registerSerializers() {
-        super.registerSerializers();
+const stateSerializer: Serializer = new (class extends Serializer {
+    protected override registerSerializers() {
+        // Behave like the default JSON serializer …
+        registerDefaultHandlers(this);
+        registerUnionHandler(this);
+        registerValidationHook(this);
+        registerTypeGuards(this);
 
-        this.serializeRegistry.registerClass(EventToken, (type, state) => {
-            state.template = ''; //don't serialize EventToken
-        });
-
-        this.deserializeRegistry.registerClass(EventToken, (type, state) => {
-            state.template = ''; //don't serialize EventToken
-        });
+        // … but drop EventToken instances from the state snapshot.
+        this.serializeRegistry.replaceClass(EventToken, (type, input, b) => b.lit(undefined));
+        this.deserializeRegistry.replaceClass(EventToken, (type, input, b) => b.lit(undefined));
     }
-};
+})();
 
 /**
  * Angular provider factory for the state class.

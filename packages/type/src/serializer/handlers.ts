@@ -2571,10 +2571,15 @@ function buildObjectLiteralBody(
                             },
                         );
                     } else {
+                        // The pass-through shortcut assumes string/number/boolean serialize to
+                        // themselves. That only holds when no annotation decorator (UUID, MongoId,
+                        // BinaryBigInt, …) would transform the value — otherwise we must dispatch
+                        // through the registry so the decorator runs (e.g. MongoDB filter ids).
                         const isPrimitivePassThrough =
-                            propType.kind === ReflectionKind.string ||
-                            propType.kind === ReflectionKind.number ||
-                            propType.kind === ReflectionKind.boolean;
+                            (propType.kind === ReflectionKind.string ||
+                                propType.kind === ReflectionKind.number ||
+                                propType.kind === ReflectionKind.boolean) &&
+                            !state.registry.hasDecoratorFor(propType);
 
                         if (isPrimitivePassThrough) {
                             // Use ternary for nullish coalesce: value ?? null

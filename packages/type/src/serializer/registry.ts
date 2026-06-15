@@ -244,6 +244,19 @@ export class HandlerRegistry<Ctx extends SerializerBuildContext = SerializerBuil
     }
 
     /**
+     * Check whether an annotation/decorator handler matches this type (e.g. UUID, MongoId,
+     * BinaryBigInt, Reference). Unlike {@link has}, this ignores the always-present kind
+     * handlers, so callers can tell whether a primitive value would be *transformed* by a
+     * decorator versus passed through unchanged.
+     */
+    hasDecoratorFor(type: Type): boolean {
+        for (const { predicate } of this.annotationHandlers) {
+            if (predicate(type)) return true;
+        }
+        return false;
+    }
+
+    /**
      * Check if any handlers exist for a type.
      */
     has(type: Type): boolean {
