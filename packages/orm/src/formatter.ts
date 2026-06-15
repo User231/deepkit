@@ -378,6 +378,25 @@ export class Formatter {
         return converted;
     }
 
+    /**
+     * Returns true when the back-reference array property already holds a concrete value
+     * (either a plain own data property like the default `[]`, or a value previously stored
+     * under the property's backing symbol). Must never read item[name] directly, because an
+     * unpopulated reference installs a getter that throws `... was not populated` — which would
+     * turn an empty cyclic/self-referencing back-reference into a spurious error.
+     */
+    protected isBackReferenceArrayAssigned(item: any, propertySchema: ReflectionProperty): boolean {
+        // Value stored by makeInvalidReference's / reference proxy's setter.
+        if (Object.prototype.hasOwnProperty.call(item, propertySchema.symbol)) return true;
+
+        const descriptor = Object.getOwnPropertyDescriptor(item, propertySchema.name);
+        if (!descriptor) return false;
+        // An accessor (getter) here is the unpopulated-reference guard; treat as NOT assigned
+        // so we replace it with an empty array. A plain data property is a real value.
+        if (descriptor.get || descriptor.set) return false;
+        return descriptor.value !== undefined && descriptor.value !== null;
+    }
+
     protected assignJoins(
         model: DatabaseQueryModel<any, any, any>,
         classSchema: ReflectionClass<any>,
@@ -406,7 +425,12 @@ export class Formatter {
                                 item,
                             );
                         });
-                    } else if (!item[join.propertySchema.name]) {
+                    } else if (!this.isBackReferenceArrayAssigned(item, join.propertySchema)) {
+                        // No rows for this back-reference. Default to an empty array, but
+                        // NEVER read item[name] directly: if the property was previously set up
+                        // as an unpopulated reference (makeInvalidReference / reference proxy),
+                        // its getter throws "BackReference ... was not populated". Probe the
+                        // backing symbol instead so cyclic/self-referencing graphs terminate.
                         item[join.propertySchema.name] = [];
                     }
                 } else if (hasValue) {

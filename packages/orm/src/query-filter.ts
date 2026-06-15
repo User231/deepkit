@@ -156,7 +156,8 @@ export function convertQueryFilter<T, K extends keyof T, Q extends FilterQuery<T
     for (const key in filter) {
         if (!filter.hasOwnProperty(key)) continue;
 
-        let fieldValue: any = filter[key];
+        const originalValue: any = filter[key];
+        let fieldValue: any = originalValue;
         const property = schema.getPropertyOrUndefined(key);
 
         //when i is a reference, we rewrite it to the foreign key name
@@ -185,7 +186,15 @@ export function convertQueryFilter<T, K extends keyof T, Q extends FilterQuery<T
             }
         }
 
-        if (fieldValue !== undefined) {
+        //An explicit `null`/`undefined` equality (e.g. `{deletedAt: undefined}`) is a real
+        //"IS NULL" condition and must be preserved. Only drop entries that became `undefined`
+        //during conversion of a `$`-operator object (e.g. an unresolved `$parameter`/custom
+        //mapping), which the caller intends to omit. Distinguish by the *original* value:
+        //a scalar null/undefined input is a genuine condition, an object input that converted
+        //to undefined was dropped on purpose.
+        const isExplicitNullEquality = originalValue === undefined || originalValue === null;
+
+        if (fieldValue !== undefined || isExplicitNullEquality) {
             result[targetI] = fieldValue;
         }
     }

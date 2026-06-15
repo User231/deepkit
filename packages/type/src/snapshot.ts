@@ -56,8 +56,20 @@ function cloneValueDeep(value: any): any {
 /**
  * Build a snapshot value converter for a single type.
  * Converts value to a snapshot-friendly format (JSON-like with references as primary keys).
+ *
+ * `visited` tracks the class/objectLiteral types currently being expanded on this build path so
+ * that bidirectional / mutually-recursive embedded structures terminate at JIT-build time instead
+ * of recursing forever (RangeError: Maximum call stack size exceeded). When a type is re-entered we
+ * pass the value through unchanged (a shallow snapshot), which breaks the cycle without losing the
+ * non-cyclic parts of the structure.
  */
-function buildSnapshotValue(b: Builder, input: Ref, type: Type, direction: 'serialize' | 'deserialize'): Ref {
+function buildSnapshotValue(
+    b: Builder,
+    input: Ref,
+    type: Type,
+    direction: 'serialize' | 'deserialize',
+    visited: Set<Type> = new Set(),
+): Ref {
     switch (type.kind) {
         case ReflectionKind.string:
         case ReflectionKind.number:
@@ -75,7 +87,7 @@ function buildSnapshotValue(b: Builder, input: Ref, type: Type, direction: 'seri
 
         case ReflectionKind.array: {
             const elemType = type.type;
-            return b.map(input, elem => buildSnapshotValue(b, elem, elemType, direction));
+            return b.map(input, elem => buildSnapshotValue(b, elem, elemType, direction, visited));
         }
 
         case ReflectionKind.class: {
@@ -121,18 +133,33 @@ function buildSnapshotValue(b: Builder, input: Ref, type: Type, direction: 'seri
             if (classType === Map) {
                 return b.new_(Map, input);
             }
-            // For other classes, treat as object literal
-            return buildSnapshotObject(b, input, type.types, direction);
+            // For other classes, treat as object literal.
+            // Cycle guard: if this class type is already being expanded on this build path,
+            // pass the value through to break a recursive embed (see `visited` docs above).
+            if (visited.has(type)) return b.call(cloneValueDeep, input);
+            visited.add(type);
+            try {
+                return buildSnapshotObject(b, input, type.types, direction, visited);
+            } finally {
+                visited.delete(type);
+            }
         }
 
-        case ReflectionKind.objectLiteral:
-            return buildSnapshotObject(b, input, type.types, direction);
+        case ReflectionKind.objectLiteral: {
+            if (visited.has(type)) return b.call(cloneValueDeep, input);
+            visited.add(type);
+            try {
+                return buildSnapshotObject(b, input, type.types, direction, visited);
+            } finally {
+                visited.delete(type);
+            }
+        }
 
         case ReflectionKind.tuple: {
             const result = b.let(b.emptyArr());
             for (let i = 0; i < type.types.length; i++) {
                 const member = type.types[i];
-                const elemValue = buildSnapshotValue(b, input.at(i), member.type, direction);
+                const elemValue = buildSnapshotValue(b, input.at(i), member.type, direction, visited);
                 b.push(result, elemValue);
             }
             return result;
@@ -158,6 +185,7 @@ function buildSnapshotObject(
     input: Ref,
     members: readonly Type[],
     direction: 'serialize' | 'deserialize',
+    visited: Set<Type> = new Set(),
 ): Ref {
     const result = b.let(b.emptyObj());
     const explicitNames: string[] = [];
@@ -176,7 +204,7 @@ function buildSnapshotObject(
         b.if_(
             b.not(b.isNullish(propAccess)),
             () => {
-                const value = buildSnapshotValue(b, propAccess, memberType, direction);
+                const value = buildSnapshotValue(b, propAccess, memberType, direction, visited);
                 b.set(result, propName, value);
             },
             () => {
@@ -206,7 +234,7 @@ function buildSnapshotObject(
                 b.if_(
                     b.not(b.isNullish(propAccess)),
                     () => {
-                        const value = buildSnapshotValue(b, propAccess, indexSig.type, direction);
+                        const value = buildSnapshotValue(b, propAccess, indexSig.type, direction, visited);
                         b.set(result, key, value);
                     },
                     () => {

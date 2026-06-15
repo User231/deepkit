@@ -3510,7 +3510,10 @@ export const serializeReference: JsonTypeHandler = (type, input, b, state) => {
     }
 
     const classType = type as TypeClass;
-    const clazz = ReflectionClass.from(classType.classType);
+    // Reference targets can be classes (entities) or interfaces (object literals). For the latter
+    // `classType.classType` is undefined, so fall back to the reference type itself —
+    // ReflectionClass.from reflects an object literal just as well.
+    const clazz = ReflectionClass.from(classType.classType ?? type);
     const pkProperty = clazz.getPrimary();
 
     if (!pkProperty) {
@@ -3546,12 +3549,21 @@ export const serializeReference: JsonTypeHandler = (type, input, b, state) => {
  */
 export const deserializeReference: JsonTypeHandler = (type, input, b, state) => {
     const classType = type as TypeClass;
-    const clazz = ReflectionClass.from(classType.classType);
+    // Reference targets can be classes (entities) or interfaces (object literals). For the latter
+    // `classType.classType` is undefined, so fall back to the reference type itself; the
+    // createReference call below already yields an ObjectReference when there is no backing class.
+    const clazz = ReflectionClass.from(classType.classType ?? type);
     const pkProperty = clazz.getPrimary();
+
+    // For a class reference the backing constructor is the reference token; for an interface
+    // reference there is none, so `createReference`/full deserialization run off the type itself.
+    const referenceToken = classType.classType ?? type;
+    const deserializeFull = (t: Type, i: Ref, bb: Builder, s: JsonBuildContext): Ref =>
+        t.kind === ReflectionKind.class ? deserializeClass(t, i, bb, s) : handleObjectLiteral(t, i, bb, s);
 
     if (!pkProperty) {
         // No primary key - fall back to full deserialization
-        return deserializeClass(type, input, b, state);
+        return deserializeFull(type, input, b, state);
     }
 
     const pkName = String(pkProperty.getName());
@@ -3591,15 +3603,15 @@ export const deserializeReference: JsonTypeHandler = (type, input, b, state) => 
                         b.call(
                             createReferenceFromPk,
                             state.build(pkType, pkValue),
-                            b.lit(classType.classType),
+                            b.lit(referenceToken),
                             b.lit(pkName),
                             b.lit(createReference),
                         ),
                     );
                 },
                 () => {
-                    // Deserialize as full class
-                    b.setVar(result, deserializeClass(type, input, b, state));
+                    // Deserialize as full class/object literal
+                    b.setVar(result, deserializeFull(type, input, b, state));
                 },
             );
         },
@@ -3610,7 +3622,7 @@ export const deserializeReference: JsonTypeHandler = (type, input, b, state) => 
                 b.call(
                     createReferenceFromPk,
                     state.build(pkType, input),
-                    b.lit(classType.classType),
+                    b.lit(referenceToken),
                     b.lit(pkName),
                     b.lit(createReference),
                 ),
@@ -3663,7 +3675,8 @@ export const deserializeInlineReference: JsonTypeHandler = (type, input, b, stat
  */
 export const guardReferenceScore: JsonTypeHandler = (type, input, b, state) => {
     const classType = type as TypeClass;
-    const clazz = ReflectionClass.from(classType.classType);
+    // Interface references have no backing class; reflect off the type itself (see deserializeReference).
+    const clazz = ReflectionClass.from(classType.classType ?? type);
     const pkProperty = clazz.getPrimary();
 
     if (!pkProperty) {
@@ -3702,7 +3715,8 @@ export const guardReferenceScore: JsonTypeHandler = (type, input, b, state) => {
  */
 export const guardReferenceFast: JsonTypeHandler = (type, input, b, state) => {
     const classType = type as TypeClass;
-    const clazz = ReflectionClass.from(classType.classType);
+    // Interface references have no backing class; reflect off the type itself (see deserializeReference).
+    const clazz = ReflectionClass.from(classType.classType ?? type);
 
     if (!clazz.hasPrimary()) {
         return guardObjectFast(type, input, b, state);
