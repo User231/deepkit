@@ -116,6 +116,8 @@ export interface JsonBuildContextOptions extends SerializerBuildContextOptions {
     collectUnionMemberErrors?: boolean;
     skipNaN?: boolean;
     buildOptions?: BuildOptions;
+    /** Depth in the *type tree* from the root (see {@link JsonBuildContext.treeDepth}). */
+    treeDepth?: number;
 }
 
 /**
@@ -154,6 +156,21 @@ export class JsonBuildContext extends SerializerBuildContext {
     /** Build-time baked options - when set, eliminate runtime checks */
     readonly buildOptions: BuildOptions;
 
+    /**
+     * Depth in the *type tree* from the serialization root, incremented on every structural
+     * descent (property / array index / index-signature key / union member).
+     *
+     * Unlike {@link depth} — which is reset to 0 inside an extracted function so each
+     * extracted unit can inline up to `maxDepth` more levels — `treeDepth` is *preserved*
+     * across extraction. It therefore reflects the absolute position in the type tree
+     * regardless of how the JIT happened to split the code into functions.
+     *
+     * The SQL serializer relies on this to detect *direct entity columns* (`treeDepth === 1`):
+     * using {@link depth} would misfire after extraction, JSON-encoding deeply nested values a
+     * second time.
+     */
+    readonly treeDepth: number;
+
     constructor(
         direction: 'serialize' | 'deserialize' | 'validate',
         serializer: Serializer,
@@ -174,6 +191,7 @@ export class JsonBuildContext extends SerializerBuildContext {
         this.collectUnionMemberErrors = options.collectUnionMemberErrors ?? false;
         this.skipNaN = options.skipNaN ?? false;
         this.buildOptions = options.buildOptions ?? {};
+        this.treeDepth = options.treeDepth ?? 0;
     }
 
     /**
@@ -258,6 +276,7 @@ export class JsonBuildContext extends SerializerBuildContext {
             collectUnionMemberErrors: this.collectUnionMemberErrors,
             skipNaN: this.skipNaN,
             depth: this.depth + 1,
+            treeDepth: this.treeDepth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
             fnCache: this.fnCache,
@@ -286,6 +305,7 @@ export class JsonBuildContext extends SerializerBuildContext {
             collectUnionMemberErrors: this.collectUnionMemberErrors,
             skipNaN: this.skipNaN,
             depth: this.depth + 1,
+            treeDepth: this.treeDepth + 1,
             maxDepth: this.maxDepth,
             typeStack: new Set(), // Fresh stack - map callbacks break call path
             fnCache: new Map(), // Fresh cache - map callbacks create new JS scope
@@ -312,6 +332,7 @@ export class JsonBuildContext extends SerializerBuildContext {
             collectUnionMemberErrors: this.collectUnionMemberErrors,
             skipNaN: this.skipNaN,
             depth: this.depth + 1,
+            treeDepth: this.treeDepth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
             fnCache: this.fnCache,
@@ -333,6 +354,7 @@ export class JsonBuildContext extends SerializerBuildContext {
             collectUnionMemberErrors: this.collectUnionMemberErrors,
             skipNaN: this.skipNaN,
             depth: this.depth,
+            treeDepth: this.treeDepth,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
             fnCache: this.fnCache,
@@ -356,6 +378,7 @@ export class JsonBuildContext extends SerializerBuildContext {
             collectUnionMemberErrors: false, // Don't collect when just checking
             skipNaN: this.skipNaN,
             depth: this.depth + 1,
+            treeDepth: this.treeDepth + 1,
             maxDepth: this.maxDepth,
             typeStack: this.typeStack,
             fnCache: this.fnCache,
@@ -419,7 +442,10 @@ export class JsonBuildContext extends SerializerBuildContext {
                                     collectErrors: self.collectErrors,
                                     rejectUnknownKeys: self.rejectUnknownKeys,
                                     skipNaN: self.skipNaN,
-                                    depth: 0, // Reset depth
+                                    depth: 0, // Reset depth (extraction starts a fresh inline budget)
+                                    // ...but preserve treeDepth: extraction doesn't change our
+                                    // position in the type tree, only how the code is split.
+                                    treeDepth: self.treeDepth,
                                     maxDepth: self.maxDepth,
                                     typeStack: new Set(), // Fresh stack
                                     fnCache: new Map(), // Fresh cache - VarRefs are Builder-scoped

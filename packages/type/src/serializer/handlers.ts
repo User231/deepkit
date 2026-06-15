@@ -2527,7 +2527,7 @@ function buildObjectLiteralBody(
         if (canUseLiteral) {
             literalProps.push({
                 outputKey,
-                valueRef: state.build(propType, propInput),
+                valueRef: state.forProperty(propName).build(propType, propInput),
             });
         } else {
             incrementalProps.push({
@@ -2550,6 +2550,10 @@ function buildObjectLiteralBody(
         outputKey: string,
         propInput: Ref,
     ) => {
+        // Descend into the property value via forProperty (depth+1, treeDepth+1, and the
+        // property recorded in the error path), mirroring the validation/typeguard path. The
+        // SQL serializer keys off treeDepth to detect direct entity columns (treeDepth === 1).
+        const propState = state.forProperty(memberNameToString(memberType.name));
         const needsHasCheck = isDeserialize || isOptional(memberType);
 
         if (needsHasCheck) {
@@ -2560,7 +2564,7 @@ function buildObjectLiteralBody(
                         b.if_(
                             b.not(b.isNullish(propInput)),
                             () => {
-                                b.set(result, outputKey, state.build(propType, propInput));
+                                b.set(result, outputKey, propState.build(propType, propInput));
                             },
                             () => {
                                 if (isNullable(memberType)) {
@@ -2588,7 +2592,7 @@ function buildObjectLiteralBody(
                             b.if_(
                                 b.not(b.isNullish(propInput)),
                                 () => {
-                                    b.set(result, outputKey, state.build(propType, propInput));
+                                    b.set(result, outputKey, propState.build(propType, propInput));
                                 },
                                 () => {
                                     if (isNullable(memberType) || isOptional(memberType)) {
@@ -2610,7 +2614,7 @@ function buildObjectLiteralBody(
                 b.if_(
                     b.not(b.isNullish(propInput)),
                     () => {
-                        b.set(result, outputKey, state.build(propType, propInput));
+                        b.set(result, outputKey, propState.build(propType, propInput));
                     },
                     () => {
                         b.set(result, outputKey, b.lit(null));
@@ -2623,11 +2627,11 @@ function buildObjectLiteralBody(
                         b.set(result, outputKey, b.emptyArr());
                     },
                     () => {
-                        b.set(result, outputKey, state.build(propType, propInput));
+                        b.set(result, outputKey, propState.build(propType, propInput));
                     },
                 );
             } else {
-                b.set(result, outputKey, state.build(propType, propInput));
+                b.set(result, outputKey, propState.build(propType, propInput));
             }
         }
     };
@@ -3205,7 +3209,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                     b.if_(
                         b.not(b.isNullish(propInput)),
                         () => {
-                            b.set(result, propName, state.build(propType, propInput));
+                            b.set(result, propName, state.forProperty(propName).build(propType, propInput));
                         },
                         () => {
                             if (isNullable(memberType)) {
@@ -3354,7 +3358,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                 b.if_(
                     b.not(b.isNullish(propInput)),
                     () => {
-                        b.setVar(argValue, state.build(property.type, propInput));
+                        b.setVar(argValue, state.forProperty(param.getName()).build(property.type, propInput));
                     },
                     () => {
                         if (isNullable(property.property)) {
@@ -3392,7 +3396,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                     b.if_(
                         b.not(b.isNullish(propInput)),
                         () => {
-                            b.set(result, propName, state.build(propType, propInput));
+                            b.set(result, propName, state.forProperty(propName).build(propType, propInput));
                         },
                         () => {
                             if (isNullable(memberType)) {
@@ -3440,7 +3444,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                 b.if_(
                     b.not(b.isNullish(propInput)),
                     () => {
-                        b.set(result, propName, state.build(propType, propInput));
+                        b.set(result, propName, state.forProperty(propName).build(propType, propInput));
                     },
                     () => {
                         if (isNullable(memberType)) {

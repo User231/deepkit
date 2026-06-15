@@ -47,15 +47,19 @@ type SqlTypeHandler<T extends Type = Type> = TypeHandler<T, JsonBuildContext>;
  * single JSON.stringify.
  *
  * The old serializer inspected `state.parentTypes` (an ancestor-Type chain). The new build
- * context exposes no such chain, but the equivalent signal is depth: the root entity is at
- * depth 0 (see SerializerBuildContext, `depth ?? 0`) and each `forProperty()` increments it,
- * so a *direct* property of the entity is exactly `depth === 1`. Union/reference wrappers are
- * handled at their own handler which also runs at depth 1, so this matches the old semantics
- * for the common cases. (Edge case: serializing a bare property value as the root — depth 0 —
- * is not treated as a direct property; the old code's `[property, this]` shape was rare.)
+ * context exposes the equivalent signal as `treeDepth`: the root entity is at `treeDepth` 0 and
+ * each structural descent (`forProperty()` / `forIndex()` / `forKey()` / `forUnionMember()`)
+ * increments it, so a *direct* property of the entity is exactly `treeDepth === 1`.
+ *
+ * We use `treeDepth` rather than `depth` because `depth` is reset to 0 inside JIT-extracted
+ * functions (it doubles as the inline-size budget). `treeDepth` is preserved across extraction,
+ * so deeply nested values past the extraction threshold are NOT mistaken for direct columns and
+ * JSON-encoded a second time. (Edge case: serializing a bare property value as the root —
+ * `treeDepth` 0 — is not treated as a direct property; the old code's `[property, this]` shape
+ * was rare.)
  */
 export function isDirectEntityColumn(ctx: JsonBuildContext): boolean {
-    return ctx.depth === 1;
+    return ctx.treeDepth === 1;
 }
 
 // --- `any` -----------------------------------------------------------------------------------

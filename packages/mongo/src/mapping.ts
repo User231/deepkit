@@ -9,11 +9,24 @@
  */
 import { ClassType } from '@deepkit/core';
 import { QueryCustomFields, QueryFieldNames, convertQueryFilter } from '@deepkit/orm';
-import { ReflectionClass, deserialize, resolvePath, serialize, serializer } from '@deepkit/type';
+import { ReflectionClass, ReflectionKind, Type, deserialize, resolvePath, serialize, serializer } from '@deepkit/type';
 
 import './mongo-serializer';
 import { mongoSerializer } from './mongo-serializer.js';
 import { FilterQuery } from './query.model.js';
+
+/**
+ * `resolvePath` returns the {@link TypeProperty}/{@link TypePropertySignature} at a path, but
+ * `serialize`/`deserialize` need the property's *value* type — the new (v2) serializer passes a
+ * bare `property` kind through unchanged, so a `MongoId`/`UUID` filter value would never reach its
+ * decorator and would be sent as a plain string (no match). Unwrap to the inner value type.
+ */
+function resolveValueType(path: string, type: Type): Type {
+    const resolved = resolvePath(path, type);
+    return resolved.kind === ReflectionKind.property || resolved.kind === ReflectionKind.propertySignature
+        ? resolved.type
+        : resolved;
+}
 
 export function convertClassQueryToMongo<T, K extends keyof T, Q extends FilterQuery<T>>(
     classType: ReflectionClass<T> | ClassType,
@@ -28,7 +41,7 @@ export function convertClassQueryToMongo<T, K extends keyof T, Q extends FilterQ
         schema,
         query,
         (convertClassType: ReflectionClass<any>, path: string, value: any) => {
-            const type = resolvePath(path, schema.type);
+            const type = resolveValueType(path, schema.type);
             return serialize(value, undefined, mongoSerializer, undefined, type);
         },
         fieldNamesMap,
@@ -46,7 +59,7 @@ export function convertPlainQueryToMongo<T, K extends keyof T>(
         classType,
         target,
         (convertClassType: ReflectionClass<any>, path: string, value: any) => {
-            const type = resolvePath(path, convertClassType.type);
+            const type = resolveValueType(path, convertClassType.type);
             const classValue = deserialize(value, undefined, serializer, undefined, type);
             return serialize(classValue, undefined, mongoSerializer, undefined, type);
         },
