@@ -17,7 +17,7 @@
 services:
   # PostgreSQL for packages/postgres tests
   postgres:
-    image: postgres:14
+    image: postgres:18
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ''
@@ -32,7 +32,7 @@ services:
 
   # MySQL for packages/mysql tests
   mysql:
-    image: mysql:8.0
+    image: mysql:8.4
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
       MYSQL_DATABASE: default
@@ -47,7 +47,7 @@ services:
   # MongoDB with replica set for packages/mongo tests
   # Single-node replica set (required for transactions)
   mongo:
-    image: mongo:5
+    image: mongo:8
     hostname: mongo
     command: ['--replSet', 'rs0', '--bind_ip_all']
     ports:
@@ -61,7 +61,7 @@ services:
 
   # MongoDB with authentication for simple-auth tests
   mongo-auth:
-    image: mongo:5.0.10
+    image: mongo:8
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
@@ -73,7 +73,7 @@ services:
 
   # Redis for packages/broker-redis tests
   redis:
-    image: redis:7.0.11
+    image: redis:7.4
     ports:
       - '16379:6379'
     healthcheck:
