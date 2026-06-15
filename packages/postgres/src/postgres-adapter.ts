@@ -640,6 +640,19 @@ export class PostgresSQLDatabaseQueryFactory extends SQLDatabaseQueryFactory {
     }
 }
 
+/**
+ * int8 (BIGINT) arrives from the wire as a string and stays a string: parsing
+ * to number silently corrupts values above Number.MAX_SAFE_INTEGER (snowflake
+ * ids, large sequences), and a value-dependent number|string parser makes the
+ * runtime type non-deterministic. The property's declared type decides instead:
+ * the ORM deserializer coerces the string into `number`/`bigint` properties
+ * during hydration, and `string` properties stay lossless. Internal consumers
+ * that bypass hydration convert explicitly (e.g. count() does Number(row.count)).
+ */
+function parseInt8AsString(value: string): string {
+    return value;
+}
+
 export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
     protected options: PoolConfig;
     protected pool: pg.Pool;
@@ -652,11 +665,20 @@ export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
         const defaults: PoolConfig = {};
         options = 'string' === typeof options ? parseConnectionString(options) : options;
         this.options = Object.assign(defaults, options, additional);
+        // Type parsers are scoped to THIS pool. Setting them via
+        // pg.types.setTypeParser() mutates pg's module-global registry and
+        // changes parsing for every other pg.Pool in the same process.
+        if (!this.options.types) {
+            this.options.types = {
+                getTypeParser: (oid: number, format?: any) => {
+                    if (oid === 1700) return parseFloat;
+                    if (oid === 20) return parseInt8AsString;
+                    return pg.types.getTypeParser(oid as any, format);
+                },
+            } as any;
+        }
         this.pool = new pg.Pool(this.options);
         this.connectionPool = new PostgresConnectionPool(this.pool, this.logger, this.stopwatch);
-
-        pg.types.setTypeParser(1700, parseFloat);
-        pg.types.setTypeParser(20, parseInt);
     }
 
     setLogger(logger: Logger) {
