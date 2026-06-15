@@ -1,7 +1,7 @@
 import { LogPlugin, LogType, LogQuery, LogSession } from '@deepkit/orm';
 import { AutoIncrement, deserialize, entity, PrimaryKey } from '@deepkit/type';
 import { DatabaseFactory } from './test.js';
-import { expect } from '@jest/globals';
+import { expect } from '@deepkit/run/expect';
 
 export const logPluginTests = {
     async query(databaseFactory: DatabaseFactory) {

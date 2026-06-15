@@ -1,4 +1,4 @@
-import { expect } from '@jest/globals';
+import { expect } from '@deepkit/run/expect';
 import { randomBytes } from 'crypto';
 
 import { UniqueConstraintFailure, hydrateEntity, isDatabaseOf } from '@deepkit/orm';
@@ -384,18 +384,18 @@ export const variousTests = {
 
         await expect(async () => {
             await database.persist(new User('Peter'));
-        }).rejects.toThrow(UniqueConstraintFailure);
+        }).rejects.toThrow(UniqueConstraintFailure as unknown as Error);
 
         await expect(async () => {
             const session = database.createSession();
             session.add(new User('Peter'));
             await session.commit();
-        }).rejects.toThrow(UniqueConstraintFailure);
+        }).rejects.toThrow(UniqueConstraintFailure as unknown as Error);
 
         await expect(async () => {
             await database.persist(new User('Peter2'));
             await database.query(User).filter({ username: 'Peter2' }).patchOne({ username: 'Peter' });
-        }).rejects.toThrow(UniqueConstraintFailure);
+        }).rejects.toThrow(UniqueConstraintFailure as unknown as Error);
         database.disconnect();
     },
     async emptyEntity(databaseFactory: DatabaseFactory) {
@@ -406,7 +406,9 @@ export const variousTests = {
 
         const database = await databaseFactory([EmptyEntity]);
 
-        await expect(database.persist(new EmptyEntity())).resolves.not.toThrow();
+        // persist() resolves to void; `.resolves` already asserts the promise does not reject.
+        // (shim has no async `.not` chain — see migration report.)
+        await expect(database.persist(new EmptyEntity())).resolves.toBe(undefined);
     },
     async findOneWithRelation(databaseFactory: DatabaseFactory) {
         @entity.name('bookshelf')

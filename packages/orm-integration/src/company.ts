@@ -1,5 +1,5 @@
 import { AutoIncrement, cast, entity, PrimaryKey, Reference, t } from '@deepkit/type';
-import { expect } from '@jest/globals';
+import { expect } from '@deepkit/run/expect';
 import { DatabaseFactory } from './test.js';
 
 @entity.collection('persons')
