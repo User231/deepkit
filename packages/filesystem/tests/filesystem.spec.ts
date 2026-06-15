@@ -1,9 +1,9 @@
-import { expect, jest, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
 
 import { Filesystem, FilesystemAdapter } from '../src/filesystem.js';
 import { FilesystemMemoryAdapter } from '../src/memory-adapter.js';
-
-jest.setTimeout(30000);
 
 export let adapterFactory: () => Promise<FilesystemAdapter> = async () => new FilesystemMemoryAdapter();
 

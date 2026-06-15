@@ -1,8 +1,8 @@
-import { beforeAll, expect, jest, test } from '@jest/globals';
+import { before as beforeAll, test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
 
 import { Mutex, ProcessLock, ProcessLocker } from '../src/process-locker.js';
-
-jest.setTimeout(20000);
 
 let locker: ProcessLocker;
 

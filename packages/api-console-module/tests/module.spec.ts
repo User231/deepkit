@@ -1,4 +1,5 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
 
 import { ApiEntryPoints } from '@deepkit/api-console-gui/src/api';
 import { App } from '@deepkit/app';

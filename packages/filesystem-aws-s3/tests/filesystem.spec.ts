@@ -1,7 +1,8 @@
 import { DeleteObjectsCommand, ListObjectsCommand } from '@aws-sdk/client-s3';
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
 
 import { Filesystem } from '@deepkit/filesystem';
+import { expect } from '@deepkit/run/expect';
 import { adapterFactory, setAdapterFactory } from '@deepkit/filesystem/test';
 
 import { FilesystemAwsS3Adapter } from '../src/s3-adapter.js';

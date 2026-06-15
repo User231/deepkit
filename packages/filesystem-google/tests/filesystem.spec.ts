@@ -1,5 +1,5 @@
-import { test } from '@jest/globals';
 import { writeFileSync } from 'fs';
+import { test } from 'node:test';
 import { homedir } from 'os';
 
 import { Filesystem } from '@deepkit/filesystem';

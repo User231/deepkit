@@ -15,15 +15,8 @@ pre-commit:
       glob: '[*.{json,yml,yaml,html,ts,tsx,js,jsx},!./package-lock.json]'
       run: ./node_modules/.bin/prettier --write {staged_files} && git add {staged_files}
 
-    # Typecheck (skip by default - too slow for pre-commit, run manually or in CI)
-    typecheck:
-      glob: '*.{ts,tsx}'
-      run: npm run typecheck
-      skip: true
-      fail_text: |
-        ❌ TypeScript typecheck failed!
-        Fix type errors before committing.
-        Run: npm run typecheck
+    # NOTE: full-monorepo typecheck is enforced on pre-push (below), not pre-commit
+    # (incremental `tsc --build` is too slow to run on every single commit).
 
     # Lint check (required - blocks commit on failure)
     lint:
@@ -64,6 +57,15 @@ pre-commit:
 # Pre-push hooks for more thorough checks
 pre-push:
   commands:
+    # Block pushes that don't type-check. Incremental `tsc --build` (now fixed —
+    # was `--noEmit`, which is incompatible with composite project references and
+    # always failed with TS6310). Warm runs are a few seconds.
+    typecheck:
+      run: npm run typecheck
+      fail_text: |
+        ❌ TypeScript typecheck failed — fix type errors before pushing.
+        Run: npm run typecheck
+
     # Run tests for affected packages before pushing
     # This is advisory - push proceeds but warns on failure
     test-warning:

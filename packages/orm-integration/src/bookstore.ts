@@ -1,4 +1,4 @@
-import { expect } from '@jest/globals';
+import { expect } from '@deepkit/run/expect';
 
 import { isArray } from '@deepkit/core';
 import { DatabaseSession, Query, atomicChange, getInstanceStateFromItem } from '@deepkit/orm';

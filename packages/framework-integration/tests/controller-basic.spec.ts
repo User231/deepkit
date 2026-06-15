@@ -1,4 +1,5 @@
-import { afterAll, expect, jest, test } from '@jest/globals';
+import { test, after as afterAll } from 'node:test';
+import { expect } from '@deepkit/run/expect';
 import { fail } from 'assert';
 import { Observable } from 'rxjs';
 import { bufferCount, first, skip } from 'rxjs/operators';
@@ -13,8 +14,6 @@ import { appModuleForControllers, closeAllCreatedServers, createServerClientPair
 
 // @ts-ignore
 global['WebSocket'] = ws;
-
-jest.setTimeout(15_000);
 
 afterAll(async () => {
     await closeAllCreatedServers();

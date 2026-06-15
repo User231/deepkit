@@ -1,4 +1,6 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
 import { ServerResponse } from 'http';
 
 import { HttpRequest, HttpResponse, incomingMessageToHttpRequest, serverResponseToHttpResponse } from '../src/model.js';

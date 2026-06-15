@@ -1,5 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, jest, test } from '@jest/globals';
+import { after as afterAll, before as beforeAll, beforeEach, describe, it, test } from 'node:test';
 
+import { expect } from '@deepkit/run/expect';
 import { sleep } from '@deepkit/core';
 import { EventDispatcher } from '@deepkit/event';
 import { ConsoleLogger } from '@deepkit/logger';
@@ -11,8 +12,6 @@ import { MongoConnection, MongoConnectionPool, MongoStats, onMongoTopologyChange
 import { MongoConnectionError } from '../../src/client/error.js';
 import { Host } from '../../src/client/host.js';
 import { MongoEnv, MongoInstance, createMongoClientFactory } from './env-setup.js';
-
-jest.setTimeout(60 * 1000);
 
 test('nix', () => {});
 

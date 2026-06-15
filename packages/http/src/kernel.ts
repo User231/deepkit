@@ -1,5 +1,5 @@
-import { unlink } from 'fs';
-import { IncomingMessage, ServerResponse } from 'http';
+import { unlink } from 'node:fs';
+import { IncomingMessage, ServerResponse } from 'node:http';
 
 import { EventDispatcher } from '@deepkit/event';
 import { InjectorContext, Setter } from '@deepkit/injector';

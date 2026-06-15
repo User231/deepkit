@@ -11,7 +11,8 @@
     "access": "public"
   },
   "scripts": {
-    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'files/tests/**/*.spec.ts'"
   },
   "bin": {
     "deepkit-app": "dist/cjs/main.js"
@@ -25,16 +26,5 @@
   },
   "devDependencies": {
     "@types/fs-extra": "^9.0.13"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
   }
 }

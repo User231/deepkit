@@ -1,5 +1,5 @@
-import { test } from '@jest/globals';
 import { mkdtempSync } from 'fs';
+import { test } from 'node:test';
 import { tmpdir } from 'os';
 
 import { FilesystemLocalAdapter } from '../src/local-adapter.js';

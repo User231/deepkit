@@ -1,5 +1,5 @@
 import { bookstoreTests } from './src/bookstore.js';
-import { test } from '@jest/globals';
+import { test } from 'node:test';
 import { variousTests } from './src/various.js';
 import { companyTests } from './src/company.js';
 import { usersTests } from './src/users.js';

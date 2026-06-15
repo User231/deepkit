@@ -1,4 +1,6 @@
-import { expect, jest, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect, jest } from '@deepkit/run/expect';
 
 import { App, AppModule } from '@deepkit/app';
 import { ReflectionClass } from '@deepkit/type';

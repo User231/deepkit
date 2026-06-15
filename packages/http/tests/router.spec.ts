@@ -1,4 +1,6 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
 import { Readable } from 'stream';
 
 import { TypeAnnotation, getClassName, isObject, sleep } from '@deepkit/core';

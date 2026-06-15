@@ -7,8 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { OutgoingHttpHeaders, ServerResponse } from 'http';
-import stream from 'stream';
+import { OutgoingHttpHeaders, ServerResponse } from 'node:http';
+import stream from 'node:stream';
 
 import {
     ClassType,

@@ -1,4 +1,6 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
 
 import { User } from './testcase-b/user.js';
 import { createDatabase } from './utils.js';

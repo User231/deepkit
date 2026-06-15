@@ -188,6 +188,15 @@ function createSerializer(type: Type): (data: any) => SerializeResult {
         return createUnionSerializer(type as TypeUnion);
     }
 
+    // Handle a top-level array/tuple document (e.g. getBSONSerializer<number[]>()).
+    // BSON has no distinct "array file" framing — an array IS a document whose
+    // keys are the stringified indices ("0", "1", ...). MongoDB commands and RPC
+    // results frequently produce a bare array at the top level, so serialize it
+    // as that index-keyed document rather than throwing.
+    if (type.kind === ReflectionKind.array || type.kind === ReflectionKind.tuple) {
+        return createTopLevelArraySerializer(type as TypeArray | TypeTuple);
+    }
+
     if (type.kind !== ReflectionKind.objectLiteral && type.kind !== ReflectionKind.class) {
         throw new TypeNotSerializableError(ReflectionKind[type.kind]);
     }
@@ -271,6 +280,80 @@ function createUnionSerializer(type: TypeUnion): (data: any) => SerializeResult 
 
         try {
             return [sharedBuffer, memberSerializers[bestIndex].serializeFn(sharedBuffer, sharedView, 0, data)];
+        } catch (e) {
+            if (globalCircularSet) globalCircularSet.clear();
+            throw e;
+        }
+    };
+}
+
+/**
+ * Create a serializer for a top-level array or tuple document.
+ *
+ * A BSON array is just a document whose keys are the stringified element
+ * indices ("0", "1", ...). We build a JIT function that writes the document
+ * framing (4-byte size prefix + index-keyed elements + 0x00 terminator) and
+ * delegate per-element encoding to `serializeArray`/`serializeTuple`, which
+ * already emit exactly that body when given a numeric/array name.
+ */
+function createTopLevelArraySerializer(type: TypeArray | TypeTuple): (data: any) => SerializeResult {
+    const ctx = new BSONBuildState();
+
+    const serializeFn: SerializeFn = fn(
+        arg<Uint8Array>('buffer'),
+        arg<DataView>('view'),
+        arg<number>('offset'),
+        arg<any>('data'),
+        (b: Builder, buffer: Ref<Uint8Array>, view: Ref<DataView>, offset: Ref<number>, data: Ref<any>) => {
+            const o = b.var_(offset, 'o');
+
+            // Save start offset for backfilling document size
+            const start = b.let(b.getVar(o), 'start');
+
+            // Reserve 4 bytes for document size
+            b.exec(b.method(view, 'setInt32', b.getVar(o), b.lit(0), b.lit(true)));
+            b.setVar(o, b.add(b.getVar(o), b.lit(4)));
+
+            if (type.kind === ReflectionKind.array) {
+                const elemType = (type as TypeArray).type;
+                const elemCtx = ctx.forIndex('i');
+                b.loop(data, (elem, idx) => {
+                    serializeValue(b, buffer, view, o, idx, elemType, elem, elemCtx);
+                });
+            } else {
+                // Tuple: serialize each fixed element with its own type at index "0", "1", ...
+                const tuple = type as TypeTuple;
+                for (let i = 0; i < tuple.types.length; i++) {
+                    const member = tuple.types[i];
+                    const elemType = member.type;
+                    const elemValue = b.get(data, b.lit(i));
+                    const indexStr = String(i);
+                    const elemCtx = ctx.forProperty(`[${i}]`);
+                    if (member.optional) {
+                        b.if_(b.neq(elemValue, b.lit(undefined)), () => {
+                            serializeValue(b, buffer, view, o, indexStr, elemType, elemValue, elemCtx);
+                        });
+                    } else {
+                        serializeValue(b, buffer, view, o, indexStr, elemType, elemValue, elemCtx);
+                    }
+                }
+            }
+
+            // Write document terminator (0x00)
+            b.set(buffer, b.getVar(o), b.lit(0));
+            b.setVar(o, b.add(b.getVar(o), b.lit(1)));
+
+            // Backfill document size
+            const size = b.sub(b.getVar(o), start);
+            b.exec(b.method(view, 'setInt32', start, size, b.lit(true)));
+
+            return b.getVar(o);
+        },
+    );
+
+    return (data: any): SerializeResult => {
+        try {
+            return [sharedBuffer, serializeFn(sharedBuffer, sharedView, 0, data)];
         } catch (e) {
             if (globalCircularSet) globalCircularSet.clear();
             throw e;
@@ -578,6 +661,19 @@ function serializeValue(
         case ReflectionKind.unknown:
             // Runtime type detection for any/unknown
             serializeAny(b, buffer, view, o, name, value, ctx);
+            break;
+        case ReflectionKind.void:
+        case ReflectionKind.never:
+        case ReflectionKind.function:
+        case ReflectionKind.method:
+        case ReflectionKind.methodSignature:
+            // These kinds have no BSON representation. The framework's JSON
+            // serializer simply omits methods/functions, and `void`/`never`
+            // carry no value. We emit nothing (skip the property) rather than
+            // throwing — this is what makes void-returning RPC actions and
+            // MongoDB commands (Command<void>) serialize correctly. Note that
+            // `undefined` is handled above (→ BSON NULL); `void` here means the
+            // value is absent, so there is nothing to write.
             break;
         default:
             throw new TypeNotSerializableError(ReflectionKind[type.kind]);

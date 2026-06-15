@@ -356,13 +356,17 @@ export function getRequestParserCodeForParameters(
                 );
             }
         } else if (parameter.query || parameter.queries || parameter.header) {
+            // Serialize/validate against the parameter's declared inner type, not the
+            // ReflectionKind.parameter wrapper. The wrapper has no (de)serialize/validate
+            // handler, so passing it makes both no-op and the raw string is returned uncoerced.
+            const type = parameter.getType();
             const converted = getSerializeFunction(
-                parameter.parameter.parameter,
+                type,
                 serializer.deserializeRegistry,
                 undefined,
                 parameter.getName(),
             );
-            const validator = getValidatorFunction(undefined, parameter.parameter.parameter);
+            const validator = getValidatorFunction(undefined, type);
             const converterVar = compiler.reserveVariable('argumentConverter', converted);
             const validatorVar = compiler.reserveVariable('argumentValidator', validator);
 
@@ -399,8 +403,12 @@ export function getRequestParserCodeForParameters(
 
             if (parameter.isPartOfPath()) {
                 if (parameter.parameter.type.kind !== ReflectionKind.class) {
+                    // Coerce/validate the raw path string against the declared inner type
+                    // (e.g. `number`), not the ReflectionKind.parameter wrapper — the wrapper
+                    // has no (de)serialize/validate handler, so it would leave `_match[i]` a string.
+                    const type = parameter.getType();
                     const converted = getSerializeFunction(
-                        parameter.parameter.parameter,
+                        type,
                         serializer.deserializeRegistry,
                         undefined,
                         parameter.getName(),
@@ -410,7 +418,7 @@ export function getRequestParserCodeForParameters(
                         `parameters.${parameter.parameter.name} = ${converterVar}(_match[${1 + (parameter.regexPosition || 0)}], {loosely: true});`,
                     );
 
-                    const validator = getValidatorFunction(undefined, parameter.parameter.parameter);
+                    const validator = getValidatorFunction(undefined, type);
                     const validatorVar = compiler.reserveVariable('argumentValidator', validator);
                     parameterValidator.push(
                         `${validatorVar}(parameters.${parameter.parameter.name}, {errors: validationErrors}, ${JSON.stringify(parameter.getName())});`,

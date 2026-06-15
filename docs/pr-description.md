@@ -19,7 +19,7 @@
 
 Deepkit v2 is a ground-up rewrite of the framework's core JIT, serialization, and BSON layers — delivering order-of-magnitude performance improvements while adding CSP compliance, security hardening, and a cleaner public API.
 
-1. **JIT Architecture Rewrite** — New expression-tree based `jit.ts` in `@deepkit/core`. Zero `new Function()` calls, CSP-compliant, tiered execution (interpret first, JIT-compile hot paths).
+1. **JIT Architecture Rewrite** — New expression-tree based `jit.ts` in `@deepkit/core` with tiered execution (interpret first, JIT-compile hot paths after a threshold). CSP-capable: `@deepkit/type` and `@deepkit/bson` emit no `new Function()`; `@deepkit/core` still JIT-compiles hot paths via `new Function()` for peak speed but transparently falls back to a closure-based executor when `new Function` is unavailable (e.g. strict CSP).
 
 2. **BSON Package Rewrite** — Complete rewrite of `@deepkit/bson` with shape-learning JIT deserializer, zero-copy serialization, and security hardening. 3–17x faster than v1, 3–313x faster than bson-js.
 
@@ -75,11 +75,11 @@ class Post {
 
 ### 3. `feat(core)!: New jit.ts — expression tree JIT/Exec architecture`
 
-The old `CompilerContext`-based JIT in `@deepkit/core` is replaced with a new Builder API (`jit.ts`). This is an internal API used by `@deepkit/type` and `@deepkit/bson` — not directly user-facing, but affects anyone extending the serializer.
+`@deepkit/core` gains a new expression-tree Builder API (`jit.ts`) alongside the existing `CompilerContext`. `@deepkit/type` and `@deepkit/bson` are built on the new Builder; `CompilerContext` is retained for back-compat (callers extending the old JIT keep working). This is an internal API — not directly user-facing, but affects anyone extending the serializer.
 
 **Key changes:**
-- `CompilerContext` → `Builder` with expression tree model
-- `new Function()` → closure-based executors (CSP-compatible)
+- New `Builder` with expression tree model (additive; `CompilerContext` still present)
+- Builder can run as a closure-based executor (CSP-compatible) and falls back to one automatically when `new Function` is unavailable; the JIT path still uses `new Function()` for peak speed when allowed
 - Supports tiered execution: interpret first, compile to JIT after N calls
 
 ---

@@ -7,9 +7,9 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { IncomingMessage, OutgoingHttpHeader, OutgoingHttpHeaders, ServerResponse } from 'http';
-import * as querystring from 'querystring';
-import { Writable } from 'stream';
+import { IncomingMessage, OutgoingHttpHeader, OutgoingHttpHeaders, ServerResponse } from 'node:http';
+import * as querystring from 'node:querystring';
+import { Writable } from 'node:stream';
 
 import { DeepkitError, TypeAnnotation, asyncOperation, isArray } from '@deepkit/core';
 import { ReflectionKind, Type, ValidationErrorItem, typeAnnotation } from '@deepkit/type';

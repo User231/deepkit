@@ -1,4 +1,6 @@
-import { expect, jest, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
 
 import { ObjectId } from '@deepkit/bson';
 import { MemoryLogger } from '@deepkit/logger';
@@ -10,7 +12,6 @@ import { SimpleModel, SuperSimple } from './entities.js';
 import { createDatabase } from './utils.js';
 
 Error.stackTraceLimit = 100;
-jest.setTimeout(10000);
 
 test('logger', async () => {
     const database = new Database(new MongoDatabaseAdapter('mongodb://invalid-host'));
