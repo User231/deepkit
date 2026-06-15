@@ -9,7 +9,10 @@
  */
 
 /** @reflection never */
-import { performance } from 'perf_hooks';
+// Use the global Web Performance API rather than importing Node's `perf_hooks`:
+// `@deepkit/type` also runs in the browser, where bundlers externalize `perf_hooks`
+// and accessing it throws. `globalThis.performance` exists in browsers and Node >= 16.
+const performance = globalThis.performance;
 
 /**
  * Cached performance.timeOrigin — constant for the lifetime of the process.
