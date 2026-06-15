@@ -25,6 +25,7 @@ import { DebugBrokerBus } from '../broker.js';
 export class FileStopwatchStore extends StopwatchStore {
     protected lastSync?: any;
     protected syncMutex = new Mutex();
+    protected syncing = false;
 
     protected lastId: number = -1;
     protected lastContext: number = -1;
@@ -61,14 +62,61 @@ export class FileStopwatchStore extends StopwatchStore {
     }
 
     async close() {
-        //last sync, then stop everything
-        try {
-            // close() is called onAppExecuted so it must not throw
-            await this.syncNow();
-        } catch (error) {
-            this.logger.error('Could not sync debug store', formatError(error));
-        }
+        // Set ended first so any in-progress syncNow() skips broker publish
+        // at the `if (!this.ended)` check and releases the mutex promptly.
         this.ended = true;
+        this.frameChannel = undefined;
+        this.frameDataChannel = undefined;
+
+        // Cancel any pending sync timer
+        if (this.lastSync) {
+            clearTimeout(this.lastSync);
+            this.lastSync = undefined;
+        }
+
+        // Try to flush remaining data to disk.
+        // If an in-progress syncNow() is holding the mutex (stuck on broker publish),
+        // we skip the flush — the data loss is acceptable during shutdown.
+        if (!this.syncing) {
+            await this.syncMutex.lock();
+            try {
+                await this.flushToDisk();
+            } catch (error) {
+                this.logger.error('Could not sync debug store on close', formatError(error));
+            } finally {
+                this.syncMutex.unlock();
+            }
+        }
+    }
+
+    private async flushToDisk(): Promise<{ frameBytes: Uint8Array, dataBytes: Uint8Array }> {
+        await this.loadLastNumberRange();
+
+        const frames = this.frameQueue.slice();
+        const frameData = this.dataQueue.slice();
+        const analytics = this.analytics.slice();
+        this.frameQueue = [];
+        this.dataQueue = [];
+        this.analytics = [];
+
+        for (const frame of frames) {
+            frame.cid = incrementCompoundKey(frame.cid, this.lastId);
+            if (frame.type === FrameType.start) frame.context += this.lastContext;
+        }
+        for (const frame of frameData) {
+            frame.cid = incrementCompoundKey(frame.cid, this.lastId);
+        }
+
+        const frameBytes = encodeFrames(frames);
+        const dataBytes = encodeFrameData(frameData);
+        const analyticsBytes = encodeAnalytic(analytics);
+
+        this.ensureVarDebugFolder();
+        if (frameBytes.byteLength) await appendFile(this.framesPath, frameBytes);
+        if (dataBytes.byteLength) await appendFile(this.framesDataPath, dataBytes);
+        if (analyticsBytes.byteLength) await appendFile(this.analyticsPath, analyticsBytes);
+
+        return { frameBytes, dataBytes };
     }
 
     run<T>(data: { [name: string]: any }, cb: () => Promise<T>): Promise<T> {
@@ -130,37 +178,9 @@ export class FileStopwatchStore extends StopwatchStore {
         if (this.ended) return;
 
         await this.syncMutex.lock();
+        this.syncing = true;
         try {
-            await this.loadLastNumberRange();
-
-            const frames = this.frameQueue.slice();
-            const frameData = this.dataQueue.slice();
-            const analytics = this.analytics.slice();
-            this.frameQueue = [];
-            this.dataQueue = [];
-            this.analytics = [];
-
-            for (const frame of frames) {
-                frame.cid = incrementCompoundKey(frame.cid, this.lastId);
-                if (frame.type === FrameType.start) frame.context += this.lastContext;
-            }
-
-            for (const frame of frameData) {
-                frame.cid = incrementCompoundKey(frame.cid, this.lastId);
-            }
-
-            const frameBytes = encodeFrames(frames);
-            const dataBytes = encodeFrameData(frameData);
-            const analyticsBytes = encodeAnalytic(analytics);
-
-            try {
-                this.ensureVarDebugFolder();
-                if (frameBytes.byteLength) await appendFile(this.framesPath, frameBytes);
-                if (dataBytes.byteLength) await appendFile(this.framesDataPath, dataBytes);
-                if (analyticsBytes.byteLength) await appendFile(this.analyticsPath, analyticsBytes);
-            } catch (error) {
-                this.logger.error('Could not write to debug store', String(error));
-            }
+            const { frameBytes, dataBytes } = await this.flushToDisk();
 
             if (!this.ended) {
                 //when we ended, broker connection already closed. So we just write to disk.
@@ -174,6 +194,7 @@ export class FileStopwatchStore extends StopwatchStore {
                 this.sync();
             }
         } finally {
+            this.syncing = false;
             this.syncMutex.unlock();
         }
     }
