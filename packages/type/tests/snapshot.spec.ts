@@ -4,7 +4,7 @@ import { expect } from '@deepkit/run/expect';
 
 import { ReflectionClass } from '../src/reflection/reflection.js';
 import { getConverterForSnapshot, getPrimaryKeyExtractor, getPrimaryKeyHashGenerator } from '../src/snapshot.js';
-import { PrimaryKey, Reference } from '../src/type-annotations.js';
+import { BackReference, PrimaryKey, Reference } from '../src/type-annotations.js';
 
 class Image {
     title: string = '';
@@ -36,6 +36,66 @@ test('getJITConverterForSnapshot', () => {
         expect(converted).toBeInstanceOf(Object);
         expect(converted).toEqual({ id: 22, title: 'Peter', image: { id: 3 } });
     }
+});
+
+test('back-references are excluded and do not recurse (bidirectional / m2m)', () => {
+    // Regression: a bidirectional relationship made the snapshot builder recurse forever at
+    // JIT-build time (RangeError: Maximum call stack size exceeded), because back-references
+    // were deep-embedded instead of skipped. Forward references collapse to their PK; the
+    // virtual back-reference collection is omitted from the snapshot entirely.
+    class Post {
+        id: number & PrimaryKey = 0;
+        title: string = '';
+        author?: Author & Reference;
+    }
+
+    class Author {
+        id: number & PrimaryKey = 0;
+        name: string = '';
+        posts: Post[] & BackReference = [];
+    }
+
+    // Must not throw while building the converter (this is what overflowed before).
+    const authorSnapshot = getConverterForSnapshot(ReflectionClass.from(Author));
+    const postSnapshot = getConverterForSnapshot(ReflectionClass.from(Post));
+
+    const author = new Author();
+    author.id = 1;
+    author.name = 'Peter';
+    const post = new Post();
+    post.id = 7;
+    post.title = 'Hello';
+    post.author = author;
+    author.posts = [post]; // back-reference populated at runtime
+
+    // `posts` (back-reference) is excluded; scalars pass through.
+    expect(authorSnapshot(author)).toEqual({ id: 1, name: 'Peter' });
+    // forward reference collapses to PK only.
+    expect(postSnapshot(post)).toEqual({ id: 7, title: 'Hello', author: { id: 1 } });
+});
+
+test('self-referential back-reference does not recurse', () => {
+    // A node that references its parent and back-references its children (self-referential graph).
+    class Node {
+        id: number & PrimaryKey = 0;
+        name: string = '';
+        parent?: Node & Reference;
+        children: Node[] & BackReference = [];
+    }
+
+    const snapshot = getConverterForSnapshot(ReflectionClass.from(Node));
+
+    const root = new Node();
+    root.id = 1;
+    root.name = 'root';
+    const child = new Node();
+    child.id = 2;
+    child.name = 'child';
+    child.parent = root;
+    root.children = [child];
+
+    expect(snapshot(root)).toEqual({ id: 1, name: 'root', parent: null });
+    expect(snapshot(child)).toEqual({ id: 2, name: 'child', parent: { id: 1 } });
 });
 
 test('getPrimaryKeyExtractor', () => {

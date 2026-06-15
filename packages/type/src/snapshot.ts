@@ -270,6 +270,13 @@ function createJITConverterForSnapshot(
 
         // Process each property
         for (const property of properties) {
+            // Back-references are virtual inverse relations, not columns of this row, so they
+            // are excluded from the snapshot (the change detector skips them too — see
+            // change-detector.ts `if (property.isBackReference()) continue`). Including them would
+            // also deep-embed the related entities, and for any bidirectional/m2m relationship that
+            // recurses forever at JIT-build time (RangeError: Maximum call stack size exceeded).
+            if (property.isBackReference()) continue;
+
             const propName = property.getNameAsString();
             const propAccess = input.get(propName);
             const propType = property.type;
