@@ -35,6 +35,6 @@ export class CommitTransactionCommand extends Command<BaseResponse> {
         if (transaction) transaction.applyTransaction(cmd);
         config.applyWriteConcern(cmd, this.options);
 
-        return await this.sendAndWait<CommitTransaction>(cmd);
+        return await this.sendAndWait<CommitTransaction, BaseResponse>(cmd);
     }
 }

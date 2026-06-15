@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import { expect } from '@deepkit/run/expect';
 
-import { ApiEntryPoints } from '@deepkit/api-console-gui/src/api';
+import { ApiEntryPoints } from '@deepkit/api-console-api';
 import { App } from '@deepkit/app';
 import { serializeBSON } from '@deepkit/bson';
 import { HttpKernel, HttpModule, HttpRequest } from '@deepkit/http';
@@ -18,7 +18,6 @@ test('type api', () => {
         types: [{ kind: ReflectionKind.propertySignature, name: 'v', type: type, parent: Object as any }],
     };
 
-    //todo: this hangs. investigate why
     serializeBSON(
         {
             v: {
@@ -26,8 +25,7 @@ test('type api', () => {
                 rpcActions: [],
             },
         },
-        undefined,
-        v,
+        v as any,
     );
 });
 

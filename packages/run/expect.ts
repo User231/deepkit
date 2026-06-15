@@ -30,6 +30,9 @@ if (typeof BigInt === 'function' && !(BigInt.prototype as any).toJSON) {
  * Compares Dates by getTime(), Maps/Sets by entries, RegExps by toString().
  */
 function jestDeepEqual(a: unknown, b: unknown, seen = new Set<object>()): boolean {
+    // Asymmetric matchers (expect.any, expect.objectContaining, …) on either side
+    if (isAsymmetric(b)) return (b as AsymmetricMatcher).$$match(a);
+    if (isAsymmetric(a)) return (a as AsymmetricMatcher).$$match(b);
     // Identical values (handles NaN via Object.is)
     if (Object.is(a, b)) return true;
 
@@ -116,6 +119,7 @@ function jestDeepEqual(a: unknown, b: unknown, seen = new Set<object>()): boolea
  * Every key in `expected` must exist and match in `actual`, but `actual` may have extra keys.
  */
 function jestMatchObject(actual: unknown, expected: unknown, seen = new Set<object>()): boolean {
+    if (isAsymmetric(expected)) return (expected as AsymmetricMatcher).$$match(actual);
     if (Object.is(actual, expected)) return true;
     if (actual === null || expected === null || typeof actual !== 'object' || typeof expected !== 'object') {
         return jestDeepEqual(actual, expected, seen);
@@ -146,14 +150,66 @@ function formatValue(v: unknown): string {
     }
 }
 
+// --- Asymmetric matchers (expect.any, expect.objectContaining, …) ---------
+
+interface AsymmetricMatcher {
+    $$asymmetric: true;
+    $$match(actual: unknown): boolean;
+    toString(): string;
+}
+
+function isAsymmetric(v: unknown): v is AsymmetricMatcher {
+    return typeof v === 'object' && v !== null && (v as any).$$asymmetric === true;
+}
+
+function asymmetric(label: string, match: (actual: unknown) => boolean): AsymmetricMatcher {
+    return { $$asymmetric: true, $$match: match, toString: () => label };
+}
+
+const asymmetricMatchers = {
+    any(ctor: Function): AsymmetricMatcher {
+        return asymmetric(`Any<${(ctor as any).name}>`, actual => {
+            if (ctor === String) return typeof actual === 'string' || actual instanceof String;
+            if (ctor === Number) return typeof actual === 'number' || actual instanceof Number;
+            if (ctor === Boolean) return typeof actual === 'boolean';
+            if (ctor === BigInt) return typeof actual === 'bigint';
+            if (ctor === Symbol) return typeof actual === 'symbol';
+            if (ctor === Function) return typeof actual === 'function';
+            if (ctor === Object) return typeof actual === 'object' && actual !== null;
+            return actual instanceof (ctor as any);
+        });
+    },
+    anything(): AsymmetricMatcher {
+        return asymmetric('Anything', actual => actual !== null && actual !== undefined);
+    },
+    objectContaining(expected: object): AsymmetricMatcher {
+        return asymmetric('ObjectContaining', actual => jestMatchObject(actual, expected));
+    },
+    arrayContaining(expected: unknown[]): AsymmetricMatcher {
+        return asymmetric('ArrayContaining', actual => {
+            if (!Array.isArray(actual)) return false;
+            return expected.every(e => actual.some(a => jestDeepEqual(a, e)));
+        });
+    },
+    stringContaining(expected: string): AsymmetricMatcher {
+        return asymmetric('StringContaining', actual => typeof actual === 'string' && actual.includes(expected));
+    },
+    stringMatching(expected: string | RegExp): AsymmetricMatcher {
+        return asymmetric('StringMatching', actual => {
+            if (typeof actual !== 'string') return false;
+            return typeof expected === 'string' ? actual.includes(expected) : expected.test(actual);
+        });
+    },
+};
+
 interface Matchers {
     toBe(expected: unknown): void;
     toEqual(expected: unknown): void;
     toContain(expected: unknown): void;
     toMatchObject(expected: object): void;
     toMatch(expected: string | RegExp): void;
-    toThrow(expected?: string | RegExp | Error): void;
-    toThrowError(expected?: string | RegExp | Error): void;
+    toThrow(expected?: string | RegExp | Error | Function): void;
+    toThrowError(expected?: string | RegExp | Error | Function): void;
     toBeInstanceOf(expected: Function): void;
     toBeCloseTo(expected: number, numDigits?: number): void;
     toBeDefined(): void;
@@ -168,13 +224,30 @@ interface Matchers {
     toBeLessThan(expected: number): void;
     toBeLessThanOrEqual(expected: number): void;
     toHaveBeenCalledTimes(expected: number): void;
+    toHaveBeenCalled(): void;
+    toHaveBeenCalledWith(...args: unknown[]): void;
+}
+
+interface AsyncMatchers {
+    toBe(expected: unknown): Promise<void>;
+    toEqual(expected: unknown): Promise<void>;
+    toMatchObject(expected: object): Promise<void>;
+    toContain(expected: unknown): Promise<void>;
+    toBeInstanceOf(expected: Function): Promise<void>;
+    toThrow(expected?: string | RegExp | Error | Function): Promise<void>;
+    toThrowError(expected?: string | RegExp | Error | Function): Promise<void>;
+    toHaveProperty(path: string, value?: unknown): Promise<void>;
 }
 
 interface Expect extends Matchers {
     not: Matchers;
+    /** Awaits the promise, asserts it resolves, applies the matcher to the resolved value. */
+    resolves: AsyncMatchers;
+    /** Awaits the promise (or calls the fn), asserts it rejects, applies the matcher to the error. */
+    rejects: AsyncMatchers;
 }
 
-export function expect(actual: unknown): Expect {
+function expectImpl(actual: unknown): Expect {
     const matchers: Matchers = {
         toBe(expected: unknown) {
             assert.strictEqual(actual, expected);
@@ -211,8 +284,10 @@ export function expect(actual: unknown): Expect {
                 assert.match(str, expected);
             }
         },
-        toThrow(expected?: string | RegExp | Error) {
-            if (typeof expected === 'string') {
+        toThrow(expected?: string | RegExp | Error | Function) {
+            if (expected === undefined) {
+                assert.throws(actual as () => void);
+            } else if (typeof expected === 'string') {
                 // Jest's toThrow('str') checks message.includes(str)
                 assert.throws(actual as () => void, (err: any) => {
                     if (!err.message?.includes(expected)) {
@@ -220,13 +295,13 @@ export function expect(actual: unknown): Expect {
                     }
                     return true;
                 });
-            } else if (expected instanceof RegExp) {
-                assert.throws(actual as () => void, expected);
             } else {
-                assert.throws(actual as () => void);
+                // RegExp (message match), Error subclass constructor (instanceof check),
+                // or an Error instance (message+name) — node:assert handles all three.
+                assert.throws(actual as () => void, expected as any);
             }
         },
-        toThrowError(expected?: string | RegExp | Error) {
+        toThrowError(expected?: string | RegExp | Error | Function) {
             // Jest alias
             matchers.toThrow(expected);
         },
@@ -262,6 +337,20 @@ export function expect(actual: unknown): Expect {
             const mock = actual as MockFunction;
             assert.ok(mock._isMock, 'toHaveBeenCalledTimes called on non-mock. Use fn() to create a mock.');
             assert.strictEqual(mock.calls.length, expected, `Expected ${expected} calls, got ${mock.calls.length}`);
+        },
+        toHaveBeenCalled() {
+            const mock = actual as MockFunction;
+            assert.ok(mock._isMock, 'toHaveBeenCalled called on non-mock. Use fn()/spyOn() to create a mock.');
+            assert.ok(mock.calls.length > 0, 'Expected mock to have been called at least once');
+        },
+        toHaveBeenCalledWith(...args: unknown[]) {
+            const mock = actual as MockFunction;
+            assert.ok(mock._isMock, 'toHaveBeenCalledWith called on non-mock. Use fn()/spyOn() to create a mock.');
+            const found = mock.calls.some(call => jestDeepEqual(call, args));
+            assert.ok(
+                found,
+                `Expected mock to have been called with:\n${formatValue(args)}\nActual calls:\n${formatValue(mock.calls)}`,
+            );
         },
         toBeTruthy() {
             assert.ok(actual, `Expected ${formatValue(actual)} to be truthy`);
@@ -362,6 +451,17 @@ export function expect(actual: unknown): Expect {
             assert.ok(mock._isMock, 'not.toHaveBeenCalledTimes called on non-mock.');
             assert.notStrictEqual(mock.calls.length, expected, `Expected NOT ${expected} calls, but got exactly that`);
         },
+        toHaveBeenCalled() {
+            const mock = actual as MockFunction;
+            assert.ok(mock._isMock, 'not.toHaveBeenCalled called on non-mock.');
+            assert.strictEqual(mock.calls.length, 0, `Expected mock NOT to have been called, but it was ${mock.calls.length}x`);
+        },
+        toHaveBeenCalledWith(...args: unknown[]) {
+            const mock = actual as MockFunction;
+            assert.ok(mock._isMock, 'not.toHaveBeenCalledWith called on non-mock.');
+            const found = mock.calls.some(call => jestDeepEqual(call, args));
+            assert.ok(!found, `Expected mock NOT to have been called with:\n${formatValue(args)}`);
+        },
         toBeTruthy() {
             assert.ok(!actual, `Expected ${formatValue(actual)} NOT to be truthy`);
         },
@@ -390,8 +490,75 @@ export function expect(actual: unknown): Expect {
         },
     };
 
-    return { ...matchers, not: negated };
+    const settle = (): Promise<{ ok: boolean; value?: unknown; error?: any }> =>
+        Promise.resolve(typeof actual === 'function' ? (actual as Function)() : actual).then(
+            value => ({ ok: true, value }),
+            error => ({ ok: false, error }),
+        );
+
+    function asyncMatchers(mode: 'resolves' | 'rejects'): AsyncMatchers {
+        const apply =
+            (name: keyof Matchers) =>
+            async (...args: any[]) => {
+                const res = await settle();
+                if (mode === 'resolves') {
+                    if (!res.ok) {
+                        assert.fail(`Expected promise to resolve, but it rejected with: ${res.error?.stack || res.error}`);
+                    }
+                    (expectImpl(res.value) as any)[name](...args);
+                    return;
+                }
+                // rejects
+                if (res.ok) {
+                    assert.fail(`Expected promise to reject, but it resolved with: ${formatValue(res.value)}`);
+                }
+                const err = res.error;
+                if (name === 'toThrow' || name === 'toThrowError') {
+                    const expected = args[0];
+                    if (expected === undefined) return; // it rejected — that's all toThrow() asserts
+                    const msg = String(err?.message ?? err);
+                    if (typeof expected === 'string') {
+                        assert.ok(msg.includes(expected), `Expected rejection message to contain "${expected}", got "${msg}"`);
+                    } else if (expected instanceof RegExp) {
+                        assert.ok(expected.test(msg), `Expected rejection message to match ${expected}, got "${msg}"`);
+                    } else if (typeof expected === 'function') {
+                        assert.ok(err instanceof (expected as any), `Expected rejection to be instance of ${(expected as any).name}, got ${err}`);
+                    } else {
+                        assert.ok(msg.includes(String((expected as any)?.message ?? expected)));
+                    }
+                    return;
+                }
+                (expectImpl(err) as any)[name](...args);
+            };
+        return {
+            toBe: apply('toBe'),
+            toEqual: apply('toEqual'),
+            toMatchObject: apply('toMatchObject'),
+            toContain: apply('toContain'),
+            toBeInstanceOf: apply('toBeInstanceOf'),
+            toThrow: apply('toThrow'),
+            toThrowError: apply('toThrowError'),
+            toHaveProperty: apply('toHaveProperty'),
+        };
+    }
+
+    return { ...matchers, not: negated, resolves: asyncMatchers('resolves'), rejects: asyncMatchers('rejects') };
 }
+
+// expect() with asymmetric matchers attached as static helpers:
+// expect.any(String), expect.objectContaining({…}), … . A typed const + Object.assign is used
+// instead of function+namespace merging, which the per-file transpile loader can't represent.
+interface ExpectFn {
+    (actual: unknown): Expect;
+    any(ctor: Function): AsymmetricMatcher;
+    anything(): AsymmetricMatcher;
+    objectContaining(expected: object): AsymmetricMatcher;
+    arrayContaining(expected: unknown[]): AsymmetricMatcher;
+    stringContaining(expected: string): AsymmetricMatcher;
+    stringMatching(expected: string | RegExp): AsymmetricMatcher;
+}
+
+export const expect: ExpectFn = Object.assign(expectImpl, asymmetricMatchers);
 
 /**
  * Lightweight jest.fn() replacement.
@@ -401,22 +568,31 @@ interface MockFunction {
     (...args: any[]): any;
     _isMock: true;
     calls: any[][];
+    mock: { calls: any[][] };
     mockImplementation(impl: (...args: any[]) => any): MockFunction;
     mockReturnValue(value: any): MockFunction;
     mockClear(): void;
+    mockReset(): void;
+    mockRestore(): void;
 }
+
+// Per-process registry so jest.clearAllMocks()/restoreAllMocks() work (each node:test file is its own process).
+const allMocks: MockFunction[] = [];
 
 export function fn(impl?: (...args: any[]) => any): MockFunction {
     let implementation = impl || (() => undefined);
     const calls: any[][] = [];
 
-    const mock = function (...args: any[]) {
+    const mock = function (this: any, ...args: any[]) {
         calls.push(args);
-        return implementation(...args);
+        // forward the call-site receiver so spyOn-wrapped instance methods keep their `this`
+        return implementation.apply(this, args);
     } as MockFunction;
 
     mock._isMock = true;
     mock.calls = calls;
+    // jest exposes call records under `.mock.calls` too
+    mock.mock = { calls };
     mock.mockImplementation = (newImpl: (...args: any[]) => any) => {
         implementation = newImpl;
         return mock;
@@ -428,6 +604,59 @@ export function fn(impl?: (...args: any[]) => any): MockFunction {
     mock.mockClear = () => {
         calls.length = 0;
     };
+    mock.mockReset = () => {
+        calls.length = 0;
+        implementation = () => undefined;
+    };
+    mock.mockRestore = () => {
+        calls.length = 0;
+    };
 
+    allMocks.push(mock);
     return mock;
 }
+
+/**
+ * jest.spyOn(obj, 'method') replacement: replaces the method with a mock that
+ * calls through to the original by default, and can be restored via mockRestore().
+ */
+export function spyOn<T extends object>(obj: T, method: keyof T): MockFunction {
+    const original = obj[method] as unknown as (...args: any[]) => any;
+    // preserve the call-site receiver (instance), falling back to the spied object
+    const mock = fn(function (this: any, ...args: any[]) {
+        return original.apply(this ?? obj, args);
+    });
+    mock.mockRestore = () => {
+        (obj as any)[method] = original;
+    };
+    (obj as any)[method] = mock;
+    return mock;
+}
+
+/**
+ * Minimal `jest` compatibility object for tests migrated to node:test.
+ * `mock`/`requireActual` are not portable to node:test and throw with guidance.
+ */
+export const jest = {
+    fn,
+    spyOn,
+    /** node:test has no default per-test timeout, so raising it (jest's 5s default) is a no-op. */
+    setTimeout(_ms: number): void {},
+    clearAllMocks(): void {
+        for (const m of allMocks) m.calls.length = 0;
+    },
+    resetAllMocks(): void {
+        for (const m of allMocks) m.mockReset();
+    },
+    restoreAllMocks(): void {
+        for (const m of allMocks) m.mockRestore();
+    },
+    requireActual(_module: string): never {
+        throw new Error('jest.requireActual is not supported under node:test — import the real module directly.');
+    },
+    mock(): never {
+        throw new Error(
+            'jest.mock() is not supported under node:test — refactor to dependency injection, or use node:test mock.module() with --experimental-test-module-mocks.',
+        );
+    },
+};

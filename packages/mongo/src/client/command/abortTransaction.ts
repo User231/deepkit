@@ -33,6 +33,6 @@ export class AbortTransactionCommand extends Command<BaseResponse> {
 
         if (transaction) transaction.applyTransaction(cmd);
 
-        return await this.sendAndWait<AbortTransaction>(cmd);
+        return await this.sendAndWait<AbortTransaction, BaseResponse>(cmd);
     }
 }

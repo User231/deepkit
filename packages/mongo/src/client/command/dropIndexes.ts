@@ -12,7 +12,7 @@ import { ReflectionClass } from '@deepkit/type';
 import type { MongoClientConfig } from '../config.js';
 import type { MongoDatabaseTransaction } from '../connection.js';
 import type { Host } from '../host.js';
-import { Command, WriteConcernMessage } from './command.js';
+import { BaseResponse, Command, WriteConcernMessage } from './command.js';
 
 type RequestSchema = {
     dropIndexes: string;
@@ -38,7 +38,7 @@ export class DropIndexesCommand<T extends ReflectionClass<any>> extends Command<
         config.applyWriteConcern(cmd, this.options);
 
         try {
-            await this.sendAndWait<RequestSchema>(cmd);
+            await this.sendAndWait<RequestSchema, BaseResponse>(cmd);
         } catch (error) {
             throw new Error(`Could not drop indexes ${JSON.stringify(this.names)}: ${error}`);
         }

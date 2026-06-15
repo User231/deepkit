@@ -29,6 +29,7 @@
   "license": "MIT",
   "dependencies": {
     "@deepkit/type-compiler": "^1.0.1-alpha.158",
+    "cjs-module-lexer": "^1.4.3",
     "tsconfig-paths": "^4.2.0",
     "typescript": "~5.8.3"
   }

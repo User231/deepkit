@@ -10,7 +10,7 @@
 import type { MongoClientConfig } from '../config.js';
 import type { MongoDatabaseTransaction } from '../connection.js';
 import type { Host } from '../host.js';
-import { Command, WriteConcernMessage } from './command.js';
+import { BaseResponse, Command, WriteConcernMessage } from './command.js';
 
 type DropDatabase = {
     dropDatabase: 1;
@@ -28,7 +28,7 @@ export class DropDatabaseCommand<T> extends Command<void> {
             $db: this.dbName,
         };
         config.applyWriteConcern(cmd, this.options);
-        await this.sendAndWait<DropDatabase>(cmd);
+        await this.sendAndWait<DropDatabase, BaseResponse>(cmd);
     }
 
     needsWritableHost(): boolean {
