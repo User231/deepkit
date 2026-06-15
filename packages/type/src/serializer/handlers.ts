@@ -56,6 +56,7 @@ import {
     embeddedAnnotation,
     excludedAnnotation,
     groupAnnotation,
+    inlineAnnotation,
     isBackReferenceType,
     isMongoIdType,
     isNanoIdType,
@@ -2378,11 +2379,17 @@ export const handleObjectLiteral: JsonTypeHandler = (type, input, b, state) => {
             };
 
             const result = b.var_<any>(undefined);
-            const stackRef = b.call(checkCircular, input, state.optionsRef.get('_stack' as any), state.optionsRef);
+            // Bind to a variable: checkCircular pushes onto the stack as a side effect, so it must
+            // run exactly once. An unbound call expression would be re-emitted (and re-pushed) at
+            // each use (the condition and the popStack argument).
+            const stackRef = b.let(b.call(checkCircular, input, state.optionsRef.get('_stack' as any), state.optionsRef));
 
             b.if_(b.neq(stackRef, b.lit(undefined)), () => {
                 const innerResult = buildObjectLiteralBody(objType, members, input, b, state, isDeserialize);
-                b.call(popStack, stackRef);
+                // exec(): a bare call() is a lazy expression and gets dropped as dead code, so the
+                // stack would never be popped — leaving already-serialized objects on it and making
+                // sibling occurrences (e.g. the next top-level array element) look circular.
+                b.exec(b.call(popStack, stackRef));
                 b.setVar(result, innerResult);
             });
 
@@ -3473,9 +3480,35 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
 // ============================================================================
 
 /**
+ * Whether a `& Reference` annotated with `& Inline` should serialize as a nested object
+ * (instead of just the foreign key) for the serializer currently building.
+ *
+ * `& Inline` is a presentation concern: the JSON serializer opts in (`inlineReferences`),
+ * while database serializers (sql/mongo/…) always emit the FK so the relation stays a real
+ * foreign-key column. `Inline<{ only }>` / `Inline<{ except }>` override per serializer name.
+ */
+function isInlineActive(type: Type, state: JsonBuildContext): boolean {
+    const options = inlineAnnotation.getFirst(type);
+    if (!options) return false;
+    // Read settings from the registry's owning serializer: on the facade path `state.serializer`
+    // is always the default JSON serializer regardless of which serializer is actually in use.
+    const owner = state.registry.serializer;
+    if (!owner) return false;
+    if (options.only && options.only.length) return options.only.includes(owner.name);
+    if (options.except && options.except.length) return !options.except.includes(owner.name);
+    // Bare `& Inline`: active only for serializers that opt in (JSON), never for DB serializers.
+    return owner.inlineReferences;
+}
+
+/**
  * Serialize a reference type (FK relationship).
  */
 export const serializeReference: JsonTypeHandler = (type, input, b, state) => {
+    // `& Reference & Inline` serializes as the full nested object for opted-in serializers.
+    if (isInlineActive(type, state)) {
+        return serializeInlineReference(type, input, b, state);
+    }
+
     const classType = type as TypeClass;
     const clazz = ReflectionClass.from(classType.classType);
     const pkProperty = clazz.getPrimary();

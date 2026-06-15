@@ -60,6 +60,13 @@ export class Serializer {
     /** Registry for type guards (unified: fast, strict, and error-collecting all use this) */
     readonly typeGuards = new HandlerRegistry<JsonBuildContext>();
 
+    /**
+     * Whether a bare `& Reference & Inline` serializes as a nested object for this serializer.
+     * Presentation serializers (JSON) opt in; database serializers keep emitting the foreign key
+     * so the relation stays a real FK column. Per-field `Inline<{ only | except }>` overrides this.
+     */
+    inlineReferences: boolean = false;
+
     /** Caches and building sets for each type guard mode */
     private readonly typeGuardCaches = {
         fast: { cache: new Map<Type, (data: unknown) => boolean>(), building: new Set<Type>() },
@@ -68,6 +75,12 @@ export class Serializer {
     };
 
     constructor(public name: string = 'json') {
+        // Let handlers reach serializer-level settings (e.g. inlineReferences) via the registry,
+        // since state.serializer is unreliable on the facade path. `this` is stable even though
+        // subclass field initializers (e.g. JSONSerializer.inlineReferences) run after super().
+        this.serializeRegistry.serializer = this;
+        this.deserializeRegistry.serializer = this;
+        this.typeGuards.serializer = this;
         this.registerSerializers();
         this.registerTypeGuards();
     }
@@ -450,6 +463,9 @@ export function getPartialSerializeFunction(
 }
 
 class JSONSerializer extends Serializer {
+    // JSON is a presentation serializer: a bare `& Reference & Inline` serializes as a nested object.
+    override inlineReferences: boolean = true;
+
     constructor() {
         super('json');
         registerDefaultHandlers(this);

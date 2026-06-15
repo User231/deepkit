@@ -84,6 +84,13 @@ export class HandlerRegistry<Ctx extends SerializerBuildContext = SerializerBuil
     public readonly direction: 'serialize' | 'deserialize';
     /** Pre-formatted cache key for default naming strategy. Lazily computed. */
     _fastCacheKey?: string;
+    /**
+     * The serializer that owns this registry, set by the Serializer constructor. Handlers read
+     * serializer-level settings from here because `state.serializer` is unreliable on the facade
+     * code path — createSerializeFunction always passes the default JSON serializer regardless of
+     * which registry is in use. Typed structurally to avoid a circular import with serializer.ts.
+     */
+    serializer?: { name: string; inlineReferences: boolean };
 
     private kindHandlers = new Map<ReflectionKind, TypeHandler<any, Ctx>[]>();
     private classHandlers = new Map<ClassType, TypeHandler<any, Ctx>[]>();
