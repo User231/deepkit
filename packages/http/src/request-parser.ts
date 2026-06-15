@@ -373,7 +373,9 @@ export function getRequestParserCodeForParameters(
             const accessor = queryPath ? `['` + queryPath.replace(/\./g, `']['`) + `']` : '';
             const queryAccessor = parameter.header ? `_headers${accessor}` : queryPath ? `_query${accessor}` : '_query';
 
-            if (isOptional(parameter.parameter.parameter) || hasDefaultValue(parameter.parameter.parameter)) {
+            const optionalQuery =
+                isOptional(parameter.parameter.parameter) || hasDefaultValue(parameter.parameter.parameter);
+            if (optionalQuery) {
                 setParameters.push(
                     `parameters.${parameter.parameter.name} = ${queryAccessor} === undefined ? undefined : ${converterVar}(${queryAccessor}, {loosely: true});`,
                 );
@@ -384,8 +386,13 @@ export function getRequestParserCodeForParameters(
             }
 
             parameterNames.push(`parameters.${parameter.parameter.name}`);
+            // Optional/defaulted query params: when absent the value is left undefined so the
+            // handler's own default applies — validating undefined would (on v2) reject it.
+            const validateQueryCall = `${validatorVar}(parameters.${parameter.parameter.name}, {errors: validationErrors}, ${JSON.stringify(parameter.typePath || parameter.getName())});`;
             parameterValidator.push(
-                `${validatorVar}(parameters.${parameter.parameter.name}, {errors: validationErrors}, ${JSON.stringify(parameter.typePath || parameter.getName())});`,
+                optionalQuery
+                    ? `if (parameters.${parameter.parameter.name} !== undefined) ${validateQueryCall}`
+                    : validateQueryCall,
             );
         } else {
             parameterNames.push(`parameters.${parameter.parameter.name}`);
