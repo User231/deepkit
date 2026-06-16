@@ -32,16 +32,5 @@
     "@angular/ssr": "^20.0.3",
     "@deepkit/app": "^1.0.19",
     "@deepkit/http": "^1.0.19"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
   }
 }

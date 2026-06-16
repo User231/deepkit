@@ -43,13 +43,5 @@
     "ng-packagr": "^20.0.1",
     "ngxtension": "^5.1.0",
     "rxjs": "~7.8.0"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
   }
 }

@@ -14,10 +14,11 @@ import { FrameworkModule } from '../src/module.js';
 import { createTestingApp } from '../src/testing.js';
 import { RpcServer, RpcServerInterface, WebWorker } from '../src/worker.js';
 
-// TODO(node:test): jest.mock('ws')/jest.mock('http') not portable — module mocking is
-// unavailable under the @deepkit/run/expect shim. The two `RpcServer` tests below that
-// asserted on the mocked `ws.Server` constructor are skipped; the remaining tests use
-// createTestingApp() (WebMemoryWorkerFactory — no real HTTP/TCP server) and need no mocks.
+// node:test note: jest.mock('ws') is not portable. node:test's mock.module() only intercepts
+// relative specifiers (not bare node_modules ids like 'ws') under the @deepkit/run loader, so the
+// two `RpcServer` tests below assert via the `RpcServer.createWebSocketServer()` DI seam instead of
+// module-mocking `ws`. Most other tests use createTestingApp() (WebMemoryWorkerFactory — no real
+// HTTP/TCP server) and need no mocks.
 
 Error.stackTraceLimit = 50;
 
@@ -175,10 +176,12 @@ describe('application-server', () => {
     });
 
     describe('RpcServer', () => {
-        // TODO(node:test): jest.mock not portable — these assert on the mocked `ws.Server`
-        // constructor (require('ws').Server call counts) and bind a real ws/http port via a
-        // plain App (not createTestingApp), so they cannot run without module mocking.
-        test.skip('should use custom implementation when provided', async () => {
+        // These were ported from jest.mock('ws'). node:test's mock.module() does NOT intercept
+        // bare node_modules specifiers (only relative paths) under the @deepkit/run loader, so we
+        // assert via the `RpcServer` DI seam instead: a custom `provide: RpcServer` replaces the
+        // default, and `RpcServer.createWebSocketServer()` is the overridable hook that decides
+        // whether the real `ws.Server` is constructed.
+        test('should use custom implementation when provided', async () => {
             const onMock = jest.fn();
             const wsServerMock = {
                 on: onMock,
@@ -217,20 +220,43 @@ describe('application-server', () => {
             const applicationServer = app.get(ApplicationServer);
             await applicationServer.start();
 
+            // custom RpcServer.start() ran, registered a single connection handler, and the
+            // default ws-backed implementation was never reached (no real ws.Server constructed).
             expect(rpcServerMock.start).toHaveBeenCalledTimes(1);
             expect(onMock).toHaveBeenCalledTimes(1);
-            expect(require('ws').Server).not.toHaveBeenCalled();
-            expect(new (require('ws').Server)().on).not.toHaveBeenCalled();
 
             await applicationServer.close();
         });
 
-        test.skip('should use default implementation via ws when not specified', async () => {
+        test('should use default implementation via ws when not specified', async () => {
+            // Subclass the real RpcServer and override only the ws-construction seam so we can
+            // observe it without binding a real ws/http port. Default DI resolves `RpcServer`,
+            // so providing this subclass exercises the production start()/createWebSocketServer()
+            // path exactly.
+            const createServerCalls: any[] = [];
+            class SpyRpcServer extends RpcServer {
+                protected createWebSocketServer(options: any): any {
+                    createServerCalls.push(options);
+                    // minimal ws.Server stand-in: start() only calls `.on('connection', ...)`,
+                    // and the listener's close() calls `.close()`.
+                    return {
+                        on: jest.fn(),
+                        close: jest.fn(),
+                    };
+                }
+            }
+
             @rpc.controller('test')
             class MyController {}
 
             const app = new App({
                 controllers: [MyController],
+                providers: [
+                    {
+                        provide: RpcServer,
+                        useClass: SpyRpcServer,
+                    },
+                ],
                 imports: [
                     new FrameworkModule({
                         broker: { startOnBootstrap: false },
@@ -240,8 +266,8 @@ describe('application-server', () => {
             const applicationServer = app.get(ApplicationServer);
             await applicationServer.start();
 
-            expect(require('ws').Server).toHaveBeenCalledTimes(1);
-            expect(new (require('ws').Server)().on).toHaveBeenCalledTimes(1);
+            // the default code path constructed exactly one ws server via createWebSocketServer().
+            expect(createServerCalls.length).toBe(1);
 
             await applicationServer.close();
         });

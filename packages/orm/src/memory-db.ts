@@ -14,6 +14,10 @@ import {
     ReflectionClass,
     Serializer,
     getSerializeFunction,
+    registerDefaultHandlers,
+    registerTypeGuards,
+    registerUnionHandler,
+    registerValidationHook,
     resolvePath,
     serialize,
 } from '@deepkit/type';
@@ -36,7 +40,24 @@ import { findQueryList } from './utils.js';
 type SimpleStore<T> = { items: Map<any, T>; autoIncrement: number };
 
 class MemorySerializer extends Serializer {
-    name = 'memory';
+    constructor() {
+        super('memory');
+    }
+
+    // The base `Serializer` ships only empty `registerSerializers`/`registerTypeGuards` stubs;
+    // every concrete serializer must populate its registries (see JSONSerializer / SqlSerializer).
+    // Without this, the registries are empty and `build()` returns the input unchanged — so the
+    // in-memory store would hold the live entity instance (and queries return it by reference),
+    // breaking identity-map isolation between sessions.
+    protected override registerSerializers() {
+        registerDefaultHandlers(this);
+        registerUnionHandler(this);
+        registerValidationHook(this);
+    }
+
+    protected override registerTypeGuards() {
+        registerTypeGuards(this);
+    }
 }
 
 const memorySerializer = new MemorySerializer();

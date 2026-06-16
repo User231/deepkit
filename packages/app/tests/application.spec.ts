@@ -192,12 +192,12 @@ test('required value can be set via env or setupConfig', async () => {
     }
 
     {
-        //will be converted to false
+        //'asdf' is not a valid boolean → config validation fails before the setup() callback runs
         process.env['APP_BASE_LOG'] = 'asdf';
 
         const app = new App({ imports: [new BaseModule()] });
         app.loadConfigFromEnv();
-        expect(() => app.serviceContainer.process()).toThrow('log needs to be true');
+        expect(() => app.serviceContainer.process()).toThrow('base.log(type): Not a boolean caused by value "asdf"');
     }
 
     {

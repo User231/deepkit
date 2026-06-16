@@ -14,7 +14,7 @@ import type { MongoClientConfig } from '../config.js';
 import type { MongoDatabaseTransaction } from '../connection.js';
 import { MongoError } from '../error.js';
 import type { Host } from '../host.js';
-import { BaseResponse, Command, WriteConcernMessage } from './command.js';
+import { Command, WriteConcernMessage } from './command.js';
 
 export interface CreateIndex {
     key: { [name: string]: 1 };
@@ -48,7 +48,7 @@ export class CreateIndexesCommand<T extends ReflectionClass<any>> extends Comman
         config.applyWriteConcern(cmd, this.options);
 
         try {
-            await this.sendAndWait<RequestSchema, BaseResponse>(cmd);
+            await this.sendAndWait<RequestSchema>(cmd);
         } catch (error) {
             if (formatError(error).includes('Index already exists')) {
                 // ignore when we get `Index already exists with a different name`

@@ -47,6 +47,7 @@ import {
     isOptional,
     isPropertyMemberType,
     memberNameToString,
+    resolveProperty,
     resolveTypeMembers,
     stringifyType,
 } from '../reflection/type.js';
@@ -303,6 +304,19 @@ function findTupleRest(tupleType: TypeTuple): { index: number; type?: Type } {
         }
     }
     return { index: -1 };
+}
+
+/**
+ * Number of required (non-optional) members in a fixed-length tuple. Optional members are trailing
+ * (e.g. `[a: string, b?: number]`, as produced for optional/defaulted function parameters) and may
+ * be omitted from the input array.
+ */
+function countRequiredTupleMembers(tupleType: TypeTuple): number {
+    let count = 0;
+    for (const member of tupleType.types) {
+        if (!isOptional(member)) count++;
+    }
+    return count;
 }
 
 /**
@@ -1239,28 +1253,30 @@ export const guardTuple: JsonTypeHandler = (type, input, b, state) => {
         () => {
             const rest = findTupleRest(tupleType);
             const hasRest = rest.index !== -1;
-            const minLen = hasRest ? rest.index : tupleType.types.length;
+            // Trailing optional members may be omitted, so the minimum length is the number of
+            // required (non-optional) members.
+            const minLen = hasRest ? rest.index : countRequiredTupleMembers(tupleType);
             const exactLen = !hasRest ? tupleType.types.length : undefined;
 
-            // Check length
-            if (exactLen !== undefined) {
-                b.if_(b.neq(input.len(), b.lit(exactLen)), () => {
-                    b.setVar(score, b.lit(0));
-                    b.if_(errorsRef, () => {
-                        b.push(
-                            errorsRef,
-                            b.new_(
-                                ValidationErrorItem,
-                                state.pathRef(),
-                                b.lit('type'),
-                                b.lit(`Expected tuple of length ${exactLen}`),
-                                input,
-                            ),
-                        );
-                    });
+            // Check length: too few elements (missing a required member) or, for fixed-length
+            // tuples, too many elements.
+            b.if_(b.lt(input.len(), b.lit(minLen)), () => {
+                b.setVar(score, b.lit(0));
+                b.if_(errorsRef, () => {
+                    b.push(
+                        errorsRef,
+                        b.new_(
+                            ValidationErrorItem,
+                            state.pathRef(),
+                            b.lit('type'),
+                            b.lit(`Expected tuple of at least ${minLen} elements`),
+                            input,
+                        ),
+                    );
                 });
-            } else {
-                b.if_(b.lt(input.len(), b.lit(minLen)), () => {
+            });
+            if (exactLen !== undefined) {
+                b.if_(b.gt(input.len(), b.lit(exactLen)), () => {
                     b.setVar(score, b.lit(0));
                     b.if_(errorsRef, () => {
                         b.push(
@@ -1269,7 +1285,7 @@ export const guardTuple: JsonTypeHandler = (type, input, b, state) => {
                                 ValidationErrorItem,
                                 state.pathRef(),
                                 b.lit('type'),
-                                b.lit(`Expected tuple of at least ${minLen} elements`),
+                                b.lit(`Expected tuple of at most ${exactLen} elements`),
                                 input,
                             ),
                         );
@@ -1283,8 +1299,16 @@ export const guardTuple: JsonTypeHandler = (type, input, b, state) => {
                 if (elem.type.kind === ReflectionKind.rest) continue;
                 const pathSegment = elem.name ?? String(i);
                 const childState = state.forProperty(pathSegment);
-                const elemScore = childState.build(elem.type, input.at(i));
-                b.if_(b.eq(elemScore, b.lit(0)), () => b.setVar(score, b.lit(0)));
+                if (isOptional(elem)) {
+                    // Optional member: a missing/null/undefined value is acceptable.
+                    b.if_(b.not(b.isNullish(input.at(i))), () => {
+                        const elemScore = childState.build(elem.type, input.at(i));
+                        b.if_(b.eq(elemScore, b.lit(0)), () => b.setVar(score, b.lit(0)));
+                    });
+                } else {
+                    const elemScore = childState.build(elem.type, input.at(i));
+                    b.if_(b.eq(elemScore, b.lit(0)), () => b.setVar(score, b.lit(0)));
+                }
             }
         },
     );
@@ -1303,40 +1327,54 @@ export const guardTupleFast: JsonTypeHandler = (type, input, b, state) => {
         const hasRest = rest.index !== -1;
         const restIndex = rest.index;
         const restType = rest.type;
+        // Trailing optional tuple members (e.g. `[a: string, b?: number]`, as produced for
+        // optional/defaulted function parameters) may be omitted, so the array length can be
+        // anywhere between the number of required members and the full member count.
+        const requiredLen = hasRest ? restIndex : countRequiredTupleMembers(tupleType);
         const exactLen = !hasRest ? tupleType.types.length : undefined;
         // For rest tuples, minimum length is elements before rest + elements after rest
         const afterRestCount = hasRest ? tupleType.types.length - restIndex - 1 : 0;
-        const minLen = hasRest ? restIndex + afterRestCount : tupleType.types.length;
+        const minLen = hasRest ? requiredLen + afterRestCount : requiredLen;
 
-        // Check length
+        // Check length: too few elements (missing a required member) or, for fixed-length
+        // tuples, too many elements.
+        b.if_(b.lt(input.len(), b.lit(minLen)), () => {
+            b.setVar(result, b.lit(false));
+        });
         if (exactLen !== undefined) {
-            b.if_(b.neq(input.len(), b.lit(exactLen)), () => {
-                b.setVar(result, b.lit(false));
-            });
-        } else {
-            b.if_(b.lt(input.len(), b.lit(minLen)), () => {
+            b.if_(b.gt(input.len(), b.lit(exactLen)), () => {
                 b.setVar(result, b.lit(false));
             });
         }
 
+        // Validate a single tuple member at `index`. For optional members a missing/null/undefined
+        // value is acceptable, and — crucially in error-collecting mode — the inner build (which
+        // emits the "push error" code) must only run when the value is present, otherwise an absent
+        // optional element would still record an error.
+        const checkMember = (elem: (typeof tupleType.types)[number], index: number) => {
+            const pathSegment = elem.name ?? String(index);
+            const childState = state.forProperty(pathSegment);
+            if (isOptional(elem)) {
+                b.if_(b.not(b.isNullish(input.at(index))), () => {
+                    const elemValid = childState.build(elem.type, input.at(index)) as Ref<boolean>;
+                    b.if_(b.not(elemValid), () => b.setVar(result, b.lit(false)));
+                });
+            } else {
+                const elemValid = childState.build(elem.type, input.at(index)) as Ref<boolean>;
+                b.if_(b.not(elemValid), () => b.setVar(result, b.lit(false)));
+            }
+        };
+
         if (!hasRest) {
             // No rest element - check elements by index
             for (let i = 0; i < tupleType.types.length; i++) {
-                const elem = tupleType.types[i];
-                const pathSegment = elem.name ?? String(i);
-                const childState = state.forProperty(pathSegment);
-                const elemValid = childState.build(elem.type, input.at(i)) as Ref<boolean>;
-                b.if_(b.not(elemValid), () => b.setVar(result, b.lit(false)));
+                checkMember(tupleType.types[i], i);
             }
         } else {
             // Has rest element - need to handle indices properly
             // Check elements before rest
             for (let i = 0; i < restIndex; i++) {
-                const elem = tupleType.types[i];
-                const pathSegment = elem.name ?? String(i);
-                const childState = state.forProperty(pathSegment);
-                const elemValid = childState.build(elem.type, input.at(i)) as Ref<boolean>;
-                b.if_(b.not(elemValid), () => b.setVar(result, b.lit(false)));
+                checkMember(tupleType.types[i], i);
             }
 
             // Check rest elements (validate each against rest type)
@@ -2417,6 +2455,31 @@ export const handleObjectLiteral: JsonTypeHandler = (type, input, b, state) => {
 };
 
 /**
+ * Emit the assignment for a property whose deserialize input is present but nullish (the DB/JSON
+ * returned `null`/`undefined`). A nullable property becomes `null`; an optional (non-nullable)
+ * property is set to an explicit `undefined` UNLESS the owning serializer opts out via
+ * {@link Serializer.setExplicitUndefined} (e.g. @deepkit/sql, so a `NULL` column for `foo?: string`
+ * leaves the property *absent* rather than `{ foo: undefined }`).
+ */
+function setNullishOptionalProperty(
+    b: Builder,
+    state: JsonBuildContext,
+    target: Ref,
+    outputKey: string,
+    memberType: TypeProperty | TypePropertySignature,
+    propState: JsonBuildContext,
+): void {
+    if (isNullable(memberType)) {
+        b.set(target, outputKey, b.lit(null));
+    } else if (isOptional(memberType)) {
+        const setExplicit = state.registry.serializer?.setExplicitUndefined(memberType, propState) !== false;
+        if (setExplicit) {
+            b.set(target, outputKey, b.lit(undefined));
+        }
+    }
+}
+
+/**
  * Build the body of object literal serialization/deserialization.
  */
 function buildObjectLiteralBody(
@@ -2590,11 +2653,7 @@ function buildObjectLiteralBody(
                                 b.set(result, outputKey, propState.build(propType, propInput));
                             },
                             () => {
-                                if (isNullable(memberType)) {
-                                    b.set(result, outputKey, b.lit(null));
-                                } else if (isOptional(memberType)) {
-                                    b.set(result, outputKey, b.lit(undefined));
-                                }
+                                setNullishOptionalProperty(b, state, result, outputKey, memberType, propState);
                             },
                         );
                     } else {
@@ -3235,11 +3294,14 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                             b.set(result, propName, state.forProperty(propName).build(propType, propInput));
                         },
                         () => {
-                            if (isNullable(memberType)) {
-                                b.set(result, propName, b.lit(null));
-                            } else if (isOptional(memberType)) {
-                                b.set(result, propName, b.lit(undefined));
-                            }
+                            setNullishOptionalProperty(
+                                b,
+                                state,
+                                result,
+                                propName,
+                                memberType,
+                                state.forProperty(propName),
+                            );
                         },
                     );
                 },
@@ -3422,11 +3484,14 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                             b.set(result, propName, state.forProperty(propName).build(propType, propInput));
                         },
                         () => {
-                            if (isNullable(memberType)) {
-                                b.set(result, propName, b.lit(null));
-                            } else if (isOptional(memberType)) {
-                                b.set(result, propName, b.lit(undefined));
-                            }
+                            setNullishOptionalProperty(
+                                b,
+                                state,
+                                result,
+                                propName,
+                                memberType,
+                                state.forProperty(propName),
+                            );
                         },
                     );
                 },
@@ -3470,11 +3535,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                         b.set(result, propName, state.forProperty(propName).build(propType, propInput));
                     },
                     () => {
-                        if (isNullable(memberType)) {
-                            b.set(result, propName, b.lit(null));
-                        } else if (isOptional(memberType)) {
-                            b.set(result, propName, b.lit(undefined));
-                        }
+                        setNullishOptionalProperty(b, state, result, propName, memberType, state.forProperty(propName));
                     },
                 );
             },
@@ -3520,6 +3581,10 @@ function isInlineActive(type: Type, state: JsonBuildContext): boolean {
  * Serialize a reference type (FK relationship).
  */
 export const serializeReference: JsonTypeHandler = (type, input, b, state) => {
+    // The reference decorator matches via `isReferenceType`, which unwraps property/propertySignature
+    // wrappers — so `type` here can still be a TypeProperty. Unwrap to the underlying class/object so
+    // ReflectionClass.from doesn't crash with "TypeClass or TypeObjectLiteral expected, not property".
+    type = resolveProperty(type);
     // `& Reference & Inline` serializes as the full nested object for opted-in serializers.
     if (isInlineActive(type, state)) {
         return serializeInlineReference(type, input, b, state);
@@ -3574,6 +3639,8 @@ export const serializeReference: JsonTypeHandler = (type, input, b, state) => {
  * Deserialize a reference type (FK relationship).
  */
 export const deserializeReference: JsonTypeHandler = (type, input, b, state) => {
+    // `isReferenceType` unwraps property wrappers, so `type` may still be a TypeProperty here.
+    type = resolveProperty(type);
     const classType = type as TypeClass;
     // Reference targets can be classes (entities) or interfaces (object literals). For the latter
     // `classType.classType` is undefined, so fall back to the reference type itself; the
@@ -3700,6 +3767,7 @@ export const deserializeInlineReference: JsonTypeHandler = (type, input, b, stat
  * Guard for reference types (score-based).
  */
 export const guardReferenceScore: JsonTypeHandler = (type, input, b, state) => {
+    type = resolveProperty(type);
     const classType = type as TypeClass;
     // Interface references have no backing class; reflect off the type itself (see deserializeReference).
     const clazz = ReflectionClass.from(classType.classType ?? type);
@@ -3740,6 +3808,7 @@ export const guardReferenceScore: JsonTypeHandler = (type, input, b, state) => {
  * Guard for reference types (fast/boolean).
  */
 export const guardReferenceFast: JsonTypeHandler = (type, input, b, state) => {
+    type = resolveProperty(type);
     const classType = type as TypeClass;
     // Interface references have no backing class; reflect off the type itself (see deserializeReference).
     const clazz = ReflectionClass.from(classType.classType ?? type);
@@ -3764,18 +3833,46 @@ export const guardReferenceFast: JsonTypeHandler = (type, input, b, state) => {
     // primitive FK). if_ scopes those statements to the branch actually taken.
     const result = b.var_<boolean>(b.lit(false));
     b.if_(
-        b.and(b.isType(input, 'object'), b.not(b.isNull(input))),
+        // An unpopulated reference (the lazy getter yields undefined/null/unpopulatedSymbol when
+        // UnpopulatedCheck isn't Throw — e.g. during persist validation) carries no value to check,
+        // so accept it: the FK isn't a column we validate on an unloaded relation.
+        b.or(
+            b.isType(input, 'undefined'),
+            b.or(b.isNull(input), b.eq(input, b.lit(unpopulatedSymbol))),
+        ),
         () => {
-            // Hydrated reference: validate only the PK property against the FK type.
-            b.setVar(result, state.forProperty(pkName).build(pkType, input.get(pkName)) as Ref<boolean>);
+            b.setVar(result, b.lit(true) as Ref<boolean>);
         },
         () => {
-            // Foreign-key value: validate the input directly against the FK type.
-            b.setVar(result, state.build(pkType, input) as Ref<boolean>);
+            b.if_(
+                b.isType(input, 'object'),
+                () => {
+                    // Hydrated reference: validate only the PK property against the FK type.
+                    b.setVar(result, state.forProperty(pkName).build(pkType, input.get(pkName)) as Ref<boolean>);
+                },
+                () => {
+                    // Foreign-key value: validate the input directly against the FK type.
+                    b.setVar(result, state.build(pkType, input) as Ref<boolean>);
+                },
+            );
         },
     );
 
     return b.getVar(result);
+};
+
+/**
+ * Guard for back-reference types (fast/boolean).
+ *
+ * A back-reference (`X[] & BackReference` or `X & BackReference`) is a *derived relation*, never a
+ * stored/validated column. On persist the ORM validates the loaded aggregate with
+ * UnpopulatedCheck.None, so an un-joined back-reference getter yields `undefined` — which the array
+ * guard would reject as "Not an array". Validation of a back-reference is therefore a no-op: accept
+ * any value (populated array/instance, unpopulated placeholder, or undefined) just like the
+ * serializer already special-cases back-references.
+ */
+export const guardBackReferenceFast: JsonTypeHandler = (type, input, b, state) => {
+    return b.lit(true);
 };
 
 // ============================================================================
@@ -4310,6 +4407,9 @@ export function registerTypeGuards(serializer: Serializer): void {
     reg.registerBinary(guardTypedArrayFast);
 
     // Decorators
+    // Back-references are derived relations, never validated columns — register before the
+    // reference guard so a `X[] & BackReference` (no reference annotation) is accepted as-is.
+    reg.addDecorator(isBackReferenceType, guardBackReferenceFast);
     reg.addDecorator(isReferenceType, guardReferenceFast);
     reg.addDecorator(isBrandedNumber, guardNumberBrandedFast);
     reg.addDecorator(isNanoIdType, guardNanoIdFast);

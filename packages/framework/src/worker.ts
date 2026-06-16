@@ -110,10 +110,19 @@ export interface RpcServerInterface {
 }
 
 export class RpcServer implements RpcServerInterface {
-    start(options: RpcServerOptions, createRpcConnection: RpcServerCreateConnection): RpcServerListener {
+    /**
+     * Creates the underlying WebSocket server. Extracted as a protected seam so it can be
+     * overridden in tests (inject a fake `RpcServer` subclass) without module-mocking `ws` —
+     * node:test's `mock.module()` does not intercept bare node_modules specifiers under the
+     * `@deepkit/run` loader.
+     */
+    protected createWebSocketServer(options: WebSocketServerOptions): WebSocketServer {
         const { Server }: { Server: { new (options: WebSocketServerOptions): WebSocketServer } } = ws;
+        return new Server(options);
+    }
 
-        const server = new Server(options);
+    start(options: RpcServerOptions, createRpcConnection: RpcServerCreateConnection): RpcServerListener {
+        const server = this.createWebSocketServer(options);
 
         server.on('connection', (ws, req: HttpRequest) => {
             const connection = createRpcConnection(

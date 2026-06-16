@@ -474,6 +474,8 @@ interface ReceiveTypeInfo {
     /** Maps type argument index → function parameter index for ReceiveType params */
     typeArgToParamIndex: Map<number, number>;
     totalParams: number;
+    /** Number of type parameters DECLARED on the target (drives the bare-vs-array Ω encoding). */
+    declaredTypeParams: number;
 }
 
 /** Result of resolving a call target's ReceiveType info */
@@ -505,7 +507,7 @@ function extractReceiveTypeMapping(typeParameters: readonly TypeParameterDeclara
     }
 
     if (mapping.size === 0) return undefined;
-    return { typeArgToParamIndex: mapping, totalParams: parameters.length };
+    return { typeArgToParamIndex: mapping, totalParams: parameters.length, declaredTypeParams: typeParameters.length };
 }
 
 export class Cache {
@@ -977,14 +979,24 @@ export class ReflectionTransformer implements CustomTransformer {
                     typeExpressions.push(type || this.f.createIdentifier('undefined'));
                 }
 
-                // For single type arg, pass the packed type directly (skip array wrapper)
-                const packedTypeExpr: Expression = typeExpressions.length === 1 ? typeExpressions[0] : this.f.createArrayLiteralExpression(typeExpressions);
-
                 // Try direct argument passing: if we can resolve the call target and confirm
                 // it has ReceiveType parameters, pass the packed type directly as a function argument
                 // instead of going through the Ω side-channel. This eliminates V8 hidden class transitions.
                 // If resolved but no ReceiveType, skip Ω entirely (no point setting it).
                 const callResult = this.resolveCallReceiveTypeInfo(node);
+
+                // The Ω-fallback read encoding (see the ReceiveType parameter `defaultValue` above) keys
+                // on the target's DECLARED type-param count: a single-type-param target reads bare `Ω`,
+                // a multi-type-param target reads `Ω?.[index]` (array). The write encoding MUST match the
+                // read encoding, NOT the number of type args passed at this call. If a method declares ≥2
+                // type params but the call passes fewer (relying on a defaulted type param), writing the
+                // bare form would make `Ω?.[0]` index into the inner type-wrapper → resolves to `() => any`.
+                // So: when the target resolves, drive bare-vs-array off its declared type-param count;
+                // otherwise fall back to the per-call heuristic (number of type args passed).
+                const declaredTypeParams = callResult && callResult.kind === 'direct' ? callResult.info.declaredTypeParams : undefined;
+                const useArrayForm = declaredTypeParams !== undefined ? declaredTypeParams > 1 : typeExpressions.length > 1;
+                const packedTypeExpr: Expression = useArrayForm ? this.f.createArrayLiteralExpression(typeExpressions) : typeExpressions[0];
+
                 if (callResult) {
                     if (callResult.kind === 'skip') {
                         // Resolved target has no ReceiveType params — skip type passing entirely
@@ -1460,6 +1472,39 @@ export class ReflectionTransformer implements CustomTransformer {
     }
 
     /**
+     * Find a method by name in a class, walking the `extends` chain (own members first, then
+     * each base class). Resolves the base-class declaration through the heritage clause expression,
+     * following cross-file imports. A depth guard prevents runaway recursion on malformed/cyclic
+     * hierarchies. Returns the first MethodDeclaration found, or undefined.
+     */
+    protected findMethodInClassHierarchy(cls: ClassDeclaration | ClassExpression, methodName: string, depth = 0): MethodDeclaration | undefined {
+        if (depth > 10) return undefined;
+
+        const own = cls.members.find(m => isMethodDeclaration(m) && isIdentifier(m.name) && getIdentifierName(m.name) === methodName) as MethodDeclaration | undefined;
+        if (own) return own;
+
+        if (!cls.heritageClauses) return undefined;
+        for (const heritage of cls.heritageClauses) {
+            if (heritage.token !== SyntaxKind.ExtendsKeyword) continue;
+            for (const baseType of heritage.types) {
+                // `extends Base<...>` — resolve the base expression to its class declaration.
+                // Only a bare identifier base is handled (covers all real cases incl. cross-file
+                // imports); namespaced `A.B` bases aren't supported by resolveDeclaration anyway.
+                const expr = baseType.expression;
+                if (!isIdentifier(expr)) continue;
+                const resolved = this.resolveDeclaration(expr);
+                if (!resolved) continue;
+                const baseDecl = resolved.declaration;
+                if (isClassDeclaration(baseDecl) || isClassExpression(baseDecl)) {
+                    const found = this.findMethodInClassHierarchy(baseDecl, methodName, depth + 1);
+                    if (found) return found;
+                }
+            }
+        }
+        return undefined;
+    }
+
+    /**
      * Try to resolve a call/new expression's target to extract ReceiveType parameter info.
      * Returns:
      *   - { kind: 'direct', info } → has ReceiveType params, pass directly as arguments
@@ -1535,12 +1580,17 @@ export class ReflectionTransformer implements CustomTransformer {
             const methodName = getIdentifierName(expression.name);
             const obj = expression.expression;
 
-            // this.method<T>() — walk up to enclosing class
+            // this.method<T>() — walk up to enclosing class, then up the `extends` chain.
             if (obj.kind === SyntaxKind.ThisKeyword) {
                 let parent: Node = node;
                 while (parent) {
                     if (isClassDeclaration(parent) || isClassExpression(parent)) {
-                        const method = parent.members.find(m => isMethodDeclaration(m) && isIdentifier(m.name) && getIdentifierName(m.name) === methodName) as MethodDeclaration | undefined;
+                        // Search the class AND its base classes (the method may be inherited, e.g.
+                        // a generic `this.send<T>()` defined on a base Command class). Without this,
+                        // an inherited multi-type-param method can't resolve its DECLARED type-param
+                        // count, and the Ω write encoding would fall back to the passed-arg heuristic
+                        // (bare vs array) and mismatch the read encoding → resolves to `() => any`.
+                        const method = this.findMethodInClassHierarchy(parent, methodName);
                         if (method) {
                             if (!method.typeParameters) return { kind: 'skip' };
                             return this.toCallResult(this.getReceiveTypeInfoFromDecl(method, method.typeParameters, method.parameters));

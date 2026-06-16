@@ -12,7 +12,7 @@ import { ReflectionClass } from '@deepkit/type';
 import type { MongoClientConfig } from '../config.js';
 import type { MongoDatabaseTransaction } from '../connection.js';
 import type { Host } from '../host.js';
-import { BaseResponse, Command } from './command.js';
+import { Command } from './command.js';
 
 interface RequestSchema {
     create: string;
@@ -32,7 +32,7 @@ export class CreateCollectionCommand<T extends ReflectionClass<any>> extends Com
 
         // if (transaction) transaction.applyTransaction(cmd);
 
-        await this.sendAndWait<RequestSchema, BaseResponse>(cmd);
+        await this.sendAndWait<RequestSchema>(cmd);
     }
 
     needsWritableHost(): boolean {

@@ -63,7 +63,11 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
 
     protected getRemotePath(path: string) {
         path = pathNormalize(path);
-        const base = this.options.path ? pathNormalize(this.options.path).slice(0) + '/' : '';
+        // S3 object keys are relative and must NOT carry a leading slash.
+        // pathNormalize() always prepends one, so strip it from the base prefix
+        // (slice(1)). Listing a leading-slash prefix matches nothing because S3
+        // stores keys without it, and the off-by-one also broke pathMapToVirtual.
+        const base = this.options.path ? pathNormalize(this.options.path).slice(1) + '/' : '';
         if (path === '/') return base;
         let remotePath = this.options.path ? base : '';
         remotePath += path === '/' ? '' : path.slice(1);
@@ -76,8 +80,8 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
     }
 
     protected pathMapToVirtual(path: string): string {
-        //remove this.options.path from path
-        const base = this.options.path ? pathNormalize(this.options.path).slice(0) + '/' : '';
+        //remove this.options.path from path (keys are stored without a leading slash, see getRemotePath)
+        const base = this.options.path ? pathNormalize(this.options.path).slice(1) + '/' : '';
         return path.slice(base.length);
     }
 

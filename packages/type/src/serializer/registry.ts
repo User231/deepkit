@@ -90,7 +90,11 @@ export class HandlerRegistry<Ctx extends SerializerBuildContext = SerializerBuil
      * code path — createSerializeFunction always passes the default JSON serializer regardless of
      * which registry is in use. Typed structurally to avoid a circular import with serializer.ts.
      */
-    serializer?: { name: string; inlineReferences: boolean };
+    serializer?: {
+        name: string;
+        inlineReferences: boolean;
+        setExplicitUndefined(type: Type, state: Ctx): boolean;
+    };
 
     private kindHandlers = new Map<ReflectionKind, TypeHandler<any, Ctx>[]>();
     private classHandlers = new Map<ClassType, TypeHandler<any, Ctx>[]>();

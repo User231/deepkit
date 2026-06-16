@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import { expect } from '@deepkit/run/expect';
 
-import { Writer } from '@deepkit/bson';
 import { typeOf } from '@deepkit/type';
 
 import { DirectClient } from '../src/client/client-direct.js';
@@ -24,6 +23,7 @@ import {
 import { RpcKernel } from '../src/server/kernel.js';
 import { RpcKernelSecurity } from '../src/server/security.js';
 import { RpcBinaryWriter, TransportBinaryMessageChunkWriter, TransportOptions } from '../src/transport.js';
+import { Writer } from '../src/writer.js';
 
 test('readUint32LE', () => {
     {

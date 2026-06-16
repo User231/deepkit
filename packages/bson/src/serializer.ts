@@ -31,6 +31,7 @@ import {
     TypeTupleMember,
     TypeUnion,
     UNION_LITERAL_THRESHOLD,
+    UnpopulatedCheck,
     binaryBigIntAnnotation,
     binaryTypes,
     detectDiscriminator,
@@ -39,6 +40,7 @@ import {
     hasCircularReference,
     hasDefaultValue,
     isAllLiterals,
+    isBackReferenceType,
     isBinaryBigIntType,
     isCustomTypeClass,
     isGlobalTypeClass,
@@ -50,6 +52,8 @@ import {
     memberNameToString,
     resolveReceiveType,
     resolveTypeMembers,
+    typeSettings,
+    unpopulatedSymbol,
 } from '@deepkit/type';
 import type { DiscriminatorInfo } from '@deepkit/type';
 import { TypeNumberBrand } from '@deepkit/type-spec';
@@ -146,6 +150,36 @@ let sharedBuffer = new Uint8Array(1024 * 1024); // 1MB initial
 let sharedView = new DataView(sharedBuffer.buffer);
 
 /**
+ * Run the JIT serialize function with the framework's "unpopulated" semantics.
+ *
+ * ORM reference/back-reference proxies (`@deepkit/orm` Formatter) throw from their property
+ * getter when the relation isn't loaded and `typeSettings.unpopulatedCheck === Throw` (the
+ * default). The rest of the framework (the `@deepkit/type` serializer/validator + snapshot) reads
+ * such proxies under a relaxed check so the getter returns a sentinel instead of throwing. We mirror
+ * that here: while a BSON document is being serialized we set `unpopulatedCheck = ReturnSymbol`, so an
+ * unpopulated forward `&Reference` yields `unpopulatedSymbol` and an unpopulated back-reference yields
+ * `unpopulatedSymbol` — both of which the property loop recognises and omits (see
+ * `serializeObjectProperties`) — rather than crashing serialization. The previous value is always
+ * restored, even on throw, so we never leak the relaxed check to other callers.
+ */
+function runSerialize(serializeFn: SerializeFn, data: any): SerializeResult {
+    const previousCheck = typeSettings.unpopulatedCheck;
+    typeSettings.unpopulatedCheck = UnpopulatedCheck.ReturnSymbol;
+    try {
+        return [sharedBuffer, serializeFn(sharedBuffer, sharedView, 0, data)];
+    } catch (e) {
+        // Clear stale entries from circular reference tracking on error.
+        // Without this, a throw mid-serialization leaves the global Set
+        // with stale entries, causing false-positive cycle detection on
+        // subsequent calls.
+        if (globalCircularSet) globalCircularSet.clear();
+        throw e;
+    } finally {
+        typeSettings.unpopulatedCheck = previousCheck;
+    }
+}
+
+/**
  * Get or create a BSON serializer for the given type.
  *
  * Returns a function that serializes data and returns [buffer, size] tuple.
@@ -207,18 +241,7 @@ function createSerializer(type: Type): (data: any) => SerializeResult {
 
     // Return a wrapper that manages the shared buffer
     // Fresh tuple is faster than pre-allocated due to V8 escape analysis
-    return (data: any): SerializeResult => {
-        try {
-            return [sharedBuffer, serializeFn(sharedBuffer, sharedView, 0, data)];
-        } catch (e) {
-            // Clear stale entries from circular reference tracking on error.
-            // Without this, a throw mid-serialization leaves the global Set
-            // with stale entries, causing false-positive cycle detection on
-            // subsequent calls.
-            if (globalCircularSet) globalCircularSet.clear();
-            throw e;
-        }
-    };
+    return (data: any): SerializeResult => runSerialize(serializeFn, data);
 }
 
 /**
@@ -278,12 +301,7 @@ function createUnionSerializer(type: TypeUnion): (data: any) => SerializeResult 
             }
         }
 
-        try {
-            return [sharedBuffer, memberSerializers[bestIndex].serializeFn(sharedBuffer, sharedView, 0, data)];
-        } catch (e) {
-            if (globalCircularSet) globalCircularSet.clear();
-            throw e;
-        }
+        return runSerialize(memberSerializers[bestIndex].serializeFn, data);
     };
 }
 
@@ -351,14 +369,7 @@ function createTopLevelArraySerializer(type: TypeArray | TypeTuple): (data: any)
         },
     );
 
-    return (data: any): SerializeResult => {
-        try {
-            return [sharedBuffer, serializeFn(sharedBuffer, sharedView, 0, data)];
-        } catch (e) {
-            if (globalCircularSet) globalCircularSet.clear();
-            throw e;
-        }
-    };
+    return (data: any): SerializeResult => runSerialize(serializeFn, data);
 }
 
 /**
@@ -416,6 +427,21 @@ function serializeObjectProperties(
         const bsonPropName = ctx.getPropertyName(prop); // Serialized name (may differ via @MapName)
         const propValue = b.get(data, jsPropName);
         const propCtx = ctx.forProperty(bsonPropName);
+
+        // Unpopulated reference / back-reference: an ORM proxy whose relation wasn't loaded yields
+        // `unpopulatedSymbol` (we run serialization under UnpopulatedCheck.ReturnSymbol — see
+        // `runSerialize`). Such a property carries no value to serialize: a populated forward
+        // `&Reference` is a proxy whose primary key IS readable (handled below by `serializeReference`),
+        // but an UNpopulated reference/back-reference has nothing to write, so we omit it entirely —
+        // mirroring the `@deepkit/type` serializer, which skips back-references and treats
+        // `unpopulatedSymbol` references as absent. Guard only reference-typed properties so the
+        // common non-reference path keeps its current (faster) shape.
+        if (isReferenceType(propType) || isBackReferenceType(propType)) {
+            b.if_(b.neq(propValue, b.lit(unpopulatedSymbol)), () => {
+                serializeReferencePropertyValue(b, buffer, view, o, data, jsPropName, bsonPropName, prop, propValue, propCtx);
+            });
+            continue;
+        }
 
         // Check if property is optional (handles both `prop?: T` and `prop: T | undefined`)
         if (isOptional(prop)) {
@@ -496,6 +522,57 @@ function serializeObjectProperties(
                     });
                 }
             }
+        });
+    }
+}
+
+/**
+ * Serialize a populated reference / back-reference property value.
+ *
+ * Reached only after the caller has confirmed the value is NOT `unpopulatedSymbol`, so the value is
+ * either a populated forward `&Reference` proxy (→ `serializeReference` writes its FK), a loaded
+ * back-reference entity/array (→ full serialization), or null/undefined. We preserve the same
+ * optional / default-value / null framing the generic property path uses so a present-but-null
+ * reference still serializes as BSON null and an absent optional reference is omitted.
+ */
+function serializeReferencePropertyValue(
+    b: Builder,
+    buffer: Ref<Uint8Array>,
+    view: Ref<DataView>,
+    o: VarRef<number>,
+    data: Ref<any>,
+    jsPropName: string,
+    bsonPropName: string,
+    prop: TypeProperty | TypePropertySignature,
+    propValue: Ref<any>,
+    propCtx: BSONBuildState,
+): void {
+    const propType = prop.type;
+
+    if (isOptional(prop)) {
+        // Same optional framing as the generic path: absent key → omit; present-but-nullish → BSON
+        // null; otherwise serialize. (`unpopulatedSymbol` was already excluded by the caller.)
+        const propExists = b.call((obj: any, key: string) => key in obj, data, b.lit(jsPropName));
+        b.if_(propExists, () => {
+            b.if_(
+                b.isNullish(propValue),
+                () => {
+                    serializeNull(b, buffer, view, o, bsonPropName);
+                },
+                () => {
+                    serializeValue(b, buffer, view, o, bsonPropName, propType, propValue, propCtx);
+                },
+            );
+        });
+    } else if (hasDefaultValue(prop)) {
+        b.if_(b.not(b.isNullish(propValue)), () => {
+            serializeValue(b, buffer, view, o, bsonPropName, propType, propValue, propCtx);
+        });
+    } else {
+        // Required reference: a populated forward `&Reference` serializes its FK; a missing value
+        // would have nothing to write, so guard against nullish to avoid emitting garbage.
+        b.if_(b.not(b.isNullish(propValue)), () => {
+            serializeValue(b, buffer, view, o, bsonPropName, propType, propValue, propCtx);
         });
     }
 }

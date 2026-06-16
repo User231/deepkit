@@ -52,16 +52,5 @@
     "@deepkit/type": "^1.0.19",
     "@types/node": "^22.13.1",
     "rxjs": "~7.8.0"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
   }
 }

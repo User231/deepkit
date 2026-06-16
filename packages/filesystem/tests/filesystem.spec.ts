@@ -115,11 +115,16 @@ test('visibility', async () => {
         await filesystem.makeDirectory('/folder1', 'public');
         await filesystem.makeDirectory('/folder2', 'private');
 
+        // Directory metadata is backend-specific: in-memory/local report size 0,
+        // but real backends (SFTP/FTP) report the inode block size (e.g. 4096).
+        // Assert the entry is a directory with the right visibility, but don't pin size.
         const folder1 = await filesystem.get('/folder1');
-        expect(folder1).toMatchObject({ path: '/folder1', size: 0, visibility: 'public' });
+        expect(folder1).toMatchObject({ path: '/folder1', type: 'directory', visibility: 'public' });
+        expect(folder1!.size).toBeGreaterThanOrEqual(0);
 
         const folder2 = await filesystem.get('/folder2');
-        expect(folder2).toMatchObject({ path: '/folder2', size: 0, visibility: 'private' });
+        expect(folder2).toMatchObject({ path: '/folder2', type: 'directory', visibility: 'private' });
+        expect(folder2!.size).toBeGreaterThanOrEqual(0);
     }
 
     await filesystem.setVisibility('file2.txt', 'public');
@@ -132,6 +137,11 @@ test('visibility', async () => {
 test('recursive', async () => {
     const filesystem = new Filesystem(await adapterFactory());
 
+    // Listing ORDER is backend-defined: in-memory returns directories-then-files
+    // in insertion order, but real backends (SFTP/FTP/S3) return their own order.
+    // Compare listings as sets sorted by path so the assertions hold everywhere.
+    const byPath = <T extends { path: string }>(entries: T[]): T[] => [...entries].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+
     await filesystem.write('/file1.txt', 'contents1');
     await filesystem.write('/folder/file1.txt', 'contents2');
     await filesystem.write('/folder/file2.txt', 'contents3');
@@ -140,45 +150,45 @@ test('recursive', async () => {
     await filesystem.write('/folder2/folder3/file4.txt', 'contents6');
 
     const files = await filesystem.files('/');
-    expect(files).toMatchObject([
+    expect(byPath(files)).toMatchObject(byPath([
         { path: '/folder', type: 'directory' },
         { path: '/folder2', type: 'directory' },
         { path: '/file1.txt', type: 'file', lastModified: expect.any(Date) },
-    ]);
+    ]));
 
     const files2 = await filesystem.files('/folder2');
-    expect(files2).toMatchObject([
+    expect(byPath(files2)).toMatchObject(byPath([
         { path: '/folder2/folder3', type: 'directory' },
         { path: '/folder2/file2.txt', type: 'file', lastModified: expect.any(Date) },
         { path: '/folder2/file3.txt', type: 'file', lastModified: expect.any(Date) },
-    ]);
+    ]));
 
     const files3 = await filesystem.allFiles('/');
-    const fileNames3 = files3.map(f => f.path);
+    const fileNames3 = files3.map(f => f.path).sort();
 
     let expected = ['/folder', '/folder2', '/folder2/folder3', '/file1.txt', '/folder/file1.txt', '/folder/file2.txt', '/folder2/file2.txt', '/folder2/file3.txt', '/folder2/folder3/file4.txt'];
 
     if (!filesystem.adapter.supportsDirectory()) {
         expected = expected.filter(v => v !== '/folder' && v !== '/folder2' && v !== '/folder2/folder3');
     }
-    expect(fileNames3).toEqual(expected);
+    expect(fileNames3).toEqual(expected.sort());
 
     const directories = await filesystem.directories('/');
-    expect(directories).toMatchObject([
+    expect(byPath(directories)).toMatchObject(byPath([
         { path: '/folder', type: 'directory' },
         { path: '/folder2', type: 'directory' },
-    ]);
+    ]));
 
     const directories2 = await filesystem.directories('/folder2');
     expect(directories2).toMatchObject([{ path: '/folder2/folder3', type: 'directory' }]);
 
     if (filesystem.adapter.supportsDirectory()) {
         const directories3 = await filesystem.allDirectories('/');
-        expect(directories3).toMatchObject([
+        expect(byPath(directories3)).toMatchObject(byPath([
             { path: '/folder', type: 'directory' },
             { path: '/folder2', type: 'directory' },
             { path: '/folder2/folder3', type: 'directory' },
-        ]);
+        ]));
     }
 
     await filesystem.close();

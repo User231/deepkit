@@ -788,3 +788,75 @@ test('issue #352: empty ops fallback to any bytecode', () => {
     expect(res.app).toMatch(/__ΩTest\s*=\s*\[/);
     expect(res.app).not.toMatch(/const\s+__Ω\w+\s*;/);
 });
+
+// Regression: a generic method/function with ≥2 type parameters, called with FEWER type args than
+// declared (relying on a defaulted type param), must resolve its ReceiveType parameter to the passed
+// type — NOT to `() => any`. Root cause was an encoding mismatch: the ReceiveType param default READ
+// keys on the DECLARED type-param count (bare `Ω` for 1, `Ω?.[index]` array for ≥2), while the
+// call-site WRITE keyed on the number of type args PASSED. Passing 1 arg to a 2-type-param target
+// wrote the bare packed type, so `Ω?.[0]` indexed into the inner type-wrapper → `() => any`.
+// Fix: drive the bare-vs-array write off the target's DECLARED type-param count (resolving inherited
+// `this.method` through the `extends` chain so the count is known). See compiler.ts.
+
+test('multi-typeparam method, fewer type args than declared, inherited via extends — resolves correctly', () => {
+    const res = transpileAndRun({
+        app: `
+            import { resolveReceiveType } from '@deepkit/type';
+            class Foo { foo: string = ''; }
+            class Bar { bar: number = 0; }
+            const captured: any[] = [];
+            class Base {
+                send<T, R = Bar>(message: any, t?: ReceiveType<T>, r?: ReceiveType<R>) {
+                    captured.push(resolveReceiveType(t));
+                    captured.push(r ? resolveReceiveType(r) : 'DEFAULT');
+                }
+            }
+            class Sub extends Base {
+                run() { this.send<Foo>('x'); }
+            }
+            new Sub().run();
+            captured.map(c => typeof c === 'string' ? c : ({ kind: c.kind, name: c.typeName || (c.classType && c.classType.name) }));
+        `,
+    });
+    // t resolves to Foo (kind 20 = class), R defaults (no value passed → branch returns 'DEFAULT').
+    expect(res).toEqual([{ kind: 20, name: 'Foo' }, 'DEFAULT']);
+});
+
+test('multi-typeparam top-level function, fewer type args than declared — resolves correctly', () => {
+    const res = transpileAndRun({
+        app: `
+            import { resolveReceiveType } from '@deepkit/type';
+            class Foo { foo: string = ''; }
+            class Bar { bar: number = 0; }
+            const captured: any[] = [];
+            function send<T, R = Bar>(message: any, t?: ReceiveType<T>, r?: ReceiveType<R>) {
+                captured.push(resolveReceiveType(t));
+                captured.push(r ? resolveReceiveType(r) : 'DEFAULT');
+            }
+            send<Foo>('x');
+            captured.map(c => typeof c === 'string' ? c : ({ kind: c.kind, name: c.typeName || (c.classType && c.classType.name) }));
+        `,
+    });
+    expect(res).toEqual([{ kind: 20, name: 'Foo' }, 'DEFAULT']);
+});
+
+test('multi-typeparam function via Ω side-channel, fewer type args — writes array form, resolves correctly', () => {
+    // Force the Ω side-channel: a user arg occupies a ReceiveType param position so direct-passing
+    // bails. The write must still use the ARRAY form because the target declares 2 type params, so
+    // `Ω?.[0]` yields the full packed type for Foo (not the inner wrapper).
+    const res = transpileAndRun({
+        app: `
+            import { resolveReceiveType } from '@deepkit/type';
+            class Foo { foo: string = ''; }
+            class Bar { bar: number = 0; }
+            const captured: any[] = [];
+            function send<T, R = Bar>(t?: ReceiveType<T>, r?: ReceiveType<R>) {
+                captured.push(resolveReceiveType(t));
+                captured.push(r ? resolveReceiveType(r) : 'DEFAULT');
+            }
+            send<Foo>(undefined as any);
+            captured.map(c => typeof c === 'string' ? c : ({ kind: c.kind, name: c.typeName || (c.classType && c.classType.name) }));
+        `,
+    });
+    expect(res).toEqual([{ kind: 20, name: 'Foo' }, 'DEFAULT']);
+});
