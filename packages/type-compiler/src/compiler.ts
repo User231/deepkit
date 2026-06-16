@@ -470,6 +470,23 @@ function getReceiveTypeParameter(type: TypeNode): TypeReferenceNode | undefined 
     return;
 }
 
+/**
+ * Whether `node` sits inside an ambient context — a `declare module '…' {}` or
+ * `declare namespace N {}` (the `declare` is on the enclosing module, so the
+ * inner declaration carries no `declare` modifier of its own). Such contexts are
+ * type-only, so the transformer must not emit runtime statements into them.
+ * (`NodeFlags.Ambient` would be ideal but is marked `@internal` and absent from
+ * the public typings, so we walk ancestors instead.)
+ */
+function isInAmbientContext(node: Node): boolean {
+    let current: Node | undefined = node.parent;
+    while (current) {
+        if (isModuleDeclaration(current) && hasModifier(current, SyntaxKind.DeclareKeyword)) return true;
+        current = current.parent;
+    }
+    return false;
+}
+
 interface ReceiveTypeInfo {
     /** Maps type argument index → function parameter index for ReceiveType params */
     typeArgToParamIndex: Map<number, number>;
@@ -857,7 +874,11 @@ export class ReflectionTransformer implements CustomTransformer {
             }
 
             if (isInterfaceDeclaration(node) || isTypeAliasDeclaration(node) || isEnumDeclaration(node)) {
-                if (!hasModifier(node, SyntaxKind.DeclareKeyword) && this.isWithReflection(sourceFile, node)) {
+                // Skip ambient declarations: a directly `declare`d type, OR one nested in an
+                // ambient context (e.g. `declare module '…' { interface X {…} }`, where the
+                // `declare` is on the module, not the interface). Emitting a runtime
+                // `const __ΩX = […]` into an ambient block is invalid TS.
+                if (!hasModifier(node, SyntaxKind.DeclareKeyword) && !isInAmbientContext(node) && this.isWithReflection(sourceFile, node)) {
                     this.compileDeclarations.set(node, {
                         name: node.name,
                         sourceFile: this.sourceFile,
@@ -908,6 +929,15 @@ export class ReflectionTransformer implements CustomTransformer {
 
                 const receiveType = getReceiveTypeParameter(node.type);
                 if (receiveType && receiveType.typeArguments) {
+                    // Only inject a runtime `Ω` default into an IMPLEMENTABLE function — one that
+                    // gets a body at runtime. A ReceiveType parameter on a bodyless signature (an
+                    // interface MethodSignature, a call/construct signature, a function type, an
+                    // overload, or an ambient `declare`) has no runtime to read it, and a default
+                    // value there is invalid TS that esbuild/babel reject when parsing the output.
+                    const fnLike = node.parent;
+                    const implementable = isArrowFunction(fnLike) || isFunctionExpression(fnLike) || ((isFunctionDeclaration(fnLike) || isMethodDeclaration(fnLike) || isConstructorDeclaration(fnLike)) && !!fnLike.body);
+                    if (!implementable) return node;
+
                     const first = receiveType.typeArguments[0];
                     if (first && isTypeReferenceNode(first) && isIdentifier(first.typeName)) {
                         const name = getIdentifierName(first.typeName);
@@ -3282,8 +3312,11 @@ export class ReflectionTransformer implements CustomTransformer {
             return !!omegaDeclaration;
         }
 
-        // For .ts files, check if the resolved declaration is a type that will generate __Ω
-        if (isInterfaceDeclaration(resolvedDeclaration) || isTypeAliasDeclaration(resolvedDeclaration) || isEnumDeclaration(resolvedDeclaration) || isClassDeclaration(resolvedDeclaration)) {
+        // For .ts files, check if the resolved declaration is a type that will generate __Ω.
+        // NOT classes: a class carries its reflection in a `__type` static on the class value
+        // itself (re-exported with the class), never a separate `const __Ω<name>` — so
+        // re-exporting `__Ω<ClassName>` references a binding that doesn't exist (#bson ESM).
+        if (isInterfaceDeclaration(resolvedDeclaration) || isTypeAliasDeclaration(resolvedDeclaration) || isEnumDeclaration(resolvedDeclaration)) {
             // Check if the source file has reflection enabled
             const reflection = this.getReflectionConfig(declarationSourceFile);
             if (reflection.mode === 'never') return false;
