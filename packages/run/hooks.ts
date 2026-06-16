@@ -9,8 +9,12 @@ import { init as initCjsLexer, parse as parseCjs } from 'cjs-module-lexer';
 import { transpile } from './shared.js';
 
 async function resolveTs(specifier: string, context: any, nextResolve: Function) {
-    // Try .ts extension for .js imports or extensionless imports
-    const variants = extname(specifier) === '.js' ? [specifier.replace(/\.js$/, '.ts')] : [`${specifier}.ts`];
+    // Try .ts/.tsx extensions for .js imports or extensionless imports. `.tsx` covers JSX entry
+    // files (e.g. @deepkit/template tests and the package's own `jsx-runtime`).
+    const variants =
+        extname(specifier) === '.js'
+            ? [specifier.replace(/\.js$/, '.ts'), specifier.replace(/\.js$/, '.tsx')]
+            : [`${specifier}.ts`, `${specifier}.tsx`];
 
     for (const tsSpecifier of variants) {
         try {
@@ -170,7 +174,8 @@ async function loadNodeModulesCjs(url: string): Promise<{ format: 'module'; sour
 }
 
 export async function load(url: string, context: any, nextLoad: Function) {
-    if (extname(url) === '.ts') {
+    const ext = extname(url);
+    if (ext === '.ts' || ext === '.tsx') {
         const path = new URL(url).pathname;
         const source = await readFile(path, 'utf8');
         const { output, format } = transpile(source, path);

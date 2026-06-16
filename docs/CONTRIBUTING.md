@@ -42,7 +42,7 @@ npm run postinstall
 npm run build
 
 # Run tests to verify setup
-npm run test packages/type/
+node --import @deepkit/run --test 'packages/type/tests/**/*.spec.ts'
 ```
 
 ### Understanding the Monorepo
@@ -284,21 +284,20 @@ All changes must include tests:
 npm run test
 
 # Specific package
-npm run test packages/orm/
+node --import @deepkit/run --test 'packages/orm/tests/**/*.spec.ts'
 
 # Single file
-node --expose-gc --max_old_space_size=3048 \
-    node_modules/jest/bin/jest.js \
-    packages/type/tests/serializer.spec.ts
+node --import @deepkit/run --test packages/type/tests/serializer.spec.ts
 
 # Watch mode
-npm run test -- --watch packages/type/
+node --import @deepkit/run --test --watch 'packages/type/tests/**/*.spec.ts'
 ```
 
 ### Writing Tests
 
 ```typescript
-import { expect, test, describe } from '@jest/globals';
+import { describe, test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
 
 describe('FeatureName', () => {
     test('should handle normal case', () => {
@@ -541,7 +540,7 @@ yarn && npm run postinstall && npm run build
 npm run tsc-watch
 
 # Test specific package
-npm run test packages/type/
+node --import @deepkit/run --test 'packages/type/tests/**/*.spec.ts'
 
 # Format code
 npx prettier --write packages/*/src/**/*.ts
@@ -559,7 +558,7 @@ packages/my-package/
 │   └── *.ts           # Source files
 ├── tests/
 │   └── *.spec.ts      # Test files
-├── package.json       # Package config + jest config
+├── package.json       # Package config
 ├── tsconfig.json      # TypeScript config
 └── README.md          # Package documentation
 ```

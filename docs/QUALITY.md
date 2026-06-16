@@ -396,7 +396,9 @@ jobs:
       - run: yarn && npm run postinstall
       - run: npm run tsc
       - run: npm run test
-      - run: npm run test:coverage
+      # No dedicated test:coverage script — coverage is collected via Node's built-in
+      # --experimental-test-coverage flag on the node --test runner, e.g.:
+      #   node --import @deepkit/run --test --experimental-test-coverage 'packages/type/tests/**/*.spec.ts'
       - uses: codecov/codecov-action@v4
 ```
 

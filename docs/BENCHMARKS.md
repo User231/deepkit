@@ -316,7 +316,7 @@ jobs:
       - run: yarn && npm run postinstall && npm run build
 
       - name: Run benchmarks
-        run: node packages/bench/dist/index.js --json > benchmark-results.json
+        run: cd benchmarks && npm run benchmark -- -j ../benchmark-results.json
 
       - name: Compare with baseline
         run: node scripts/compare-benchmarks.js
@@ -493,11 +493,11 @@ Run benchmarks against alternatives to track relative performance:
 
 ```bash
 # Run comparative benchmark suite
-cd packages/bench
-npm run bench:compare
+cd benchmarks
+npm run benchmark:comparison
 
 # Output results in JSON for tracking
-npm run bench:compare -- --json > results.json
+npm run benchmark:comparison -- -j results.json
 ```
 
 Comparative benchmarks should be run on consistent hardware and Node.js versions to ensure meaningful comparisons over time.

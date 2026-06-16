@@ -19,28 +19,29 @@ This document outlines the testing strategy, coverage requirements, and edge cas
 
 ### Framework
 
-- **Jest** as the test runner
-- Custom resolver (`jest-resolver.js`) for monorepo symlink handling
-- TypeScript compilation via `ts-jest`
-- Memory flags: `--expose-gc --max_old_space_size=3048`
+- **Node's built-in test runner** (`node:test`), loaded via the `@deepkit/run` import hook
+- TypeScript executed directly through the `@deepkit/run` loader (no `ts-jest`)
+- Runner flags: `--expose-gc --test-force-exit`
 
 ### Configuration
 
-```javascript
-// Root package.json jest config
+The whole suite runs via the root `test` script, which points `node --test` at a glob of
+every package's `tests/` directory:
+
+```jsonc
+// Root package.json
 {
-  "jest": {
-    "resolver": "./jest-resolver.js",
-    "testPathIgnorePatterns": ["packages/*/dist"],
-    "projects": [
-      "packages/type",
-      "packages/type-compiler",
-      "packages/orm",
-      // ... all testable packages
-    ]
+  "scripts": {
+    "test": "node --expose-gc --import @deepkit/run --test --test-force-exit 'packages/*/tests/**/*.spec.ts' 'packages/*/tests/**/*.spec.tsx'"
   }
 }
 ```
+
+There is no root-level `jest` config. Every package — including `@deepkit/template`'s `.spec.tsx`
+(the `@deepkit/run` loader transpiles `.tsx` and the root `test` glob matches `*.spec.{ts,tsx}`) —
+runs on `node:test`. Jest survives solely for the docs `website`, whose Angular `TestBed` +
+tsconfig path-alias tests need a DOM/Angular test harness; it runs from `website/` via its own
+`website/jest.config.js`.
 
 ### Requirements
 
@@ -208,13 +209,13 @@ test('round-trip complex object', () => {
 
 ### Running Coverage
 
-```bash
-npm run test:coverage
+There is no dedicated `test:coverage` npm script. Coverage is collected via Node's built-in
+`--experimental-test-coverage` flag on the `node --test` runner:
 
+```bash
 # Package-specific
-node --expose-gc --max_old_space_size=3048 \
-  node_modules/jest/bin/jest.js \
-  --coverage packages/type/
+node --import @deepkit/run --test --experimental-test-coverage \
+  'packages/type/tests/**/*.spec.ts'
 ```
 
 ---
@@ -344,33 +345,38 @@ npm run test
 ### Specific Package
 
 ```bash
-npm run test packages/type/
-npm run test packages/orm/
+node --import @deepkit/run --test 'packages/type/tests/**/*.spec.ts'
+node --import @deepkit/run --test 'packages/orm/tests/**/*.spec.ts'
 ```
 
 ### Single Test File
 
 ```bash
-node --expose-gc --max_old_space_size=3048 \
-  node_modules/jest/bin/jest.js \
+node --import @deepkit/run --test packages/type/tests/serializer.spec.ts
+```
+
+To run only tests whose name matches a pattern, add `--test-name-pattern`:
+
+```bash
+node --import @deepkit/run --test \
+  --test-name-pattern='onLoad' \
   packages/type/tests/serializer.spec.ts
 ```
 
 ### Watch Mode
 
+`node:test` has native watch support — add `--watch` to the invocation:
+
 ```bash
-node --expose-gc --max_old_space_size=3048 \
-  node_modules/jest/bin/jest.js \
-  --watch packages/type/
+node --import @deepkit/run --test --watch 'packages/type/tests/**/*.spec.ts'
 ```
 
 ### Debugging Tests
 
 ```bash
-node --expose-gc --max_old_space_size=3048 \
+node --import @deepkit/run \
   --inspect-brk \
-  node_modules/jest/bin/jest.js \
-  --runInBand \
+  --test \
   packages/type/tests/serializer.spec.ts
 ```
 
@@ -381,7 +387,8 @@ node --expose-gc --max_old_space_size=3048 \
 ### Test File Structure
 
 ```typescript
-import { expect, test, describe, beforeEach, afterEach } from '@jest/globals';
+import { describe, test, beforeEach, afterEach } from 'node:test';
+import { expect } from '@deepkit/run/expect';
 
 describe('FeatureName', () => {
     let fixture: FixtureType;
@@ -622,11 +629,11 @@ test:
   runs-on: ubuntu-latest
   services:
     postgres:
-      image: postgres:15
+      image: postgres:18
     mongodb:
-      image: mongo:6
+      image: mongo:8
     mysql:
-      image: mysql:8
+      image: mysql:8.4
   steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4

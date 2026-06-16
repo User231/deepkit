@@ -36,6 +36,24 @@ import { escape, escapeHtml } from './utils.js';
 
 const { parse, generate, replace } = abstractSyntaxTree;
 
+// abstract-syntax-tree's bundled estraverse predates ES2022 class nodes (StaticBlock,
+// PropertyDefinition) and throws "Unknown node type" while traversing classes that carry runtime
+// reflection metadata — the type compiler emits `static { this.__type = [...] }` on class
+// components, which surfaces under an ES2022 transpile target. estraverse supports a per-call
+// `keys` option that merges onto its built-in VisitorKeys, but the library's `replace`/`traverse`
+// wrappers don't forward it. We patch the shared estraverse module (the same instance the wrappers
+// use) once so every traversal learns these node types; a targeted key extension leaves traversal
+// of all other node types unchanged. `generate` already round-trips these nodes.
+// @ts-ignore - internal subpath import; abstract-syntax-tree ships no `exports` map and no types.
+import estraverse from 'abstract-syntax-tree/src/traverse/estraverse';
+
+const ES2022_VISITOR_KEYS = { StaticBlock: ['body'], PropertyDefinition: ['key', 'value'] };
+for (const method of ['replace', 'traverse'] as const) {
+    const original = (estraverse as any)[method];
+    (estraverse as any)[method] = (tree: any, visitor: any) =>
+        original(tree, { ...visitor, keys: { ...(visitor && visitor.keys), ...ES2022_VISITOR_KEYS } });
+}
+
 export function transform(code: string, filename: string) {
     if (inDebugMode()) return code;
     //for CommonJs its jsx_runtime_1.jsx, for ESM its _jsx. ESM is handled in loader.ts#transformSource
@@ -988,27 +1006,43 @@ function convertNodeToCreateElement(node: Expression): Expression {
 }
 
 export function optimizeJSX(code: string): string {
-    const tree = parse(code);
+    // Best-effort: JSX optimization is a pure performance enhancement, so if the code contains
+    // syntax the bundled AST walker can't traverse (e.g. ES2022 `static {}` reflection blocks the
+    // type compiler emits on class components, which abstract-syntax-tree's estraverse predates and
+    // rejects with "Unknown node type"), fall back to the unoptimized code rather than crashing
+    // rendering. Correctness is preserved — only the optimization is skipped.
+    try {
+        const tree = parse(code);
 
-    replace(tree, (node: any) => {
-        if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
-            return optimizeNode(convertNodeToCreateElement(node), true);
-        }
-        return node;
-    });
+        replace(tree, (node: any) => {
+            if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
+                return optimizeNode(convertNodeToCreateElement(node), true);
+            }
+            return node;
+        });
 
-    return generate(tree);
+        return generate(tree);
+    } catch (error) {
+        if (inDebugMode()) console.warn('optimizeJSX skipped (unsupported syntax):', error);
+        return code;
+    }
 }
 
 export function convertJsxCodeToCreateElement(code: string): string {
-    const tree = parse(code);
+    // See optimizeJSX: best-effort, fall back to the original code on un-traversable syntax.
+    try {
+        const tree = parse(code);
 
-    replace(tree, (node: any) => {
-        if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
-            return convertNodeToCreateElement(node);
-        }
-        return node;
-    });
+        replace(tree, (node: any) => {
+            if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
+                return convertNodeToCreateElement(node);
+            }
+            return node;
+        });
 
-    return generate(tree);
+        return generate(tree);
+    } catch (error) {
+        if (inDebugMode()) console.warn('convertJsxCodeToCreateElement skipped (unsupported syntax):', error);
+        return code;
+    }
 }

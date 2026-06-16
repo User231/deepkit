@@ -5,8 +5,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "test": "node --expose-gc --import @deepkit/run --test --test-force-exit 'packages/*/tests/**/*.spec.ts' 'packages/create-app/files/tests/**/*.spec.ts'",
-    "test:node": "node --expose-gc --import @deepkit/run --test --test-force-exit 'packages/*/tests/**/*.spec.ts' 'packages/create-app/files/tests/**/*.spec.ts'",
+    "test": "node --expose-gc --import @deepkit/run --test --test-force-exit 'packages/*/tests/**/*.spec.ts' 'packages/*/tests/**/*.spec.tsx' 'packages/create-app/files/tests/**/*.spec.ts'",
+    "test:node": "node --expose-gc --import @deepkit/run --test --test-force-exit 'packages/*/tests/**/*.spec.ts' 'packages/*/tests/**/*.spec.tsx' 'packages/create-app/files/tests/**/*.spec.ts'",
     "test:lerna": "lerna run test:node --concurrency 1 --no-bail",
     "test:mongo-cluster": "MONGO_CLUSTER_TESTS=1 node --expose-gc --import @deepkit/run --test --test-force-exit --test-concurrency=1 'packages/mongo/tests/replica.spec.ts' 'packages/mongo/tests/client/mong-env.spec.ts'",
     "build": "tsc --build tsconfig.json && tsc --build tsconfig.esm.json && lerna run build",
@@ -58,46 +58,6 @@
   "engines": {
     "node": ">= 20.0.0"
   },
-  "jest": {
-    "resolver": "./jest-resolver.js",
-    "testPathIgnorePatterns": [
-      "packages/*/dist"
-    ],
-    "collectCoverageFrom": [
-      "src/**/*.ts"
-    ],
-    "projects": [
-      "packages/angular-ssr",
-      "packages/core",
-      "packages/core-rxjs",
-      "packages/ui-library",
-      "packages/type",
-      "packages/type-compiler",
-      "packages/app",
-      "packages/event",
-      "packages/workflow",
-      "packages/stopwatch",
-      "packages/orm",
-      "packages/bson",
-      "packages/http",
-      "packages/template",
-      "packages/injector",
-      "packages/mongo",
-      "packages/filesystem",
-      "packages/filesystem-aws-s3",
-      "packages/filesystem-ftp",
-      "packages/filesystem-sftp",
-      "packages/filesystem-google",
-      "packages/sql",
-      "packages/mysql",
-      "packages/postgres",
-      "packages/sqlite",
-      "packages/framework-integration",
-      "packages/framework",
-      "packages/rpc",
-      "packages/broker",
-      "packages/topsort"
-    ]
-  },
+  "_comment_jest": "Jest is retained ONLY for the docs `website` (Angular `TestBed` + tsconfig path-alias tests that need a DOM/Angular test harness); it runs from `website/` via website/jest.config.js. Every package — including @deepkit/template (.spec.tsx) — runs on node:test via the root `test` script (node --import @deepkit/run --test). There is intentionally no root-level jest config.",
   "packageManager": "yarn@4.9.2"
 }

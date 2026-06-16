@@ -291,7 +291,7 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for setup instructions.
 ```bash
 git clone https://github.com/deepkit/deepkit-framework.git
 cd deepkit-framework
-npm install
+yarn                 # install (this repo uses Yarn 4 — see packageManager)
 npm run postinstall  # Required: builds the type compiler
 npm run build
 ```

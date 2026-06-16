@@ -12,7 +12,18 @@ import { describe, test } from 'node:test';
 import { TypeAnnotation, getClassName } from '@deepkit/core';
 import { expect } from '@deepkit/run/expect';
 
-import { NamingStrategy, Serializer, createSerializeFunction, getSerializeFunction, serializer, underscoreNamingStrategy } from '../index.js';
+import {
+    NamingStrategy,
+    Serializer,
+    createSerializeFunction,
+    getSerializeFunction,
+    registerDefaultHandlers,
+    registerTypeGuards,
+    registerUnionHandler,
+    registerValidationHook,
+    serializer,
+    underscoreNamingStrategy,
+} from '../index.js';
 import { entity, t } from '../src/decorator.js';
 import { isReferenceInstance } from '../src/reference.js';
 import { parametersToTuple } from '../src/reflection/extends.js';
@@ -1149,8 +1160,25 @@ test('enum mixed case', () => {
     expect(cast<number | Units>('Gram')).toBe(Units.GRAM);
 });
 
-// Skipped: Requires update to new jit.fn() API - state.addCode() no longer exists
-test.skip('onLoad call', () => {
+// Build a fully-loaded JSON serializer the test can extend with custom hooks, WITHOUT
+// mutating the shared global `serializer`. The base `Serializer.registerSerializers()` is an
+// empty stub — handlers/guards are installed externally (this mirrors the internal
+// JSONSerializer constructor), so a bare `new Serializer()` has no handlers at all.
+function createExtensibleSerializer(extend: (serializer: Serializer) => void): Serializer {
+    const custom = new Serializer('json');
+    registerDefaultHandlers(custom);
+    registerTypeGuards(custom);
+    registerUnionHandler(custom);
+    registerValidationHook(custom);
+    extend(custom);
+    return custom;
+}
+
+// Custom serializer that runs a lifecycle method after a class is deserialized.
+// New jit.fn() API: addPostHook wraps the normal handler via next(); b.call embeds a
+// closure that performs the side effect and returns the instance (replaces the removed
+// state.addCode()/state.touch() mutable-template API).
+test('onLoad call', () => {
     class Target {
         id: number = 0;
         loaded = false;
@@ -1160,24 +1188,24 @@ test.skip('onLoad call', () => {
         }
     }
 
-    const serializer = new (class extends Serializer {
-        override registerSerializers() {
-            super.registerSerializers();
-            this.deserializeRegistry.addDecorator(
-                (type: Type) => type.kind === ReflectionKind.class && type.classType === Target,
-                (type, state) => {
-                    state.addCode(`${state.setter}.onLoad();`);
-                },
-            );
-        }
-    })();
+    const serializer = createExtensibleSerializer(s => {
+        s.deserializeRegistry.addPostHook((type, input, b, state, next) => {
+            const result = next();
+            if (type.kind === ReflectionKind.class && type.classType === Target) {
+                return b.call((target: Target) => {
+                    target.onLoad();
+                    return target;
+                }, result);
+            }
+            return result;
+        });
+    });
 
     const target = cast<Target>({ id: 1 }, undefined, serializer);
     expect(target.loaded).toBe(true);
 });
 
-// Skipped: Requires update to new jit.fn() API - state.touch() no longer exists
-test.skip('onLoad call2', () => {
+test('onLoad call2', () => {
     class Target {
         id: number = 0;
         loaded = false;
@@ -1187,21 +1215,25 @@ test.skip('onLoad call2', () => {
         }
     }
 
-    const serializer = new (class extends Serializer {
-        override registerSerializers() {
-            super.registerSerializers();
-            this.deserializeRegistry.addDecorator(isTypeClassOf(Target), (type, state) => {
-                state.touch((target: Target) => target.onLoad());
-            });
-        }
-    })();
+    const matchesTarget = isTypeClassOf(Target);
+    const serializer = createExtensibleSerializer(s => {
+        s.deserializeRegistry.addPostHook((type, input, b, state, next) => {
+            const result = next();
+            if (matchesTarget(type)) {
+                return b.call((target: Target) => {
+                    target.onLoad();
+                    return target;
+                }, result);
+            }
+            return result;
+        });
+    });
 
     const target = cast<Target>({ id: 1 }, undefined, serializer);
     expect(target.loaded).toBe(true);
 });
 
-// Skipped: Requires update to new jit.fn() API - state.touch() no longer exists
-test.skip('onLoad call3', () => {
+test('onLoad call3', () => {
     class Target {
         id: number = 0;
         loaded = false;
@@ -1211,16 +1243,18 @@ test.skip('onLoad call3', () => {
         }
     }
 
-    const serializer = new (class extends Serializer {
-        override registerSerializers() {
-            super.registerSerializers();
-            this.deserializeRegistry.addDecorator(isCustomTypeClass, (type, state) => {
-                state.touch(value => {
-                    if ('onLoad' in value) value.onLoad();
-                });
-            });
-        }
-    })();
+    const serializer = createExtensibleSerializer(s => {
+        s.deserializeRegistry.addPostHook((type, input, b, state, next) => {
+            const result = next();
+            if (isCustomTypeClass(type)) {
+                return b.call((value: any) => {
+                    if ('onLoad' in value && typeof value.onLoad === 'function') value.onLoad();
+                    return value;
+                }, result);
+            }
+            return result;
+        });
+    });
 
     const target = cast<Target>({ id: 1 }, undefined, serializer);
     expect(target.loaded).toBe(true);
@@ -1358,22 +1392,27 @@ test('patch', () => {
     }
 });
 
-// Skipped: Requires update to new jit.fn() API - state.addSetter/accessor no longer exist
-// WARNING: This test corrupts global serializer when it fails, causing cascading failures
-test.skip('extend with custom type', () => {
+// Custom annotation that round-trips a value through JSON on the wire.
+// Uses a LOCAL serializer instance (not the global `serializer`) so the added hooks don't
+// leak into other tests — the old version mutated the global serializer and corrupted
+// later tests on failure. New jit.fn() API: addPostHook/addPreHook wrap the normal handler;
+// b.call embeds the JSON transform closure (replaces the removed state.addSetter/accessor).
+test('extend with custom type', () => {
     type StringifyTransport = TypeAnnotation<'stringifyTransport'>;
 
     function isStringifyTransportType(type: Type): boolean {
         return !!typeAnnotation.getType(type, 'stringifyTransport');
     }
 
-    serializer.serializeRegistry.addPostHook((type, state) => {
-        if (!isStringifyTransportType(type)) return;
-        state.addSetter(`JSON.stringify(${state.accessor})`);
-    });
-    serializer.deserializeRegistry.addPreHook((type, state) => {
-        if (!isStringifyTransportType(type)) return;
-        state.addSetter(`JSON.parse(${state.accessor})`);
+    const serializer = createExtensibleSerializer(s => {
+        s.serializeRegistry.addPostHook((type, input, b, state, next) => {
+            if (!isStringifyTransportType(type)) return next();
+            return b.call((value: any) => JSON.stringify(value), next());
+        });
+        s.deserializeRegistry.addPreHook((type, input, b, state, next) => {
+            if (!isStringifyTransportType(type)) return next();
+            return b.call((value: string) => JSON.parse(value), input);
+        });
     });
 
     class MyType {

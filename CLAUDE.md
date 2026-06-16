@@ -80,10 +80,10 @@ npm run postinstall  # Builds type-compiler
 npm run tsc          # TypeScript build
 npm run tsc-watch    # Watch mode
 
-# Testing
-npm run test                    # All tests
-npm run test packages/type/     # Package tests
-node --expose-gc --max_old_space_size=3048 node_modules/jest/bin/jest.js packages/type/tests/serializer.spec.ts  # Single file
+# Testing (node:test via the @deepkit/run loader — NOT Jest)
+npm run test                                                                  # All tests
+node --import @deepkit/run --test 'packages/type/tests/**/*.spec.ts'          # One package
+node --import @deepkit/run --test packages/type/tests/serializer.spec.ts      # Single file
 
 # Full build
 npm run build        # Full build (several minutes)
@@ -293,9 +293,11 @@ class Service {
 
 ## Testing
 
-- Jest with custom resolver for monorepo
-- Tests require type-compiler: `npm run postinstall`
-- Memory flags: `--expose-gc --max_old_space_size=3048`
+- Node's built-in test runner (`node:test`) via the `@deepkit/run` loader (`node --import @deepkit/run --test`).
+  Jest was removed from every package (including `@deepkit/template`'s `.spec.tsx`, run via the loader's `.tsx` support); it survives ONLY for the docs `website`, whose Angular `TestBed` + tsconfig path-alias tests need a DOM/Angular test harness, run from `website/` via its own `website/jest.config.js`.
+- `expect()` comes from the `@deepkit/run/expect` shim; `describe`/`test` from `node:test`.
+- Tests require the type-compiler: run `npm run postinstall` first.
+- Runner flags: `--expose-gc --test-force-exit` (no `--max_old_space_size`).
 
 ### Running the Full Test Suite
 
@@ -310,7 +312,8 @@ npm run test
 docker compose down
 ```
 
-**Expected results:** All ~175 test suites and ~3200+ tests should pass.
+**Suite size:** ~318 suites / ~4300+ tests. The unit layer passes without Docker; the database-integration
+tests (mongo/postgres/mysql) require the Docker services above to be running.
 
 ### Docker Compose Services
 
@@ -340,20 +343,27 @@ docker compose ps      # Check status
 ### Running Specific Package Tests
 
 ```bash
-npm run test packages/type/                    # All type tests
-npm run test packages/postgres/                # PostgreSQL tests (needs Docker)
-node --expose-gc --max_old_space_size=3048 node_modules/jest/bin/jest.js packages/type/tests/serializer.spec.ts  # Single file
+node --import @deepkit/run --test 'packages/type/tests/**/*.spec.ts'         # All type tests
+node --import @deepkit/run --test 'packages/postgres/tests/**/*.spec.ts'      # PostgreSQL tests (needs Docker)
+node --import @deepkit/run --test packages/type/tests/serializer.spec.ts      # Single file
+# filter by test name within a file:
+node --import @deepkit/run --test --test-name-pattern='onLoad' packages/type/tests/serializer.spec.ts
 ```
 
 See `docs/TESTING.md` for test strategy and edge cases.
 
 ## Performance
 
-Deepkit achieves extreme performance through JIT compilation:
+Deepkit achieves extreme performance through JIT compilation. With the v2 expression-tree JIT/serializer
+rewrite (see `docs/pr-description.md` and `benchmarks/`):
 
-- **Serialization**: ~32M ops/sec (100x faster than class-transformer)
-- **Validation**: ~26M ops/sec (270x faster than class-validator)
-- **BSON**: 13x faster than official bson-js
+- **Type serialize**: small-model ~135M ops/sec (1.5–14x faster than v1)
+- **Type validate / `is()`**: 3–17x faster than v1 (discriminated-union validation ~1000x via O(1) dispatch)
+- **BSON serialize**: 3–63x faster than v1, up to ~224x faster than bson-js 7.x
+- **BSON deserialize**: 1.8–7x faster than v1 (shape-learning JIT), 2.5–13x faster than bson-js 7.x
+
+Run `cd benchmarks && npm run benchmark` (core) or `npm run benchmark:comparison` (vs Zod/Typia/bson-js) for
+current numbers; `npm run benchmark -- --compare-baseline` fails on >20% regression.
 
 See `docs/BENCHMARKS.md` for tracking methodology.
 
@@ -579,8 +589,8 @@ concurrent subjects, error handling, and long-running subscriptions.
 **CRITICAL for type-compiler changes:** The type-compiler is the foundation of the entire framework. Changes to `packages/type-compiler/src/compiler.ts` affect all packages. Before committing ANY type-compiler change:
 
 ```bash
-# MANDATORY: Run the full type test suite (1900+ tests)
-npm run tsc && node --expose-gc --max_old_space_size=3048 node_modules/jest/bin/jest.js --forceExit --no-cache "packages/type/"
+# MANDATORY: Run the full type test suite (~2000 tests)
+npm run tsc && node --expose-gc --import @deepkit/run --test --test-force-exit 'packages/type/tests/**/*.spec.ts'
 ```
 
 Do NOT commit type-compiler changes based only on new test files you create - the existing test suite in `packages/type/` covers many edge cases for runtime type inference, generics, and conditional types that may not be obvious from isolated tests.

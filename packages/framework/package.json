@@ -20,7 +20,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest --coverage",
     "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'",
     "tsc": "rm -rf dist && ../../node_modules/.bin/tsc",
     "tsc-watch": "rm -rf dist && tsc --watch"
