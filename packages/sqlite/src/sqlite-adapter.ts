@@ -51,6 +51,7 @@ import {
     getPatchSerializeFunction,
     getSerializeFunction,
     resolvePath,
+    resolveProperty,
 } from '@deepkit/type';
 
 import { SQLitePlatform } from './sqlite-platform.js';
@@ -554,8 +555,11 @@ export class SQLiteQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T
 
         for (const i of model.returning) {
             aggregateFields[i] = {
+                // resolvePath() returns the property/propertySignature wrapper; value-level
+                // annotations (e.g. UUID → binary) live on its inner type, so unwrap before
+                // building the deserializer or the raw DB Buffer is returned verbatim.
                 converted: getSerializeFunction(
-                    resolvePath(i, this.classSchema.type),
+                    resolveProperty(resolvePath(i, this.classSchema.type)),
                     this.platform.serializer.deserializeRegistry,
                 ),
             };

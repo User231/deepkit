@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { Builder, Ref, VarRef, arg, fn } from '@deepkit/core';
+import { Builder, Ref, VarRef, arg, fn, stringifyValueWithType } from '@deepkit/core';
 import {
     BinaryBigIntType,
     NamingStrategy,
@@ -52,6 +52,7 @@ import {
     memberNameToString,
     resolveReceiveType,
     resolveTypeMembers,
+    stringifyType,
     typeSettings,
     unpopulatedSymbol,
 } from '@deepkit/type';
@@ -231,6 +232,16 @@ function createSerializer(type: Type): (data: any) => SerializeResult {
         return createTopLevelArraySerializer(type as TypeArray | TypeTuple);
     }
 
+    // Top-level `any`/`unknown` document (e.g. getBSONSerializer<any>()). Unlike a typed
+    // document we have no compile-time shape, so we frame the document at runtime based on
+    // the value's actual structure — exactly like JSON serialization does. This is what lets
+    // an RPC call whose `callSchema` collapsed to `any` (a client that lost/forged its type
+    // info) still put a body on the wire so the SERVER can validate it, rather than the client
+    // throwing TypeNotSerializableError before anything is sent.
+    if (type.kind === ReflectionKind.any || type.kind === ReflectionKind.unknown) {
+        return createTopLevelAnySerializer();
+    }
+
     if (type.kind !== ReflectionKind.objectLiteral && type.kind !== ReflectionKind.class) {
         throw new TypeNotSerializableError(ReflectionKind[type.kind]);
     }
@@ -370,6 +381,30 @@ function createTopLevelArraySerializer(type: TypeArray | TypeTuple): (data: any)
     );
 
     return (data: any): SerializeResult => runSerialize(serializeFn, data);
+}
+
+/**
+ * Create a serializer for a top-level `any`/`unknown` document.
+ *
+ * A BSON document's top level must be an object (or an array, which BSON encodes as an
+ * index-keyed object). Since the type carries no shape, we dispatch on the runtime value:
+ * arrays and plain objects are framed via the runtime `any` helpers; anything else (a bare
+ * primitive at the document root) has no valid BSON document representation and is rejected
+ * with a clear conversion error rather than producing a corrupt buffer.
+ */
+function createTopLevelAnySerializer(): (data: any) => SerializeResult {
+    return (data: any): SerializeResult => {
+        if (Array.isArray(data)) {
+            return [sharedBuffer, serializeAnyArrayRuntime(sharedBuffer, sharedView, 0, data)];
+        }
+        if (data !== null && typeof data === 'object') {
+            return [sharedBuffer, serializeAnyObjectRuntime(sharedBuffer, sharedView, 0, data)];
+        }
+        throw new BSONError(
+            `Cannot serialize ${stringifyValueWithType(data)} as a top-level BSON document (expected an object or array)`,
+            'DK-B030',
+        );
+    };
 }
 
 /**
@@ -660,6 +695,63 @@ function buildObjectSerializer(type: TypeObjectLiteral | TypeClass, ctx: BSONBui
 }
 
 /**
+ * Throw a contextful conversion error for a value whose runtime type does not match the
+ * BSON encoding the (statically declared) type requires.
+ *
+ * Without this, a type-mismatched value reaches a low-level writer that assumes the right
+ * shape — e.g. a number where a string is expected makes `writeStringUTF8` read `.length`
+ * off a number and crash with a bare `TypeError: Cannot read properties of undefined`. We
+ * surface a clear `BSONError` (DK-B030) with the property path and the expected type instead.
+ * @internal
+ */
+export function throwBsonConversion(value: any, path: string, typeName: string): never {
+    const where = path && path !== '<root>' ? ` at ${path}` : '';
+    throw new BSONError(`Cannot convert ${formatBsonValue(value)} to ${typeName}${where}`, 'DK-B030');
+}
+
+/**
+ * Render a value for a conversion error. Plain primitives are shown bare (`123`, `undefined`,
+ * `"23"` → `23`) to read naturally in `Cannot convert <v> to <type>`; objects fall back to a
+ * type-tagged form so the message stays meaningful for non-primitive mismatches.
+ */
+function formatBsonValue(value: any): string {
+    const t = typeof value;
+    if (value === null || value === undefined || t === 'number' || t === 'string' || t === 'boolean' || t === 'bigint') {
+        return String(value);
+    }
+    return stringifyValueWithType(value);
+}
+
+/**
+ * Emit a runtime type-compatibility guard before serializing `value`.
+ *
+ * `jsTypeof` is the `typeof` the value must have (`'string'` / `'object'`). The check only
+ * runs on the wrong-type branch (cheap `typeof`/null test inline; the throw helper is only
+ * called on mismatch), so the common correctly-typed path is unaffected.
+ */
+function guardValueType(
+    b: Builder,
+    type: Type,
+    value: Ref<any>,
+    ctx: BSONBuildState,
+    jsTypeof: 'string' | 'object',
+): void {
+    const typeName = stringifyType(type);
+    const path = ctx.getPath();
+    if (jsTypeof === 'object') {
+        // Reject non-objects and null (a present null on a required object property has no BSON
+        // document representation and would otherwise produce a corrupt/empty embedded doc).
+        b.if_(b.or(b.not(b.isType(value, 'object')), b.isNull(value)), () => {
+            b.exec(b.call(throwBsonConversion, value, b.lit(path), b.lit(typeName)));
+        });
+    } else {
+        b.if_(b.not(b.isType(value, jsTypeof)), () => {
+            b.exec(b.call(throwBsonConversion, value, b.lit(path), b.lit(typeName)));
+        });
+    }
+}
+
+/**
  * Serialize a value with the given name (property or array index).
  * Core dispatch function used by both object properties and array elements.
  */
@@ -685,6 +777,7 @@ function serializeValue(
 
     switch (type.kind) {
         case ReflectionKind.string:
+            guardValueType(b, type, value, ctx, 'string');
             serializeString(b, buffer, view, o, name, value);
             break;
         case ReflectionKind.number:
@@ -710,6 +803,7 @@ function serializeValue(
             serializeClass(b, buffer, view, o, name, type as TypeClass, value, ctx);
             break;
         case ReflectionKind.objectLiteral:
+            guardValueType(b, type, value, ctx, 'object');
             serializeNestedObject(b, buffer, view, o, name, type as TypeObjectLiteral, value, ctx);
             break;
         case ReflectionKind.array:

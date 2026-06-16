@@ -413,8 +413,8 @@ benchmarks/
 │       │   ├── typeguard/           # vs typia, zod, etc.
 │       │   └── bson/                # vs bson-js
 │       ├── debug/                   # Local profiling benchmarks
-│       └── v8-patterns/             # V8 optimization microbenchmarks
-├── baselines/                       # Stored baseline results
+│       ├── v8-patterns/             # V8 optimization microbenchmarks
+│       └── baselines/               # Stored baselines (read/written by --save/--compare-baseline)
 ├── typia-src/                       # Typia integration for comparison
 └── package.json
 ```

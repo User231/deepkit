@@ -16,10 +16,14 @@ import {
     ReflectionKind,
     Type,
     TypeObjectLiteral,
+    TypeTuple,
     ValidationError,
+    ValidationErrorItem,
     assertType,
     deserializeType,
+    stringifyType,
     typeOf,
+    validate,
 } from '@deepkit/type';
 
 import { Collection, CollectionQueryModelInterface, CollectionState } from '../collection.js';
@@ -502,6 +506,58 @@ function actionProtocol(reply: RpcMessage, subject: RpcMessageSubject, state: Ac
     }
 }
 
+/**
+ * Validate outgoing RPC arguments against the action's parameter types BEFORE they hit the wire.
+ *
+ * The wire encoder (BSON) coerces/drops type-mismatched primitives — e.g. `'23'` and `undefined`
+ * for a `number` parameter both vanish, so the server then runs the action with a *defaulted*
+ * value and the bad call silently succeeds. We catch the mismatch here with a strict, no-coercion
+ * check so a client that passes the wrong type gets a clear rejection instead.
+ *
+ * Two deliberate carve-outs keep this from over-rejecting:
+ *  - A `number` parameter accepts any JS number, including `NaN`/`Infinity` (BSON encodes `NaN`
+ *    as `0`, issue #573 — the test relies on `getProduct(NaN)` resolving). The strict validator
+ *    rejects those, so we re-admit them by `typeof`.
+ *  - If `callSchema` doesn't carry a parameter tuple (e.g. a client whose type info collapsed to
+ *    `any`), we skip entirely and let the server be the validation backstop.
+ */
+function validateActionArgs(callSchema: TypeObjectLiteral, args: any[]): void {
+    if (callSchema.kind !== ReflectionKind.objectLiteral) return;
+    const argsProp = callSchema.types.find(t => t.kind === ReflectionKind.propertySignature && t.name === 'args');
+    if (!argsProp || argsProp.kind !== ReflectionKind.propertySignature) return;
+    const parameters = argsProp.type;
+    if (parameters.kind !== ReflectionKind.tuple) return;
+
+    const errors: ValidationErrorItem[] = [];
+    const members = (parameters as TypeTuple).types;
+    for (let i = 0; i < members.length; i++) {
+        const member = members[i];
+        // Rest parameters (`...args: T[]`) have no single fixed slot — defer to the server.
+        if (member.type.kind === ReflectionKind.rest) continue;
+        const value = args[i];
+
+        // Optional / default-valued parameter left absent: nothing to validate.
+        if (value === undefined && member.optional) continue;
+
+        if (validate(value, member.type).length === 0) continue;
+
+        // Carve-out: any JS number is wire-acceptable for a `number` parameter (NaN/Infinity).
+        if (member.type.kind === ReflectionKind.number && typeof value === 'number') continue;
+
+        const name = member.name ? String(member.name) : String(i);
+        errors.push(
+            new ValidationErrorItem(
+                `args.${name}`,
+                'type',
+                `Cannot convert ${value} to ${stringifyType(member.type)}`,
+                value,
+            ),
+        );
+    }
+
+    if (errors.length) throw new ValidationError(errors);
+}
+
 export class RpcActionClient {
     public entityState = new EntityState();
 
@@ -541,6 +597,9 @@ export class RpcActionClient {
             };
 
             try {
+                // Reject type-mismatched arguments before the wire coerces them away (see fn docs).
+                validateActionArgs(types.callSchema, args);
+
                 this.client
                     .sendMessage(
                         RpcTypes.Action,

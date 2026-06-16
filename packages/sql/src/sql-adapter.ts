@@ -937,7 +937,9 @@ export class SQLPersistence extends DatabasePersistence {
     }
 
     async remove<T extends OrmEntity>(classSchema: ReflectionClass<T>, items: T[]): Promise<void> {
-        const scopeSerializer = getSerializeFunction(classSchema.type, this.platform.serializer.serializeRegistry);
+        // Serialize only the primary key (partial), never the whole entity: a full-entity
+        // serializer would touch unpopulated BackReference getters (DK-O200) for a plain delete.
+        const scopeSerializer = getPartialSerializeFunction(classSchema.type, this.platform.serializer.serializeRegistry);
         const pks: any[] = [];
         const primary = classSchema.getPrimary();
         const pkName = primary.name;
@@ -945,7 +947,7 @@ export class SQLPersistence extends DatabasePersistence {
         const placeholder = new this.platform.placeholderStrategy();
 
         for (const item of items) {
-            const converted = scopeSerializer(item);
+            const converted = scopeSerializer({ [pkName]: (item as any)[pkName] });
             pks.push(placeholder.getPlaceholder());
             params.push(converted[pkName]);
         }

@@ -1,4 +1,12 @@
-import { after as afterAll, before as beforeAll, beforeEach, describe, test } from 'node:test';
+import { after as afterAll, before as beforeAll, beforeEach, describe as _describe, test as _test } from 'node:test';
+
+// These specs spawn real multi-node MongoDB clusters via docker and exercise replica-set
+// failover/topology — timing-sensitive and unreliable under the parallel `npm test` (elections
+// time out under CPU load). Gated out by default; run them isolated/serially with:
+//   npm run test:mongo-cluster        (sets MONGO_CLUSTER_TESTS=1)
+const _cluster = !!process.env.MONGO_CLUSTER_TESTS;
+const describe = _cluster ? _describe : _describe.skip;
+const test = _cluster ? _test : _test.skip;
 
 import { expect } from '@deepkit/run/expect';
 import { FindOptions, MongoClient as MongoMongoClient } from 'mongodb';
@@ -181,7 +189,7 @@ describe('replica set, primary secondary', () => {
     // });
 });
 
-describe.skip('local replica', () => {
+_describe.skip('local replica', () => {
     class User {}
 
     /*
