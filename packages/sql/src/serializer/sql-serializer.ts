@@ -28,7 +28,7 @@ import {
     typedArrayToBuffer,
 } from '@deepkit/type';
 
-import { typeRequiresJSONCast } from '../platform/default-platform.js';
+import { typeRequiresJSONCast, typeResolvesToDate } from '../platform/default-platform.js';
 
 export const hexTable: string[] = [];
 for (let i = 0; i < 256; i++) {
@@ -110,12 +110,55 @@ const deserializeSqlObjectUnwrap: SqlTypeHandler<TypeClass | TypeObjectLiteral> 
 };
 
 // --- unions ----------------------------------------------------------------------------------
-// On deserialize, a DB usually returns a JSON string for union columns that need JSON casting;
-// parse it before the default union handler runs (prepend). Serialize needs no special casing
-// (matches the old serializer, which left it to the default union handler).
+// A direct entity column whose type is a union that mixes scalars with objects/arrays (e.g.
+// `{ foo: string } | 54`, `{ name: string } | null`) is stored as a single JSON-string column so
+// the scalar/object distinction round-trips (`54` ↔ `"54"`, `{...}` ↔ `'{...}'`). We JSON-encode the
+// chosen union value once, here at the column level (treeDepth 1), after the default union handler
+// has serialized the picked member.
+//
+// Why this is needed: the default union handler's *scored* path (a union mixing an object with a
+// scalar/null, e.g. `{name} | null`, `{foo} | 54`) returns the object member as a RAW object — the
+// member's objectLiteral handler doesn't stringify it there — so without this the driver gets a raw
+// object as a bind param and fails ("named parameters in two different objects" / wrong column value).
+//
+// Two exclusions keep us from corrupting values that are already correct:
+//
+//  1. ALREADY-STRINGIFIED MEMBERS — the *discriminated* path (a union of object literals sharing a
+//     discriminator, e.g. `{type:'local'} | {type:'remote'}`) builds the chosen member at the
+//     column's tree depth, so serializeSqlObjectWrap has ALREADY produced a JSON string by the time
+//     we run. Re-encoding would double-stringify (`'"{\\"type\\":...}"'`). So we skip values that
+//     are already strings (handled in sqlSerializeJsonUnionValue).
+//
+//  2. DATE UNIONS — a union that resolves to Date (e.g. `Date | null`) gets a native datetime/
+//     timestamp column (the platform maps `typeResolvesToDate` → datetime), NOT a JSON column, so its
+//     value must stay a raw Date; JSON-encoding it would bind `'"1960-...Z"'` and the driver rejects
+//     it. `unionNeedsJsonColumn` excludes these, mirroring the DDL's JSON-vs-native column choice.
+//
+// NULL/undefined always pass through so the column stores SQL NULL (the JSON `'null'` string would
+// defeat `WHERE col IS NULL`).
+//
+// On deserialize, deserializeSqlUnion (prepend) JSON-parses the stored string before the default
+// union handler runs, restoring the scalar-or-object value.
+
+function unionNeedsJsonColumn(type: TypeUnion): boolean {
+    return typeRequiresJSONCast(type) && !typeResolvesToDate(type);
+}
+
+function sqlSerializeJsonUnionValue(value: any): any {
+    // null/undefined → SQL NULL; already-a-string → discriminated member already JSON-encoded.
+    if (value === null || value === undefined || typeof value === 'string') return value;
+    return JSON.stringify(value);
+}
+
+const serializeSqlUnion: SqlTypeHandler<TypeUnion> = (type, input, b, ctx) => {
+    if (isDirectEntityColumn(ctx) && unionNeedsJsonColumn(type)) {
+        return b.call(sqlSerializeJsonUnionValue, input);
+    }
+    return input;
+};
 
 const deserializeSqlUnion: SqlTypeHandler<TypeUnion> = (type, input, b, ctx) => {
-    if (isDirectEntityColumn(ctx) && typeRequiresJSONCast(type)) {
+    if (isDirectEntityColumn(ctx) && unionNeedsJsonColumn(type)) {
         return b.ternary(b.isType(input, 'string'), b.call(JSON.parse, input), input);
     }
     return input;
@@ -218,7 +261,9 @@ export class SqlSerializer extends Serializer {
         this.serializeRegistry.append(ReflectionKind.array, serializeSqlArray);
         this.deserializeRegistry.prepend(ReflectionKind.array, deserializeSqlArray);
 
-        // union deserialize: JSON-parse direct columns that need it, before the default union handler.
+        // union serialize: JSON-encode direct columns that mix scalars with objects/arrays, after
+        // the default union handler. union deserialize: JSON-parse those columns first, before it.
+        this.serializeRegistry.append(ReflectionKind.union, serializeSqlUnion);
         this.deserializeRegistry.prepend(ReflectionKind.union, deserializeSqlUnion);
 
         // Date serialize: pass the Date through — the SQL driver/escaping handles it (no ISO string).

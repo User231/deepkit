@@ -21,6 +21,7 @@ import {
     UnpopulatedCheck,
     getPrimaryKeyExtractor,
     getTypeJitContainer,
+    isReferenceHydrated,
     isReferenceInstance,
     markAsHydrated,
     stringifyType,
@@ -226,6 +227,15 @@ export class DatabaseSessionRound<ADAPTER extends DatabaseAdapter> {
 
                 for (const item of group.items) {
                     const state = getInstanceState(classState, item);
+
+                    // A non-hydrated reference instance is a foreign-key placeholder (only its
+                    // primary key is loaded); its other columns are deliberately unpopulated. It
+                    // gets pulled into the round when flush() seeds from the identity map, but it
+                    // carries no persistable state and must not be validated (validating its
+                    // unloaded columns reports spurious "Not a string"/missing errors) nor
+                    // inserted. Skip it: if the caller mutated it they'd have hydrated it first.
+                    if (isReferenceInstance(item) && !isReferenceHydrated(item)) continue;
+
                     const errors = validate(item, classState.classSchema.type);
                     if (errors.length) {
                         throw new DatabaseValidationError(classState.classSchema, errors);
