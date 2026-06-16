@@ -129,7 +129,7 @@ export class MongoInstance {
 }
 
 const portRangeStart = Number(process.env.MONGO_PORT_RANGE_START || 27000);
-const mongoImage = process.env.MONGO_IMAGE || 'mongo:5';
+const mongoImage = process.env.MONGO_IMAGE || 'mongo:8';
 
 export class MongoEnv {
     protected reservedPorts: number[] = [];
