@@ -9,6 +9,16 @@
  */
 // @ts-ignore
 import abstractSyntaxTree from 'abstract-syntax-tree';
+// abstract-syntax-tree's bundled estraverse predates ES2022 class nodes (StaticBlock,
+// PropertyDefinition) and throws "Unknown node type" while traversing classes that carry runtime
+// reflection metadata — the type compiler emits `static { this.__type = [...] }` on class
+// components, which surfaces under an ES2022 transpile target. estraverse supports a per-call
+// `keys` option that merges onto its built-in VisitorKeys, but the library's `replace`/`traverse`
+// wrappers don't forward it. We patch the shared estraverse module (the same instance the wrappers
+// use) once so every traversal learns these node types; a targeted key extension leaves traversal
+// of all other node types unchanged. `generate` already round-trips these nodes.
+// @ts-ignore - internal subpath import; abstract-syntax-tree ships no `exports` map and no types.
+import estraverse from 'abstract-syntax-tree/src/traverse/estraverse';
 import type {
     ArrayExpression,
     ArrayPattern,
@@ -35,17 +45,6 @@ import { voidElements } from './template.js';
 import { escape, escapeHtml } from './utils.js';
 
 const { parse, generate, replace } = abstractSyntaxTree;
-
-// abstract-syntax-tree's bundled estraverse predates ES2022 class nodes (StaticBlock,
-// PropertyDefinition) and throws "Unknown node type" while traversing classes that carry runtime
-// reflection metadata — the type compiler emits `static { this.__type = [...] }` on class
-// components, which surfaces under an ES2022 transpile target. estraverse supports a per-call
-// `keys` option that merges onto its built-in VisitorKeys, but the library's `replace`/`traverse`
-// wrappers don't forward it. We patch the shared estraverse module (the same instance the wrappers
-// use) once so every traversal learns these node types; a targeted key extension leaves traversal
-// of all other node types unchanged. `generate` already round-trips these nodes.
-// @ts-ignore - internal subpath import; abstract-syntax-tree ships no `exports` map and no types.
-import estraverse from 'abstract-syntax-tree/src/traverse/estraverse';
 
 const ES2022_VISITOR_KEYS = { StaticBlock: ['body'], PropertyDefinition: ['key', 'value'] };
 for (const method of ['replace', 'traverse'] as const) {

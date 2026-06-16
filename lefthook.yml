@@ -10,21 +10,18 @@ commit-msg:
 
 pre-commit:
   commands:
-    # Format staged files
+    # Format staged files, then verify — write → re-stage → check in ONE
+    # sequential command, so the write always finishes before the check
+    # (no parallel write-vs-check race). Prettier honours .prettierignore.
     prettier:
-      glob: '[*.{json,yml,yaml,html,ts,tsx,js,jsx},!./package-lock.json]'
-      run: ./node_modules/.bin/prettier --write {staged_files} && git add {staged_files}
+      glob: '*.{json,yml,yaml,html,ts,tsx,js,jsx}'
+      run: ./node_modules/.bin/prettier --write {staged_files} && git add {staged_files} && ./node_modules/.bin/prettier --check {staged_files}
+      fail_text: |
+        ❌ Prettier failed (unparseable file, or formatting could not be applied).
+        Run: ./node_modules/.bin/prettier --write <files>
 
     # NOTE: full-monorepo typecheck is enforced on pre-push (below), not pre-commit
     # (incremental `tsc --build` is too slow to run on every single commit).
-
-    # Lint check (required - blocks commit on failure)
-    lint:
-      glob: '*.{ts,tsx,js,jsx}'
-      run: ./node_modules/.bin/prettier --check {staged_files}
-      fail_text: |
-        ❌ Lint check failed!
-        Run: ./node_modules/.bin/prettier --write <files>
 
     # Block forbidden imports in type-compiler (circular dependency prevention)
     no-core-in-type-compiler:
@@ -72,7 +69,7 @@ pre-push:
       run: |
         echo "⚠️  Remember to run tests for affected packages before pushing:"
         echo "   npm run test packages/<affected-package>/"
-      skip: true  # Advisory only, enable when ready
+      skip: true # Advisory only, enable when ready
 
 # Post-checkout hooks for maintaining build state
 post-checkout:
@@ -84,4 +81,4 @@ post-checkout:
           echo "🔨 Rebuilding type-compiler..."
           npm run postinstall
         fi
-      skip: true  # Enable when ready
+      skip: true # Enable when ready

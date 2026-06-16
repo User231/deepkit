@@ -1,10 +1,10 @@
+import { init as initCjsLexer, parse as parseCjs } from 'cjs-module-lexer';
 import { existsSync, readFileSync } from 'fs';
 import { readFile, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { extname } from 'path';
-import { init as initCjsLexer, parse as parseCjs } from 'cjs-module-lexer';
 
 import { transpile } from './shared.js';
 
@@ -139,7 +139,9 @@ async function collectCjsNamedExports(filename: string, seen = new Set<string>()
     return names;
 }
 
-async function loadNodeModulesCjs(url: string): Promise<{ format: 'module'; source: string; shortCircuit: true } | undefined> {
+async function loadNodeModulesCjs(
+    url: string,
+): Promise<{ format: 'module'; source: string; shortCircuit: true } | undefined> {
     let filename: string;
     try {
         filename = fileURLToPath(url);

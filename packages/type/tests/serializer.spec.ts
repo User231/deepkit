@@ -12,18 +12,7 @@ import { describe, test } from 'node:test';
 import { TypeAnnotation, getClassName } from '@deepkit/core';
 import { expect } from '@deepkit/run/expect';
 
-import {
-    NamingStrategy,
-    Serializer,
-    createSerializeFunction,
-    getSerializeFunction,
-    registerDefaultHandlers,
-    registerTypeGuards,
-    registerUnionHandler,
-    registerValidationHook,
-    serializer,
-    underscoreNamingStrategy,
-} from '../index.js';
+import { NamingStrategy, Serializer, createSerializeFunction, getSerializeFunction, registerDefaultHandlers, registerTypeGuards, registerUnionHandler, registerValidationHook, serializer, underscoreNamingStrategy } from '../index.js';
 import { entity, t } from '../src/decorator.js';
 import { isReferenceInstance } from '../src/reference.js';
 import { parametersToTuple } from '../src/reflection/extends.js';

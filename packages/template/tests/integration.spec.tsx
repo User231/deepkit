@@ -1,9 +1,11 @@
 import { describe, test } from 'node:test';
-import { expect } from '@deepkit/run/expect';
-import '../src/optimize-tsx';
-import { html, render } from '../src/template.js';
+
 import { Injector } from '@deepkit/injector';
+import { expect } from '@deepkit/run/expect';
+
+import '../src/optimize-tsx';
 import { optimizeJSX } from '../src/optimize-tsx.js';
+import { html, render } from '../src/template.js';
 import { escape, safe } from '../src/utils.js';
 
 Error.stackTraceLimit = 200;
@@ -34,33 +36,38 @@ async function simpleRender(t: any): Promise<string> {
     return await render(Injector.from([]), t);
 }
 
-const tests: { t: Function, contains?: string, result: string }[] = [
+const tests: { t: Function; contains?: string; result: string }[] = [
     {
         t() {
             return <div></div>;
         },
         contains: `"<div></div>"`,
-        result: '<div></div>'
+        result: '<div></div>',
     },
     {
         t() {
-            return <div><h1></h1></div>;
+            return (
+                <div>
+                    <h1></h1>
+                </div>
+            );
         },
         contains: `"<div><h1></h1></div>"`,
-        result: '<div><h1></h1></div>'
+        result: '<div><h1></h1></div>',
     },
     {
         t() {
-            return <>
-                {html(`<!DOCTYPE html>`)}
-                <html lang="en">
-                <head>
-                </head>
-                </html>
-            </>;
+            return (
+                <>
+                    {html(`<!DOCTYPE html>`)}
+                    <html lang="en">
+                        <head></head>
+                    </html>
+                </>
+            );
         },
         contains: `"<!DOCTYPE html><html lang=\\"en\\"><head></head></html>"`,
-        result: '<!DOCTYPE html><html lang="en"><head></head></html>'
+        result: '<!DOCTYPE html><html lang="en"><head></head></html>',
     },
     {
         t() {
@@ -68,7 +75,7 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             return <title>{page}</title>;
         },
         contains: `[{[jsx_runtime_1.safeString]: "<title>"}, page, {[jsx_runtime_1.safeString]: "</title>"}]`,
-        result: '<title>&lt;h1&gt;Hello World</title>'
+        result: '<title>&lt;h1&gt;Hello World</title>',
     },
     {
         t() {
@@ -76,7 +83,7 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             return <title>{safe(safeTitle)}</title>;
         },
         contains: `"<title>" + safeTitle + "</title>"`,
-        result: '<title><h1>Hello World</h1></title>'
+        result: '<title><h1>Hello World</h1></title>',
     },
     {
         t() {
@@ -84,7 +91,7 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             return <title>{html(safeTitle2)}</title>;
         },
         contains: `"<title>" + safeTitle2 + "</title>"`,
-        result: '<title><h1>Hello World</h1></title>'
+        result: '<title><h1>Hello World</h1></title>',
     },
     {
         t() {
@@ -92,23 +99,31 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             return <title>{escape(page)}</title>;
         },
         contains: `"<title>" + (0, utils_js_1.escape)(page).htmlString + "</title>"`,
-        result: '<title>&lt;h1&gt;Hello World</title>'
+        result: '<title>&lt;h1&gt;Hello World</title>',
     },
     {
         t() {
             const page = '<h1>Hello World';
-            return <html lang="en"><title>{escape(page)}</title></html>;
+            return (
+                <html lang="en">
+                    <title>{escape(page)}</title>
+                </html>
+            );
         },
         contains: `"<html lang=\\"en\\"><title>" + (0, utils_js_1.escape)(page).htmlString + "</title></html>"`,
-        result: '<html lang="en"><title>&lt;h1&gt;Hello World</title></html>'
+        result: '<html lang="en"><title>&lt;h1&gt;Hello World</title></html>',
     },
     {
         t() {
             const page = '<h1>Hello World';
-            return <html lang="en"><title>{page}</title></html>;
+            return (
+                <html lang="en">
+                    <title>{page}</title>
+                </html>
+            );
         },
         contains: `[{[jsx_runtime_1.safeString]: "<html lang=\\"en\\"><title>"}, page, {[jsx_runtime_1.safeString]: "</title></html>"}]`,
-        result: '<html lang="en"><title>&lt;h1&gt;Hello World</title></html>'
+        result: '<html lang="en"><title>&lt;h1&gt;Hello World</title></html>',
     },
     {
         t() {
@@ -116,7 +131,7 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             return <html lang="en">{page}</html>;
         },
         // contains: `return "<html lang=\\"en\\"><title>" + page + "</title></html>"`,
-        result: '<html lang="en"><body>hi</body></html>'
+        result: '<html lang="en"><body>hi</body></html>',
     },
     {
         t() {
@@ -125,21 +140,27 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             return <html lang="en">{page}</html>;
         },
         // contains: `return "<html lang=\\"en\\"><title>" + page + "</title></html>"`,
-        result: '<html lang="en"><body>&lt;h1&gt;hi</body></html>'
+        result: '<html lang="en"><body>&lt;h1&gt;hi</body></html>',
     },
     {
         t() {
             const page = '<h1>Hello World';
-            return <html lang="en"><title>{safe(page)}</title></html>;
+            return (
+                <html lang="en">
+                    <title>{safe(page)}</title>
+                </html>
+            );
         },
         contains: `"<html lang=\\"en\\"><title>" + page + "</title></html>"`,
-        result: '<html lang="en"><title><h1>Hello World</title></html>'
+        result: '<html lang="en"><title><h1>Hello World</title></html>',
     },
     {
         t() {
             class Peter {
-                constructor(protected props: {}, protected children: any) {
-                }
+                constructor(
+                    protected props: {},
+                    protected children: any,
+                ) {}
 
                 render() {
                     return <div>{this.children}</div>;
@@ -147,16 +168,24 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             }
 
             const page = '<h1>Hello World';
-            return <html lang="en"><Peter><h1>{page}</h1></Peter></html>;
+            return (
+                <html lang="en">
+                    <Peter>
+                        <h1>{page}</h1>
+                    </Peter>
+                </html>
+            );
         },
         // contains: `"<html lang=\\"en\\"><title>" + page + "</title></html>"`,
-        result: '<html lang="en"><div><h1>&lt;h1&gt;Hello World</h1></div></html>'
+        result: '<html lang="en"><div><h1>&lt;h1&gt;Hello World</h1></div></html>',
     },
     {
         t() {
             class Peter {
-                constructor(protected props: {}, protected children: any) {
-                }
+                constructor(
+                    protected props: {},
+                    protected children: any,
+                ) {}
 
                 render() {
                     return <div>{this.children}</div>;
@@ -164,36 +193,58 @@ const tests: { t: Function, contains?: string, result: string }[] = [
             }
 
             const page = '<h1>Hello World';
-            return <html lang="en"><Peter>{page}</Peter></html>;
+            return (
+                <html lang="en">
+                    <Peter>{page}</Peter>
+                </html>
+            );
         },
         // contains: `"<html lang=\\"en\\"><title>" + page + "</title></html>"`,
-        result: '<html lang="en"><div>&lt;h1&gt;Hello World</div></html>'
+        result: '<html lang="en"><div>&lt;h1&gt;Hello World</div></html>',
     },
     {
         t() {
-            const users: { id: number, username: string }[] = [{ id: 1, username: 'peter1' }, { id: 2, username: 'peter2' }];
+            const users: { id: number; username: string }[] = [
+                { id: 1, username: 'peter1' },
+                { id: 2, username: 'peter2' },
+            ];
             const user = users[0];
-            return <tr>
-                <td>{user.username}</td>
-                <td><img src={'/image/' + user.id}/></td>
-            </tr>;
+            return (
+                <tr>
+                    <td>{user.username}</td>
+                    <td>
+                        <img src={'/image/' + user.id} />
+                    </td>
+                </tr>
+            );
         },
         contains: `[{[jsx_runtime_1.safeString]: "<tr><td>"}, user.username, {[jsx_runtime_1.safeString]: "</td><td><img src=\\""}, jsx_runtime_1.escapeAttribute("/image/" + user.id), {[jsx_runtime_1.safeString]: "\\"/></td></tr>"}]`,
-        result: '<tr><td>peter1</td><td><img src="/image/1"/></td></tr>'
+        result: '<tr><td>peter1</td><td><img src="/image/1"/></td></tr>',
     },
     {
         t() {
-            const users: { id: number, username: string }[] = [{ id: 1, username: 'peter1' }, { id: 2, username: 'peter2' }];
+            const users: { id: number; username: string }[] = [
+                { id: 1, username: 'peter1' },
+                { id: 2, username: 'peter2' },
+            ];
 
-            return <table class="pretty">
-                {users.map(user => <tr>
-                    <td><strong>{user.username}</strong></td>
-                    <td><img class="user-image" src={'/image/' + user.id}/></td>
-                </tr>)}
-            </table>;
+            return (
+                <table class="pretty">
+                    {users.map(user => (
+                        <tr>
+                            <td>
+                                <strong>{user.username}</strong>
+                            </td>
+                            <td>
+                                <img class="user-image" src={'/image/' + user.id} />
+                            </td>
+                        </tr>
+                    ))}
+                </table>
+            );
         },
         // contains: `"<html lang=\\"en\\"><title>" + page + "</title></html>"`,
-        result: '<table class="pretty"><tr><td><strong>peter1</strong></td><td><img class="user-image" src="/image/1"/></td></tr><tr><td><strong>peter2</strong></td><td><img class="user-image" src="/image/2"/></td></tr></table>'
+        result: '<table class="pretty"><tr><td><strong>peter1</strong></td><td><img class="user-image" src="/image/1"/></td></tr><tr><td><strong>peter2</strong></td><td><img class="user-image" src="/image/2"/></td></tr></table>',
     },
 ];
 
@@ -209,7 +260,9 @@ describe('integration', () => {
             const optimised = optimiseFn(i.t);
             const optimisedOutput = await simpleRender(optimised());
             if (optimisedOutput !== i.result) {
-                throw new Error(`Optimised function returned something wrong: ${optimised.toString()}. Expected ${i.result}, but got ${optimisedOutput}.`);
+                throw new Error(
+                    `Optimised function returned something wrong: ${optimised.toString()}. Expected ${i.result}, but got ${optimisedOutput}.`,
+                );
             }
             expect(optimisedOutput).toBe(i.result);
         });
