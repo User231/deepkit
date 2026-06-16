@@ -350,7 +350,7 @@ test('barrel file pattern: multiple re-exports from different modules', () => {
 // Classes use static __type property but also get __Ω symbols for re-exports
 // =============================================================================
 
-test('class re-export: classes get both __type property and __Ω symbol for re-export', () => {
+test('class re-export: classes carry reflection via __type, no dangling __Ω re-export', () => {
     const res = transform({
         'index.ts': `
             export { MyClass } from './class';
@@ -363,12 +363,18 @@ test('class re-export: classes get both __type property and __Ω symbol for re-e
         `,
     });
 
-    // class.ts should have static __type on the class
+    // class.ts carries reflection in the `__type` static on the class value.
     expect(res['class.ts']).toContain('static __type');
 
-    // The __ΩMyClass IS added to support re-export of type information
-    // This is the expected behavior - classes need __Ω for re-export scenarios
-    expect(res['index.ts']).toContain('__ΩMyClass');
+    // A class is NOT emitted with a standalone `const __ΩMyClass` (only
+    // interfaces/type-aliases/enums are — they have no runtime value to hold
+    // reflection). Reflected types reference a class via its VALUE (`() =>
+    // MyClass`, reading `.__type`), never `__ΩMyClass`. So re-exporting
+    // `__ΩMyClass` would forward a binding that does not exist, producing a
+    // dangling ESM export (the @deepkit/bson `__ΩBSONValue` regression). The
+    // `export { MyClass }` already carries the class value + its `__type`.
+    expect(res['class.ts']).not.toContain('__ΩMyClass');
+    expect(res['index.ts']).not.toContain('__ΩMyClass');
 });
 
 test('star export: export * from "./module" passes through __Ω symbols', () => {
