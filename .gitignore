@@ -22,3 +22,16 @@ packages/create-app/files/var
 .mcp.json
 .claude/*
 !.claude/handover.md
+
+# Build artifacts left by the GUI/website packages' `build` scripts
+# (ng build cache, devtool's `zip -r dist.zip dist`, desktop-ui's typedoc `docs.json`).
+# These are emitted by `lerna run build` (a full `npm run build`) and otherwise show
+# up as untracked junk — none of it is needed by consumers of the library packages.
+.angular
+packages/*/dist.zip
+packages/desktop-ui/docs.json
+*docs-json.d.ts
+.typedoc-html
+
+# Nx task-runner cache (build ordering + caching is configured in nx.json)
+.nx/

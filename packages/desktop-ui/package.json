@@ -41,7 +41,7 @@
     "font": "node bin/create-font.js",
     "build": "npm run font && npm run docjson && rm -rf .angular && ng-packagr --config tsconfig.prod.json && rm dist/.npmignore",
     "watch": "ng-packagr --config tsconfig.prod.json --watch",
-    "docjson": "typedoc --json docs.json --options ../../typedoc.js --plugin ../../typedoc.decorators.js src/index.ts && cp docs.json src/assets/docs.json",
+    "docjson": "typedoc --json docs.json --out .typedoc-html --options ../../typedoc.js --plugin ../../typedoc.decorators.js src/index.ts && cp docs.json src/assets/docs.json && rm -rf .typedoc-html",
     "prepublishOnly": "webpack && node bin/create-font.js"
   },
   "browserslist": [
