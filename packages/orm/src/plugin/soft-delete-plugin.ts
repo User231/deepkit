@@ -14,7 +14,7 @@ import { ReflectionClass } from '@deepkit/type';
 import { DatabaseAdapter } from '../database-adapter.js';
 import { DatabaseSession } from '../database-session.js';
 import { Database } from '../database.js';
-import { Query } from '../query.js';
+import { Condition, Query } from '../query.js';
 import { OrmEntity } from '../type.js';
 import { DatabasePlugin } from './plugin.js';
 
@@ -89,7 +89,9 @@ export class SoftDeleteQuery<T extends SoftDeleteEntity> extends Query<T> {
     isSoftDeleted(): this {
         const m = this.clone();
         m.includeSoftDeleted = true;
-        return m.filterField('deletedAt', { $ne: undefined });
+        // `T` is the plugin's generic entity here, so `{ $ne: undefined }` can't be checked
+        // against `Condition<T['deletedAt']>` — cast through the generic escape hatch.
+        return m.filterField('deletedAt', { $ne: undefined } as Condition<T['deletedAt']>);
     }
 
     deletedBy(value: T['deletedBy']): this {

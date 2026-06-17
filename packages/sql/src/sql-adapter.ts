@@ -60,8 +60,18 @@ import { DatabaseComparator, DatabaseModel } from './schema/table.js';
 import { Sql, SqlBuilder } from './sql-builder.js';
 import { SqlFormatter } from './sql-formatter.js';
 
-export type SORT_TYPE = SORT_ORDER | { $meta: 'textScore' };
-export type DEEP_SORT<T extends OrmEntity> = { [P in keyof T]?: SORT_TYPE } & { [P: string]: SORT_TYPE };
+// Strict per-adapter sort VALUE. Deliberately spelled out as `'asc' | 'desc'` rather than
+// reusing `SORT_ORDER` (which is intentionally wide — it carries a trailing `any` so it can
+// serve as the generic constraint bound). This is what makes `.sort({ id: 'up' })` a compile
+// error on SQL queries instead of silently passing.
+export type SORT_TYPE = 'asc' | 'desc' | { $meta: 'textScore' };
+// Strict sort KEYS, mirroring the strict `FilterQuery`: only real entity columns, plus a DOTTED
+// template-literal escape hatch for relation/JSON paths (e.g. 'user.address.street'). A plain
+// mistyped column like `{ tpyo: 'asc' }` matches neither and is a compile error. The loose
+// `{ [P: string]: SORT_TYPE }` index this replaces accepted any key.
+export type DEEP_SORT<T extends OrmEntity> = { [P in keyof T & string]?: SORT_TYPE } & {
+    [path: `${string}.${string}`]: SORT_TYPE;
+};
 
 /**
  * user.address[0].street => [user, address[0].street]
@@ -675,6 +685,33 @@ export abstract class SQLDatabaseAdapter extends DatabaseAdapter {
         return new SqlRawFactory(session, this.connectionPool, this.platform);
     }
 
+    /**
+     * Runs parameterized raw SQL on the connection bound to `session`'s active transaction
+     * (or a fresh pooled connection when the session has none) and returns the result rows.
+     *
+     * This is the escape hatch for statements the query builder can't express — e.g. a
+     * version-guarded `INSERT ... ON CONFLICT (pk) DO UPDATE SET ... WHERE excluded.v > t.v`,
+     * or a bulk multi-row upsert — while still sharing the session's transaction, so ORM
+     * unit-of-work writes (`session.add()`, `query().patchMany()`) and these raw writes commit
+     * together. Unlike `session.raw` (the `sql\`\`` tagged-template form), this takes a plain
+     * SQL string and a positional `params` array, so existing driver-style SQL can run as-is.
+     *
+     * Placeholders use the driver's native positional style (`$1, $2` on postgres, `?` on
+     * mysql/sqlite). Rows are returned verbatim from the driver (NOT deserialized into an
+     * entity) — caller owns the row shape, exactly like a hand-written query.
+     */
+    async runRaw<T = any>(session: DatabaseSession<this>, sql: string, params: any[] = []): Promise<T[]> {
+        const connection = await this.connectionPool.getConnection(session.assignedTransaction);
+        try {
+            const rows = await connection.execAndReturnAll(sql, params);
+            return Array.isArray(rows) ? rows : [];
+        } finally {
+            // For a transaction-bound connection this is a no-op (the pool keeps it sticky
+            // until commit/rollback); for a standalone call it returns the connection.
+            connection.release();
+        }
+    }
+
     async getInsertBatchSize(schema: ReflectionClass<any>): Promise<number> {
         return Math.floor(30000 / schema.getProperties().length);
     }
@@ -939,7 +976,10 @@ export class SQLPersistence extends DatabasePersistence {
     async remove<T extends OrmEntity>(classSchema: ReflectionClass<T>, items: T[]): Promise<void> {
         // Serialize only the primary key (partial), never the whole entity: a full-entity
         // serializer would touch unpopulated BackReference getters (DK-O200) for a plain delete.
-        const scopeSerializer = getPartialSerializeFunction(classSchema.type, this.platform.serializer.serializeRegistry);
+        const scopeSerializer = getPartialSerializeFunction(
+            classSchema.type,
+            this.platform.serializer.serializeRegistry,
+        );
         const pks: any[] = [];
         const primary = classSchema.getPrimary();
         const pkName = primary.name;

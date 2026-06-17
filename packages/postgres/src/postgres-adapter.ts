@@ -443,7 +443,16 @@ export class PostgresPersistence extends SQLPersistence {
 export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T> {
     async delete(model: SQLQueryModel<T>, deleteResult: DeleteResult<T>): Promise<void> {
         const primaryKey = this.classSchema.getPrimary();
-        const pkField = this.platform.quoteIdentifier(primaryKey.name);
+        // Use the PK's DB COLUMN name (honours `DatabaseField<{name}>`), not the property name —
+        // otherwise a renamed primary key produces `RETURNING tbl.propName` for a column that
+        // doesn't exist. `pkAlias` aliases the returned column back to the property name so the
+        // result rows are still keyed by `primaryKey.name`. Deepkit ORM is single-primary-key by
+        // design (composite PKs are deliberately unsupported — see docs/orm/composite-primary-key),
+        // so a single-column join is correct; natural keys are modelled as a surrogate PK + a
+        // UNIQUE index, and the delete filters on that index, never on the PK columns directly.
+        const entity = getPreparedEntity(this.session.adapter as SQLDatabaseAdapter, this.classSchema);
+        const pkField = entity.fieldMap[primaryKey.name].columnNameEscaped;
+        const pkAlias = this.platform.quoteIdentifier(primaryKey.name);
         const primaryKeyConverted = primaryKeyObjectConverter(
             this.classSchema,
             this.platform.serializer.deserializeRegistry,
@@ -460,7 +469,7 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
                 DELETE
                 FROM ${tableName} USING _
                 WHERE ${tableName}.${pkField} = _.${pkField}
-                RETURNING ${tableName}.${pkField}
+                RETURNING ${tableName}.${pkField} AS ${pkAlias}
             `;
 
             const rows = await connection.execAndReturnAll(sql, select.params);
@@ -487,6 +496,9 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
         const entity = getPreparedEntity(this.session.adapter as SQLDatabaseAdapter, this.classSchema);
         const tableName = entity.tableNameEscaped;
         const primaryKey = this.classSchema.getPrimary();
+        // PK's DB COLUMN name (honours `DatabaseField<{name}>`); `primaryKey.name` is the property
+        // name and is kept only as the CTE/returning alias so result rows stay keyed by it.
+        const pkColumn = entity.fieldMap[primaryKey.name].columnNameEscaped;
         const primaryKeyConverted = primaryKeyObjectConverter(
             this.classSchema,
             this.platform.serializer.deserializeRegistry,
@@ -506,7 +518,7 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
             for (const i in $set) {
                 if (!$set.hasOwnProperty(i)) continue;
                 if ($set[i] === undefined || $set[i] === null) {
-                    set.push(`${this.platform.quoteIdentifier(i)} = NULL`);
+                    set.push(`${entity.fieldMap[i]?.columnNameEscaped ?? this.platform.quoteIdentifier(i)} = NULL`);
                 } else {
                     fieldsSet[i] = 1;
                     select.push(`$${selectParams.length + 1} as ${this.platform.quoteIdentifier(asAliasName(i))}`);
@@ -560,20 +572,23 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
             } else {
                 const property = entity.fieldMap[i];
                 const ref = '_b.' + this.platform.quoteIdentifier(asAliasName(i));
-                set.push(`${this.platform.quoteIdentifier(i)} = ${property.sqlTypeCast(ref)}`);
+                set.push(`${property.columnNameEscaped} = ${property.sqlTypeCast(ref)}`);
             }
         }
+        // `bPrimaryKey` is the CTE (`_b`) alias for the PK; it stays property-named so the SET
+        // join below is self-consistent. The source read, however, must come from the real PK
+        // column (`pkColumn`).
         let bPrimaryKey = primaryKey.name;
         //we need a different name because primaryKeys could be updated as well
         if (fieldsSet[primaryKey.name]) {
-            select.unshift(this.platform.quoteIdentifier(primaryKey.name) + ' as __' + primaryKey.name);
+            select.unshift(`${pkColumn} as ${this.platform.quoteIdentifier('__' + primaryKey.name)}`);
             bPrimaryKey = '__' + primaryKey.name;
         } else {
-            select.unshift(this.platform.quoteIdentifier(primaryKey.name));
+            select.unshift(`${pkColumn} as ${this.platform.quoteIdentifier(primaryKey.name)}`);
         }
 
         const returningSelect: string[] = [];
-        returningSelect.push(tableName + '.' + this.platform.quoteIdentifier(primaryKey.name));
+        returningSelect.push(`${tableName}.${pkColumn} as ${this.platform.quoteIdentifier(primaryKey.name)}`);
 
         if (!empty(aggregateFields)) {
             for (const i in aggregateFields) {
@@ -590,7 +605,7 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
                 ${tableName}
             SET ${set.join(', ')}
             FROM _b
-            WHERE ${tableName}.${this.platform.quoteIdentifier(primaryKey.name)} = _b.${this.platform.quoteIdentifier(bPrimaryKey)}
+            WHERE ${tableName}.${pkColumn} = _b.${this.platform.quoteIdentifier(bPrimaryKey)}
                 RETURNING ${returningSelect.join(', ')}
         `;
 

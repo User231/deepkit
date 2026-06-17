@@ -37,6 +37,12 @@ import {
 import { DeleteResult, OrmEntity, PatchResult } from './type.js';
 import { FieldName, FlattenIfArray, Replace, Resolve } from './utils.js';
 
+// `SORT_ORDER` doubles as the generic constraint bound for the SORT type parameter, so it
+// stays wide (the trailing `any`) to admit richer adapter sort models (SQL's `DEEP_SORT` adds
+// `{ $meta: 'textScore' }` + dotted relation paths). User-facing strictness is delivered by
+// the concrete per-adapter sort type (e.g. SQL's `DEEP_SORT`, which is key- and value-strict),
+// not by narrowing this bound — narrowing it ripples through every internal `Sort<T, SORT_ORDER>`
+// signature.
 export type SORT_ORDER = 'asc' | 'desc' | any;
 export type Sort<T extends OrmEntity, ORDER extends SORT_ORDER = SORT_ORDER> = { [P in keyof T & string]?: ORDER };
 
@@ -76,18 +82,32 @@ export type RootQuerySelector<T> = {
     $and?: Array<FilterQuery<T>>;
     $nor?: Array<FilterQuery<T>>;
     $or?: Array<FilterQuery<T>>;
-    // we could not find a proper TypeScript generic to support nested queries e.g. 'user.friends.name'
-    // this will mark all unrecognized properties as any (including nested queries)
-    [deepPath: string]: any;
+    // Nested / JSON-column paths (e.g. 'user.friends.name', 'raw.productId') stay open
+    // via a DOTTED template-literal index signature — anything containing a '.' is still
+    // accepted as `any`, so embedded-document and JSONB queries keep working. But a plain
+    // mistyped top-level key like `{ tpyo: 1 }` no longer slips through: it matches neither
+    // a real entity property nor this pattern, so it's a compile error. This is the strict
+    // replacement for the former `[deepPath: string]: any`, which accepted every key.
+    [deepPath: `${string}.${string}`]: any;
 };
 
 type RegExpForString<T> = T extends string ? RegExp | T : T;
 type MongoAltQuery<T> = T extends Array<infer U> ? T | RegExpForString<U> : RegExpForString<T>;
 export type Condition<T> = MongoAltQuery<T> | QuerySelector<MongoAltQuery<T>>;
 
-export type FilterQuery<T> = {
-    [P in keyof T & string]?: Condition<T[P]>;
-} & RootQuerySelector<T>;
+// The first union arm is the strict, operator-aware filter literal (entity keys + $and/$or/$nor
+// + the dotted escape hatch). The `| Partial<T>` arm re-admits "filter by example" — passing a
+// whole (or partial) entity instance, e.g. `.filter(user)`. It's needed because the dotted
+// template-literal index signature on `RootQuerySelector` is a *pattern* index: TypeScript only
+// considers a value assignable to it if the value's own type declares a matching index signature,
+// which a plain entity class never does. Crucially, this does NOT reopen the typo hole: excess-
+// property checking on object literals still fires, because a stray key like `tpyo` exists in
+// neither arm (not an entity key, not dotted, not in `Partial<T>`).
+export type FilterQuery<T> =
+    | ({
+          [P in keyof T & string]?: Condition<T[P]>;
+      } & RootQuerySelector<T>)
+    | Partial<T>;
 
 export class DatabaseQueryModel<
     T extends OrmEntity,
@@ -509,7 +529,10 @@ export class BaseQuery<T extends OrmEntity> {
      *
      * Note: previous filter conditions are preserved.
      */
-    filterField<K extends keyof T & string>(name: K, value: FilterQuery<T>[K]): this {
+    filterField<K extends keyof T & string>(name: K, value: Condition<T[K]>): this {
+        // The strict per-field filter value is `Condition<T[K]>` (entity value or an operator
+        // selector). Was `FilterQuery<T>[K]`, but `FilterQuery` is now a union, and indexing a
+        // union by a single key yields a degraded type — `Condition<T[K]>` is the precise shape.
         return this.filter({ [name]: value } as any);
     }
 
@@ -924,7 +947,9 @@ export class Query<T extends OrmEntity> extends BaseQuery<T> {
             const discriminant = query.classSchema.parent.getSingleTableInheritanceDiscriminantName();
             const property = query.classSchema.getProperty(discriminant);
             assertType(property.type, ReflectionKind.literal);
-            return query.filterField(discriminant as keyof T & string, property.type.literal) as this;
+            // Generic STI discriminant: `T` is unresolved here, so the literal value can't be
+            // checked against `Condition<T[K]>` — cast through the helper's escape-hatch intent.
+            return query.filterField(discriminant as keyof T & string, property.type.literal as any) as this;
         }
         return query as this;
     }
