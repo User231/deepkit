@@ -672,6 +672,19 @@ function parseInt8AsString(value: string): string {
     return value;
 }
 
+/**
+ * Keep json/jsonb columns as the raw JSON TEXT the wire delivers, instead of pg's
+ * default `JSON.parse`. The SQL serializer's deserialize contract is text-based
+ * (`typeof v === 'string' ? JSON.parse(v) : v`): handing it pre-parsed values silently
+ * breaks scalar JSON columns — a jsonb string `"hi"` auto-parses to `hi`, which the
+ * deserializer would then re-`JSON.parse` and throw on; and it would corrupt a stored
+ * string `"42"` into the number `42`. Returning raw text lets the deserializer parse
+ * once, losslessly, preserving the scalar/object distinction for every column shape.
+ */
+function keepJsonAsText(value: string): string {
+    return value;
+}
+
 export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
     protected options: PoolConfig;
     protected pool: pg.Pool;
@@ -692,6 +705,7 @@ export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
                 getTypeParser: (oid: number, format?: any) => {
                     if (oid === 1700) return parseFloat;
                     if (oid === 20) return parseInt8AsString;
+                    if (oid === 114 || oid === 3802) return keepJsonAsText; // json / jsonb
                     return pg.types.getTypeParser(oid as any, format);
                 },
             } as any;
