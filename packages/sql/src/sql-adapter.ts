@@ -214,6 +214,23 @@ function buildSetFromChanges(
     return set;
 }
 
+export interface UpsertOptions<T> {
+    /** Conflict-target columns (entity property names). Defaults to the primary key. */
+    on?: (keyof T & string)[];
+    /**
+     * Columns to overwrite on conflict (entity property names). Defaults to every
+     * inserted column except the conflict target; pass `[]` for `DO NOTHING`.
+     */
+    update?: (keyof T & string)[];
+    /**
+     * Optional per-column guard comparing the proposed row (`EXCLUDED`) to the
+     * stored row: the update only applies when every comparison holds. e.g.
+     * `{ version: '>' }` emits `WHERE EXCLUDED.version > t.version` — the
+     * monotonic version guard a state projection needs.
+     */
+    guard?: { [K in keyof T & string]?: '>' | '>=' | '<' | '<=' };
+}
+
 export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<T> {
     protected tableId = this.platform.getTableIdentifier.bind(this.platform);
     protected quoteIdentifier = this.platform.quoteIdentifier.bind(this.platform);
@@ -399,6 +416,117 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
             connection.release();
         }
     }
+
+    /**
+     * Inserts `rows`, resolving primary-key / unique-index collisions. With
+     * `options.update === []` it ignores conflicts (idempotent insert — the
+     * at-least-once / junction-row idiom); otherwise it overwrites the chosen
+     * columns, optionally gated by `options.guard` (e.g. a monotonic version
+     * guard `{ version: '>' }`).
+     *
+     * This method is dialect-agnostic: it serializes the rows and delegates the
+     * actual statement (Postgres/SQLite `ON CONFLICT`, MySQL `ON DUPLICATE KEY
+     * UPDATE`, …) to {@link DefaultPlatform.getUpsertSQL}, which each supporting
+     * platform implements (others throw rather than emit invalid SQL).
+     *
+     * Rows are partial entity objects keyed by property name; every row must
+     * specify the same columns so the multi-row `VALUES` stays aligned. Runs on
+     * the session's (possibly transaction-bound) connection, so it commits with
+     * the surrounding unit of work / projection batch.
+     */
+    async upsert(rows: Partial<T>[], options: UpsertOptions<T>, result: PatchResult<T>): Promise<void> {
+        if (rows.length === 0) return;
+
+        const prepared = getPreparedEntity(this.adapter, this.classSchema);
+        const serialize = getPartialSerializeFunction(
+            this.classSchema.type,
+            this.platform.serializer.serializeRegistry,
+        );
+
+        const resolveField = (name: string): PreparedField => {
+            const field = prepared.fieldMap[name];
+            if (!field) {
+                throw new SqlError(
+                    'DK-SQL013',
+                    `upsert(): "${name}" is not a property of ${this.classSchema.getClassName()}.`,
+                );
+            }
+            return field;
+        };
+
+        // Insert columns are taken from the first row; every row must match so the
+        // multi-row VALUES stays aligned.
+        const insertFields = Object.keys(rows[0]).map(resolveField);
+        if (insertFields.length === 0) {
+            throw new SqlError('DK-SQL013', 'upsert(): rows must specify at least one column.');
+        }
+        const insertNames = new Set(insertFields.map(f => f.name));
+
+        const placeholder = new this.platform.placeholderStrategy();
+        const params: any[] = [];
+        const tuples: string[] = [];
+        for (const row of rows) {
+            const keys = Object.keys(row);
+            if (keys.length !== insertFields.length || keys.some(k => !insertNames.has(k))) {
+                throw new SqlError('DK-SQL013', 'upsert(): every row must specify the same columns.');
+            }
+            const converted = serialize(row);
+            const tuple: string[] = [];
+            for (const field of insertFields) {
+                const v = converted[field.name];
+                params.push(v === undefined ? null : v);
+                tuple.push(field.sqlTypeCast(placeholder.getPlaceholder()));
+            }
+            tuples.push(`(${tuple.join(', ')})`);
+        }
+
+        const conflictFields = options.on && options.on.length ? options.on.map(resolveField) : [prepared.primaryKey];
+        const conflictNames = new Set(conflictFields.map(f => f.name));
+
+        const updateFields = options.update
+            ? options.update.map(resolveField)
+            : insertFields.filter(f => !conflictNames.has(f.name));
+
+        // The guard op is interpolated into SQL — restrict it to the typed comparison set.
+        const guard: { column: string; op: string }[] = [];
+        if (options.guard) {
+            const guardMap = options.guard as Record<string, string | undefined>;
+            for (const name in guardMap) {
+                const op = guardMap[name];
+                if (!op) continue;
+                if (op !== '>' && op !== '>=' && op !== '<' && op !== '<=') {
+                    throw new SqlError('DK-SQL013', `upsert(): unsupported guard operator "${op}" for "${name}".`);
+                }
+                guard.push({ column: resolveField(name).columnNameEscaped, op });
+            }
+        }
+
+        // The dialect SQL (ON CONFLICT vs ON DUPLICATE KEY UPDATE, alias rules) lives in the platform.
+        const sql = this.platform.getUpsertSQL({
+            tableNameEscaped: prepared.tableNameEscaped,
+            columns: insertFields.map(f => f.columnNameEscaped),
+            valueTuples: tuples,
+            conflictColumns: conflictFields.map(f => f.columnNameEscaped),
+            updateColumns: updateFields.map(f => f.columnNameEscaped),
+            guard,
+        });
+
+        const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
+        try {
+            await connection.run(sql, params);
+            result.modified = await connection.getChanges();
+        } catch (error: any) {
+            error = new DatabaseInsertError(
+                this.classSchema,
+                rows as OrmEntity[],
+                `Could not upsert ${this.classSchema.getClassName()} into database`,
+                { cause: error },
+            );
+            throw this.handleSpecificError(error);
+        } finally {
+            connection.release();
+        }
+    }
 }
 
 type QueryPart = string | SqlQuery | SqlQueryParameter | SQLQueryIdentifier;
@@ -516,6 +644,37 @@ export class SQLDatabaseQuery<T extends OrmEntity> extends Query<T> {
         const c = this.clone();
         c.model.sqlSelect = sql;
         return c as any;
+    }
+
+    /**
+     * Idempotent insert: `INSERT ... ON CONFLICT (target) DO NOTHING`. Rows that
+     * collide on the conflict target (the primary key by default, or `on`) are
+     * skipped. Returns how many rows were actually inserted (`modified`).
+     *
+     * ```
+     * await session.query(TeamMember).insertOrIgnore({ teamId, userId }, ['teamId', 'userId']);
+     * ```
+     */
+    async insertOrIgnore(rows: Partial<T> | Partial<T>[], on?: (keyof T & string)[]): Promise<PatchResult<T>> {
+        const result: PatchResult<T> = { modified: 0, returning: {}, primaryKeys: [] };
+        await this.resolver.upsert(Array.isArray(rows) ? rows : [rows], { on, update: [] }, result);
+        return result;
+    }
+
+    /**
+     * Upsert: `INSERT ... ON CONFLICT (target) DO UPDATE SET ...`. Overwrites the
+     * columns in `options.update` (default: all inserted columns except the
+     * conflict target). Pass `options.guard` to gate the overwrite, e.g. a
+     * version guard. Returns how many rows were inserted-or-updated.
+     *
+     * ```
+     * await session.query(User).insertOrUpdate(row, { guard: { version: '>' } });
+     * ```
+     */
+    async insertOrUpdate(rows: Partial<T> | Partial<T>[], options: UpsertOptions<T> = {}): Promise<PatchResult<T>> {
+        const result: PatchResult<T> = { modified: 0, returning: {}, primaryKeys: [] };
+        await this.resolver.upsert(Array.isArray(rows) ? rows : [rows], options, result);
+        return result;
     }
 }
 

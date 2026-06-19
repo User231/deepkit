@@ -151,6 +151,20 @@ export interface TypeMapping {
     unsigned?: boolean;
 }
 
+/**
+ * Dialect-agnostic description of an upsert, assembled by the query resolver and turned into
+ * dialect SQL by {@link DefaultPlatform.getUpsertSQL}. All identifiers are already escaped; the
+ * value tuples already carry placeholders + type casts. `updateColumns` empty ⇒ ignore-on-conflict.
+ */
+export interface UpsertSpec {
+    tableNameEscaped: string;
+    columns: string[];
+    valueTuples: string[];
+    conflictColumns: string[];
+    updateColumns: string[];
+    guard: { column: string; op: string }[];
+}
+
 export abstract class DefaultPlatform {
     protected defaultSqlType = 'text';
     protected defaultNowExpression: string = ''; //e.g. NOW()
@@ -490,11 +504,13 @@ export abstract class DefaultPlatform {
 
                 //index.names are property names; columns are registered under their
                 //(possibly remapped, e.g. DatabaseField<{name}>) column names.
-                const columns = index.names.map(v => table.getColumn(
-                    schema.hasProperty(v)
-                        ? this.namingStrategy.getColumnName(schema.getProperty(v), this.annotationId)
-                        : v,
-                ));
+                const columns = index.names.map(v =>
+                    table.getColumn(
+                        schema.hasProperty(v)
+                            ? this.namingStrategy.getColumnName(schema.getProperty(v), this.annotationId)
+                            : v,
+                    ),
+                );
                 if (table.hasIndex(columns, index.options.unique)) continue;
 
                 const addedIndex = table.addIndex(index.options.name || '', index.options.unique);
@@ -552,6 +568,49 @@ export abstract class DefaultPlatform {
         if (schema.databaseSchemaName)
             return this.quoteIdentifier(schema.databaseSchemaName + this.getSchemaDelimiter() + collectionName);
         return this.quoteIdentifier(collectionName);
+    }
+
+    /**
+     * Build the dialect's upsert statement. Not all SQL dialects share a syntax (Postgres/SQLite
+     * use `ON CONFLICT`, MySQL uses `ON DUPLICATE KEY UPDATE`), so the default throws and each
+     * supporting platform overrides — a platform that hasn't implemented it fails loudly rather
+     * than emitting invalid SQL.
+     */
+    getUpsertSQL(spec: UpsertSpec): string {
+        throw new SqlError(
+            'DK-SQL014',
+            `Upsert (insertOrIgnore/insertOrUpdate) is not implemented for ${this.constructor.name}.`,
+        );
+    }
+
+    /**
+     * Shared `INSERT ... ON CONFLICT` builder for the dialects that support it (Postgres, SQLite).
+     * Both reference the existing row by the table name (no INSERT alias — SQLite doesn't allow
+     * one) and the proposed row via `EXCLUDED`, so a guarded upsert is
+     * `... DO UPDATE SET c = EXCLUDED.c WHERE EXCLUDED.g <op> table.g`.
+     */
+    protected buildOnConflictUpsert(spec: UpsertSpec): string {
+        const { tableNameEscaped, columns, valueTuples, conflictColumns, updateColumns, guard } = spec;
+
+        let action: string;
+        if (updateColumns.length === 0) {
+            action = 'DO NOTHING';
+        } else {
+            const set = updateColumns.map(c => `${c} = EXCLUDED.${c}`).join(', ');
+            let where = '';
+            if (guard.length) {
+                where =
+                    ' WHERE ' +
+                    guard.map(g => `EXCLUDED.${g.column} ${g.op} ${tableNameEscaped}.${g.column}`).join(' AND ');
+            }
+            action = `DO UPDATE SET ${set}${where}`;
+        }
+
+        return (
+            `INSERT INTO ${tableNameEscaped} (${columns.join(', ')}) ` +
+            `VALUES ${valueTuples.join(', ')} ` +
+            `ON CONFLICT (${conflictColumns.join(', ')}) ${action}`
+        );
     }
 
     getIdentifier(object: Table | Column | IndexModel | ForeignKey, append: string = ''): string {

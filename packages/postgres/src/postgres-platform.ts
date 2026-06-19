@@ -18,6 +18,7 @@ import {
     PreparedAdapter,
     SqlPlaceholderStrategy,
     Table,
+    UpsertSpec,
     isSet,
     typeResolvesToBigInt,
     typeResolvesToBoolean,
@@ -78,6 +79,10 @@ export class PostgresPlaceholderStrategy extends SqlPlaceholderStrategy {
 }
 
 export class PostgresPlatform extends DefaultPlatform {
+    override getUpsertSQL(spec: UpsertSpec): string {
+        return this.buildOnConflictUpsert(spec);
+    }
+
     protected override defaultSqlType = 'text';
     public override annotationId = 'postgres';
 

@@ -144,14 +144,44 @@ function unionNeedsJsonColumn(type: TypeUnion): boolean {
     return typeRequiresJSONCast(type) && !typeResolvesToDate(type);
 }
 
+// Scalar member kinds — these are NOT pre-stringified by serializeSqlObjectWrap, so a string
+// value of such a member is a genuine value (not an already-JSON-encoded object).
+function isScalarMember(type: Type): boolean {
+    return (
+        type.kind === ReflectionKind.string ||
+        type.kind === ReflectionKind.number ||
+        type.kind === ReflectionKind.boolean ||
+        type.kind === ReflectionKind.bigint ||
+        type.kind === ReflectionKind.literal ||
+        type.kind === ReflectionKind.null ||
+        type.kind === ReflectionKind.undefined
+    );
+}
+
+function unionIsAllScalars(type: TypeUnion): boolean {
+    return type.types.every(isScalarMember);
+}
+
 function sqlSerializeJsonUnionValue(value: any): any {
     // null/undefined → SQL NULL; already-a-string → discriminated member already JSON-encoded.
     if (value === null || value === undefined || typeof value === 'string') return value;
     return JSON.stringify(value);
 }
 
+// Pure-scalar union (e.g. `string | number | null`): no object members were pre-stringified, so
+// EVERY non-null value must be JSON-encoded — including strings, which the object-aware path above
+// wrongly skips (a genuine string `"hi"` would otherwise reach the driver as invalid JSON `hi`).
+// This keeps the scalar distinction (`"42"` ↔ `'"42"'`, `42` ↔ `'42'`) round-tripping through a
+// JSON column. Mirrored on read by the standard `isType(string) → JSON.parse` deserialize, which
+// needs the driver to hand back raw JSON text (postgres: json/jsonb auto-parse is disabled).
+function sqlSerializeScalarJsonValue(value: any): any {
+    if (value === null || value === undefined) return value;
+    return JSON.stringify(value);
+}
+
 const serializeSqlUnion: SqlTypeHandler<TypeUnion> = (type, input, b, ctx) => {
     if (isDirectEntityColumn(ctx) && unionNeedsJsonColumn(type)) {
+        if (unionIsAllScalars(type)) return b.call(sqlSerializeScalarJsonValue, input);
         return b.call(sqlSerializeJsonUnionValue, input);
     }
     return input;

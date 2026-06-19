@@ -19,6 +19,7 @@ import {
     Sql,
     Table,
     TableDiff,
+    UpsertSpec,
     isSet,
     typeResolvesToBoolean,
     typeResolvesToDate,
@@ -54,6 +55,10 @@ export function isJsonLike(type: Type): boolean {
 }
 
 export class SQLitePlatform extends DefaultPlatform {
+    override getUpsertSQL(spec: UpsertSpec): string {
+        return this.buildOnConflictUpsert(spec);
+    }
+
     protected override defaultSqlType = 'text';
     public override annotationId = 'sqlite';
 
