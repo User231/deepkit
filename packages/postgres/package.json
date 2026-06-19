@@ -32,9 +32,9 @@
     "@deepkit/type": "^1.0.1"
   },
   "dependencies": {
-    "@types/pg": "^7.14.7",
-    "pg": "^8.5.1",
-    "sqlstring": "^2.3.2"
+    "@types/pg": "7.14.11",
+    "pg": "8.21.0",
+    "sqlstring": "2.3.3"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.19",
@@ -42,7 +42,7 @@
     "@deepkit/sql": "^1.0.19",
     "@deepkit/stopwatch": "^1.0.19",
     "@deepkit/type": "^1.0.19",
-    "@types/sqlstring": "^2.2.1"
+    "@types/sqlstring": "2.3.2"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

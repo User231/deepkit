@@ -24,24 +24,24 @@
   },
   "peerDependencies": {
     "@angular/common": "20.0.4",
-    "@angular/core": "^20.0.4",
-    "@angular/forms": "^20.0.4",
+    "@angular/core": "20.3.16",
+    "@angular/forms": "20.0.4",
     "@deepkit/core": "^1.0.1",
     "@deepkit/desktop-ui": "^1.0.1",
     "@deepkit/rpc": "^1.0.1",
     "@deepkit/type": "^1.0.1"
   },
   "dependencies": {
-    "prismjs": "^1.24.1"
+    "prismjs": "1.30.0"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.1",
     "@deepkit/desktop-ui": "^1.0.1",
     "@deepkit/rpc": "^1.0.1",
     "@deepkit/type": "^1.0.1",
-    "@types/prismjs": "^1.26.0",
-    "ng-packagr": "^20.0.1",
-    "ngxtension": "^5.1.0",
-    "rxjs": "~7.8.0"
+    "@types/prismjs": "1.26.6",
+    "ng-packagr": "20.3.2",
+    "ngxtension": "5.2.0",
+    "rxjs": "7.8.2"
   }
 }

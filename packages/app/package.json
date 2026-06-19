@@ -40,7 +40,7 @@
     "@deepkit/stopwatch": "^1.0.19",
     "@deepkit/type": "^1.0.19",
     "@deepkit/workflow": "^1.0.19",
-    "conditional-type-checks": "^1.0.5"
+    "conditional-type-checks": "1.0.6"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

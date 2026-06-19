@@ -26,8 +26,8 @@
     "@deepkit/rpc": "^1.0.1"
   },
   "dependencies": {
-    "@types/ws": "^8.5.3",
-    "ws": "^8.6.0"
+    "@types/ws": "8.18.1",
+    "ws": "8.21.0"
   },
   "devDependencies": {
     "@deepkit/rpc": "^1.0.19"

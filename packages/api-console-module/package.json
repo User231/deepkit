@@ -48,6 +48,6 @@
     "@deepkit/logger": "^1.0.19",
     "@deepkit/rpc": "^1.0.19",
     "@deepkit/type": "^1.0.19",
-    "rxjs": "~7.8.0"
+    "rxjs": "7.8.2"
   }
 }

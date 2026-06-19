@@ -34,8 +34,8 @@
     "@deepkit/type": "^1.0.1"
   },
   "dependencies": {
-    "@types/estree": "^0.0.45",
-    "abstract-syntax-tree": "^2.9.4"
+    "@types/estree": "0.0.45",
+    "abstract-syntax-tree": "2.22.0"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.19",

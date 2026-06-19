@@ -17,13 +17,13 @@
     "@deepkit/type": "^1.0.1"
   },
   "devDependencies": {
-    "@angular/common": "^19.1.5",
-    "@angular/core": "^19.1.5",
-    "@angular/forms": "19.1.5",
-    "@angular/platform-browser": "^19.1.5",
+    "@angular/common": "19.2.25",
+    "@angular/core": "19.2.25",
+    "@angular/forms": "19.2.25",
+    "@angular/platform-browser": "19.2.25",
     "@deepkit/core": "^1.0.19",
     "@deepkit/type": "^1.0.19",
-    "rxjs": "*"
+    "rxjs": "7.8.2"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

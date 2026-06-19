@@ -32,7 +32,7 @@
     "@deepkit/type": "^1.0.1"
   },
   "dependencies": {
-    "mariadb": "^3.2.3"
+    "mariadb": "3.5.3"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.19",

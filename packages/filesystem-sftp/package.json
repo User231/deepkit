@@ -26,9 +26,9 @@
   "dependencies": {
     "@deepkit/core": "^1.0.19",
     "@deepkit/filesystem": "^1.0.19",
-    "ssh2-sftp-client": "^9.1.0"
+    "ssh2-sftp-client": "9.1.0"
   },
   "devDependencies": {
-    "@types/ssh2-sftp-client": "^9.0.1"
+    "@types/ssh2-sftp-client": "9.0.6"
   }
 }

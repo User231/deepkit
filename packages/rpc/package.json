@@ -32,7 +32,7 @@
     "rxjs": "*"
   },
   "dependencies": {
-    "dot-prop": "^5.1.1"
+    "dot-prop": "5.3.0"
   },
   "devDependencies": {
     "@deepkit/bson": "^1.0.19",
@@ -41,10 +41,10 @@
     "@deepkit/injector": "^1.0.19",
     "@deepkit/logger": "^1.0.19",
     "@deepkit/type": "^1.0.19",
-    "@types/dot-prop": "^5.0.1",
-    "@types/fs-extra": "^9.0.1",
-    "@types/node": "^22.13.1",
-    "rxjs": "*"
+    "@types/dot-prop": "5.0.4",
+    "@types/fs-extra": "9.0.13",
+    "@types/node": "22.19.21",
+    "rxjs": "7.8.2"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

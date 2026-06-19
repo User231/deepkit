@@ -32,9 +32,9 @@
     "@deepkit/type": "^1.0.1"
   },
   "dependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "better-sqlite3": "^11.8.1",
-    "sqlstring-sqlite": "^0.1.1"
+    "@types/better-sqlite3": "7.6.13",
+    "better-sqlite3": "11.10.0",
+    "sqlstring-sqlite": "0.1.1"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.19",

@@ -28,7 +28,7 @@
     "test:node": "node --expose-gc --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "dependencies": {
-    "@lukeed/ms": "^2.0.1",
+    "@lukeed/ms": "2.0.2",
     "js-xxhash": "3.0.1"
   },
   "peerDependencies": {
@@ -48,7 +48,7 @@
     "@deepkit/injector": "^1.0.19",
     "@deepkit/rpc": "^1.0.19",
     "@deepkit/type": "^1.0.19",
-    "rxjs": "*"
+    "rxjs": "7.8.2"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

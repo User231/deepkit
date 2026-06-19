@@ -35,13 +35,13 @@
     "@deepkit/template": "^1.0.1",
     "@deepkit/type": "^1.0.1",
     "@deepkit/workflow": "^1.0.1",
-    "compression": "^1.7.4",
-    "deepkit-openapi": "^0.0.6",
-    "rxjs": "~7.8.0",
-    "send": "^0.18.0"
+    "compression": "1.8.1",
+    "deepkit-openapi": "0.0.6",
+    "rxjs": "7.8.2",
+    "send": "0.19.2"
   },
   "devDependencies": {
-    "typescript": "~5.8.3"
+    "typescript": "5.8.3"
   },
   "overrides": {
     "deepkit-openapi": {

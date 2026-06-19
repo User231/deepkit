@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.19",
-    "rxjs": "~7.8.0"
+    "rxjs": "7.8.2"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }
