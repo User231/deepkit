@@ -3818,6 +3818,7 @@ __metadata:
   dependencies:
     "@deepkit/core": "npm:^1.0.19"
     "@deepkit/orm": "npm:^1.0.19"
+    "@deepkit/orm-integration": "npm:^1.0.1"
     "@deepkit/sql": "npm:^1.0.19"
     "@deepkit/stopwatch": "npm:^1.0.19"
     "@deepkit/type": "npm:^1.0.19"
