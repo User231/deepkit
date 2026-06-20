@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 
-import { expect } from '@deepkit/run/expect';
-
 import { DatabaseEntityRegistry } from '@deepkit/orm';
+import { expect } from '@deepkit/run/expect';
 import { schemaMigrationRoundTrip } from '@deepkit/sql';
 import { AutoIncrement, Entity, Postgres, PrimaryKey, Reference, ReflectionClass, Unique, float32, int8, int16, int32, integer, typeOf, uint8, uint16, uint32 } from '@deepkit/type';
 
@@ -84,7 +83,10 @@ test('numbers', async () => {
 )`);
 });
 
-interface User extends Entity<{ name: 'user' }> {
+// Unique table names so this migration round-trip doesn't race the shared orm-integration suite,
+// which also maps a `User`→`user` table in the same Postgres database (the two run in parallel
+// under `node --test` and would otherwise clobber each other's `user` schema).
+interface User extends Entity<{ name: 'migration_user' }> {
     id: number & AutoIncrement & PrimaryKey;
     username: string & Unique;
     created: Date;
@@ -92,7 +94,7 @@ interface User extends Entity<{ name: 'user' }> {
     logins: number;
 }
 
-interface Post extends Entity<{ name: 'post' }> {
+interface Post extends Entity<{ name: 'migration_post' }> {
     id: number & AutoIncrement & PrimaryKey;
     user: User & Reference;
     created: Date;

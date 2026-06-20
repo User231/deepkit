@@ -1,6 +1,5 @@
-import { test, after as afterAll } from 'node:test';
-import { expect } from '@deepkit/run/expect';
 import { fail } from 'assert';
+import { after as afterAll, test } from 'node:test';
 import { Observable } from 'rxjs';
 import { bufferCount, first, skip } from 'rxjs/operators';
 import ws from 'ws';
@@ -8,6 +7,7 @@ import ws from 'ws';
 import { isArray } from '@deepkit/core';
 import { ObserverTimer } from '@deepkit/core-rxjs';
 import { ClientProgress, JSONError, rpc } from '@deepkit/rpc';
+import { expect } from '@deepkit/run/expect';
 import { ValidationError, ValidationErrorItem, entity } from '@deepkit/type';
 
 import { appModuleForControllers, closeAllCreatedServers, createServerClientPair, subscribeAndWait } from './util.js';
@@ -114,7 +114,7 @@ test('basic setup and methods', async () => {
         } catch (error) {
             expect(error).toBeInstanceOf(ValidationError);
             expect((error as ValidationError).errors[0]).toBeInstanceOf(ValidationErrorItem);
-            expect((error as ValidationError).errors[0]).toEqual({ code: 'type', message: 'Cannot convert undefined to string', path: 'args.user.name' });
+            expect((error as ValidationError).errors[0]).toEqual({ code: 'type', message: 'Not a string', path: 'args.user.name' });
         }
     }
 

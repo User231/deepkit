@@ -1,7 +1,7 @@
-import { expect } from '@deepkit/run/expect';
 import { randomBytes } from 'crypto';
 
 import { UniqueConstraintFailure, hydrateEntity, isDatabaseOf } from '@deepkit/orm';
+import { expect } from '@deepkit/run/expect';
 import { SQLDatabaseAdapter, identifier, sql } from '@deepkit/sql';
 import {
     AutoIncrement,
@@ -198,7 +198,11 @@ export const variousTests = {
                     .query(user)
                     .sqlSelect(sql`count(*) as count`)
                     .findOne();
-                expect(result.count).toBe(3);
+                // An untyped raw sqlSelect column has no declared type to deserialize against, so the
+                // value comes back in the driver's native form: Postgres returns bigint/int8 (what
+                // count(*) yields) as a string to preserve precision, while MySQL/SQLite return a
+                // number. Coerce for the cross-adapter assertion.
+                expect(Number(result.count)).toBe(3);
             }
         }
         database.disconnect();
