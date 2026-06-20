@@ -764,9 +764,12 @@ function buildShapeJit(
                 if (deepCtorProps.length > 0) {
                     skipFields = new Set(deepCtorProps.map(p => String(p.name)));
 
-                    const ctorMethod = classType.types.find(
-                        (t): t is TypeMethod => t.kind === ReflectionKind.method && t.name === 'constructor',
-                    );
+                    // Inheritance-aware constructor resolution — see the matching site above.
+                    const ctorMethod =
+                        classType.types.find(
+                            (t): t is TypeMethod => t.kind === ReflectionKind.method && t.name === 'constructor',
+                        ) ??
+                        (ReflectionClass.from(classType).getConstructorOrUndefined()?.type as TypeMethod | undefined);
 
                     if (ctorMethod && ctorMethod.parameters) {
                         const args: Ref<any>[] = [];
@@ -1248,6 +1251,18 @@ function deserializeReferencePk(
     const reflection = ReflectionClass.from(type.classType);
     const pk = reflection.getPrimary();
     const pkType = pk.getType();
+    // UUID and MongoId primary keys are `string`-kind at the type level but are
+    // encoded as BSON BINARY / ObjectId on the wire. Dispatch on the annotation
+    // before the kind switch — otherwise the `string` branch calls readStringValue
+    // on binary bytes and throws DK-B030 (Cannot convert bson type BINARY to string).
+    if (isUUIDType(pkType)) {
+        const result = readUUIDValue(buffer, offset, bsonType);
+        return [createReference(type.classType, { [pk.getName()]: result[0] }), result[1]];
+    }
+    if (isMongoIdType(pkType)) {
+        const result = readMongoIdValue(buffer, offset, bsonType);
+        return [createReference(type.classType, { [pk.getName()]: result[0] }), result[1]];
+    }
     // Deserialize the primary key value
     switch (pkType.kind) {
         case ReflectionKind.number: {
@@ -1405,6 +1420,40 @@ function createBaseDeserializer(type: TypeObjectLiteral | TypeClass, ctx: BSONBu
 }
 
 /**
+ * Deserialize a root-level array. BSON frames an array as a document whose keys are the
+ * stringified indices "0","1",… — exactly what createTopLevelArraySerializer writes — so this
+ * mirrors the per-property array reader (deserializeArrayInto), ignoring the index keys.
+ */
+function createTopLevelArrayDeserializer(type: TypeArray): BSONDeserializer<any> {
+    const ctx = new BSONBuildState();
+    const elemType = type.type;
+    return fn(
+        arg<Uint8Array>('buffer'),
+        arg<number>('offset', 0),
+        (b: Builder, buffer: Ref<Uint8Array>, offset: Ref<number>) => {
+            const o = b.var_(offset, 'o');
+            const arr = b.let(b.emptyArr(), 'arr');
+            const size = b.let(b.call(readInt32LE, buffer, b.getVar(o)), 'size');
+            const end = b.let(b.add(b.getVar(o), b.sub(size, b.lit(1))), 'end');
+            b.setVar(o, b.add(b.getVar(o), b.lit(4)));
+
+            b.while_(b.lt(b.getVar(o), end), () => {
+                const bsonType = b.let(b.at(buffer, b.getVar(o)), 'elemBsonType');
+                b.setVar(o, b.add(b.getVar(o), b.lit(1)));
+                b.if_(b.eq(bsonType, b.lit(0)), () => b.break_());
+                // Skip the index cstring key.
+                b.setVar(o, b.call(skipCString, buffer, b.getVar(o)));
+                const elemVar = b.var_<any>(undefined, 'elem');
+                deserializeValueInto(b, buffer, o, bsonType, elemType, elemVar, ctx.forIndex());
+                b.push(arr, b.getVar(elemVar));
+            });
+
+            return arr;
+        },
+    );
+}
+
+/**
  * Create a top-level deserializer for a type.
  *
  * Uses shape-learning for ~60% speedup on common cases:
@@ -1416,6 +1465,13 @@ function createDeserializer(type: Type): BSONDeserializer<any> {
     // Handle union of objects at top level (e.g., { a: string } | { b: number })
     if (type.kind === ReflectionKind.union) {
         return createUnionOfObjectsDeserializer(type as TypeUnion);
+    }
+
+    // Top-level array (counterpart to createTopLevelArraySerializer). Without this the deserializer
+    // threw for a root array type while the serializer happily produced one — an asymmetry that broke
+    // any top-level-array BSON payload (e.g. an RPC observable emitting `ProgressTrackerState[]`).
+    if (type.kind === ReflectionKind.array) {
+        return createTopLevelArrayDeserializer(type as TypeArray);
     }
 
     if (type.kind !== ReflectionKind.objectLiteral && type.kind !== ReflectionKind.class) {
@@ -2603,7 +2659,12 @@ function buildDocumentBody(
                     soffset,
                     type,
                     new BSONBuildState({ namingStrategy: ctx.namingStrategy }),
-                    true,
+                    // Honor the ENCLOSING topLevel: a nested deserializer (getExtractedDeserializer,
+                    // topLevel=false) must return a [value, offset] tuple, not a bare object. Hardcoding
+                    // true here returned a bare object on the extra/out-of-order-field fallback, so every
+                    // array-of-class element whose BSON carries an unknown field (e.g. Mongo's `_id`)
+                    // decoded to `undefined` (er[0]/er[1] on a plain object).
+                    topLevel,
                     true,
                 );
             },
@@ -2612,7 +2673,7 @@ function buildDocumentBody(
         // Early return to slow path if fields were out of order or extra fields exist.
         // Using early return (not a conditional variable) keeps the main function body
         // simple for V8 TurboFan — avoids 2.6x penalty from conditional result building.
-        // Note: canUnroll requires ctx.depth===0, which only happens at topLevel=true.
+        // (pushType does not bump ctx.depth, so canUnroll can be true even when topLevel=false.)
         b.if_(b.neq(b.at(buffer, b.getVar(o)), b.lit(0)), () => {
             b.return_(b.call(slowPathFn, buffer, offsetRef));
         });
@@ -2642,10 +2703,15 @@ function buildDocumentBody(
         if (deepCtorProps.length > 0) {
             skipProps = new Set(deepCtorProps.map(p => String(p.name)));
 
-            // Find this class's own constructor method to get parameter order
-            const ctorMethod = classType.types.find(
-                (t): t is TypeMethod => t.kind === ReflectionKind.method && t.name === 'constructor',
-            );
+            // Resolve the constructor inheritance-aware. A dynamic subclass with no own constructor
+            // (`class Sub extends Base {}`) carries no constructor in its flattened `classType.types`,
+            // which previously fell through to Object.create() and silently dropped the inherited
+            // constructor-parameter properties. getConstructorOrUndefined() merges inherited methods,
+            // exactly as the SQL/default serializer path does.
+            const ctorMethod =
+                classType.types.find(
+                    (t): t is TypeMethod => t.kind === ReflectionKind.method && t.name === 'constructor',
+                ) ?? (ReflectionClass.from(classType).getConstructorOrUndefined()?.type as TypeMethod | undefined);
 
             if (ctorMethod && ctorMethod.parameters) {
                 const args: Ref<any>[] = [];
