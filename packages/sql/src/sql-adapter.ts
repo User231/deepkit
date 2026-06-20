@@ -359,7 +359,22 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
         const results: T[] = [];
         if (model.isAggregate() || model.sqlSelect) {
             //when aggregate the field types could be completely different, so don't normalize
-            for (const row of rows) results.push(row); //mysql returns not a real array, so we have to iterate
+            for (const row of rows) {
+                // Postgres returns numeric aggregates (count/avg, and sum/min/max over numeric
+                // columns) as strings; coerce them back to numbers so the declared aggregate field
+                // type holds. MySQL/SQLite already return native numbers, so this is a no-op there.
+                for (const [as, agg] of model.aggregate) {
+                    const v = (row as any)[as];
+                    if (typeof v !== 'string') continue;
+                    const numeric =
+                        agg.func === 'count' ||
+                        agg.func === 'avg' ||
+                        ((agg.func === 'sum' || agg.func === 'min' || agg.func === 'max') &&
+                            agg.property.type.kind === ReflectionKind.number);
+                    if (numeric) (row as any)[as] = Number(v);
+                }
+                results.push(row); //mysql returns not a real array, so we have to iterate
+            }
             if (formatterFrame) formatterFrame.end();
             return results;
         }

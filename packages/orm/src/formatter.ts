@@ -134,7 +134,17 @@ export class Formatter {
     }
 
     public hydrate<T extends OrmEntity>(model: DatabaseQueryModel<T, any, any>, dbRecord: DBRecord): any {
-        return this.hydrateModel(model, this.rootClassSchema, dbRecord);
+        // Hydration runs the entities' real constructors (createObject), which may read references or
+        // back-references that aren't populated yet; their getters throw under the default
+        // UnpopulatedCheck.Throw. Mirror the persist path (DatabaseSession.doPersist) and disable the
+        // check for the duration of hydration, restoring it afterwards so later access still throws.
+        const unpopulatedCheck = typeSettings.unpopulatedCheck;
+        typeSettings.unpopulatedCheck = UnpopulatedCheck.None;
+        try {
+            return this.hydrateModel(model, this.rootClassSchema, dbRecord);
+        } finally {
+            typeSettings.unpopulatedCheck = unpopulatedCheck;
+        }
     }
 
     protected makeInvalidReference(
