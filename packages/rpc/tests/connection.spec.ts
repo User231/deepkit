@@ -1,10 +1,13 @@
-import { expect, test } from '@jest/globals';
-import { RpcKernel } from '../src/server/kernel.js';
-import { RpcClient } from '../src/client/client.js';
-import { TransportClientConnection } from '../src/transport.js';
-import { rpc } from '../src/decorators';
-import { DirectClient } from '../src/client/client-direct';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
 import { sleep } from '@deepkit/core';
+
+import { DirectClient } from '../src/client/client-direct';
+import { RpcClient } from '../src/client/client.js';
+import { rpc } from '../src/decorators';
+import { RpcKernel } from '../src/server/kernel.js';
+import { TransportClientConnection } from '../src/transport.js';
 
 test('connect', async () => {
     const kernel = new RpcKernel();
@@ -14,7 +17,7 @@ test('connect', async () => {
     const client = new RpcClient({
         connect(connection: TransportClientConnection) {
             const kernelConnection = kernel.createConnection({
-                writeBinary: (buffer) => connection.readBinary(buffer),
+                writeBinary: buffer => connection.readBinary(buffer),
                 close: () => {
                     queueMicrotask(() => {
                         connection.onClose('');
@@ -44,7 +47,7 @@ test('connect', async () => {
     });
 
     const errors: Error[] = [];
-    client.transporter.errored.subscribe((error) => {
+    client.transporter.errored.subscribe(error => {
         errors.push(error.error);
     });
 
@@ -69,9 +72,7 @@ test('connect', async () => {
 test('stats', async () => {
     class Controller {
         @rpc.action()
-        test1(name: string) {
-
-        }
+        test1(name: string) {}
     }
 
     const kernel = new RpcKernel();
@@ -85,7 +86,7 @@ test('stats', async () => {
     }
 
     expect(kernel.stats.connections).toBe(0);
-    const c1 = await createClient(async (client) => {
+    const c1 = await createClient(async client => {
         await client.connect();
     });
 
@@ -98,7 +99,7 @@ test('stats', async () => {
     expect(kernel.stats.outgoing).toBe(1);
     expect(kernel.stats.outgoingBytes).toBeGreaterThan(12);
 
-    const c2 = await createClient(async (client) => {
+    const c2 = await createClient(async client => {
         await client.controller<Controller>('main').test1('Peter');
     });
     expect(kernel.stats.connections).toBe(2);

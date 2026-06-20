@@ -1,15 +1,17 @@
-import { expect, jest, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
+import { fail } from 'assert';
+import { createConnection } from 'net';
+
+import { sleep } from '@deepkit/core';
+import { cast, validatedDeserialize } from '@deepkit/type';
+
+import { MongoConnectionStatus, createCommand } from '../../index.js';
 import { MongoClient } from '../../src/client/client.js';
 import { IsMasterCommand } from '../../src/client/command/ismaster.js';
-import { sleep } from '@deepkit/core';
-import { ConnectionOptions } from '../../src/client/options.js';
-import { cast, validatedDeserialize } from '@deepkit/type';
-import { createConnection } from 'net';
-import { fail } from 'assert';
 import { MongoConnectionError } from '../../src/client/error.js';
-import { createCommand, MongoConnectionStatus } from '../../index.js';
-
-jest.setTimeout(60000);
+import { ConnectionOptions } from '../../src/client/options.js';
 
 test('ConnectionOptions', async () => {
     {
@@ -51,11 +53,11 @@ test('connect valid', async () => {
 test('test localhost', async () => {
     const socket = createConnection({
         host: '127.0.0.1',
-        port: 27017
+        port: parseInt(process.env.MONGO_PORT || '27117', 10),
     });
 
     await new Promise(async (resolve, reject) => {
-        socket.on('error', (error) => {
+        socket.on('error', error => {
             reject(error);
         });
         await sleep(0.1);
@@ -70,16 +72,16 @@ test('custom command', async () => {
         $db: string;
     }
 
-    const command = createCommand<Message, {ismaster: boolean}>({isMaster: 1, $db: 'deepkit'});
+    const command = createCommand<Message, { ismaster: boolean }>({ isMaster: 1, $db: 'deepkit' });
 
-    const client = new MongoClient('mongodb://127.0.0.1/');
+    const client = new MongoClient(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/`);
     const res = await client.execute(command);
     expect(res).toEqual({ ismaster: true, ok: 1 });
     client.close();
 });
 
 test('connect handshake', async () => {
-    const client = new MongoClient('mongodb://127.0.0.1/');
+    const client = new MongoClient(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/`);
     await client.connect();
 
     const type = client.config.hosts[0].getType();
@@ -90,12 +92,11 @@ test('connect handshake', async () => {
 });
 
 test('connect isMaster command', async () => {
-    const client = new MongoClient('mongodb://127.0.0.1/');
-    const response = await client.execute(new IsMasterCommand);
+    const client = new MongoClient(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/`);
+    const response = await client.execute(new IsMasterCommand());
     expect(response.ismaster).toBe(1);
     client.close();
 });
-
 
 // test('connect with username/password', async () => {
 //     const client = new MongoClient('mongodb://marc:password@localhost');
@@ -160,7 +161,7 @@ test('connect isMaster command', async () => {
 // });
 
 test('connection pool 1', async () => {
-    const client = new MongoClient('mongodb://127.0.0.1?maxPoolSize=1');
+    const client = new MongoClient(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}?maxPoolSize=1`);
 
     //spawn 10 promises, each requesting a connection and releasing it a few ms later
     const promises: Promise<any>[] = [];
@@ -185,7 +186,7 @@ test('connection pool 1', async () => {
 });
 
 test('connection pool stress test', async () => {
-    const client = new MongoClient('mongodb://127.0.0.1?maxPoolSize=2');
+    const client = new MongoClient(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}?maxPoolSize=2`);
 
     //spawn many promises, each requesting a connection and releasing it a few ms later
     const promises: Promise<any>[] = [];
@@ -214,7 +215,7 @@ test('connection pool stress test', async () => {
 });
 
 test('connection pool 10', async () => {
-    const client = new MongoClient('mongodb://127.0.0.1?maxPoolSize=10');
+    const client = new MongoClient(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}?maxPoolSize=10`);
 
     {
         const c1 = await client.pool.getConnection();
@@ -264,12 +265,12 @@ test('connection pool 10', async () => {
         const c10 = await client.pool.getConnection();
         // this blocks
         let c11: any;
-        client.pool.getConnection().then((c) => {
+        client.pool.getConnection().then(c => {
             c11 = c;
             expect(c11.id).toBe(0);
         });
         let c12: any;
-        client.pool.getConnection().then((c) => {
+        client.pool.getConnection().then(c => {
             c12 = c;
             expect(c12.id).toBe(1);
         });

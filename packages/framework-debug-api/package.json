@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/framework-debug-api",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -23,35 +23,25 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@deepkit/bson": "^1.0.1",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/core-rxjs": "^1.0.1",
-    "@deepkit/injector": "^1.0.1",
-    "@deepkit/logger": "^1.0.1",
-    "@deepkit/rpc": "^1.0.1",
-    "@deepkit/stopwatch": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/core-rxjs": "^2.0.0",
+    "@deepkit/injector": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/rpc": "^2.0.0",
+    "@deepkit/stopwatch": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
   },
   "devDependencies": {
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/core-rxjs": "^1.0.19",
-    "@deepkit/injector": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/rpc": "^1.0.19",
-    "@deepkit/stopwatch": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
-    "rxjs": "~7.8.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts",
-      "**/tests/**/*.spec.tsx"
-    ]
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/core-rxjs": "^2.0.0",
+    "@deepkit/injector": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/rpc": "^2.0.0",
+    "@deepkit/stopwatch": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
+    "rxjs": "7.8.2"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

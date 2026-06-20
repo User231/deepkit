@@ -1,28 +1,31 @@
-import { asyncOperation, ClassType, CompilerContext, getClassName, isObject } from '@deepkit/core';
+import formidable, { Fields, Files, Options } from 'formidable';
+import type IncomingForm from 'formidable/Formidable.js';
+import qs from 'qs';
+
+import { ClassType, CompilerContext, DeepkitError, asyncOperation, getClassName, isObject } from '@deepkit/core';
 import { DependenciesUnmetError, InjectorModule } from '@deepkit/injector';
 import {
+    ReflectionKind,
+    ReflectionParameter,
+    Type,
+    ValidationError,
+    ValidationErrorItem,
     assertType,
     findMember,
     getSerializeFunction,
     getValidatorFunction,
     hasDefaultValue,
     isOptional,
-    ReflectionKind,
-    ReflectionParameter,
     resolveReceiveType,
     serializer,
     stringifyType,
-    Type,
     typeAnnotation,
     typeToObject,
-    ValidationError,
 } from '@deepkit/type';
-import { BodyValidationError, createRequestWithCachedBody, getRegExp, HttpRequest, ValidatedBody } from './model.js';
-import { getRouteActionLabel, RouteConfig, UploadedFile, UploadedFileSymbol } from './router.js';
-import qs from 'qs';
-import formidable, { Fields, Files, Options } from 'formidable';
+
+import { BodyValidationError, HttpRequest, ValidatedBody, createRequestWithCachedBody, getRegExp } from './model.js';
 import { HttpParserOptions } from './module.config.js';
-import type IncomingForm from 'formidable/Formidable.js';
+import { RouteConfig, UploadedFile, UploadedFileSymbol, getRouteActionLabel } from './router.js';
 
 // formidable returns arrays for values when the type is multipart or formdata
 // adapted from https://www.npmjs.com/package/formidable/v/3.5.4#helpers
@@ -44,20 +47,27 @@ function extractValues(form: IncomingForm, fields: Fields): Record<string, unkno
     );
 }
 
-function parseBody(
-    options: HttpParserOptions,
-    req: HttpRequest, foundFiles: { [name: string]: UploadedFile }) {
+function parseBody(options: HttpParserOptions, req: HttpRequest, foundFiles: { [name: string]: UploadedFile }) {
     const { multipartJsonKey, ...formidableOptions } = options;
-    const form = formidable(Object.assign({
-        allowEmptyFiles: true,
-        minFileSize: 0,
-    }, formidableOptions as Options));
+    const form = formidable(
+        Object.assign(
+            {
+                allowEmptyFiles: true,
+                minFileSize: 0,
+            },
+            formidableOptions as Options,
+        ),
+    );
     return asyncOperation(async (resolve, reject) => {
         function parseData(fields: Fields, files: Files) {
             const fileEntries = Object.entries(files);
 
             // formidable turns JSON arrays into numerically keyed objects, so we convert them back
-            if ('0' in fields && fileEntries.length === 0 && Object.keys(fields).every((key, idx) => parseInt(key) === idx)) {
+            if (
+                '0' in fields &&
+                fileEntries.length === 0 &&
+                Object.keys(fields).every((key, idx) => parseInt(key) === idx)
+            ) {
                 return resolve(Object.values(fields));
             }
 
@@ -118,10 +128,7 @@ function parseBody(
 export class ParameterForRequestParser {
     regexPosition?: number;
 
-    constructor(
-        public parameter: ReflectionParameter,
-    ) {
-    }
+    constructor(public parameter: ReflectionParameter) {}
 
     get body() {
         return typeAnnotation.getType(this.parameter.type, 'httpBody') !== undefined;
@@ -144,7 +151,8 @@ export class ParameterForRequestParser {
         if (this.bodyValidation) {
             assertType(this.parameter.type, ReflectionKind.class);
             const valueType = findMember('value', this.parameter.type.types);
-            if (!valueType || valueType.kind !== ReflectionKind.property) throw new Error(`No property value found at ${stringifyType(this.parameter.type)}`);
+            if (!valueType || valueType.kind !== ReflectionKind.property)
+                throw new DeepkitError('DK-H010', `No property value found at ${stringifyType(this.parameter.type)}`);
             return valueType.type as Type;
         }
         return this.parameter.type;
@@ -163,8 +171,11 @@ export class ParameterForRequestParser {
     }
 
     get typePath(): string | undefined {
-        const typeOptions = typeAnnotation.getType(this.parameter.type, 'httpQueries') || typeAnnotation.getType(this.parameter.type, 'httpQuery')
-            || typeAnnotation.getType(this.parameter.type, 'httpPath') || typeAnnotation.getType(this.parameter.type, 'httpHeader');
+        const typeOptions =
+            typeAnnotation.getType(this.parameter.type, 'httpQueries') ||
+            typeAnnotation.getType(this.parameter.type, 'httpQuery') ||
+            typeAnnotation.getType(this.parameter.type, 'httpPath') ||
+            typeAnnotation.getType(this.parameter.type, 'httpHeader');
         if (!typeOptions) return;
         const options = typeToObject(typeOptions);
         if (isObject(options)) return options.name;
@@ -176,11 +187,16 @@ export class ParameterForRequestParser {
     }
 
     isPartOfPath(): boolean {
-        return typeAnnotation.getType(this.parameter.type, 'httpPath') !== undefined || this.regexPosition !== undefined;
+        return (
+            typeAnnotation.getType(this.parameter.type, 'httpPath') !== undefined || this.regexPosition !== undefined
+        );
     }
 }
 
-export function parseRoutePathToRegex(path: string, params: ReflectionParameter[]): { regex: string, parameterNames: { [name: string]: number } } {
+export function parseRoutePathToRegex(
+    path: string,
+    params: ReflectionParameter[],
+): { regex: string; parameterNames: { [name: string]: number } } {
     const parameterNames: { [name: string]: number } = {};
 
     let argumentIndex = 0;
@@ -204,11 +220,16 @@ export function parseRoutePathToRegex(path: string, params: ReflectionParameter[
 
 function isTypeUnknown(type: Type): boolean {
     if (type.id) return false; //if is has an id we treat it as nominal type
-    return type.kind === ReflectionKind.unknown || type.kind === ReflectionKind.any
-        || type.kind === ReflectionKind.never;
+    return (
+        type.kind === ReflectionKind.unknown || type.kind === ReflectionKind.any || type.kind === ReflectionKind.never
+    );
 }
 
-export function buildRequestParser(parseOptions: HttpParserOptions, parameters: ReflectionParameter[], routeConfig?: RouteConfig): (request: HttpRequest) => any[] {
+export function buildRequestParser(
+    parseOptions: HttpParserOptions,
+    parameters: ReflectionParameter[],
+    routeConfig?: RouteConfig,
+): (request: HttpRequest) => any[] {
     const compiler = new CompilerContext();
     const params = parameters.map(v => new ParameterForRequestParser(v));
 
@@ -222,13 +243,15 @@ export function buildRequestParser(parseOptions: HttpParserOptions, parameters: 
         pathParameterNames = parsedPath.parameterNames;
 
         for (const param of params) {
-            param.regexPosition = parsedPath.parameterNames[param.parameter.name];
+            // Use typePath (from httpPath annotation) if available, otherwise use parameter name
+            const pathName = param.typePath ?? param.parameter.name;
+            param.regexPosition = parsedPath.parameterNames[pathName];
         }
     }
 
     const code = getRequestParserCodeForParameters(compiler, parseOptions, params, {
         pathParameterNames,
-        routeConfig
+        routeConfig,
     });
     compiler.context.set('ValidationError', ValidationError);
     compiler.context.set('qs', qs);
@@ -238,7 +261,8 @@ export function buildRequestParser(parseOptions: HttpParserOptions, parameters: 
 
     const regexVar = compiler.reserveVariable('regex', new RegExp('^' + pathRegex + '$'));
 
-    return compiler.build(`
+    return compiler.build(
+        `
         const _method = request.method || 'GET';
         const _url = request.url || '/';
         const _headers = request.headers || {};
@@ -248,7 +272,47 @@ export function buildRequestParser(parseOptions: HttpParserOptions, parameters: 
         const _match = _path.match(${regexVar}) || [];
         const _query = ${query};
         return ${code}
-    `, 'request');
+    `,
+        'request',
+    );
+}
+
+/**
+ * Re-emit each validation error produced for a single route parameter under the parameter's name.
+ *
+ * The JIT type guard builds error paths relative to the value it was handed (root = `''` for a
+ * scalar, the field name for an object property). It has no notion of *which* route parameter that
+ * value came from, so a bad `?page=` reports `(type): …` and a bad `:id` reports `(type): …`. The
+ * router knows the name, so we prefix it here: scalar errors become `page(type): …` and nested
+ * object errors `entity.field(type): …`, matching the public path semantics every other Deepkit
+ * surface (cast/validate) already produces.
+ */
+function prefixValidationErrors(target: ValidationErrorItem[], source: ValidationErrorItem[], root: string): void {
+    for (const item of source) {
+        const path = item.path ? root + '.' + item.path : root;
+        target.push(new ValidationErrorItem(path, item.code, item.message, item.value));
+    }
+}
+
+/**
+ * Deserialize a single route parameter, re-anchoring any thrown validation error under the
+ * parameter's name. Lenient scalar deserializers (e.g. `number`) leave an unconvertible value
+ * untouched for the validator to reject, but union/literal deserializers *throw* a rootless
+ * `ValidationError` directly — without this the response would read `(type): Cannot convert …`
+ * instead of `page(type): …`. A deserializer throw already aborts the whole parse, so re-throwing
+ * the prefixed error preserves that fail-fast behavior; it only corrects the path.
+ */
+function coerceParam(converter: (value: any, options: { loosely: boolean }) => any, rawValue: any, root: string): any {
+    try {
+        return converter(rawValue, { loosely: true });
+    } catch (error) {
+        if (error instanceof ValidationError) {
+            const prefixed: ValidationErrorItem[] = [];
+            prefixValidationErrors(prefixed, error.errors, root);
+            throw new ValidationError(prefixed);
+        }
+        throw error;
+    }
 }
 
 export function getRequestParserCodeForParameters(
@@ -256,14 +320,16 @@ export function getRequestParserCodeForParameters(
     parseOptions: HttpParserOptions,
     parameters: ParameterForRequestParser[],
     config: {
-        module?: InjectorModule<any>,
-        resolverForParameterName?: Map<string, ClassType>,
-        resolverForToken?: Map<any, ClassType>,
-        pathParameterNames?: { [name: string]: number },
-        routeConfig?: RouteConfig,
+        module?: InjectorModule<any>;
+        resolverForParameterName?: Map<string, ClassType>;
+        resolverForToken?: Map<any, ClassType>;
+        pathParameterNames?: { [name: string]: number };
+        routeConfig?: RouteConfig;
     },
 ) {
     compiler.set({ DependenciesUnmetError });
+    const prefixErrorsVar = compiler.reserveVariable('prefixValidationErrors', prefixValidationErrors);
+    const coerceParamVar = compiler.reserveVariable('coerceParam', coerceParam);
     let enableParseBody = false;
     let requiresAsyncParameters = false;
     const setParameters: string[] = [];
@@ -276,12 +342,17 @@ export function getRequestParserCodeForParameters(
         if (parameter.requestParser || parameter.body || parameter.bodyValidation) {
             const type = parameter.getType();
             const validatorVar = compiler.reserveVariable('argumentValidator', getValidatorFunction(undefined, type));
-            const converterVar = compiler.reserveVariable('argumentConverter', getSerializeFunction(type, serializer.deserializeRegistry));
+            const converterVar = compiler.reserveVariable(
+                'argumentConverter',
+                getSerializeFunction(type, serializer.deserializeRegistry),
+            );
 
             if (parameter.bodyValidation) {
                 compiler.context.set('BodyValidation', ValidatedBody);
                 compiler.context.set('BodyValidationError', BodyValidationError);
-                parameterNames.push(`new BodyValidation(new BodyValidationError(bodyErrors), bodyErrors.length === 0 ? parameters.${parameter.parameter.name} : undefined)`);
+                parameterNames.push(
+                    `new BodyValidation(new BodyValidationError(bodyErrors), bodyErrors.length === 0 ? parameters.${parameter.parameter.name} : undefined)`,
+                );
                 bodyValidationErrorHandling = '';
             } else {
                 parameterNames.push(`parameters.${parameter.parameter.name}`);
@@ -318,41 +389,89 @@ export function getRequestParserCodeForParameters(
                 }`);
             } else {
                 enableParseBody = true;
-                setParameters.push(`parameters.${parameter.parameter.name} = ${converterVar}(bodyFields, {loosely: true});`);
-                parameterValidator.push(`${validatorVar}(parameters.${parameter.parameter.name}, {errors: bodyErrors});`);
+                setParameters.push(
+                    `parameters.${parameter.parameter.name} = ${converterVar}(bodyFields, {loosely: true});`,
+                );
+                parameterValidator.push(
+                    `${validatorVar}(parameters.${parameter.parameter.name}, {errors: bodyErrors});`,
+                );
             }
         } else if (parameter.query || parameter.queries || parameter.header) {
-            const converted = getSerializeFunction(parameter.parameter.parameter, serializer.deserializeRegistry, undefined, parameter.getName());
-            const validator = getValidatorFunction(undefined, parameter.parameter.parameter);
+            // Serialize/validate against the parameter's declared inner type, not the
+            // ReflectionKind.parameter wrapper. The wrapper has no (de)serialize/validate
+            // handler, so passing it makes both no-op and the raw string is returned uncoerced.
+            const type = parameter.getType();
+            const converted = getSerializeFunction(
+                type,
+                serializer.deserializeRegistry,
+                undefined,
+                parameter.getName(),
+            );
+            const validator = getValidatorFunction(undefined, type);
             const converterVar = compiler.reserveVariable('argumentConverter', converted);
             const validatorVar = compiler.reserveVariable('argumentValidator', validator);
 
-            const queryPath = parameter.typePath === undefined && !parameter.queries ? parameter.parameter.name : parameter.typePath;
-            const accessor = queryPath ? `['` + (queryPath.replace(/\./g, `']['`)) + `']` : '';
+            let queryPath =
+                parameter.typePath === undefined && !parameter.queries ? parameter.parameter.name : parameter.typePath;
+            // HTTP headers are case-insensitive per RFC 7230, and Node.js lowercases all header names
+            if (parameter.header && queryPath) queryPath = queryPath.toLowerCase();
+            const accessor = queryPath ? `['` + queryPath.replace(/\./g, `']['`) + `']` : '';
             const queryAccessor = parameter.header ? `_headers${accessor}` : queryPath ? `_query${accessor}` : '_query';
 
-            if (isOptional(parameter.parameter.parameter) || hasDefaultValue(parameter.parameter.parameter)) {
-                setParameters.push(`parameters.${parameter.parameter.name} = ${queryAccessor} === undefined ? undefined : ${converterVar}(${queryAccessor}, {loosely: true});`);
+            const rootJson = JSON.stringify(parameter.typePath || parameter.getName());
+            const optionalQuery =
+                isOptional(parameter.parameter.parameter) || hasDefaultValue(parameter.parameter.parameter);
+            if (optionalQuery) {
+                setParameters.push(
+                    `parameters.${parameter.parameter.name} = ${queryAccessor} === undefined ? undefined : ${coerceParamVar}(${converterVar}, ${queryAccessor}, ${rootJson});`,
+                );
             } else {
-                setParameters.push(`parameters.${parameter.parameter.name} = ${converterVar}(${queryAccessor}, {loosely: true});`);
+                setParameters.push(
+                    `parameters.${parameter.parameter.name} = ${coerceParamVar}(${converterVar}, ${queryAccessor}, ${rootJson});`,
+                );
             }
 
             parameterNames.push(`parameters.${parameter.parameter.name}`);
-            parameterValidator.push(`${validatorVar}(parameters.${parameter.parameter.name}, {errors: validationErrors}, ${JSON.stringify(parameter.typePath || parameter.getName())});`);
+            // Optional/defaulted query params: when absent the value is left undefined so the
+            // handler's own default applies — validating undefined would (on v2) reject it.
+            // Validate into a scratch array, then re-emit each error under the parameter's name so
+            // the path reads `page(type)` / `entity.field(type)` instead of a rootless `(type)`.
+            const validateQueryCall = `{ const _errs = []; ${validatorVar}(parameters.${parameter.parameter.name}, {errors: _errs}); ${prefixErrorsVar}(validationErrors, _errs, ${JSON.stringify(parameter.typePath || parameter.getName())}); }`;
+            parameterValidator.push(
+                optionalQuery
+                    ? `if (parameters.${parameter.parameter.name} !== undefined) ${validateQueryCall}`
+                    : validateQueryCall,
+            );
         } else {
             parameterNames.push(`parameters.${parameter.parameter.name}`);
 
             if (parameter.isPartOfPath()) {
                 if (parameter.parameter.type.kind !== ReflectionKind.class) {
-                    const converted = getSerializeFunction(parameter.parameter.parameter, serializer.deserializeRegistry, undefined, parameter.getName());
+                    // Coerce/validate the raw path string against the declared inner type
+                    // (e.g. `number`), not the ReflectionKind.parameter wrapper — the wrapper
+                    // has no (de)serialize/validate handler, so it would leave `_match[i]` a string.
+                    const type = parameter.getType();
+                    const converted = getSerializeFunction(
+                        type,
+                        serializer.deserializeRegistry,
+                        undefined,
+                        parameter.getName(),
+                    );
                     const converterVar = compiler.reserveVariable('argumentConverter', converted);
-                    setParameters.push(`parameters.${parameter.parameter.name} = ${converterVar}(_match[${1 + (parameter.regexPosition || 0)}], {loosely: true});`);
+                    setParameters.push(
+                        `parameters.${parameter.parameter.name} = ${coerceParamVar}(${converterVar}, _match[${1 + (parameter.regexPosition || 0)}], ${JSON.stringify(parameter.getName())});`,
+                    );
 
-                    const validator = getValidatorFunction(undefined, parameter.parameter.parameter);
+                    const validator = getValidatorFunction(undefined, type);
                     const validatorVar = compiler.reserveVariable('argumentValidator', validator);
-                    parameterValidator.push(`${validatorVar}(parameters.${parameter.parameter.name}, {errors: validationErrors}, ${JSON.stringify(parameter.getName())});`);
+                    // Re-emit under the parameter's name so a bad `:id` reports `id(type): …`.
+                    parameterValidator.push(
+                        `{ const _errs = []; ${validatorVar}(parameters.${parameter.parameter.name}, {errors: _errs}); ${prefixErrorsVar}(validationErrors, _errs, ${JSON.stringify(parameter.getName())}); }`,
+                    );
                 } else {
-                    setParameters.push(`parameters.${parameter.parameter.name} = _match[${1 + (parameter.regexPosition || 0)}];`);
+                    setParameters.push(
+                        `parameters.${parameter.parameter.name} = _match[${1 + (parameter.regexPosition || 0)}];`,
+                    );
                 }
             }
 
@@ -361,8 +480,13 @@ export function getRequestParserCodeForParameters(
 
             setParameters.push(`${parameterResolverFoundVar} = false;`);
 
-            const resolverType = config.resolverForParameterName?.get(parameter.getName())
-                || config.resolverForToken?.get(parameter.parameter.type.kind === ReflectionKind.class ? parameter.parameter.type.classType : undefined);
+            const resolverType =
+                config.resolverForParameterName?.get(parameter.getName()) ||
+                config.resolverForToken?.get(
+                    parameter.parameter.type.kind === ReflectionKind.class
+                        ? parameter.parameter.type.classType
+                        : undefined,
+                );
 
             //make sure all parameter values from the path are available, important for parameter resolver
             if (resolverType && !setParametersFromPath && config.pathParameterNames) {
@@ -373,7 +497,10 @@ export function getRequestParserCodeForParameters(
 
             if (!resolverType && !parameter.isPartOfPath() && isTypeUnknown(parameter.parameter.type)) {
                 const label = config.routeConfig ? getRouteActionLabel(config.routeConfig?.action) + ' ' : '';
-                throw new Error(`Parameter ${label}${JSON.stringify(parameter.parameter.name)} has no runtime type. Runtime types disabled or circular dependencies?`);
+                throw new DeepkitError(
+                    'DK-H011',
+                    `Parameter ${label}${JSON.stringify(parameter.parameter.name)} has no runtime type. Runtime types disabled or circular dependencies?`,
+                );
             }
 
             let injector = '_injector';
@@ -384,7 +511,10 @@ export function getRequestParserCodeForParameters(
                 requiresAsyncParameters = true;
                 let instanceFetcher = '';
                 if (config.module && config.module.injector) {
-                    const resolverResolverVar = compiler.reserveVariable('resolverProvideToken', config.module.injector.getResolver(resolveReceiveType(resolverType)));
+                    const resolverResolverVar = compiler.reserveVariable(
+                        'resolverProvideToken',
+                        config.module.injector.getResolver(resolveReceiveType(resolverType)),
+                    );
                     instanceFetcher = `${resolverResolverVar}(${injector}.scope)`;
                 } else {
                     const resolverProvideTokenVar = compiler.reserveVariable('resolverProvideToken', resolverType);
@@ -393,7 +523,10 @@ export function getRequestParserCodeForParameters(
                 const instance = compiler.reserveVariable('resolverInstance');
 
                 const routeConfigVar = compiler.reserveVariable('routeConfigVar', config.routeConfig);
-                const classTypeToken = parameter.parameter.type.kind === ReflectionKind.class ? parameter.parameter.type.classType : undefined;
+                const classTypeToken =
+                    parameter.parameter.type.kind === ReflectionKind.class
+                        ? parameter.parameter.type.classType
+                        : undefined;
                 const classTypeTokenVar = compiler.reserveVariable('classType', classTypeToken);
                 setParameters.push(`
                     //resolver ${getClassName(resolverType)} for ${parameter.getName()}
@@ -431,7 +564,6 @@ export function getRequestParserCodeForParameters(
             }
         }
     }
-
 
     let parseBodyLoading = '';
     if (enableParseBody) {

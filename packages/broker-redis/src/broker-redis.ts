@@ -1,19 +1,37 @@
-import { BrokerAdapterBus, BrokerAdapterCache, BrokerAdapterKeyValue, BrokerAdapterLock, BrokerCacheItemOptionsResolved, BrokerKeyValueOptionsResolved, BrokerTimeOptionsResolved, Release } from '@deepkit/broker';
-import { Type } from '@deepkit/type';
-import { AutoBuffer, getBsonEncoder } from '@deepkit/bson';
-import Redis, { Callback, RedisOptions } from 'ioredis';
+import Redis, { RedisOptions } from 'ioredis';
+
+import {
+    BrokerAdapterBus,
+    BrokerAdapterCache,
+    BrokerAdapterKeyValue,
+    BrokerAdapterLock,
+    BrokerCacheItemOptionsResolved,
+    BrokerKeyValueOptionsResolved,
+    BrokerTimeOptionsResolved,
+    Release,
+} from '@deepkit/broker';
+import { getBSONEncoder } from '@deepkit/bson';
 import { arrayRemoveItem, fixAsyncOperation } from '@deepkit/core';
 import { Logger } from '@deepkit/logger';
+import { Type } from '@deepkit/type';
 
 export type RedisBrokerAdapterOptions = RedisOptions & {
     prefix?: string; // optional prefix for all keys
-}
+};
 
-export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyValue, BrokerAdapterCache, BrokerAdapterLock {
-    protected subscriptions = new Map<string, {
-        handler: (message: Buffer, callbacks: Callback[]) => void,
-        callbacks: Callback[]
-    }>();
+/** A subscriber callback receiving an already-decoded bus message. */
+type MessageCallback = (message: any) => void;
+
+export class RedisBrokerAdapter
+    implements BrokerAdapterBus, BrokerAdapterKeyValue, BrokerAdapterCache, BrokerAdapterLock
+{
+    protected subscriptions = new Map<
+        string,
+        {
+            handler: (message: Buffer, callbacks: MessageCallback[]) => void;
+            callbacks: MessageCallback[];
+        }
+    >();
 
     private prefix = this.config.prefix || '';
     private redis = new Redis({
@@ -82,12 +100,9 @@ export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyVal
         this.redisSubscribe.disconnect();
     }
 
-    private autoBuffer = new AutoBuffer();
-
     private serialize(message: any, type: Type): Uint8Array {
-        const encoder = getBsonEncoder(type);
-        this.autoBuffer.apply(encoder.encode, message);
-        return this.autoBuffer.buffer;
+        // getBSONEncoder().encode returns a freshly sliced (copied) buffer, safe to hand to ioredis.
+        return getBSONEncoder(type).encode(message);
     }
 
     async publish(name: string, message: any, type: Type): Promise<void> {
@@ -99,11 +114,11 @@ export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyVal
         const channelName = `${this.prefix}${name}`;
         let handler = this.subscriptions.get(channelName);
         if (!handler) {
-            const encoder = getBsonEncoder(type);
+            const encoder = getBSONEncoder(type);
             handler = {
-                handler: (message: Buffer, callbacks: Callback[]) => {
+                handler: (message: Buffer, callbacks: MessageCallback[]) => {
                     try {
-                        const deserialized = encoder.decode(message, 0);
+                        const deserialized = encoder.decode(message);
                         for (const callback of callbacks) {
                             callback(deserialized);
                         }
@@ -133,7 +148,7 @@ export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyVal
 
     async get(key: string, type: Type): Promise<any> {
         const fullKey = `${this.prefix}${key}`;
-        const encoder = getBsonEncoder(type);
+        const encoder = getBSONEncoder(type);
         const data = await this.redis.getBuffer(fullKey);
         if (!data) return undefined;
         return encoder.decode(data);
@@ -151,7 +166,7 @@ export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyVal
 
     async set(key: string, value: any, options: BrokerKeyValueOptionsResolved, type: Type): Promise<any> {
         const fullKey = `${this.prefix}${key}`;
-        const encoder = getBsonEncoder(type);
+        const encoder = getBSONEncoder(type);
         const data = encoder.encode(value);
         if (options.ttl) {
             await this.redis.set(fullKey, Buffer.from(data), 'PX', options.ttl);
@@ -162,7 +177,7 @@ export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyVal
 
     async getCache(key: string, type: Type): Promise<{ value: any; ttl: number } | undefined> {
         const fullKey = `${this.prefix}${key}`;
-        const encoder = getBsonEncoder(type);
+        const encoder = getBSONEncoder(type);
         const data = await fixAsyncOperation(this.redis.getBuffer(fullKey));
         if (!data) return undefined;
 
@@ -175,7 +190,7 @@ export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyVal
 
     async setCache(key: string, value: any, options: BrokerCacheItemOptionsResolved, type: Type): Promise<void> {
         const fullKey = `${this.prefix}${key}`;
-        const encoder = getBsonEncoder(type);
+        const encoder = getBSONEncoder(type);
         const data = encoder.encode(value);
         if (options.ttl) {
             await fixAsyncOperation(this.redis.set(fullKey, Buffer.from(data), 'PX', options.ttl));
@@ -210,4 +225,3 @@ export class RedisBrokerAdapter implements BrokerAdapterBus, BrokerAdapterKeyVal
         this.onInvalidateCacheCallbacks.push(callback);
     }
 }
-

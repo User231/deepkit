@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/orm-browser-example",
-  "version": "1.0.1-alpha.14",
+  "version": "2.0.0",
   "description": "Deepkit ORM Data Browser example",
   "type": "commonjs",
   "private": true,
@@ -13,27 +13,15 @@
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "dependencies": {
-    "@deepkit/mongo": "^1.0.1",
-    "@deepkit/orm-browser": "^1.0.1",
-    "@deepkit/mysql": "^1.0.1",
-    "@deepkit/orm": "^1.0.1",
-    "@deepkit/postgres": "^1.0.1",
-    "@deepkit/sqlite": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@deepkit/mongo": "^2.0.0",
+    "@deepkit/orm-browser": "^2.0.0",
+    "@deepkit/mysql": "^2.0.0",
+    "@deepkit/orm": "^2.0.0",
+    "@deepkit/postgres": "^2.0.0",
+    "@deepkit/sqlite": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
   },
   "devDependencies": {
     "reflect-metadata": "^0.1.13"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
   }
 }

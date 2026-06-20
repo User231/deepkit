@@ -7,27 +7,26 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
+import { BSONDeserializer, BSONError, deserializeBSONWithoutOptimiser, getBSONDeserializer } from '@deepkit/bson';
 import { asyncOperation, getClassName } from '@deepkit/core';
-import { handleErrorResponse, MongoDatabaseError, MongoError } from '../error.js';
-import type { MongoClientConfig } from '../config.js';
-import type { Host } from '../host.js';
-import type { MongoDatabaseTransaction } from '../connection.js';
 import {
     InlineRuntimeType,
     ReceiveType,
-    resolveReceiveType,
     SerializationError,
-    stringifyType,
     Type,
+    UUID,
+    UnpopulatedCheck,
+    ValidationError,
+    resolveReceiveType,
+    stringifyType,
     typeOf,
     typeSettings,
-    UnpopulatedCheck,
-    UUID,
-    ValidationError,
 } from '@deepkit/type';
-import { BSONDeserializer, deserializeBSONWithoutOptimiser, getBSONDeserializer } from '@deepkit/bson';
-import { mongoBinarySerializer } from '../../mongo-serializer.js';
+
+import type { MongoClientConfig } from '../config.js';
+import type { MongoDatabaseTransaction } from '../connection.js';
+import { MongoDatabaseError, MongoError, handleErrorResponse } from '../error.js';
+import type { Host } from '../host.js';
 import { CommandOptions, ConnectionOptions } from '../options.js';
 
 export interface BaseResponse {
@@ -35,7 +34,7 @@ export interface BaseResponse {
     errmsg?: string;
     code?: number;
     codeName?: string;
-    writeErrors?: Array<{ index: number, code: number, errmsg: string }>;
+    writeErrors?: Array<{ index: number; code: number; errmsg: string }>;
 }
 
 export interface TransactionalMessage {
@@ -49,7 +48,7 @@ export interface TransactionalMessage {
 }
 
 export interface WriteConcernMessage {
-    writeConcern?: { w?: string | number, j?: boolean, wtimeout?: number };
+    writeConcern?: { w?: string | number; j?: boolean; wtimeout?: number };
 }
 
 export interface CollationMessage {
@@ -63,9 +62,11 @@ export interface CollationMessage {
     backwards?: boolean;
 }
 
-export type HintMessage = string | {
-    [name: string]: number;
-};
+export type HintMessage =
+    | string
+    | {
+          [name: string]: number;
+      };
 
 export interface ReadPreferenceMessage {
     readConcern?: { level: ConnectionOptions['readConcernLevel'] };
@@ -74,13 +75,13 @@ export interface ReadPreferenceMessage {
         mode: ConnectionOptions['readPreference'];
         tags?: { [name: string]: string }[];
         maxStalenessSeconds?: number;
-        hedge?: { enabled: boolean }
+        hedge?: { enabled: boolean };
     };
 }
 
 export abstract class Command<T> {
     options: CommandOptions = {};
-    protected current?: { responseType?: Type, resolve: Function, reject: Function };
+    protected current?: { responseType?: Type; resolve: Function; reject: Function };
 
     public sender?: <T>(schema: Type, message: T) => void;
 
@@ -89,7 +90,9 @@ export abstract class Command<T> {
     }
 
     public sendAndWait<T, R extends BaseResponse = BaseResponse>(
-        message: T, messageType?: ReceiveType<T>, responseType?: ReceiveType<R>,
+        message: T,
+        messageType?: ReceiveType<T>,
+        responseType?: ReceiveType<R>,
     ): Promise<R> {
         if (!this.sender) throw new Error(`No sender set in command ${getClassName(this)}`);
         this.sender(resolveReceiveType(messageType), message);
@@ -111,7 +114,9 @@ export abstract class Command<T> {
 
     handleResponse(response: Uint8Array): void {
         if (!this.current) throw new Error('Got handleResponse without active command');
-        const deserializer: BSONDeserializer<BaseResponse> = this.current.responseType ? getBSONDeserializer(mongoBinarySerializer, this.current.responseType) : deserializeBSONWithoutOptimiser;
+        const deserializer: BSONDeserializer<BaseResponse> = this.current.responseType
+            ? getBSONDeserializer(this.current.responseType)
+            : deserializeBSONWithoutOptimiser;
 
         const oldCheck = typeSettings.unpopulatedCheck;
         try {
@@ -124,12 +129,17 @@ export abstract class Command<T> {
             }
 
             if (!message.ok) {
-                this.current.reject(Object.assign(new MongoDatabaseError(message.errmsg || 'error'), { code: message.code }));
+                this.current.reject(
+                    Object.assign(new MongoDatabaseError(message.errmsg || 'error'), { mongoCode: message.code }),
+                );
             } else {
                 this.current.resolve(message);
             }
         } catch (error: any) {
-            if (error instanceof ValidationError || error instanceof SerializationError) {
+            // A Mongo error response (ok:0, no `cursor`) fails the cursor-shaped deserializer with a
+            // BSONError ("Cannot convert bson type UNDEFINED to {…}"), which extends DeepkitError
+            // directly — include it so the error-response recovery below surfaces the real errmsg.
+            if (error instanceof ValidationError || error instanceof SerializationError || error instanceof BSONError) {
                 if (this.current.responseType) {
                     const raw = deserializeBSONWithoutOptimiser(response);
                     if (raw.errmsg && raw.ok === 0) {
@@ -140,7 +150,13 @@ export abstract class Command<T> {
                         }
                     }
 
-                    this.current.reject(new MongoError(`Could not deserialize type ${stringifyType(this.current.responseType)}: ${error}`, { cause: error }));
+                    this.current.reject(
+                        new MongoError(
+                            'DK-MG001',
+                            `Could not deserialize type ${stringifyType(this.current.responseType)}: ${error}`,
+                            { cause: error },
+                        ),
+                    );
                     return;
                 }
             }
@@ -182,11 +198,15 @@ export function createCommand<Request extends { [name: string]: any }, Response>
     typeResponse = typeOf<FullTypeResponse>();
 
     class DynamicCommand extends Command<Response> {
-        async execute(config: MongoClientConfig, host: Host, transaction?: MongoDatabaseTransaction): Promise<Response & BaseResponse> {
+        async execute(
+            config: MongoClientConfig,
+            host: Host,
+            transaction?: MongoDatabaseTransaction,
+        ): Promise<Response & BaseResponse> {
             const cmd = 'function' === typeof request ? request(config) : request;
             if (options.transactional && transaction) transaction.applyTransaction(cmd);
             if (options.readPreference) config.applyReadPreference(host, cmd as any, this.options, transaction);
-            return await this.sendAndWait(cmd, typeRequest, typeResponse as Type) as any;
+            return (await this.sendAndWait(cmd, typeRequest, typeResponse as Type)) as any;
         }
 
         needsWritableHost(): boolean {
@@ -196,4 +216,3 @@ export function createCommand<Request extends { [name: string]: any }, Response>
 
     return new DynamicCommand();
 }
-

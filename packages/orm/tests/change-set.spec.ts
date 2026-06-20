@@ -1,13 +1,14 @@
-import { expect, test } from '@jest/globals';
-import { atomicChange, Changes } from '@deepkit/type';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
 
+import { Changes, atomicChange } from '@deepkit/type';
 
 test('atomic', () => {
     class Bla {
         position: number = 1;
     }
 
-    const bla = new Bla;
+    const bla = new Bla();
     atomicChange(bla).increase('position', 5);
 });
 

@@ -7,26 +7,11 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
+import type { Pool, PoolClient, PoolConfig } from 'pg';
+import pg from 'pg';
 
-import {
-    asAliasName,
-    DefaultPlatform,
-    getDeepTypeCaster,
-    getPreparedEntity,
-    prepareBatchUpdate,
-    PreparedEntity,
-    splitDotPath,
-    SqlBuilder,
-    SQLConnection,
-    SQLConnectionPool,
-    SQLDatabaseAdapter,
-    SQLDatabaseQuery,
-    SQLDatabaseQueryFactory,
-    SQLPersistence,
-    SQLQueryModel,
-    SQLQueryResolver,
-    SQLStatement,
-} from '@deepkit/sql';
+import { AbstractClassType, ClassType, DeepkitError, asyncOperation, empty } from '@deepkit/core';
+import { Logger } from '@deepkit/logger';
 import {
     DatabaseDeleteError,
     DatabaseError,
@@ -36,40 +21,60 @@ import {
     DatabaseTransaction,
     DatabaseUpdateError,
     DeleteResult,
-    ensureDatabaseError,
     OrmEntity,
     PatchResult,
-    primaryKeyObjectConverter,
     UniqueConstraintFailure,
+    ensureDatabaseError,
+    primaryKeyObjectConverter,
 } from '@deepkit/orm';
-import { PostgresPlatform } from './postgres-platform.js';
-import type { Pool, PoolClient, PoolConfig } from 'pg';
-import pg from 'pg';
-import { AbstractClassType, asyncOperation, ClassType, empty } from '@deepkit/core';
+import {
+    DefaultPlatform,
+    PreparedEntity,
+    SQLConnection,
+    SQLConnectionPool,
+    SQLDatabaseAdapter,
+    SQLDatabaseQuery,
+    SQLDatabaseQueryFactory,
+    SQLPersistence,
+    SQLQueryModel,
+    SQLQueryResolver,
+    SQLStatement,
+    SqlBuilder,
+    asAliasName,
+    getDeepTypeCaster,
+    getPreparedEntity,
+    prepareBatchUpdate,
+    splitDotPath,
+} from '@deepkit/sql';
 import { FrameCategory, Stopwatch } from '@deepkit/stopwatch';
 import {
     Changes,
-    getPatchSerializeFunction,
-    getSerializeFunction,
     ReceiveType,
     ReflectionClass,
     ReflectionKind,
     ReflectionProperty,
+    getPatchSerializeFunction,
+    getSerializeFunction,
     resolvePath,
+    resolveProperty,
 } from '@deepkit/type';
+
 import { parseConnectionString } from './config.js';
-import { Logger } from '@deepkit/logger';
+import { PostgresPlatform } from './postgres-platform.js';
 
 /**
  * Converts a specific database error to a more specific error, if possible.
  */
-function handleSpecificError(session: DatabaseSession, error: DatabaseError): Error {
+function handleSpecificError(session: DatabaseSession, error: Error): Error {
     let cause: any = error;
     while (cause) {
         if (cause instanceof Error) {
-            if (cause.message.includes('duplicate key value')
-                && 'table' in cause && 'string' === typeof cause.table
-                && 'detail' in cause && 'string' === typeof cause.detail
+            if (
+                cause.message.includes('duplicate key value') &&
+                'table' in cause &&
+                'string' === typeof cause.table &&
+                'detail' in cause &&
+                'string' === typeof cause.detail
             ) {
                 return new UniqueConstraintFailure(`${cause.message}: ${cause.detail}`, { cause: error });
             }
@@ -85,7 +90,12 @@ const scope = 'deepkit:orm:postgres';
 export class PostgresStatement extends SQLStatement {
     protected released = false;
 
-    constructor(protected logger: Logger, protected sql: string, protected client: PoolClient, protected stopwatch?: Stopwatch) {
+    constructor(
+        protected logger: Logger,
+        protected sql: string,
+        protected client: PoolClient,
+        protected stopwatch?: Stopwatch,
+    ) {
         super();
     }
 
@@ -129,8 +139,7 @@ export class PostgresStatement extends SQLStatement {
         }
     }
 
-    release() {
-    }
+    release() {}
 }
 
 export class PostgresConnection extends SQLConnection {
@@ -210,7 +219,7 @@ export class PostgresDatabaseTransaction extends DatabaseTransaction {
 
     async commit() {
         if (!this.connection) return;
-        if (this.ended) throw new Error('Transaction ended already');
+        if (this.ended) throw new DeepkitError('DK-PG001', 'Transaction ended already');
 
         await this.connection.run('COMMIT');
         this.ended = true;
@@ -220,7 +229,7 @@ export class PostgresDatabaseTransaction extends DatabaseTransaction {
     async rollback() {
         if (!this.connection) return;
 
-        if (this.ended) throw new Error('Transaction ended already');
+        if (this.ended) throw new DeepkitError('DK-PG001', 'Transaction ended already');
         await this.connection.run('ROLLBACK');
         this.ended = true;
         this.connection.release();
@@ -249,10 +258,10 @@ export class PostgresConnectionPool extends SQLConnectionPool {
             transaction.connection = connection;
             try {
                 await transaction.begin();
-            } catch (error) {
+            } catch (error: any) {
                 transaction.ended = true;
                 connection.release();
-                throw new Error('Could not start transaction: ' + error);
+                throw new DeepkitError('DK-PG002', 'Could not start transaction: ' + error, { cause: error });
             }
         }
         return connection;
@@ -278,7 +287,11 @@ function typeSafeDefaultValue(property: ReflectionProperty): any {
 }
 
 export class PostgresPersistence extends SQLPersistence {
-    constructor(protected platform: DefaultPlatform, public connectionPool: PostgresConnectionPool, session: DatabaseSession<any>) {
+    constructor(
+        protected platform: DefaultPlatform,
+        public connectionPool: PostgresConnectionPool,
+        session: DatabaseSession<any>,
+    ) {
         super(platform, connectionPool, session);
     }
 
@@ -286,7 +299,10 @@ export class PostgresPersistence extends SQLPersistence {
         return handleSpecificError(this.session, error);
     }
 
-    async batchUpdate<T extends OrmEntity>(entity: PreparedEntity, changeSets: DatabasePersistenceChangeSet<T>[]): Promise<void> {
+    async batchUpdate<T extends OrmEntity>(
+        entity: PreparedEntity,
+        changeSets: DatabasePersistenceChangeSet<T>[],
+    ): Promise<void> {
         const prepared = prepareBatchUpdate(this.platform, entity, changeSets);
         if (!prepared) return;
 
@@ -306,10 +322,18 @@ export class PostgresPersistence extends SQLPersistence {
             params.push(prepared.primaryKeys[i]);
             let pkValue = entity.primaryKey.sqlTypeCast(placeholderStrategy.getPlaceholder());
 
-            valuesValues.push('(' + pkValue + ',' + prepared.changedProperties.map(property => {
-                params.push(prepared.values[property.name][i]);
-                return property.sqlTypeCast(placeholderStrategy.getPlaceholder());
-            }).join(',') + ')');
+            valuesValues.push(
+                '(' +
+                    pkValue +
+                    ',' +
+                    prepared.changedProperties
+                        .map(property => {
+                            params.push(prepared.values[property.name][i]);
+                            return property.sqlTypeCast(placeholderStrategy.getPlaceholder());
+                        })
+                        .join(',') +
+                    ')',
+            );
         }
 
         for (let i = 0; i < changeSets.length; i++) {
@@ -419,8 +443,20 @@ export class PostgresPersistence extends SQLPersistence {
 export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T> {
     async delete(model: SQLQueryModel<T>, deleteResult: DeleteResult<T>): Promise<void> {
         const primaryKey = this.classSchema.getPrimary();
-        const pkField = this.platform.quoteIdentifier(primaryKey.name);
-        const primaryKeyConverted = primaryKeyObjectConverter(this.classSchema, this.platform.serializer.deserializeRegistry);
+        // Use the PK's DB COLUMN name (honours `DatabaseField<{name}>`), not the property name —
+        // otherwise a renamed primary key produces `RETURNING tbl.propName` for a column that
+        // doesn't exist. `pkAlias` aliases the returned column back to the property name so the
+        // result rows are still keyed by `primaryKey.name`. Deepkit ORM is single-primary-key by
+        // design (composite PKs are deliberately unsupported — see docs/orm/composite-primary-key),
+        // so a single-column join is correct; natural keys are modelled as a surrogate PK + a
+        // UNIQUE index, and the delete filters on that index, never on the PK columns directly.
+        const entity = getPreparedEntity(this.session.adapter as SQLDatabaseAdapter, this.classSchema);
+        const pkField = entity.fieldMap[primaryKey.name].columnNameEscaped;
+        const pkAlias = this.platform.quoteIdentifier(primaryKey.name);
+        const primaryKeyConverted = primaryKeyObjectConverter(
+            this.classSchema,
+            this.platform.serializer.deserializeRegistry,
+        );
 
         const sqlBuilder = new SqlBuilder(this.adapter);
         const tableName = this.platform.getTableIdentifier(this.classSchema);
@@ -433,7 +469,7 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
                 DELETE
                 FROM ${tableName} USING _
                 WHERE ${tableName}.${pkField} = _.${pkField}
-                RETURNING ${tableName}.${pkField}
+                RETURNING ${tableName}.${pkField} AS ${pkAlias}
             `;
 
             const rows = await connection.execAndReturnAll(sql, select.params);
@@ -460,67 +496,99 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
         const entity = getPreparedEntity(this.session.adapter as SQLDatabaseAdapter, this.classSchema);
         const tableName = entity.tableNameEscaped;
         const primaryKey = this.classSchema.getPrimary();
-        const primaryKeyConverted = primaryKeyObjectConverter(this.classSchema, this.platform.serializer.deserializeRegistry);
+        // PK's DB COLUMN name (honours `DatabaseField<{name}>`); `primaryKey.name` is the property
+        // name and is kept only as the CTE/returning alias so result rows stay keyed by it.
+        const pkColumn = entity.fieldMap[primaryKey.name].columnNameEscaped;
+        const primaryKeyConverted = primaryKeyObjectConverter(
+            this.classSchema,
+            this.platform.serializer.deserializeRegistry,
+        );
 
         const fieldsSet: { [name: string]: 1 } = {};
         const aggregateFields: { [name: string]: { converted: (v: any) => any } } = {};
 
-        const patchSerialize = getPatchSerializeFunction(this.classSchema.type, this.platform.serializer.serializeRegistry);
+        const patchSerialize = getPatchSerializeFunction(
+            this.classSchema.type,
+            this.platform.serializer.serializeRegistry,
+        );
         const $set = changes.$set ? patchSerialize(changes.$set, undefined) : undefined;
         const set: string[] = [];
 
-        if ($set) for (const i in $set) {
-            if (!$set.hasOwnProperty(i)) continue;
-            if ($set[i] === undefined || $set[i] === null) {
-                set.push(`${this.platform.quoteIdentifier(i)} = NULL`);
-            } else {
-                fieldsSet[i] = 1;
-                select.push(`$${selectParams.length + 1} as ${this.platform.quoteIdentifier(asAliasName(i))}`);
-                selectParams.push($set[i]);
+        if ($set)
+            for (const i in $set) {
+                if (!$set.hasOwnProperty(i)) continue;
+                if ($set[i] === undefined || $set[i] === null) {
+                    set.push(`${entity.fieldMap[i]?.columnNameEscaped ?? this.platform.quoteIdentifier(i)} = NULL`);
+                } else {
+                    fieldsSet[i] = 1;
+                    select.push(`$${selectParams.length + 1} as ${this.platform.quoteIdentifier(asAliasName(i))}`);
+                    selectParams.push($set[i]);
+                }
             }
-        }
 
-        if (changes.$unset) for (const i in changes.$unset) {
-            if (!changes.$unset.hasOwnProperty(i)) continue;
-            fieldsSet[i] = 1;
-            select.push(`NULL as ${this.platform.quoteIdentifier(i)}`);
-        }
+        if (changes.$unset)
+            for (const i in changes.$unset) {
+                if (!changes.$unset.hasOwnProperty(i)) continue;
+                fieldsSet[i] = 1;
+                select.push(`NULL as ${this.platform.quoteIdentifier(i)}`);
+            }
 
         for (const i of model.returning) {
-            aggregateFields[i] = { converted: getSerializeFunction(resolvePath(i, this.classSchema.type), this.platform.serializer.deserializeRegistry) };
+            aggregateFields[i] = {
+                // resolvePath() returns the property/propertySignature wrapper; value-level
+                // annotations (e.g. UUID → binary) live on its inner type, so unwrap before
+                // building the deserializer or the raw DB Buffer is returned verbatim.
+                converted: getSerializeFunction(
+                    resolveProperty(resolvePath(i, this.classSchema.type)),
+                    this.platform.serializer.deserializeRegistry,
+                ),
+            };
             select.push(`(${this.platform.quoteIdentifier(i)} ) as ${this.platform.quoteIdentifier(i)}`);
         }
 
-        if (changes.$inc) for (const i in changes.$inc) {
-            if (!changes.$inc.hasOwnProperty(i)) continue;
-            fieldsSet[i] = 1;
-            aggregateFields[i] = { converted: getSerializeFunction(resolvePath(i, this.classSchema.type), this.platform.serializer.serializeRegistry) };
-            const sqlTypeCast = getDeepTypeCaster(entity, i);
-            select.push(`(${sqlTypeCast('(' + this.platform.getColumnAccessor('', i) + ')')} + ${this.platform.quoteValue(changes.$inc[i])}) as ${this.platform.quoteIdentifier(asAliasName(i))}`);
-        }
+        if (changes.$inc)
+            for (const i in changes.$inc) {
+                if (!changes.$inc.hasOwnProperty(i)) continue;
+                fieldsSet[i] = 1;
+                aggregateFields[i] = {
+                    converted: getSerializeFunction(
+                        resolvePath(i, this.classSchema.type),
+                        this.platform.serializer.serializeRegistry,
+                    ),
+                };
+                const sqlTypeCast = getDeepTypeCaster(entity, i);
+                select.push(
+                    `(${sqlTypeCast('(' + this.platform.getColumnAccessor('', i) + ')')} + ${this.platform.quoteValue(changes.$inc[i])}) as ${this.platform.quoteIdentifier(asAliasName(i))}`,
+                );
+            }
 
         for (const i in fieldsSet) {
             if (i.includes('.')) {
                 let [firstPart, secondPart] = splitDotPath(i);
                 const path = '{' + secondPart.replace(/\./g, ',').replace(/[\]\[]/g, '') + '}';
-                set.push(`${this.platform.quoteIdentifier(firstPart)} = jsonb_set(${this.platform.quoteIdentifier(firstPart)}, '${path}', to_jsonb(_b.${this.platform.quoteIdentifier(asAliasName(i))}))`);
+                set.push(
+                    `${this.platform.quoteIdentifier(firstPart)} = jsonb_set(${this.platform.quoteIdentifier(firstPart)}, '${path}', to_jsonb(_b.${this.platform.quoteIdentifier(asAliasName(i))}))`,
+                );
             } else {
                 const property = entity.fieldMap[i];
                 const ref = '_b.' + this.platform.quoteIdentifier(asAliasName(i));
-                set.push(`${this.platform.quoteIdentifier(i)} = ${property.sqlTypeCast(ref)}`);
+                set.push(`${property.columnNameEscaped} = ${property.sqlTypeCast(ref)}`);
             }
         }
+        // `bPrimaryKey` is the CTE (`_b`) alias for the PK; it stays property-named so the SET
+        // join below is self-consistent. The source read, however, must come from the real PK
+        // column (`pkColumn`).
         let bPrimaryKey = primaryKey.name;
         //we need a different name because primaryKeys could be updated as well
         if (fieldsSet[primaryKey.name]) {
-            select.unshift(this.platform.quoteIdentifier(primaryKey.name) + ' as __' + primaryKey.name);
+            select.unshift(`${pkColumn} as ${this.platform.quoteIdentifier('__' + primaryKey.name)}`);
             bPrimaryKey = '__' + primaryKey.name;
         } else {
-            select.unshift(this.platform.quoteIdentifier(primaryKey.name));
+            select.unshift(`${pkColumn} as ${this.platform.quoteIdentifier(primaryKey.name)}`);
         }
 
         const returningSelect: string[] = [];
-        returningSelect.push(tableName + '.' + this.platform.quoteIdentifier(primaryKey.name));
+        returningSelect.push(`${tableName}.${pkColumn} as ${this.platform.quoteIdentifier(primaryKey.name)}`);
 
         if (!empty(aggregateFields)) {
             for (const i in aggregateFields) {
@@ -537,7 +605,7 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
                 ${tableName}
             SET ${set.join(', ')}
             FROM _b
-            WHERE ${tableName}.${this.platform.quoteIdentifier(primaryKey.name)} = _b.${this.platform.quoteIdentifier(bPrimaryKey)}
+            WHERE ${tableName}.${pkColumn} = _b.${this.platform.quoteIdentifier(bPrimaryKey)}
                 RETURNING ${returningSelect.join(', ')}
         `;
 
@@ -557,7 +625,13 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
                 }
             }
         } catch (error: any) {
-            error = new DatabasePatchError(this.classSchema, model, changes, `Could not patch ${this.classSchema.getClassName()} in database`, { cause: error });
+            error = new DatabasePatchError(
+                this.classSchema,
+                model,
+                changes,
+                `Could not patch ${this.classSchema.getClassName()} in database`,
+                { cause: error },
+            );
             throw this.handleSpecificError(error);
         } finally {
             connection.release();
@@ -565,21 +639,56 @@ export class PostgresSQLQueryResolver<T extends OrmEntity> extends SQLQueryResol
     }
 }
 
-export class PostgresSQLDatabaseQuery<T extends OrmEntity> extends SQLDatabaseQuery<T> {
-}
+export class PostgresSQLDatabaseQuery<T extends OrmEntity> extends SQLDatabaseQuery<T> {}
 
 export class PostgresSQLDatabaseQueryFactory extends SQLDatabaseQueryFactory {
-    createQuery<T extends OrmEntity>(type?: ReceiveType<T> | ClassType<T> | AbstractClassType<T> | ReflectionClass<T>): PostgresSQLDatabaseQuery<T> {
-        return new PostgresSQLDatabaseQuery<T>(ReflectionClass.from(type), this.databaseSession,
-            new PostgresSQLQueryResolver<T>(this.connectionPool, this.platform, ReflectionClass.from(type), this.databaseSession.adapter, this.databaseSession),
+    createQuery<T extends OrmEntity>(
+        type?: ReceiveType<T> | ClassType<T> | AbstractClassType<T> | ReflectionClass<T>,
+    ): PostgresSQLDatabaseQuery<T> {
+        return new PostgresSQLDatabaseQuery<T>(
+            ReflectionClass.from(type),
+            this.databaseSession,
+            new PostgresSQLQueryResolver<T>(
+                this.connectionPool,
+                this.platform,
+                ReflectionClass.from(type),
+                this.databaseSession.adapter,
+                this.databaseSession,
+            ),
         );
     }
+}
+
+/**
+ * int8 (BIGINT) arrives from the wire as a string and stays a string: parsing
+ * to number silently corrupts values above Number.MAX_SAFE_INTEGER (snowflake
+ * ids, large sequences), and a value-dependent number|string parser makes the
+ * runtime type non-deterministic. The property's declared type decides instead:
+ * the ORM deserializer coerces the string into `number`/`bigint` properties
+ * during hydration, and `string` properties stay lossless. Internal consumers
+ * that bypass hydration convert explicitly (e.g. count() does Number(row.count)).
+ */
+function parseInt8AsString(value: string): string {
+    return value;
+}
+
+/**
+ * Keep json/jsonb columns as the raw JSON TEXT the wire delivers, instead of pg's
+ * default `JSON.parse`. The SQL serializer's deserialize contract is text-based
+ * (`typeof v === 'string' ? JSON.parse(v) : v`): handing it pre-parsed values silently
+ * breaks scalar JSON columns — a jsonb string `"hi"` auto-parses to `hi`, which the
+ * deserializer would then re-`JSON.parse` and throw on; and it would corrupt a stored
+ * string `"42"` into the number `42`. Returning raw text lets the deserializer parse
+ * once, losslessly, preserving the scalar/object distinction for every column shape.
+ */
+function keepJsonAsText(value: string): string {
+    return value;
 }
 
 export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
     protected options: PoolConfig;
     protected pool: pg.Pool;
-    public connectionPool : PostgresConnectionPool;
+    public connectionPool: PostgresConnectionPool;
     public platform = new PostgresPlatform();
     closed = false;
 
@@ -588,11 +697,21 @@ export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
         const defaults: PoolConfig = {};
         options = 'string' === typeof options ? parseConnectionString(options) : options;
         this.options = Object.assign(defaults, options, additional);
+        // Type parsers are scoped to THIS pool. Setting them via
+        // pg.types.setTypeParser() mutates pg's module-global registry and
+        // changes parsing for every other pg.Pool in the same process.
+        if (!this.options.types) {
+            this.options.types = {
+                getTypeParser: (oid: number, format?: any) => {
+                    if (oid === 1700) return parseFloat;
+                    if (oid === 20) return parseInt8AsString;
+                    if (oid === 114 || oid === 3802) return keepJsonAsText; // json / jsonb
+                    return pg.types.getTypeParser(oid as any, format);
+                },
+            } as any;
+        }
         this.pool = new pg.Pool(this.options);
         this.connectionPool = new PostgresConnectionPool(this.pool, this.logger, this.stopwatch);
-
-        pg.types.setTypeParser(1700, parseFloat);
-        pg.types.setTypeParser(20, parseInt);
     }
 
     setLogger(logger: Logger) {
@@ -614,7 +733,7 @@ export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
     }
 
     createTransaction(session: DatabaseSession<this>): PostgresDatabaseTransaction {
-        return new PostgresDatabaseTransaction;
+        return new PostgresDatabaseTransaction();
     }
 
     queryFactory(session: DatabaseSession<any>): SQLDatabaseQueryFactory {

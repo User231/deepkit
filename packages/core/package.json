@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/core",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit core library",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -21,32 +21,16 @@
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "dependencies": {
-    "dot-prop": "^5.1.1",
-    "to-fast-properties": "^3.0.1"
+    "dot-prop": "5.3.0",
+    "to-fast-properties": "3.0.1"
   },
   "devDependencies": {
-    "@deepkit/bench": "^1.0.19",
-    "@types/dot-prop": "~4.2.0"
+    "@deepkit/bench": "^2.0.0",
+    "@types/dot-prop": "4.2.0"
   },
   "scripts": {
-    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "transform": {
-      "^.+\\.(ts|tsx)$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/tsconfig.spec.json"
-        }
-      ]
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

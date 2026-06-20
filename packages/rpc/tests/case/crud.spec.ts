@@ -1,5 +1,8 @@
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
 import { entity } from '@deepkit/type';
-import { expect, test } from '@jest/globals';
+
 import { DirectClient } from '../../src/client/client-direct.js';
 import { rpc } from '../../src/decorators.js';
 import { RpcKernel } from '../../src/server/kernel.js';
@@ -7,8 +10,8 @@ import { RpcKernel } from '../../src/server/kernel.js';
 @entity.name('purchase')
 export class Purchase {
     id: number = 0;
-    sentAt: Date = new Date;
-    canceledAt: Date = new Date;
+    sentAt: Date = new Date();
+    canceledAt: Date = new Date();
 }
 
 test('partial', async () => {

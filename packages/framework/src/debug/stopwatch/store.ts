@@ -1,20 +1,31 @@
-import { decodeCompoundKey, encodeCompoundKey, FrameEnd, FrameStart, FrameType, incrementCompoundKey, StopwatchStore } from '@deepkit/stopwatch';
+import cluster from 'cluster';
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs';
 import { appendFile } from 'fs/promises';
 import { join } from 'path';
+import { performance } from 'perf_hooks';
+
+import { BrokerBusChannel } from '@deepkit/broker';
+import { Mutex, formatError } from '@deepkit/core';
 import { decodeFrames, encodeAnalytic, encodeFrameData, encodeFrames } from '@deepkit/framework-debug-api';
-import { formatError, Mutex } from '@deepkit/core';
+import { Logger } from '@deepkit/logger';
+import {
+    FrameEnd,
+    FrameStart,
+    FrameType,
+    StopwatchStore,
+    decodeCompoundKey,
+    encodeCompoundKey,
+    incrementCompoundKey,
+} from '@deepkit/stopwatch';
+
 import { FrameworkConfig } from '../../module.config.js';
 import { Zone } from '../../zone.js';
-import cluster from 'cluster';
-import { performance } from 'perf_hooks';
 import { DebugBrokerBus } from '../broker.js';
-import { BrokerBusChannel } from '@deepkit/broker';
-import { Logger } from '@deepkit/logger';
 
 export class FileStopwatchStore extends StopwatchStore {
     protected lastSync?: any;
-    protected syncMutex = new Mutex;
+    protected syncMutex = new Mutex();
+    protected syncing = false;
 
     protected lastId: number = -1;
     protected lastContext: number = -1;
@@ -44,22 +55,68 @@ export class FileStopwatchStore extends StopwatchStore {
         for (const file of [this.framesPath, this.framesDataPath, this.analyticsPath]) {
             try {
                 unlinkSync(file);
-            } catch {
-            }
+            } catch {}
         }
         this.lastId = -1;
         this.lastContext = -1;
     }
 
     async close() {
-        //last sync, then stop everything
-        try {
-            // close() is called onAppExecuted so it must not throw
-            await this.syncNow();
-        } catch (error) {
-            this.logger.error('Could not sync debug store', formatError(error));
-        }
+        // Set ended first so any in-progress syncNow() skips broker publish
+        // at the `if (!this.ended)` check and releases the mutex promptly.
         this.ended = true;
+        this.frameChannel = undefined;
+        this.frameDataChannel = undefined;
+
+        // Cancel any pending sync timer
+        if (this.lastSync) {
+            clearTimeout(this.lastSync);
+            this.lastSync = undefined;
+        }
+
+        // Try to flush remaining data to disk.
+        // If an in-progress syncNow() is holding the mutex (stuck on broker publish),
+        // we skip the flush — the data loss is acceptable during shutdown.
+        if (!this.syncing) {
+            await this.syncMutex.lock();
+            try {
+                await this.flushToDisk();
+            } catch (error) {
+                this.logger.error('Could not sync debug store on close', formatError(error));
+            } finally {
+                this.syncMutex.unlock();
+            }
+        }
+    }
+
+    private async flushToDisk(): Promise<{ frameBytes: Uint8Array, dataBytes: Uint8Array }> {
+        await this.loadLastNumberRange();
+
+        const frames = this.frameQueue.slice();
+        const frameData = this.dataQueue.slice();
+        const analytics = this.analytics.slice();
+        this.frameQueue = [];
+        this.dataQueue = [];
+        this.analytics = [];
+
+        for (const frame of frames) {
+            frame.cid = incrementCompoundKey(frame.cid, this.lastId);
+            if (frame.type === FrameType.start) frame.context += this.lastContext;
+        }
+        for (const frame of frameData) {
+            frame.cid = incrementCompoundKey(frame.cid, this.lastId);
+        }
+
+        const frameBytes = encodeFrames(frames);
+        const dataBytes = encodeFrameData(frameData);
+        const analyticsBytes = encodeAnalytic(analytics);
+
+        this.ensureVarDebugFolder();
+        if (frameBytes.byteLength) await appendFile(this.framesPath, frameBytes);
+        if (dataBytes.byteLength) await appendFile(this.framesDataPath, dataBytes);
+        if (analyticsBytes.byteLength) await appendFile(this.analyticsPath, analyticsBytes);
+
+        return { frameBytes, dataBytes };
     }
 
     run<T>(data: { [name: string]: any }, cb: () => Promise<T>): Promise<T> {
@@ -91,7 +148,7 @@ export class FileStopwatchStore extends StopwatchStore {
 
             let last: FrameStart | undefined;
 
-            decodeFrames(data, (frame) => {
+            decodeFrames(data, frame => {
                 if (frame.type === FrameType.start) {
                     last = frame;
                 }
@@ -121,37 +178,9 @@ export class FileStopwatchStore extends StopwatchStore {
         if (this.ended) return;
 
         await this.syncMutex.lock();
+        this.syncing = true;
         try {
-            await this.loadLastNumberRange();
-
-            const frames = this.frameQueue.slice();
-            const frameData = this.dataQueue.slice();
-            const analytics = this.analytics.slice();
-            this.frameQueue = [];
-            this.dataQueue = [];
-            this.analytics = [];
-
-            for (const frame of frames) {
-                frame.cid = incrementCompoundKey(frame.cid, this.lastId);
-                if (frame.type === FrameType.start) frame.context += this.lastContext;
-            }
-
-            for (const frame of frameData) {
-                frame.cid = incrementCompoundKey(frame.cid, this.lastId);
-            }
-
-            const frameBytes = encodeFrames(frames);
-            const dataBytes = encodeFrameData(frameData);
-            const analyticsBytes = encodeAnalytic(analytics);
-
-            try {
-                this.ensureVarDebugFolder();
-                if (frameBytes.byteLength) await appendFile(this.framesPath, frameBytes);
-                if (dataBytes.byteLength) await appendFile(this.framesDataPath, dataBytes);
-                if (analyticsBytes.byteLength) await appendFile(this.analyticsPath, analyticsBytes);
-            } catch (error) {
-                this.logger.error('Could not write to debug store', String(error));
-            }
+            const { frameBytes, dataBytes } = await this.flushToDisk();
 
             if (!this.ended) {
                 //when we ended, broker connection already closed. So we just write to disk.
@@ -165,6 +194,7 @@ export class FileStopwatchStore extends StopwatchStore {
                 this.sync();
             }
         } finally {
+            this.syncing = false;
             this.syncMutex.unlock();
         }
     }

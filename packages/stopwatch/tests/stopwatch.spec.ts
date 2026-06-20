@@ -1,6 +1,8 @@
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
 import { Stopwatch, StopwatchStore } from '../src/stopwatch.js';
-import { decodeCompoundKey, encodeCompoundKey, FrameCategory } from '../src/types.js';
-import { expect, test } from '@jest/globals';
+import { FrameCategory, decodeCompoundKey, encodeCompoundKey } from '../src/types.js';
 
 class Store extends StopwatchStore {
     getZone(): { [p: string]: any } | undefined {

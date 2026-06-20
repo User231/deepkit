@@ -1,4 +1,7 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
+
 import { parseHost } from '../src/network.js';
 
 test('parseHost', () => {

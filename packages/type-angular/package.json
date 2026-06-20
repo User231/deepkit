@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/type-angular",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Types angular forms",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,28 +13,17 @@
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "peerDependencies": {
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
   },
   "devDependencies": {
-    "@angular/common": "^19.1.5",
-    "@angular/core": "^19.1.5",
-    "@angular/forms": "19.1.5",
-    "@angular/platform-browser": "^19.1.5",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
-    "rxjs": "*"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+    "@angular/common": "19.2.25",
+    "@angular/core": "19.2.25",
+    "@angular/forms": "19.2.25",
+    "@angular/platform-browser": "19.2.25",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
+    "rxjs": "7.8.2"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

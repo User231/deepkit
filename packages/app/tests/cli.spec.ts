@@ -1,10 +1,13 @@
-import { expect, test } from '@jest/globals';
-import { executeCommand, Flag, parseCliArgs, ParsedCliControllerConfig } from '../src/command.js';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
 import { EventDispatcher } from '@deepkit/event';
 import { InjectorContext, InjectorModule } from '@deepkit/injector';
 import { Logger, MemoryLogger } from '@deepkit/logger';
 import { Stopwatch } from '@deepkit/stopwatch';
 import { PrimaryKey, Reference } from '@deepkit/type';
+
+import { Flag, ParsedCliControllerConfig, executeCommand, parseCliArgs } from '../src/command.js';
 
 test('parser', async () => {
     expect(parseCliArgs(['--id 1', '--id 2'])).toEqual({ id: ['1', '2'] });
@@ -25,7 +28,7 @@ function builder(module: InjectorModule, commands: (ParsedCliControllerConfig | 
         { provide: Logger, useValue: logger },
         { provide: EventDispatcher, useValue: eventDispatcher },
         { provide: InjectorContext, useFactory: () => injector },
-        { provide: Stopwatch, useValue: new Stopwatch },
+        { provide: Stopwatch, useValue: new Stopwatch() },
     ]);
     module.setParent(rootModule);
 
@@ -100,7 +103,8 @@ For more information on a specific command or topic, type '[command/topic] --hel
     expect(await app([])).toEqual({ code: 0, output: helpMessageRoot });
 
     expect(await app(['system'])).toEqual({
-        code: 0, output: `USAGE
+        code: 0,
+        output: `USAGE
   $ node app.ts system:[COMMAND]
 
 COMMANDS
@@ -119,7 +123,7 @@ For more information on a specific command or topic, type '[command/topic] --hel
     expect(res1.code).toBe(1);
 
     expect(await app(['del-user-by-id', '123'])).toEqual({ code: 0, output: 'Deleted user 123' });
-    expect((await app(['del-user-by-id', 'invalid'])).output).toContain('Invalid value for argument id: invalid. Cannot convert invalid to number');
+    expect((await app(['del-user-by-id', 'invalid'])).output).toContain('Invalid value for argument id: invalid. Cannot convert string "invalid" to number');
 });
 
 test('executeCommand 2', async () => {
@@ -140,7 +144,7 @@ test('executeCommand 2', async () => {
 
     expect(await app(['show-user2', 'Peter'])).toEqual({ code: 0, output: 'showUser2 Peter default' });
     expect(await app(['show-user2', 'Peter', '--view', 'json'])).toEqual({ code: 0, output: 'showUser2 Peter json' });
-    expect((await app(['show-user2', 'Peter', '--view', 'invalid'])).output).toContain(`Invalid value for option --view: invalid. No valid union member found. Valid: 'default' | 'json'`);
+    expect((await app(['show-user2', 'Peter', '--view', 'invalid'])).output).toContain(`Invalid value for option --view: invalid. Cannot convert string "invalid" to 'default' | 'json'. No union member matches`);
 
     expect(await app(['show-users', '--user', 'Peter'])).toEqual({ code: 0, output: 'showUsers Peter' });
     expect(await app(['show-users', '--user', 'Peter', '--user', 'John'])).toEqual({ code: 0, output: 'showUsers Peter,John' });
@@ -174,7 +178,6 @@ test('object literal flag', async () => {
     expect(await app(['show-user', '--name', 'Peter', '--age', '32'])).toEqual({ code: 0, output: 'name=Peter age=32' });
 });
 
-
 test('multiple object literal flag', async () => {
     interface Options {
         name: string;
@@ -200,7 +203,6 @@ test('multiple object literal flag', async () => {
     });
 });
 
-
 test('multiple object literal flag duplicate', async () => {
     interface Options {
         name: string;
@@ -212,8 +214,7 @@ test('multiple object literal flag duplicate', async () => {
     }
 
     const app = simpleApp([
-        function showUser(options: Options & Flag, options2: Options2 & Flag, logger: Logger) {
-        },
+        function showUser(options: Options & Flag, options2: Options2 & Flag, logger: Logger) {},
         function showUser2(options: Options & Flag, options2: Options2 & Flag<{ prefix: '2' }>, logger: Logger) {
             logger.log(`name=${options.name} age=${options.age} name2=${options2.name}`);
         },
@@ -242,7 +243,6 @@ test('object reference', async () => {
     expect((await app(['show-user', '--account', '123'])).output).toContain('account=123');
     expect((await app(['show-user', '--help'])).output).toContain('--account number [required]');
 });
-
 
 test('class option with defaults', async () => {
     class Options {

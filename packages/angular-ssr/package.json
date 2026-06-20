@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/angular-ssr",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit + angular SSR",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -24,24 +24,13 @@
     "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
   },
   "peerDependencies": {
-    "@angular/ssr": "^20.0.3",
-    "@deepkit/app": "^1.0.1",
-    "@deepkit/http": "^1.0.1"
+    "@angular/ssr": "20.3.15",
+    "@deepkit/app": "^2.0.0",
+    "@deepkit/http": "^2.0.0"
   },
   "devDependencies": {
-    "@angular/ssr": "^20.0.3",
-    "@deepkit/app": "^1.0.19",
-    "@deepkit/http": "^1.0.19"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+    "@angular/ssr": "20.3.28",
+    "@deepkit/app": "^2.0.0",
+    "@deepkit/http": "^2.0.0"
   }
 }

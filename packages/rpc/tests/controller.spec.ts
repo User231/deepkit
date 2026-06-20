@@ -1,23 +1,25 @@
-import { assertType, entity, Minimum, Positive, ReflectionClass, ReflectionKind } from '@deepkit/type';
-import { expect, test } from '@jest/globals';
-import { AsyncDirectClient, DirectClient, RpcDirectClientAdapter } from '../src/client/client-direct.js';
-import { getActions, rpc, RpcController } from '../src/decorators.js';
-import { RpcKernel, RpcKernelConnection } from '../src/server/kernel.js';
-import { Session, SessionState } from '../src/server/security.js';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
 import { BehaviorSubject, Observable } from 'rxjs';
+
 import { getClassName, sleep } from '@deepkit/core';
 import { ProgressTracker } from '@deepkit/core-rxjs';
-import { Logger, MemoryLogger } from '@deepkit/logger';
-import { RpcClient } from '../src/client/client.js';
-import { InjectorContext } from '@deepkit/injector';
-import { RpcControllerState } from '../src/client/action.js';
-import { onRpcAction, onRpcAuth, onRpcConnection, onRpcConnectionClose, onRpcControllerAccess } from '../src/events.js';
 import { eventWatcher } from '@deepkit/event';
+import { InjectorContext } from '@deepkit/injector';
+import { Logger, MemoryLogger } from '@deepkit/logger';
+import { Minimum, Positive, ReflectionClass, ReflectionKind, assertType, entity } from '@deepkit/type';
+
+import { RpcControllerState } from '../src/client/action.js';
+import { AsyncDirectClient, DirectClient, RpcDirectClientAdapter } from '../src/client/client-direct.js';
+import { RpcClient } from '../src/client/client.js';
+import { RpcController, getActions, rpc } from '../src/decorators.js';
+import { onRpcAction, onRpcAuth, onRpcConnection, onRpcConnectionClose, onRpcControllerAccess } from '../src/events.js';
+import { RpcKernel, RpcKernelConnection } from '../src/server/kernel.js';
+import { Session, SessionState } from '../src/server/security.js';
 
 test('default name', () => {
     @rpc.controller()
-    class Controller {
-    }
+    class Controller {}
 
     const controller = new RpcController();
 
@@ -30,12 +32,10 @@ test('decorator', async () => {
     @rpc.controller('name')
     class Controller {
         @rpc.action()
-        action(): void {
-        }
+        action(): void {}
 
         @(rpc.action().group('a'))
-        second(): void {
-        }
+        second(): void {}
     }
 
     {
@@ -49,8 +49,7 @@ test('decorator', async () => {
 });
 
 test('inheritance', async () => {
-    class User {
-    }
+    class User {}
 
     @rpc.controller('name')
     class Controller {
@@ -73,8 +72,7 @@ test('inheritance', async () => {
         }
 
         @(rpc.action().group('b'))
-        third(): void {
-        }
+        third(): void {}
     }
 
     {
@@ -117,13 +115,11 @@ test('inheritance', async () => {
 test('basics', async () => {
     @entity.name('model/basics')
     class MyModel {
-        constructor(public name: string) {
-        }
+        constructor(public name: string) {}
     }
 
     @entity.name('MyError')
-    class MyError extends Error {
-    }
+    class MyError extends Error {}
 
     @entity.name('MyError2')
     class MyError2 extends Error {
@@ -145,7 +141,7 @@ test('basics', async () => {
         }
 
         @rpc.action()
-        union(): (string | number) {
+        union(): string | number {
             return 213;
         }
 
@@ -232,8 +228,7 @@ test('parameters', async () => {
 test('promise', async () => {
     @entity.name('model/promise')
     class MyModel {
-        constructor(public name: string) {
-        }
+        constructor(public name: string) {}
     }
 
     class Controller {
@@ -294,8 +289,7 @@ test('promise', async () => {
 test('wrong arguments', async () => {
     @entity.name('model/promise2')
     class MyModel {
-        constructor(public id: number) {
-        }
+        constructor(public id: number) {}
     }
 
     class Controller {
@@ -322,7 +316,9 @@ test('wrong arguments', async () => {
     }
 
     {
-        await expect(controller.getProduct(NaN as any)).rejects.toThrow('args.id(type): Cannot convert NaN to number');
+        // NaN is serialized as 0 in BSON (see issue #573), and 0 passes Positive validation
+        const result = await controller.getProduct(NaN as any);
+        expect(result).toEqual({ id: 0 });
     }
 
     {
@@ -330,10 +326,47 @@ test('wrong arguments', async () => {
     }
 });
 
+test('error messages include context', async () => {
+    class Product {
+        constructor(public id: number) {}
+    }
+
+    class MyController {
+        @rpc.action()
+        async getItem(id: number): Promise<Product> {
+            return new Product(id);
+        }
+
+        @rpc.action()
+        async processData(data: { required: string }): Promise<string> {
+            return data.required;
+        }
+    }
+
+    const kernel = new RpcKernel();
+    kernel.registerController(MyController, 'myController');
+
+    const client = new DirectClient(kernel);
+    const controller = client.controller<MyController>('myController');
+
+    // Test that validation errors on the server include controller/method context
+    {
+        // Pass undefined where a number is expected
+        await expect(controller.getItem(undefined as any)).rejects.toThrow('myController.getItem');
+    }
+
+    {
+        // Pass wrong type where an object is expected
+        await expect(controller.processData('not an object' as any)).rejects.toThrow('myController.processData');
+    }
+});
+
 test('di', async () => {
     class Controller {
-        constructor(protected connection: RpcKernelConnection, protected sessionState: SessionState) {
-        }
+        constructor(
+            protected connection: RpcKernelConnection,
+            protected sessionState: SessionState,
+        ) {}
 
         @rpc.action()
         hasSession(): boolean {
@@ -358,12 +391,10 @@ test('di', async () => {
 
 test('connect disconnect', async () => {
     class Controller {
-        constructor(protected connection: RpcKernelConnection) {
-        }
+        constructor(protected connection: RpcKernelConnection) {}
 
         @rpc.action()
-        test(): void {
-        }
+        test(): void {}
 
         @rpc.action()
         bye(): void {
@@ -405,17 +436,14 @@ test('connect disconnect', async () => {
     expect(client.transporter.isConnected()).toBe(true);
 });
 
-
 test('types', async () => {
     @entity.name('types/model')
-    class Model {
-
-    }
+    class Model {}
 
     class Controller {
         @rpc.action()
-        test(): { total: number, items: Model[] } {
-            return { total: 5, items: [new Model] };
+        test(): { total: number; items: Model[] } {
+            return { total: 5, items: [new Model()] };
         }
     }
 
@@ -440,8 +468,7 @@ test('disable type reuse', async () => {
     class Model {
         child?: Model;
 
-        constructor(public title: string) {
-        }
+        constructor(public title: string) {}
     }
 
     class Controller {
@@ -451,7 +478,7 @@ test('disable type reuse', async () => {
         }
 
         @rpc.action()
-        testDeep(): { total: number, items: Model[] } {
+        testDeep(): { total: number; items: Model[] } {
             return { total: 5, items: [new Model('123')] };
         }
     }
@@ -748,8 +775,7 @@ test('validation errors', async () => {
 test('disable strict serialization', async () => {
     @rpc.logValidationErrors(true)
     class Controller {
-        constructor(protected logger: Logger) {
-        }
+        constructor(protected logger: Logger) {}
 
         @rpc.action()
         test(): { value: string } {
@@ -877,26 +903,13 @@ test('events', async () => {
     const client = new DirectClient(kernel);
     const controller = client.controller<Controller>('myController');
 
-    const watcher = eventWatcher(kernel.getEventDispatcher(), [
-        onRpcConnection,
-        onRpcAction,
-        onRpcConnectionClose,
-        onRpcControllerAccess,
-        onRpcAuth,
-    ]);
+    const watcher = eventWatcher(kernel.getEventDispatcher(), [onRpcConnection, onRpcAction, onRpcConnectionClose, onRpcControllerAccess, onRpcAuth]);
 
     await controller.test1();
 
     await client.disconnect();
 
-    expect(watcher.messages).toEqual([
-        'rpc.connection',
-        'rpc.action phase=start',
-        'rpc.controllerAccess phase=start',
-        'rpc.controllerAccess phase=success',
-        'rpc.action phase=success',
-        'rpc.connectionClose reason=closed',
-    ]);
+    expect(watcher.messages).toEqual(['rpc.connection', 'rpc.action phase=start', 'rpc.controllerAccess phase=start', 'rpc.controllerAccess phase=success', 'rpc.action phase=success', 'rpc.connectionClose reason=closed']);
 
     expect(kernel.stats).toMatchObject({
         actions: 1,
@@ -904,15 +917,14 @@ test('events', async () => {
         totalConnections: 1,
     });
 
-    expect(watcher.get(onRpcAction, (event) => event.phase === 'success').timing)
-        .toEqual({
-            start: expect.any(Number),
-            end: expect.any(Number),
-            types: expect.any(Number),
-            parseBody: expect.any(Number),
-            validate: expect.any(Number),
-            controllerAccess: expect.any(Number),
-        });
+    expect(watcher.get(onRpcAction, event => event.phase === 'success').timing).toEqual({
+        start: expect.any(Number),
+        end: expect.any(Number),
+        types: expect.any(Number),
+        parseBody: expect.any(Number),
+        validate: expect.any(Number),
+        controllerAccess: expect.any(Number),
+    });
 
     client.token.set('abc');
     watcher.clear();
@@ -935,7 +947,6 @@ test('events', async () => {
         connections: 0,
         totalConnections: 2,
     });
-
 });
 
 test('connection disconnect client', async () => {
@@ -957,7 +968,6 @@ test('connection disconnect client', async () => {
     await expect(promise).rejects.toThrow('Connection closed');
 });
 
-
 test('connection disconnect back-controller', async () => {
     class ClientController {
         @rpc.action()
@@ -968,8 +978,7 @@ test('connection disconnect back-controller', async () => {
     }
 
     class ServerController {
-        constructor(private connection: RpcKernelConnection) {
-        }
+        constructor(private connection: RpcKernelConnection) {}
 
         @rpc.action()
         async start() {
@@ -992,4 +1001,3 @@ test('connection disconnect back-controller', async () => {
     await client.disconnect();
     await expect(promise).rejects.toThrow('Connection closed');
 });
-

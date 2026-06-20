@@ -3,7 +3,9 @@
   "compilerOptions": {
     "noImplicitAny": false,
     "outDir": "./dist",
-    "types": []
+    "types": [
+      "node"
+    ]
   },
   "reflection": true,
   "include": [

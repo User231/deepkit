@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/run",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit Run",
   "module": "./dist/esm/index.js",
   "main": "./dist/cjs/index.js",
@@ -10,6 +10,11 @@
       "types": "./dist/cjs/index.d.ts",
       "require": "./dist/cjs/index.js",
       "default": "./dist/esm/index.js"
+    },
+    "./expect": {
+      "types": "./dist/cjs/expect.d.ts",
+      "require": "./dist/cjs/expect.js",
+      "default": "./dist/esm/expect.js"
     }
   },
   "sideEffects": false,
@@ -23,7 +28,9 @@
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "dependencies": {
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "~5.8.3"
+    "@deepkit/type-compiler": "^2.0.0",
+    "cjs-module-lexer": "1.4.3",
+    "tsconfig-paths": "4.2.0",
+    "typescript": "5.8.3"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/create-app",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "asdasd",
   "type": "commonjs",
   "main": "./dist/cjs/main.js",
@@ -11,30 +11,20 @@
     "access": "public"
   },
   "scripts": {
-    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'files/tests/**/*.spec.ts'"
   },
   "bin": {
     "deepkit-app": "dist/cjs/main.js"
   },
   "dependencies": {
-    "@deepkit/app": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
-    "fs-extra": "^9.1.0"
+    "@deepkit/app": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
+    "fs-extra": "9.1.0"
   },
   "devDependencies": {
-    "@types/fs-extra": "^9.0.13"
-  },
-  "jest": {
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+    "@types/fs-extra": "9.0.13"
   }
 }

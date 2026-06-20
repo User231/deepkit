@@ -7,15 +7,15 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
 import { ClassType } from '@deepkit/core';
 import { EventDispatcherUnsubscribe } from '@deepkit/event';
+import { ReflectionClass } from '@deepkit/type';
+
+import { DatabaseAdapter } from '../database-adapter.js';
 import { DatabaseSession } from '../database-session.js';
 import { Database } from '../database.js';
-import { DatabaseAdapter } from '../database-adapter.js';
-import { Query } from '../query.js';
+import { Condition, Query } from '../query.js';
 import { OrmEntity } from '../type.js';
-import { ReflectionClass } from '@deepkit/type';
 import { DatabasePlugin } from './plugin.js';
 
 interface SoftDeleteEntity extends OrmEntity {
@@ -49,7 +49,10 @@ export class SoftDeleteSession {
         });
     }
 
-    setDeletedBy<T extends SoftDeleteEntity>(classType: ClassType<T> | ReflectionClass<T>, deletedBy: T['deletedBy']): this {
+    setDeletedBy<T extends SoftDeleteEntity>(
+        classType: ClassType<T> | ReflectionClass<T>,
+        deletedBy: T['deletedBy'],
+    ): this {
         this.deletedBy.set(ReflectionClass.from(classType), deletedBy);
         return this;
     }
@@ -86,7 +89,9 @@ export class SoftDeleteQuery<T extends SoftDeleteEntity> extends Query<T> {
     isSoftDeleted(): this {
         const m = this.clone();
         m.includeSoftDeleted = true;
-        return m.filterField('deletedAt', { $ne: undefined });
+        // `T` is the plugin's generic entity here, so `{ $ne: undefined }` can't be checked
+        // against `Condition<T['deletedAt']>` — cast through the generic escape hatch.
+        return m.filterField('deletedAt', { $ne: undefined } as Condition<T['deletedAt']>);
     }
 
     deletedBy(value: T['deletedBy']): this {
@@ -117,10 +122,15 @@ export class SoftDeleteQuery<T extends SoftDeleteEntity> extends Query<T> {
 }
 
 export class SoftDeletePlugin implements DatabasePlugin {
-    protected listeners = new Map<ReflectionClass<any>, {
-        queryFetch: EventDispatcherUnsubscribe, queryPatch: EventDispatcherUnsubscribe,
-        queryDelete: EventDispatcherUnsubscribe, uowDelete: EventDispatcherUnsubscribe
-    }>();
+    protected listeners = new Map<
+        ReflectionClass<any>,
+        {
+            queryFetch: EventDispatcherUnsubscribe;
+            queryPatch: EventDispatcherUnsubscribe;
+            queryDelete: EventDispatcherUnsubscribe;
+            uowDelete: EventDispatcherUnsubscribe;
+        }
+    >();
 
     protected database?: Database<DatabaseAdapter>;
 
@@ -159,10 +169,12 @@ export class SoftDeletePlugin implements DatabasePlugin {
         const hasDeletedBy = schema.hasProperty('deletedBy');
 
         if (!schema.hasProperty(deletedAtName)) {
-            throw new Error(`Entity ${schema.getClassName()} has no ${deletedAtName} property. Please define one as type '${deletedAtName}: t.date.optional'`);
+            throw new Error(
+                `Entity ${schema.getClassName()} has no ${deletedAtName} property. Please define one as type '${deletedAtName}: t.date.optional'`,
+            );
         }
 
-        function queryFilter(event: { classSchema: ReflectionClass<any>, query: Query<any> }) {
+        function queryFilter(event: { classSchema: ReflectionClass<any>; query: Query<any> }) {
             //this is for each query method: count, find, findOne(), etc.
 
             //we don't change SoftDeleteQuery instances as they operate on the raw records without filter
@@ -186,7 +198,7 @@ export class SoftDeletePlugin implements DatabasePlugin {
             //stop actual query delete query
             event.preventDefault();
 
-            const patch = { [deletedAtName]: new Date } as Partial<T>;
+            const patch = { [deletedAtName]: new Date() } as Partial<T>;
             if (hasDeletedBy && Query.is(event.query, SoftDeleteQuery) && event.query.setDeletedBy !== undefined) {
                 patch.deletedBy = event.query.setDeletedBy;
             }
@@ -203,7 +215,7 @@ export class SoftDeletePlugin implements DatabasePlugin {
             //instead of removing, we move it into the current session (creating a new SessionRound)
             //to let the current commit know we want to rather update it, instead of deleting.
             for (const item of event.items) {
-                item[deletedAtName] = new Date;
+                item[deletedAtName] = new Date();
             }
 
             //this creates a new SessionRound, and commits automatically once the current is done (in the same transaction).

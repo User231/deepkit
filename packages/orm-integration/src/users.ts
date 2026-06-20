@@ -1,6 +1,6 @@
 import { DatabaseFactory } from './test.js';
 import { AutoIncrement, BackReference, entity, PrimaryKey, Reference } from '@deepkit/type';
-import { expect } from '@jest/globals';
+import { expect } from '@deepkit/run/expect';
 import { getObjectKeysSize } from '@deepkit/core';
 
 @entity.name('users_user')

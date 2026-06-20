@@ -7,74 +7,80 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { BSONBinarySerializer, ValueWithBSONSerializer } from '@deepkit/bson';
-import { ContainerAccessor, EmptySerializer, executeTemplates, isBinaryBigIntType, isMongoIdType, isReferenceType, isUUIDType, ReflectionClass, ReflectionKind, TemplateState, Type } from '@deepkit/type';
+import { BSONValue } from '@deepkit/bson';
+import {
+    JsonBuildContext,
+    ReflectionKind,
+    Serializer,
+    Type,
+    TypeHandler,
+    isBinaryBigIntType,
+    isMongoIdType,
+    isUUIDType,
+    registerDefaultHandlers,
+    registerTypeGuards,
+    registerUnionHandler,
+} from '@deepkit/type';
 
 /**
- * Serializer class from BSONBinarySerializer with a few adjustments to make sure
- * it works correctly with MongoDB.
+ * A {@link TypeHandler} bound to {@link JsonBuildContext} (the object build context the
+ * mongo serializer reuses).
  */
-class MongoBinarySerializer extends BSONBinarySerializer {
-    //import to set name so `Excluded<'mongo'>` is correctly handled
-    name = 'mongo';
+type MongoTypeHandler<T extends Type = Type> = TypeHandler<T, JsonBuildContext>;
 
+/**
+ * Wrap a value together with its reflected type in a {@link BSONValue}. The downstream
+ * BSON serializer sees filter / update documents as `any`, so without the embedded type
+ * it could not tell a `MongoId`/`UUID`/`BinaryBigInt` apart from a plain string/bigint.
+ * The wrapper carries that type through the `any` path so the value is encoded as a BSON
+ * ObjectId / binary rather than a string/long.
+ *
+ * The closure captures the reflected `type` and runs at serialize time via `b.call`.
+ */
+const wrapWithType: MongoTypeHandler = (type, input, b) => b.call((value: any) => new BSONValue(value, type), input);
+
+/**
+ * Identity handler — keep the value as its native JS type. The BSON `any` serializer
+ * encodes Date / binary / bigint natively, so we must NOT apply the JSON transforms the
+ * default handlers do (Date → ISO string, bigint → string, binary → base64).
+ */
+const identity: MongoTypeHandler = (type, input) => input;
+
+/**
+ * Serializer that converts entity values into a form the BSON layer can encode inside the
+ * `any`-typed filter / update documents MongoDB commands use. It builds on the default JSON
+ * handlers (for object/array recursion and `& Reference` → foreign-key) but:
+ *
+ *  - wraps `UUID` / `MongoId` / `BinaryBigInt` values in {@link BSONValue} so they keep their
+ *    BSON identity through the `any` path, and
+ *  - keeps `Date`, binary and (non-binary) `bigint` as native JS instead of JSON-encoding them.
+ *
+ * `any` is used for filter & patch documents since the full type would be too complex to
+ * express otherwise.
+ */
+class MongoSerializer extends Serializer {
     constructor() {
-        super({ forMongoDatabase: true });
+        super('mongo');
+    }
+
+    protected override registerSerializers() {
+        // Annotation handlers are first-match-wins, so register the special types BEFORE the
+        // defaults to shadow the default UUID / MongoId / BinaryBigInt handling.
+        this.serializeRegistry.addDecorator(isMongoIdType, wrapWithType);
+        this.serializeRegistry.addDecorator(isUUIDType, wrapWithType);
+        this.serializeRegistry.addDecorator(isBinaryBigIntType, wrapWithType);
+
+        // Default JSON handlers: primitive identity, object/array recursion, reference → FK,
+        // and `undefined` → null (which matches the previous mongo behavior).
+        registerDefaultHandlers(this);
+        registerUnionHandler(this);
+        registerTypeGuards(this);
+
+        // Keep BSON-native representations rather than the JSON transforms the defaults apply.
+        this.serializeRegistry.replaceClass(Date, identity); // BSON has a native Date type
+        this.serializeRegistry.replaceBinary(identity); // BSON has a native binary type
+        this.serializeRegistry.replaceKind(ReflectionKind.bigint, identity); // BSON encodes bigint as Long
     }
 }
 
-export const mongoBinarySerializer = new MongoBinarySerializer();
-
-function wrapValueWithBsonSerializer(type: Type, state: TemplateState): string {
-    state.setContext({ ValueWithBSONSerializer });
-    return `new ValueWithBSONSerializer(${state.accessor}, ${state.setVariable('type', type)})`;
-}
-
-/**
- * A serializer that converts class type values to a wrapped value so
- * that the actual BSON serializer (MongoBinarySerializer/BSONBinarySerializer) knows how to serialize
- * them in a `any` type. (any type is used in filter & patch, since the type would be too complex otherwise).
- */
-class MongoAnySerializer extends EmptySerializer {
-    name = 'mongo';
-
-    protected registerSerializers() {
-        super.registerSerializers();
-        this.serializeRegistry.register(ReflectionKind.string, (type, state) => {
-            if (isUUIDType(type) || isMongoIdType(type)) {
-                state.addSetter(wrapValueWithBsonSerializer(type, state));
-            } else {
-                state.addSetter(state.accessor);
-            }
-        });
-        this.serializeRegistry.register(ReflectionKind.bigint, (type, state) => {
-            if (isBinaryBigIntType(type)) {
-                state.addSetter(wrapValueWithBsonSerializer(type, state));
-            } else {
-                state.addSetter(state.accessor);
-            }
-        });
-
-        this.serializeRegistry.append(ReflectionKind.class, (type, state) => {
-            if (isReferenceType(type)) {
-                if (type.kind !== ReflectionKind.class && type.kind !== ReflectionKind.objectLiteral) return;
-                const reflection = ReflectionClass.from(type);
-                state.setContext({ ValueWithBSONSerializer });
-                //the primary key is serialised for unhydrated references
-                state.template = `
-                    if (isObject(${state.accessor}) && !(${state.accessor} instanceof ValueWithBSONSerializer)) {
-                        ${executeTemplates(state.fork(state.setter, new ContainerAccessor(state.accessor, JSON.stringify(reflection.getPrimary().getName()))), reflection.getPrimary().getType())}
-                    } else {
-                        ${state.setter} = ${state.accessor};
-                    }
-                `;
-            }
-        });
-
-        this.serializeRegistry.register(ReflectionKind.undefined, (type, state) => state.addSetter(`null`));
-        this.deserializeRegistry.register(ReflectionKind.undefined, (type, state) => state.addSetter(`undefined`));
-    }
-}
-
-export const mongoSerializer = new MongoAnySerializer();
+export const mongoSerializer = new MongoSerializer();

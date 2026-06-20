@@ -3,6 +3,110 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.0.0 — Deepkit v2 (2026-06-19)
+
+Deepkit v2 is a ground-up rewrite of the framework's performance core — the JIT engine
+(`@deepkit/core`), the type serializer (`@deepkit/type`), and BSON (`@deepkit/bson`) — delivering
+order-of-magnitude speedups while adding **CSP compliance** and a cleaner public API. The whole
+framework builds and its test suite is **green end-to-end** across every package, including the
+postgres/mysql/sqlite/mongo adapters.
+
+> **Upgrading from v1?** See [`docs/MIGRATION.md`](docs/MIGRATION.md). Most application code needs
+> no changes — the breaking changes are concentrated in direct BSON use, reference serialization,
+> and custom serializers. Benchmark methodology: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+
+### Highlights
+
+- **New expression-tree JIT** with tiered execution; `@deepkit/type` and `@deepkit/bson` emit no
+  `new Function()`, so they run under strict **CSP** (no `unsafe-eval`), Cloudflare Workers / Vercel
+  Edge, etc., falling back to a closure executor when codegen is unavailable.
+- **Type serializer on `jit.fn()`** — discriminated-union validation **~1000× faster**, `ReceiveType`
+  overhead ~90% lower; all 12 micro-benchmarks beat v1.
+- **BSON rewrite** — shape-learning JIT deserializer + zero-copy serialization, **3–63× faster than
+  v1**, up to **224× faster than bson-js 7.x**.
+- New: `NanoId`, `isStrict<T>()`/`isWeak<T>()`, the `Inline` reference annotation, built-in HTTP CORS
+  + Express-compat, tsconfig `extends`-as-array, S3 `forcePathStyle`, custom CRUD identifiers.
+- Coded errors (`DeepkitError`/`DK-####`); Jest → `node:test` across every package.
+
+### New in ORM & SQL
+
+- **Upsert** on the query builder:
+  - `query.insertOrIgnore(rows, on?)` — `INSERT … ON CONFLICT DO NOTHING`; idempotent on a primary
+    key or unique index.
+  - `query.insertOrUpdate(rows, { on, update, guard })` — `INSERT … ON CONFLICT DO UPDATE`. `on`
+    picks the conflict target, `update` limits which columns are overwritten, and `guard` makes the
+    update conditional — e.g. `guard: { version: '>' }` only moves a row forward (version-guarded
+    upsert), the building block for idempotent read-model/projection writes.
+  - Both accept a single row or a batch and return a `PatchResult`. The resolver is
+    dialect-agnostic (`DefaultPlatform.getUpsertSQL`); **Postgres and SQLite** implement it via a
+    shared `ON CONFLICT` builder. MySQL throws `DK-SQL014` until it lands (fails loudly, never with
+    invalid SQL).
+- **Strictly-typed `filter()` and `orderBy()`** — `FilterQuery<T>` and `Sort<T>` are now keyed to the
+  entity's real properties, so a mistyped field (`{ tpyo: 1 }`, `orderBy('naem')`) is a **compile
+  error** instead of silently matching nothing. The escape hatches still work: dotted
+  `${string}.${string}` paths for embedded-document / JSONB queries (`filter({ 'user.name': … })`),
+  filter-by-example (`filter(partialEntity)`), and the `$and`/`$or`/`$nor` + operator selectors
+  (`$gt`, `$in`, `$like`, …). This replaces the former open `[key: string]: any` index signature.
+- **Typed raw queries** — `database.raw<T>(sql\`…\`)` / `session.raw<T>(…)` with proper result-type
+  inference and `.find()` / `.findOne()` / `.execute()`.
+- **Postgres json/jsonb is read as text and deserialized by the framework** — preserves scalar-union
+  values losslessly (`"42"` stays a string, not coerced to `42`) and keeps `bigint`/int8 columns as
+  strings so Snowflake-scale ids never round-trip through a JS `number`.
+
+### Breaking changes (summary — see [`docs/MIGRATION.md`](docs/MIGRATION.md))
+
+- `& Reference` now **always** serializes as a foreign key; opt into nested output with `& Inline`.
+- **BSON:** `getBSONSerializer<T>()` returns a `[Uint8Array, number]` tuple; `getBsonEncoder` →
+  `getBSONEncoder`; removed `Writer`/`BaseParser`/`getBSONSizer`/`AutoBuffer`/`stringByteLength`/
+  `BSONBinarySerializer`/`ValueWithBSONSerializer`.
+- Custom serializers move from the `CompilerContext` string templates to the `jit.ts` Builder
+  (`CompilerContext` retained for back-compat).
+- **Serialization is lenient; validation is separate** — serialize/deserialize no longer throw on a
+  type mismatch; use `validate()`/`cast()` to reject bad input.
+- **Postgres returns json/jsonb as text** (deserialized by the framework). Reads through an entity
+  are unaffected; a *raw* read of a json/jsonb column now yields a string — go through an entity or
+  `JSON.parse` it yourself.
+- **`filter()` / `orderBy()` are strictly typed** (see ORM & SQL above) — previously-loose code with
+  a typo'd or dynamically-keyed filter/sort now fails to compile. Use a dotted-path key, cast the
+  filter, or pass an entity (`filter(partialEntity)`) for genuinely dynamic cases.
+- Minimum **Node.js ≥ 20**.
+
+### Bug fixes
+
+**Core rewrite** — selected highlights:
+
+- **type-compiler:** valid output for external/imported types, Windows backslash paths,
+  optional-chaining-with-type-args syntax, function-type `__type` hoisting, `__Ω` symbols emitted on
+  named re-exports, no reflection for `declare` statements, `InferType` resolution.
+- **type:** large-union stack overflow, tuple-rest conditional inference, circular-reference
+  validation, superclass serialization skip, clearer missing-runtime-type / circular-import errors.
+- **http:** middleware error propagation with correct status codes, `onResponse` fires when
+  middleware ends the response early, cross-file `HttpBody`, case-insensitive `HttpHeader`,
+  `HttpQuery` validator-expression leak.
+- **orm:** identity-map hydration across different join paths, `count()` ignores pagination to
+  return totals, `withChangeDetection` carried through query clone, `MemoryDatabaseAdapter` delete
+  result.
+- **bson:** `NaN` serialized as `0` (not skipped), clearer union-mismatch messages.
+- **rpc:** prevent premature `Subject` GC during active subscriptions, correct `subscribe` argument
+  types, controller/method context in error messages.
+
+**Stabilization — completing the consumer-package migration.** Finishes the migration of every
+package downstream of the BSON/serializer rewrites and fixes the bugs surfaced by getting the full
+suite green:
+
+- **bson:** UUID/MongoId reference primary keys read correctly (no more `DK-B030`); inherited
+  constructor-parameter properties on dynamic entity subclasses preserved; nested array-of-class
+  elements with an extra field (e.g. Mongo `_id`) decode instead of becoming `undefined`; added the
+  missing top-level-array deserializer (restoring serializer/deserializer symmetry).
+- **type:** JIT change-detector no longer reuses a scoped variable across builder scopes (broke all
+  persistence + self-referential types); `serialize()` skips unpopulated lazy relations.
+- **orm/sql:** hydration suppresses the unpopulated-reference check while running constructors;
+  Postgres numeric aggregates coerced back to numbers.
+- **mongo:** `raw<Entity>()`, error-response decoding, `undefined`/empty-id filters, and
+  single-table-inheritance reads all fixed.
+- **rpc:** invalid class-typed arguments report the failing nested field; `ProgressTracker.stop()`
+  propagates client → server.
+
 ## [1.0.19](https://github.com/deepkit/deepkit-framework/compare/v1.0.17...v1.0.19) (2025-09-22)
 
 ### Bug Fixes

@@ -1,4 +1,6 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
 import { EntitySubject, isEntitySubject } from '../src/model.js';
 
 test('entitySubject', async () => {
@@ -6,5 +8,5 @@ test('entitySubject', async () => {
         id!: string;
     }
 
-    expect(isEntitySubject(new EntitySubject(new User))).toBe(true);
+    expect(isEntitySubject(new EntitySubject(new User()))).toBe(true);
 });

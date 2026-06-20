@@ -1,10 +1,13 @@
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
+import { sleep } from '@deepkit/core';
 import { entity } from '@deepkit/type';
-import { expect, test } from '@jest/globals';
+
 import { DirectClient } from '../src/client/client-direct.js';
 import { Collection } from '../src/collection.js';
 import { rpc } from '../src/decorators.js';
 import { RpcKernel } from '../src/server/kernel.js';
-import { sleep } from '@deepkit/core';
 
 test('collection basic', () => {
     class Item {
@@ -13,8 +16,7 @@ test('collection basic', () => {
         constructor(
             public readonly id: number,
             public readonly name: string,
-        ) {
-        }
+        ) {}
     }
 
     const collection = new Collection(Item);
@@ -47,9 +49,7 @@ test('collection basic', () => {
     const map = collection.map();
     expect(map.get(item3.id)).toBe(item3);
 
-    expect(collection.ids()).toEqual([
-        item1.id, item2.id, item3.id
-    ]);
+    expect(collection.ids()).toEqual([item1.id, item2.id, item3.id]);
 
     expect(collection.empty()).toBe(false);
     collection.reset();
@@ -60,8 +60,7 @@ test('collection basic', () => {
 test('collection state', async () => {
     @entity.name('collection/simple/model')
     class MyModel {
-        constructor(public id: number) {
-        }
+        constructor(public id: number) {}
     }
 
     class Controller {
@@ -69,11 +68,7 @@ test('collection state', async () => {
 
         @rpc.action()
         fix(): Collection<MyModel> {
-            this.collection.set([
-                new MyModel(1),
-                new MyModel(2),
-                new MyModel(3),
-            ]);
+            this.collection.set([new MyModel(1), new MyModel(2), new MyModel(3)]);
             this.collection.state.total = 150;
             return this.collection;
         }
@@ -143,7 +138,7 @@ test('collection state', async () => {
         expect(c.all()[1].id).toBe(3);
         expect(c.all()[2].id).toBe(4);
 
-        controller.set([10, 11,]);
+        controller.set([10, 11]);
         await c.nextStateChange;
         expect(c.all().length).toBe(2);
         expect(c.all()[0].id).toBe(10);
@@ -159,4 +154,3 @@ test('collection state', async () => {
         expect(c.all()[1].id).toBe(11);
     }
 });
-

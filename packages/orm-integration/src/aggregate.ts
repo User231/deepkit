@@ -1,6 +1,6 @@
 import { DatabaseFactory } from './test.js';
 import { cast, entity, PrimaryKey } from '@deepkit/type';
-import { expect } from '@jest/globals';
+import { expect } from '@deepkit/run/expect';
 
 export const aggregateTest = {
     async basics(databaseFactory: DatabaseFactory) {

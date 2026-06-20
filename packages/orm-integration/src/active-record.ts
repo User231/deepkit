@@ -1,4 +1,4 @@
-import { expect } from '@jest/globals';
+import { expect } from '@deepkit/run/expect';
 import { User, UserGroup } from './bookstore/user.js';
 import { Book } from './active-record/book.js';
 import { Tag } from './active-record/tag.js';

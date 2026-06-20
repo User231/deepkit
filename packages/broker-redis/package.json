@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/broker-redis",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit Broker Redis adapter",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -20,32 +20,15 @@
     "access": "public"
   },
   "scripts": {
-    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --expose-gc --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "dependencies": {
-    "@deepkit/broker": "^1.0.19",
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
-    "ioredis": "^5.6.1"
-  },
-  "jest": {
-    "runner": "../../jest-serial-runner.js",
-    "testEnvironment": "node",
-    "transform": {
-      "^.+\\.(ts|tsx)$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/tsconfig.spec.json"
-        }
-      ]
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+    "@deepkit/broker": "^2.0.0",
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
+    "ioredis": "5.11.1"
   }
 }

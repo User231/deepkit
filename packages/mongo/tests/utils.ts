@@ -1,7 +1,9 @@
-import { afterEach } from '@jest/globals';
-import { Database } from '@deepkit/orm';
-import { MongoDatabaseAdapter } from '../src/adapter.js';
+import { afterEach } from 'node:test';
 import { performance } from 'perf_hooks';
+
+import { Database } from '@deepkit/orm';
+
+import { MongoDatabaseAdapter } from '../src/adapter.js';
 
 /**
  * Executes given exec() method 3 times and averages the consumed time.
@@ -22,7 +24,8 @@ const databases: Database<MongoDatabaseAdapter>[] = [];
 
 export async function createDatabase(dbName: string = 'testing'): Promise<Database<MongoDatabaseAdapter>> {
     dbName = dbName.replace(/\s+/g, '-');
-    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1/' + dbName));
+    const __port = process.env.MONGO_PORT || '27117';
+    const database = new Database(new MongoDatabaseAdapter('mongodb://127.0.0.1:' + __port + '/' + dbName));
     await database.adapter.client.dropDatabase(dbName);
     databases.push(database);
     return database;

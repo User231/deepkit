@@ -1,15 +1,25 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
-import { createMongoClientFactory, MongoEnv, MongoInstance } from './client/env-setup.js';
-import { AutoIncrement, PrimaryKey, ReflectionClass } from '@deepkit/type';
+import { after as afterAll, before as beforeAll, beforeEach, describe as _describe, test as _test } from 'node:test';
+
+// These specs spawn real multi-node MongoDB clusters via docker and exercise replica-set
+// failover/topology — timing-sensitive and unreliable under the parallel `npm test` (elections
+// time out under CPU load). Gated out by default; run them isolated/serially with:
+//   npm run test:mongo-cluster        (sets MONGO_CLUSTER_TESTS=1)
+const _cluster = !!process.env.MONGO_CLUSTER_TESTS;
+const describe = _cluster ? _describe : _describe.skip;
+const test = _cluster ? _test : _test.skip;
+
+import { expect } from '@deepkit/run/expect';
 import { FindOptions, MongoClient as MongoMongoClient } from 'mongodb';
+
+import { sleep } from '@deepkit/core';
+import { ConsoleLogger, LoggerLevel, MemoryLogger } from '@deepkit/logger';
+import { Database } from '@deepkit/orm';
+import { AutoIncrement, PrimaryKey, ReflectionClass } from '@deepkit/type';
+
+import { MongoDatabaseAdapter } from '../src/adapter.js';
 import { MongoClient } from '../src/client/client.js';
 import { FindCommand } from '../src/client/command/find.js';
-import { Database } from '@deepkit/orm';
-import { MongoDatabaseAdapter } from '../src/adapter.js';
-import { ConsoleLogger, LoggerLevel, MemoryLogger } from '@deepkit/logger';
-import { sleep } from '@deepkit/core';
-
-jest.setTimeout(60 * 1000);
+import { MongoEnv, MongoInstance, createMongoClientFactory } from './client/env-setup.js';
 
 test('logger', () => {
     const logger = new ConsoleLogger();
@@ -32,24 +42,22 @@ test('logger', () => {
 });
 
 describe('replica set, primary secondary', () => {
-    const mongoEnv = new MongoEnv;
+    const mongoEnv = new MongoEnv();
 
     let primary: MongoInstance;
     let secondary1: MongoInstance;
     const createClient = createMongoClientFactory(mongoEnv);
 
     beforeAll(async () => {
-        [primary, secondary1] = await Promise.all([
-            mongoEnv.addMongo('primary', 'rs1'),
-            mongoEnv.addMongo('secondary1', 'rs1'),
-        ]);
+        [primary, secondary1] = await Promise.all([mongoEnv.addMongo('primary', 'rs1'), mongoEnv.addMongo('secondary1', 'rs1')]);
 
-        await mongoEnv.execute('primary', `rs.initiate(${JSON.stringify({
-            _id: 'rs1',
-            members: [
-                { _id: 0, host: primary.name },
-            ],
-        })});`);
+        await mongoEnv.execute(
+            'primary',
+            `rs.initiate(${JSON.stringify({
+                _id: 'rs1',
+                members: [{ _id: 0, host: primary.name }],
+            })});`,
+        );
         await mongoEnv.waitUntilBeingPrimary('primary');
         await mongoEnv.addReplicaSet('primary', 'secondary1', 1, 1);
         await mongoEnv.waitUntilBeingSecondary('secondary1');
@@ -68,8 +76,7 @@ describe('replica set, primary secondary', () => {
     class User {
         id: number & PrimaryKey & AutoIncrement = 0;
 
-        constructor(public username: string) {
-        }
+        constructor(public username: string) {}
     }
 
     test('primary - secondary', async () => {
@@ -180,12 +187,10 @@ describe('replica set, primary secondary', () => {
     //
     //     const session = database.createSession();
     // });
-
 });
 
-describe.skip('local replica', () => {
-    class User {
-    }
+_describe.skip('local replica', () => {
+    class User {}
 
     /*
 

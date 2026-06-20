@@ -1,28 +1,27 @@
-import { expect, test } from '@jest/globals';
-import { HttpRouter } from '../src/router.js';
-import { HttpRouteFilter, HttpRouterFilterResolver } from '../src/filter.js';
-import { http } from '../src/decorator.js';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
+
 import { createModuleClass } from '@deepkit/app';
+
+import { http } from '../src/decorator.js';
+import { HttpRouteFilter, HttpRouterFilterResolver } from '../src/filter.js';
+import { HttpRouter } from '../src/router.js';
 
 test('filter by controller', async () => {
     class ControllerA {
         @http.GET('a')
-        route() {
-        }
+        route() {}
     }
 
     class ControllerB {
         @http.GET('b')
-        route() {
-        }
+        route() {}
     }
 
-    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([
-        ControllerA, ControllerB
-    ]));
+    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([ControllerA, ControllerB]));
 
-    class NonExisting {
-    }
+    class NonExisting {}
 
     expect(resolver.resolve(new HttpRouteFilter().model).length).toBe(2);
     expect(resolver.resolve(new HttpRouteFilter().excludeControllers(ControllerA).model).length).toBe(1);
@@ -35,23 +34,18 @@ test('filter by controller', async () => {
 test('filter by route names', async () => {
     class ControllerA {
         @(http.GET('a').name('a'))
-        route() {
-        }
+        route() {}
     }
 
     class ControllerB {
         @(http.GET('b').name('b'))
-        route() {
-        }
+        route() {}
 
         @http.GET('c')
-        unnamed() {
-        }
+        unnamed() {}
     }
 
-    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([
-        ControllerA, ControllerB
-    ]));
+    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([ControllerA, ControllerB]));
 
     expect(resolver.resolve(new HttpRouteFilter().model).length).toBe(3);
     expect(resolver.resolve(new HttpRouteFilter().forRouteNames('a').model).length).toBe(1);
@@ -65,23 +59,18 @@ test('filter by route names', async () => {
 test('filter by route names and controller', async () => {
     class ControllerA {
         @(http.GET('a').name('a'))
-        route() {
-        }
+        route() {}
     }
 
     class ControllerB {
         @(http.GET('a').name('a'))
-        route() {
-        }
+        route() {}
 
         @http.GET('b')
-        unnamed() {
-        }
+        unnamed() {}
     }
 
-    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([
-        ControllerA, ControllerB
-    ]));
+    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([ControllerA, ControllerB]));
 
     expect(resolver.resolve(new HttpRouteFilter().model).length).toBe(3);
     expect(resolver.resolve(new HttpRouteFilter().forRouteNames('a').model).length).toBe(2);
@@ -91,62 +80,51 @@ test('filter by route names and controller', async () => {
 test('filter by groups', async () => {
     class ControllerA {
         @(http.GET('a').group('a'))
-        route() {
-        }
+        route() {}
     }
 
     class ControllerB {
         @(http.GET('a').group('b'))
-        route() {
-        }
+        route() {}
 
         @http.GET('b')
-        unnamed() {
-        }
+        unnamed() {}
     }
 
-    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([
-        ControllerA, ControllerB
-    ]));
+    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([ControllerA, ControllerB]));
 
     expect(resolver.resolve(new HttpRouteFilter().model).length).toBe(3);
-    expect(resolver.resolve(new HttpRouteFilter().forRoutes({group: 'a'}).model).length).toBe(1);
-    expect(resolver.resolve(new HttpRouteFilter().forRoutes({group: 'b'}).model).length).toBe(1);
-    expect(resolver.resolve(new HttpRouteFilter().forRoutes({group: 'c'}).model).length).toBe(0);
+    expect(resolver.resolve(new HttpRouteFilter().forRoutes({ group: 'a' }).model).length).toBe(1);
+    expect(resolver.resolve(new HttpRouteFilter().forRoutes({ group: 'b' }).model).length).toBe(1);
+    expect(resolver.resolve(new HttpRouteFilter().forRoutes({ group: 'c' }).model).length).toBe(0);
 
-    expect(resolver.resolve(new HttpRouteFilter().excludeRoutes({group: 'a'}).model).length).toBe(2);
-    expect(resolver.resolve(new HttpRouteFilter().excludeRoutes({group: 'b'}).model).length).toBe(2);
-    expect(resolver.resolve(new HttpRouteFilter().excludeRoutes({group: 'c'}).model).length).toBe(3);
+    expect(resolver.resolve(new HttpRouteFilter().excludeRoutes({ group: 'a' }).model).length).toBe(2);
+    expect(resolver.resolve(new HttpRouteFilter().excludeRoutes({ group: 'b' }).model).length).toBe(2);
+    expect(resolver.resolve(new HttpRouteFilter().excludeRoutes({ group: 'c' }).model).length).toBe(3);
 });
 
 test('filter by modules', async () => {
     class ControllerA {
         @http.GET('a')
-        route() {
-        }
+        route() {}
     }
 
     class ControllerB {
         @http.GET('a')
-        route() {
-        }
+        route() {}
 
         @http.GET('b')
-        unnamed() {
-        }
+        unnamed() {}
     }
 
     class ControllerC {
         @http.GET('c')
-        route() {
-        }
+        route() {}
     }
 
-    class ModuleA extends createModuleClass({}) {
-    }
+    class ModuleA extends createModuleClass({}) {}
 
-    class ModuleB extends createModuleClass({}) {
-    }
+    class ModuleB extends createModuleClass({}) {}
 
     const moduleA = new ModuleA();
     const moduleB = new ModuleB();
@@ -156,10 +134,13 @@ test('filter by modules', async () => {
     expect(moduleB instanceof ModuleA).toBe(false);
     expect(moduleB instanceof ModuleB).toBe(true);
 
-    const resolver = new HttpRouterFilterResolver(HttpRouter.forControllers([
-        { controller: ControllerA, module: moduleA }, { controller: ControllerB, module: moduleA },
-        { controller: ControllerC, module: moduleB },
-    ]));
+    const resolver = new HttpRouterFilterResolver(
+        HttpRouter.forControllers([
+            { controller: ControllerA, module: moduleA },
+            { controller: ControllerB, module: moduleA },
+            { controller: ControllerC, module: moduleB },
+        ]),
+    );
 
     {
         expect(resolver.resolve(new HttpRouteFilter().model).length).toBe(4);
@@ -179,6 +160,6 @@ test('filter by modules', async () => {
         expect(resolver.resolve(new HttpRouteFilter().forModuleClasses(ModuleA, ModuleB).model).length).toBe(4);
     }
     {
-        expect(resolver.resolve(new HttpRouteFilter().forRoutes({path: '/b'}, {path: '/c'}).model).length).toBe(2);
+        expect(resolver.resolve(new HttpRouteFilter().forRoutes({ path: '/b' }, { path: '/c' }).model).length).toBe(2);
     }
 });

@@ -1,5 +1,3 @@
-import { FilesystemAdapter, FilesystemError, FilesystemFile, FileVisibility, Reporter } from '@deepkit/filesystem';
-import { pathDirectory, pathNormalize } from '@deepkit/core';
 import {
     CopyObjectCommand,
     DeleteObjectsCommand,
@@ -14,6 +12,9 @@ import {
     S3ClientConfigType,
 } from '@aws-sdk/client-s3';
 
+import { pathDirectory, pathNormalize } from '@deepkit/core';
+import { FileVisibility, FilesystemAdapter, FilesystemError, FilesystemFile, Reporter } from '@deepkit/filesystem';
+
 export interface FilesystemAwsS3Options extends S3ClientConfigType {
     bucket: string;
     path?: string;
@@ -21,6 +22,13 @@ export interface FilesystemAwsS3Options extends S3ClientConfigType {
     accessKeyId: string;
     secretAccessKey: string;
     endpoint?: string;
+
+    /**
+     * Use path-style URLs (required for MinIO and some S3-compatible services).
+     * When true: http://endpoint/bucket/key
+     * When false: http://bucket.endpoint/key
+     */
+    forcePathStyle?: boolean;
 
     /**
      * If enabled, the adapter will create directories when writing files.
@@ -41,6 +49,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
                 secretAccessKey: options.secretAccessKey,
             },
             endpoint: options.endpoint,
+            forcePathStyle: options.forcePathStyle,
         });
     }
 
@@ -54,7 +63,11 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
 
     protected getRemotePath(path: string) {
         path = pathNormalize(path);
-        const base = this.options.path ? (pathNormalize(this.options.path).slice(0) + '/') : '';
+        // S3 object keys are relative and must NOT carry a leading slash.
+        // pathNormalize() always prepends one, so strip it from the base prefix
+        // (slice(1)). Listing a leading-slash prefix matches nothing because S3
+        // stores keys without it, and the off-by-one also broke pathMapToVirtual.
+        const base = this.options.path ? pathNormalize(this.options.path).slice(1) + '/' : '';
         if (path === '/') return base;
         let remotePath = this.options.path ? base : '';
         remotePath += path === '/' ? '' : path.slice(1);
@@ -67,8 +80,8 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
     }
 
     protected pathMapToVirtual(path: string): string {
-        //remove this.options.path from path
-        const base = this.options.path ? (pathNormalize(this.options.path).slice(0) + '/') : '';
+        //remove this.options.path from path (keys are stored without a leading slash, see getRemotePath)
+        const base = this.options.path ? pathNormalize(this.options.path).slice(1) + '/' : '';
         return path.slice(base.length);
     }
 
@@ -83,7 +96,10 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
 
     protected aclToVisibility(grants: any[]): FileVisibility {
         for (const grant of grants) {
-            if (grant.Permission === 'READ' && grant.Grantee.URI === 'http://acs.amazonaws.com/groups/global/AllUsers') {
+            if (
+                grant.Permission === 'READ' &&
+                grant.Grantee.URI === 'http://acs.amazonaws.com/groups/global/AllUsers'
+            ) {
                 return 'public';
             }
         }
@@ -152,7 +168,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
                 }
             }
         } catch (error: any) {
-            throw new FilesystemError(`Could not list files ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not list files ${path}: ${error.message}`);
         }
 
         return files;
@@ -175,7 +191,10 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
             try {
                 await this.client.send(command);
             } catch (error: any) {
-                throw new FilesystemError(`Could not copy file ${source} to ${destination}: ${error.message}`);
+                throw new FilesystemError(
+                    'DK-FS001',
+                    `Could not copy file ${source} to ${destination}: ${error.message}`,
+                );
             }
         } else {
             //get all files, copy them
@@ -194,7 +213,10 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
                 try {
                     await this.client.send(command);
                 } catch (error: any) {
-                    throw new FilesystemError(`Could not copy file ${source} to ${destination}: ${error.message}`);
+                    throw new FilesystemError(
+                        'DK-FS001',
+                        `Could not copy file ${source} to ${destination}: ${error.message}`,
+                    );
                 }
             }
         }
@@ -205,7 +227,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
             Bucket: this.options.bucket,
             Delete: {
                 Objects: paths.map(v => ({ Key: this.getRemotePath(v) })) || [],
-            }
+            },
         });
 
         try {
@@ -216,10 +238,12 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
     }
 
     async deleteDirectory(path: string, reporter: Reporter): Promise<void> {
-        const files = await this.client.send(new ListObjectsCommand({
-            Bucket: this.options.bucket,
-            Prefix: this.getRemoteDirectory(path),
-        }));
+        const files = await this.client.send(
+            new ListObjectsCommand({
+                Bucket: this.options.bucket,
+                Prefix: this.getRemoteDirectory(path),
+            }),
+        );
 
         if (!files.Contents) return;
 
@@ -227,7 +251,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
             Bucket: this.options.bucket,
             Delete: {
                 Objects: files.Contents.map(v => ({ Key: v.Key })) || [],
-            }
+            },
         });
 
         try {
@@ -239,7 +263,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
 
     async exists(paths: string[]): Promise<boolean> {
         for (const path of paths) {
-            if (!await this.existsSingle(path)) return false;
+            if (!(await this.existsSingle(path))) return false;
         }
         return true;
     }
@@ -294,10 +318,11 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
 
         try {
             const response = await this.client.send(command);
-            if (!response.Body) throw new FilesystemError(`Could not read file ${path}: No body in response`);
+            if (!response.Body)
+                throw new FilesystemError('DK-FS001', `Could not read file ${path}: No body in response`);
             return await response.Body.transformToByteArray();
         } catch (error: any) {
-            throw new FilesystemError(`Could not read file ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not read file ${path}: ${error.message}`);
         }
     }
 
@@ -317,7 +342,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
         try {
             await this.client.send(command);
         } catch (error: any) {
-            throw new FilesystemError(`Could not write file ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not write file ${path}: ${error.message}`);
         }
     }
 
@@ -332,7 +357,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
             const response = await this.client.send(aclCommand);
             return this.aclToVisibility(response.Grants || []);
         } catch (error: any) {
-            throw new FilesystemError(`Could not get visibility for ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not get visibility for ${path}: ${error.message}`);
         }
     }
 
@@ -347,7 +372,7 @@ export class FilesystemAwsS3Adapter implements FilesystemAdapter {
         try {
             await this.client.send(command);
         } catch (error: any) {
-            throw new FilesystemError(`Could not set visibility for ${path}: ${error.message}`);
+            throw new FilesystemError('DK-FS001', `Could not set visibility for ${path}: ${error.message}`);
         }
     }
 }

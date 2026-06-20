@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/topsort",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "High-Performance topological sort / dependency resolver with optional grouping algorithm for Typescript",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -18,27 +18,14 @@
     "access": "public"
   },
   "scripts": {
-    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "repository": "https://github.com/deepkit/deepkit-framework",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
-  "jest": {
-    "testEnvironment": "node",
-    "transform": {
-      "^.+\\.(ts|tsx)$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/tsconfig.spec.json"
-        }
-      ]
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+  "dependencies": {
+    "@deepkit/core": "^2.0.0"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

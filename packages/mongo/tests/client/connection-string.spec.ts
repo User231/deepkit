@@ -1,4 +1,7 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+
+import { expect } from '@deepkit/run/expect';
+
 import { MongoClientConfig } from '../../src/client/config.js';
 
 test('connection string basic', async () => {
@@ -29,7 +32,6 @@ test('connection string password', async () => {
         expect(config.authPassword).toBe('D1fficultP@ssw0rd');
     }
 });
-
 
 test('connection string options', async () => {
     {

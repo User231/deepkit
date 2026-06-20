@@ -7,14 +7,16 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { ReflectionClass, ReflectionKind, ReflectionProperty } from '@deepkit/type';
 import { ClassType, isArray, isPlainObject } from '@deepkit/core';
+import { ReflectionClass, ReflectionKind, ReflectionProperty } from '@deepkit/type';
+
 import { FilterQuery } from './query.js';
 
 export type Converter = (convertClass: ReflectionClass<any>, path: string, value: any) => any;
 export type QueryFieldNames = { [name: string]: boolean };
-export type QueryCustomFields = { [name: string]: (name: string, value: any, fieldNames: QueryFieldNames, converter: Converter) => any };
+export type QueryCustomFields = {
+    [name: string]: (name: string, value: any, fieldNames: QueryFieldNames, converter: Converter) => any;
+};
 
 export function exportQueryFilterFieldNames(reflectionClass: ReflectionClass<any>, filter: FilterQuery<any>): string[] {
     const filterFields: QueryFieldNames = {};
@@ -22,17 +24,27 @@ export function exportQueryFilterFieldNames(reflectionClass: ReflectionClass<any
     return Object.keys(filterFields);
 }
 
-export function replaceQueryFilterParameter<T>(reflectionClass: ReflectionClass<any>, filter: FilterQuery<T>, parameters: { [name: string]: any }): any {
-    return convertQueryFilter(reflectionClass, filter, (convertClass: ReflectionClass<any>, path: string, value: any) => {
-        return value;
-    }, {}, {
-        $parameter: (name, value) => {
-            if (!(value in parameters)) {
-                throw new Error(`Parameter ${value} not defined in ${reflectionClass.getClassName()} query.`);
-            }
-            return parameters[value];
-        }
-    });
+export function replaceQueryFilterParameter<T>(
+    reflectionClass: ReflectionClass<any>,
+    filter: FilterQuery<T>,
+    parameters: { [name: string]: any },
+): any {
+    return convertQueryFilter(
+        reflectionClass,
+        filter,
+        (convertClass: ReflectionClass<any>, path: string, value: any) => {
+            return value;
+        },
+        {},
+        {
+            $parameter: (name, value) => {
+                if (!(value in parameters)) {
+                    throw new Error(`Parameter ${value} not defined in ${reflectionClass.getClassName()} query.`);
+                }
+                return parameters[value];
+            },
+        },
+    );
 }
 
 function convertProperty(
@@ -67,7 +79,15 @@ function convertProperty(
                         break;
                     }
                 } else if (key === '$not') {
-                    fieldValue[key] = convertProperty(schema, property, value, name, converter, fieldNamesMap, customMapping);
+                    fieldValue[key] = convertProperty(
+                        schema,
+                        property,
+                        value,
+                        name,
+                        converter,
+                        fieldNamesMap,
+                        customMapping,
+                    );
                 } else if (key === '$all') {
                     if (isArray(value[0])) {
                         //Nested Array
@@ -88,8 +108,16 @@ function convertProperty(
                     } else {
                         (fieldValue as any)[key] = [];
                     }
-                } else if (key === '$text' || key === '$exists' || key === '$mod' || key === '$size' || key === '$type'
-                    || key === '$regex' || key === '$where' || key === '$elemMatch') {
+                } else if (
+                    key === '$text' ||
+                    key === '$exists' ||
+                    key === '$mod' ||
+                    key === '$size' ||
+                    key === '$type' ||
+                    key === '$regex' ||
+                    key === '$where' ||
+                    key === '$elemMatch'
+                ) {
                     fieldNamesMap[name] = true;
                 } else {
                     fieldNamesMap[name] = true;
@@ -128,14 +156,17 @@ export function convertQueryFilter<T, K extends keyof T, Q extends FilterQuery<T
     for (const key in filter) {
         if (!filter.hasOwnProperty(key)) continue;
 
-        let fieldValue: any = filter[key];
+        const originalValue: any = filter[key];
+        let fieldValue: any = originalValue;
         const property = schema.getPropertyOrUndefined(key);
 
         //when i is a reference, we rewrite it to the foreign key name
         let targetI = property && property.isReference() ? property.getForeignKeyName() : key;
 
         if (key[0] === '$' && isArray(fieldValue)) {
-            result[key] = (fieldValue as any[]).map(v => convertQueryFilter(classType, v, converter, fieldNamesMap, customMapping));
+            result[key] = (fieldValue as any[]).map(v =>
+                convertQueryFilter(classType, v, converter, fieldNamesMap, customMapping),
+            );
             continue;
         }
 
@@ -143,11 +174,27 @@ export function convertQueryFilter<T, K extends keyof T, Q extends FilterQuery<T
             if ((filter[key] as any) instanceof RegExp) {
                 fieldValue = filter[key];
             } else {
-                fieldValue = convertProperty(schema, property, filter[key], key, converter, fieldNamesMap, customMapping);
+                fieldValue = convertProperty(
+                    schema,
+                    property,
+                    filter[key],
+                    key,
+                    converter,
+                    fieldNamesMap,
+                    customMapping,
+                );
             }
         }
 
-        if (fieldValue !== undefined) {
+        //An explicit `null`/`undefined` equality (e.g. `{deletedAt: undefined}`) is a real
+        //"IS NULL" condition and must be preserved. Only drop entries that became `undefined`
+        //during conversion of a `$`-operator object (e.g. an unresolved `$parameter`/custom
+        //mapping), which the caller intends to omit. Distinguish by the *original* value:
+        //a scalar null/undefined input is a genuine condition, an object input that converted
+        //to undefined was dropped on purpose.
+        const isExplicitNullEquality = originalValue === undefined || originalValue === null;
+
+        if (fieldValue !== undefined || isExplicitNullEquality) {
             result[targetI] = fieldValue;
         }
     }

@@ -7,7 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
+import { AbstractClassType, ClassType, isArray, isClass } from '@deepkit/core';
+import { Logger } from '@deepkit/logger';
 import {
     Database,
     DatabaseAdapter,
@@ -37,30 +38,40 @@ import {
     Resolve,
     SORT_ORDER,
 } from '@deepkit/orm';
-import { AbstractClassType, ClassType, isArray, isClass } from '@deepkit/core';
+import { Stopwatch } from '@deepkit/stopwatch';
 import {
-    castFunction,
     Changes,
-    entity,
-    getPartialSerializeFunction,
-    getSerializeFunction,
     PrimaryKey,
     ReceiveType,
     ReflectionClass,
     ReflectionKind,
-    resolveReceiveType,
     Type,
+    castFunction,
+    entity,
+    getPartialSerializeFunction,
+    getSerializeFunction,
+    resolveReceiveType,
 } from '@deepkit/type';
+
+import { SqlError } from './error.js';
 import { DefaultPlatform, SqlPlaceholderStrategy } from './platform/default-platform.js';
+import { PreparedEntity, PreparedField, getPreparedEntity } from './prepare.js';
+import { DatabaseComparator, DatabaseModel } from './schema/table.js';
 import { Sql, SqlBuilder } from './sql-builder.js';
 import { SqlFormatter } from './sql-formatter.js';
-import { DatabaseComparator, DatabaseModel } from './schema/table.js';
-import { Stopwatch } from '@deepkit/stopwatch';
-import { getPreparedEntity, PreparedEntity, PreparedField } from './prepare.js';
-import { Logger } from '@deepkit/logger';
 
-export type SORT_TYPE = SORT_ORDER | { $meta: 'textScore' };
-export type DEEP_SORT<T extends OrmEntity> = { [P in keyof T]?: SORT_TYPE } & { [P: string]: SORT_TYPE };
+// Strict per-adapter sort VALUE. Deliberately spelled out as `'asc' | 'desc'` rather than
+// reusing `SORT_ORDER` (which is intentionally wide — it carries a trailing `any` so it can
+// serve as the generic constraint bound). This is what makes `.sort({ id: 'up' })` a compile
+// error on SQL queries instead of silently passing.
+export type SORT_TYPE = 'asc' | 'desc' | { $meta: 'textScore' };
+// Strict sort KEYS, mirroring the strict `FilterQuery`: only real entity columns, plus a DOTTED
+// template-literal escape hatch for relation/JSON paths (e.g. 'user.address.street'). A plain
+// mistyped column like `{ tpyo: 'asc' }` matches neither and is a compile error. The loose
+// `{ [P: string]: SORT_TYPE }` index this replaces accepted any key.
+export type DEEP_SORT<T extends OrmEntity> = { [P in keyof T & string]?: SORT_TYPE } & {
+    [path: `${string}.${string}`]: SORT_TYPE;
+};
 
 /**
  * user.address[0].street => [user, address[0].street]
@@ -98,7 +109,7 @@ export abstract class SQLStatement {
 
     abstract all(params?: any[]): Promise<any[]>;
 
-    abstract release(): void
+    abstract release(): void;
 }
 
 export abstract class SQLConnection {
@@ -109,8 +120,7 @@ export abstract class SQLConnection {
         public logger: Logger,
         public transaction?: DatabaseTransaction,
         public stopwatch?: Stopwatch,
-    ) {
-    }
+    ) {}
 
     release() {
         this.connectionPool.release(this);
@@ -147,8 +157,7 @@ export abstract class SQLConnection {
 export abstract class SQLConnectionPool {
     protected activeConnections = 0;
 
-    constructor(protected logger: Logger) {
-    }
+    constructor(protected logger: Logger) {}
 
     setLogger(logger: Logger) {
         this.logger = logger;
@@ -170,7 +179,11 @@ export abstract class SQLConnectionPool {
     }
 }
 
-function buildSetFromChanges(platform: DefaultPlatform, classSchema: ReflectionClass<any>, changes: Changes<any>): string[] {
+function buildSetFromChanges(
+    platform: DefaultPlatform,
+    classSchema: ReflectionClass<any>,
+    changes: Changes<any>,
+): string[] {
     const set: string[] = [];
     const scopeSerializer = getPartialSerializeFunction(classSchema.type, platform.serializer.serializeRegistry);
 
@@ -185,7 +198,9 @@ function buildSetFromChanges(platform: DefaultPlatform, classSchema: ReflectionC
     if (changes.$inc) {
         for (const i in changes.$inc) {
             if (!changes.$inc.hasOwnProperty(i)) continue;
-            set.push(`${platform.quoteIdentifier(i)} = ${platform.quoteIdentifier(i)} + ${platform.quoteValue(changes.$inc[i])}`);
+            set.push(
+                `${platform.quoteIdentifier(i)} = ${platform.quoteIdentifier(i)} + ${platform.quoteValue(changes.$inc[i])}`,
+            );
         }
     }
 
@@ -197,6 +212,23 @@ function buildSetFromChanges(platform: DefaultPlatform, classSchema: ReflectionC
     }
 
     return set;
+}
+
+export interface UpsertOptions<T> {
+    /** Conflict-target columns (entity property names). Defaults to the primary key. */
+    on?: (keyof T & string)[];
+    /**
+     * Columns to overwrite on conflict (entity property names). Defaults to every
+     * inserted column except the conflict target; pass `[]` for `DO NOTHING`.
+     */
+    update?: (keyof T & string)[];
+    /**
+     * Optional per-column guard comparing the proposed row (`EXCLUDED`) to the
+     * stored row: the update only applies when every comparison holds. e.g.
+     * `{ version: '>' }` emits `WHERE EXCLUDED.version > t.version` — the
+     * monotonic version guard a state projection needs.
+     */
+    guard?: { [K in keyof T & string]?: '>' | '>=' | '<' | '<=' };
 }
 
 export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<T> {
@@ -238,10 +270,16 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
     async count(model: SQLQueryModel<T>): Promise<number> {
         const sqlBuilderFrame = this.session.stopwatch ? this.session.stopwatch.start('SQL Builder') : undefined;
         const sqlBuilder = new SqlBuilder(this.adapter);
-        const sql = sqlBuilder.build(this.classSchema, model, 'SELECT COUNT(*) as count');
+        // COUNT should ignore pagination (LIMIT/OFFSET) to return total matching rows
+        const countModel = model.clone();
+        countModel.limit = undefined;
+        countModel.skip = undefined;
+        const sql = sqlBuilder.build(this.classSchema, countModel, 'SELECT COUNT(*) as count');
         if (sqlBuilderFrame) sqlBuilderFrame.end();
 
-        const connectionFrame = this.session.stopwatch ? this.session.stopwatch.start('Connection acquisition') : undefined;
+        const connectionFrame = this.session.stopwatch
+            ? this.session.stopwatch.start('Connection acquisition')
+            : undefined;
         const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
         if (connectionFrame) connectionFrame.end();
 
@@ -258,14 +296,17 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
     }
 
     async delete(model: SQLQueryModel<T>, deleteResult: DeleteResult<T>): Promise<void> {
-        if (model.hasJoins()) throw new Error('Delete with joins not supported. Fetch first the ids then delete.');
+        if (model.hasJoins())
+            throw new SqlError('DK-SQL010', 'Delete with joins not supported. Fetch first the ids then delete.');
 
         const sqlBuilderFrame = this.session.stopwatch ? this.session.stopwatch.start('SQL Builder') : undefined;
         const sqlBuilder = new SqlBuilder(this.adapter);
         const sql = sqlBuilder.build(this.classSchema, model, 'DELETE');
         if (sqlBuilderFrame) sqlBuilderFrame.end();
 
-        const connectionFrame = this.session.stopwatch ? this.session.stopwatch.start('Connection acquisition') : undefined;
+        const connectionFrame = this.session.stopwatch
+            ? this.session.stopwatch.start('Connection acquisition')
+            : undefined;
         const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
         if (connectionFrame) connectionFrame.end();
 
@@ -274,7 +315,11 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
             deleteResult.modified = await connection.getChanges();
             //todo, implement deleteResult.primaryKeys
         } catch (error: any) {
-            error = new DatabaseDeleteError(this.classSchema, `Could not delete ${this.classSchema.getClassName()} in database`, { cause: error });
+            error = new DatabaseDeleteError(
+                this.classSchema,
+                `Could not delete ${this.classSchema.getClassName()} in database`,
+                { cause: error },
+            );
             error.query = model;
             throw this.handleSpecificError(error);
         } finally {
@@ -288,7 +333,9 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
         const sql = sqlBuilder.select(this.classSchema, model);
         if (sqlBuilderFrame) sqlBuilderFrame.end();
 
-        const connectionFrame = this.session.stopwatch ? this.session.stopwatch.start('Connection acquisition') : undefined;
+        const connectionFrame = this.session.stopwatch
+            ? this.session.stopwatch.start('Connection acquisition')
+            : undefined;
         const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
         if (connectionFrame) connectionFrame.end();
 
@@ -297,7 +344,13 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
             rows = await connection.execAndReturnAll(sql.sql, sql.params);
         } catch (error: any) {
             error = this.handleSpecificError(error);
-            throw new DatabaseError(`Could not query ${this.classSchema.getClassName()} due to SQL error ${error}`, { cause: error });
+            throw new DatabaseError(
+                'DK-O001',
+                `Could not query ${this.classSchema.getClassName()} due to SQL error ${error}`,
+                {
+                    cause: error,
+                },
+            );
         } finally {
             connection.release();
         }
@@ -306,7 +359,22 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
         const results: T[] = [];
         if (model.isAggregate() || model.sqlSelect) {
             //when aggregate the field types could be completely different, so don't normalize
-            for (const row of rows) results.push(row); //mysql returns not a real array, so we have to iterate
+            for (const row of rows) {
+                // Postgres returns numeric aggregates (count/avg, and sum/min/max over numeric
+                // columns) as strings; coerce them back to numbers so the declared aggregate field
+                // type holds. MySQL/SQLite already return native numbers, so this is a no-op there.
+                for (const [as, agg] of model.aggregate) {
+                    const v = (row as any)[as];
+                    if (typeof v !== 'string') continue;
+                    const numeric =
+                        agg.func === 'count' ||
+                        agg.func === 'avg' ||
+                        ((agg.func === 'sum' || agg.func === 'min' || agg.func === 'max') &&
+                            agg.property.type.kind === ReflectionKind.number);
+                    if (numeric) (row as any)[as] = Number(v);
+                }
+                results.push(row); //mysql returns not a real array, so we have to iterate
+            }
             if (formatterFrame) formatterFrame.end();
             return results;
         }
@@ -329,7 +397,7 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
     }
 
     async has(model: SQLQueryModel<T>): Promise<boolean> {
-        return await this.count(model) > 0;
+        return (await this.count(model)) > 0;
     }
 
     async patch(model: SQLQueryModel<T>, changes: Changes<T>, patchResult: PatchResult<T>): Promise<void> {
@@ -341,7 +409,9 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
         const sql = sqlBuilder.update(this.classSchema, model, set);
         if (sqlBuilderFrame) sqlBuilderFrame.end();
 
-        const connectionFrame = this.session.stopwatch ? this.session.stopwatch.start('Connection acquisition') : undefined;
+        const connectionFrame = this.session.stopwatch
+            ? this.session.stopwatch.start('Connection acquisition')
+            : undefined;
         const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
         if (connectionFrame) connectionFrame.end();
 
@@ -349,7 +419,124 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
             await connection.run(sql.sql, sql.params);
             patchResult.modified = await connection.getChanges();
         } catch (error: any) {
-            error = new DatabasePatchError(this.classSchema, model, changes, `Could not patch ${this.classSchema.getClassName()} in database`, { cause: error });
+            error = new DatabasePatchError(
+                this.classSchema,
+                model,
+                changes,
+                `Could not patch ${this.classSchema.getClassName()} in database`,
+                { cause: error },
+            );
+            throw this.handleSpecificError(error);
+        } finally {
+            connection.release();
+        }
+    }
+
+    /**
+     * Inserts `rows`, resolving primary-key / unique-index collisions. With
+     * `options.update === []` it ignores conflicts (idempotent insert — the
+     * at-least-once / junction-row idiom); otherwise it overwrites the chosen
+     * columns, optionally gated by `options.guard` (e.g. a monotonic version
+     * guard `{ version: '>' }`).
+     *
+     * This method is dialect-agnostic: it serializes the rows and delegates the
+     * actual statement (Postgres/SQLite `ON CONFLICT`, MySQL `ON DUPLICATE KEY
+     * UPDATE`, …) to {@link DefaultPlatform.getUpsertSQL}, which each supporting
+     * platform implements (others throw rather than emit invalid SQL).
+     *
+     * Rows are partial entity objects keyed by property name; every row must
+     * specify the same columns so the multi-row `VALUES` stays aligned. Runs on
+     * the session's (possibly transaction-bound) connection, so it commits with
+     * the surrounding unit of work / projection batch.
+     */
+    async upsert(rows: Partial<T>[], options: UpsertOptions<T>, result: PatchResult<T>): Promise<void> {
+        if (rows.length === 0) return;
+
+        const prepared = getPreparedEntity(this.adapter, this.classSchema);
+        const serialize = getPartialSerializeFunction(
+            this.classSchema.type,
+            this.platform.serializer.serializeRegistry,
+        );
+
+        const resolveField = (name: string): PreparedField => {
+            const field = prepared.fieldMap[name];
+            if (!field) {
+                throw new SqlError(
+                    'DK-SQL013',
+                    `upsert(): "${name}" is not a property of ${this.classSchema.getClassName()}.`,
+                );
+            }
+            return field;
+        };
+
+        // Insert columns are taken from the first row; every row must match so the
+        // multi-row VALUES stays aligned.
+        const insertFields = Object.keys(rows[0]).map(resolveField);
+        if (insertFields.length === 0) {
+            throw new SqlError('DK-SQL013', 'upsert(): rows must specify at least one column.');
+        }
+        const insertNames = new Set(insertFields.map(f => f.name));
+
+        const placeholder = new this.platform.placeholderStrategy();
+        const params: any[] = [];
+        const tuples: string[] = [];
+        for (const row of rows) {
+            const keys = Object.keys(row);
+            if (keys.length !== insertFields.length || keys.some(k => !insertNames.has(k))) {
+                throw new SqlError('DK-SQL013', 'upsert(): every row must specify the same columns.');
+            }
+            const converted = serialize(row);
+            const tuple: string[] = [];
+            for (const field of insertFields) {
+                const v = converted[field.name];
+                params.push(v === undefined ? null : v);
+                tuple.push(field.sqlTypeCast(placeholder.getPlaceholder()));
+            }
+            tuples.push(`(${tuple.join(', ')})`);
+        }
+
+        const conflictFields = options.on && options.on.length ? options.on.map(resolveField) : [prepared.primaryKey];
+        const conflictNames = new Set(conflictFields.map(f => f.name));
+
+        const updateFields = options.update
+            ? options.update.map(resolveField)
+            : insertFields.filter(f => !conflictNames.has(f.name));
+
+        // The guard op is interpolated into SQL — restrict it to the typed comparison set.
+        const guard: { column: string; op: string }[] = [];
+        if (options.guard) {
+            const guardMap = options.guard as Record<string, string | undefined>;
+            for (const name in guardMap) {
+                const op = guardMap[name];
+                if (!op) continue;
+                if (op !== '>' && op !== '>=' && op !== '<' && op !== '<=') {
+                    throw new SqlError('DK-SQL013', `upsert(): unsupported guard operator "${op}" for "${name}".`);
+                }
+                guard.push({ column: resolveField(name).columnNameEscaped, op });
+            }
+        }
+
+        // The dialect SQL (ON CONFLICT vs ON DUPLICATE KEY UPDATE, alias rules) lives in the platform.
+        const sql = this.platform.getUpsertSQL({
+            tableNameEscaped: prepared.tableNameEscaped,
+            columns: insertFields.map(f => f.columnNameEscaped),
+            valueTuples: tuples,
+            conflictColumns: conflictFields.map(f => f.columnNameEscaped),
+            updateColumns: updateFields.map(f => f.columnNameEscaped),
+            guard,
+        });
+
+        const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
+        try {
+            await connection.run(sql, params);
+            result.modified = await connection.getChanges();
+        } catch (error: any) {
+            error = new DatabaseInsertError(
+                this.classSchema,
+                rows as OrmEntity[],
+                `Could not upsert ${this.classSchema.getClassName()} into database`,
+                { cause: error },
+            );
             throw this.handleSpecificError(error);
         } finally {
             connection.release();
@@ -360,24 +547,21 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
 type QueryPart = string | SqlQuery | SqlQueryParameter | SQLQueryIdentifier;
 
 export class SqlQueryParameter {
-    constructor(public value: any) {
-    }
+    constructor(public value: any) {}
 }
 
 export class SQLQueryIdentifier {
-    constructor(public id: any) {
-    }
+    constructor(public id: any) {}
 }
 
 export function identifier(id: string) {
     return new SQLQueryIdentifier(id);
 }
 
-export type SqlStatement = { sql: string, params: any[] };
+export type SqlStatement = { sql: string; params: any[] };
 
 export class SqlQuery {
-    constructor(public parts: ReadonlyArray<QueryPart>) {
-    }
+    constructor(public parts: ReadonlyArray<QueryPart>) {}
 
     public clone(): SqlQuery {
         return new SqlQuery(this.parts.slice());
@@ -424,9 +608,9 @@ export function sql(strings: TemplateStringsArray, ...params: ReadonlyArray<any>
 
     for (let i = 1; i < strings.length; i++) {
         if (
-            params[i - 1] instanceof SqlQuery
-            || params[i - 1] instanceof SqlQueryParameter
-            || params[i - 1] instanceof SQLQueryIdentifier
+            params[i - 1] instanceof SqlQuery ||
+            params[i - 1] instanceof SqlQueryParameter ||
+            params[i - 1] instanceof SQLQueryIdentifier
         ) {
             parts.push(params[i - 1]);
         } else {
@@ -476,31 +660,74 @@ export class SQLDatabaseQuery<T extends OrmEntity> extends Query<T> {
         c.model.sqlSelect = sql;
         return c as any;
     }
+
+    /**
+     * Idempotent insert: `INSERT ... ON CONFLICT (target) DO NOTHING`. Rows that
+     * collide on the conflict target (the primary key by default, or `on`) are
+     * skipped. Returns how many rows were actually inserted (`modified`).
+     *
+     * ```
+     * await session.query(TeamMember).insertOrIgnore({ teamId, userId }, ['teamId', 'userId']);
+     * ```
+     */
+    async insertOrIgnore(rows: Partial<T> | Partial<T>[], on?: (keyof T & string)[]): Promise<PatchResult<T>> {
+        const result: PatchResult<T> = { modified: 0, returning: {}, primaryKeys: [] };
+        await this.resolver.upsert(Array.isArray(rows) ? rows : [rows], { on, update: [] }, result);
+        return result;
+    }
+
+    /**
+     * Upsert: `INSERT ... ON CONFLICT (target) DO UPDATE SET ...`. Overwrites the
+     * columns in `options.update` (default: all inserted columns except the
+     * conflict target). Pass `options.guard` to gate the overwrite, e.g. a
+     * version guard. Returns how many rows were inserted-or-updated.
+     *
+     * ```
+     * await session.query(User).insertOrUpdate(row, { guard: { version: '>' } });
+     * ```
+     */
+    async insertOrUpdate(rows: Partial<T> | Partial<T>[], options: UpsertOptions<T> = {}): Promise<PatchResult<T>> {
+        const result: PatchResult<T> = { modified: 0, returning: {}, primaryKeys: [] };
+        await this.resolver.upsert(Array.isArray(rows) ? rows : [rows], options, result);
+        return result;
+    }
 }
 
 export class SQLDatabaseQueryFactory extends DatabaseAdapterQueryFactory {
-    constructor(protected connectionPool: SQLConnectionPool, protected platform: DefaultPlatform, protected databaseSession: DatabaseSession<any>) {
+    constructor(
+        protected connectionPool: SQLConnectionPool,
+        protected platform: DefaultPlatform,
+        protected databaseSession: DatabaseSession<any>,
+    ) {
         super();
     }
 
-    createQuery<T extends OrmEntity>(classType: ReceiveType<T> | ClassType<T> | AbstractClassType<T> | ReflectionClass<T>): SQLDatabaseQuery<T> {
-        return new SQLDatabaseQuery(ReflectionClass.from(classType), this.databaseSession,
-            new SQLQueryResolver(this.connectionPool, this.platform, ReflectionClass.from(classType), this.databaseSession.adapter, this.databaseSession),
+    createQuery<T extends OrmEntity>(
+        classType: ReceiveType<T> | ClassType<T> | AbstractClassType<T> | ReflectionClass<T>,
+    ): SQLDatabaseQuery<T> {
+        return new SQLDatabaseQuery(
+            ReflectionClass.from(classType),
+            this.databaseSession,
+            new SQLQueryResolver(
+                this.connectionPool,
+                this.platform,
+                ReflectionClass.from(classType),
+                this.databaseSession.adapter,
+                this.databaseSession,
+            ),
         );
     }
 }
 
 @entity.name('migration_state')
 export class MigrationStateEntity {
-    created: Date = new Date;
+    created: Date = new Date();
 
-    constructor(public version: number & PrimaryKey) {
-    }
+    constructor(public version: number & PrimaryKey) {}
 }
 
 export class SqlMigrationHandler {
-    constructor(protected database: Database<SQLDatabaseAdapter>) {
-    }
+    constructor(protected database: Database<SQLDatabaseAdapter>) {}
 
     public async setLatestMigrationVersion(version: number): Promise<void> {
         const session = this.database.createSession();
@@ -521,7 +748,9 @@ export class SqlMigrationHandler {
         } catch (error) {
             const connection = await this.database.adapter.connectionPool.getConnection();
             try {
-                const [table] = this.database.adapter.platform.createTables(DatabaseEntityRegistry.from([MigrationStateEntity]));
+                const [table] = this.database.adapter.platform.createTables(
+                    DatabaseEntityRegistry.from([MigrationStateEntity]),
+                );
                 const createSql = this.database.adapter.platform.getAddTableDDL(table);
                 for (const sql of createSql) {
                     await connection.run(sql);
@@ -541,14 +770,13 @@ export class RawQuery<T> implements FindQuery<T> {
         protected platform: DefaultPlatform,
         protected sql: SqlQuery,
         protected type: Type,
-    ) {
-    }
+    ) {}
 
     /**
      * Executes the raw query and returns nothing.
      */
     async execute(): Promise<void> {
-        const sql = this.sql.convertToSQL(this.platform, new this.platform.placeholderStrategy);
+        const sql = this.sql.convertToSQL(this.platform, new this.platform.placeholderStrategy());
         const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
 
         try {
@@ -562,7 +790,7 @@ export class RawQuery<T> implements FindQuery<T> {
      * Returns the SQL statement with placeholders replaced with the actual values.
      */
     getSql(): SqlStatement {
-        return this.sql.convertToSQL(this.platform, new this.platform.placeholderStrategy);
+        return this.sql.convertToSQL(this.platform, new this.platform.placeholderStrategy());
     }
 
     /**
@@ -589,7 +817,7 @@ export class RawQuery<T> implements FindQuery<T> {
      * Note that this does not resolve/map joins. Use the regular database.query() for that.
      */
     async find(): Promise<T[]> {
-        const sql = this.sql.convertToSQL(this.platform, new this.platform.placeholderStrategy);
+        const sql = this.sql.convertToSQL(this.platform, new this.platform.placeholderStrategy());
         const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
 
         try {
@@ -607,8 +835,7 @@ export class SqlRawFactory implements RawFactory<[SqlQuery]> {
         protected session: DatabaseSession<SQLDatabaseAdapter>,
         protected connectionPool: SQLConnectionPool,
         protected platform: DefaultPlatform,
-    ) {
-    }
+    ) {}
 
     create<T = unknown>(sql: SqlQuery, type?: ReceiveType<T>): RawQuery<T> {
         type = type ? resolveReceiveType(type) : { kind: ReflectionKind.any };
@@ -630,6 +857,33 @@ export abstract class SQLDatabaseAdapter extends DatabaseAdapter {
 
     rawFactory(session: DatabaseSession<this>): SqlRawFactory {
         return new SqlRawFactory(session, this.connectionPool, this.platform);
+    }
+
+    /**
+     * Runs parameterized raw SQL on the connection bound to `session`'s active transaction
+     * (or a fresh pooled connection when the session has none) and returns the result rows.
+     *
+     * This is the escape hatch for statements the query builder can't express — e.g. a
+     * version-guarded `INSERT ... ON CONFLICT (pk) DO UPDATE SET ... WHERE excluded.v > t.v`,
+     * or a bulk multi-row upsert — while still sharing the session's transaction, so ORM
+     * unit-of-work writes (`session.add()`, `query().patchMany()`) and these raw writes commit
+     * together. Unlike `session.raw` (the `sql\`\`` tagged-template form), this takes a plain
+     * SQL string and a positional `params` array, so existing driver-style SQL can run as-is.
+     *
+     * Placeholders use the driver's native positional style (`$1, $2` on postgres, `?` on
+     * mysql/sqlite). Rows are returned verbatim from the driver (NOT deserialized into an
+     * entity) — caller owns the row shape, exactly like a hand-written query.
+     */
+    async runRaw<T = any>(session: DatabaseSession<this>, sql: string, params: any[] = []): Promise<T[]> {
+        const connection = await this.connectionPool.getConnection(session.assignedTransaction);
+        try {
+            const rows = await connection.execAndReturnAll(sql, params);
+            return Array.isArray(rows) ? rows : [];
+        } finally {
+            // For a transaction-bound connection this is a no-op (the pool keeps it sticky
+            // until commit/rollback); for a standalone call it returns the connection.
+            connection.release();
+        }
     }
 
     async getInsertBatchSize(schema: ReflectionClass<any>): Promise<number> {
@@ -670,8 +924,11 @@ export abstract class SQLDatabaseAdapter extends DatabaseAdapter {
         }
     }
 
-    public async getMigrations(options: MigrateOptions, entityRegistry: DatabaseEntityRegistry): Promise<{ [name: string]: { sql: string[], diff: string } }> {
-        const migrations: { [name: string]: { sql: string[], diff: string } } = {};
+    public async getMigrations(
+        options: MigrateOptions,
+        entityRegistry: DatabaseEntityRegistry,
+    ): Promise<{ [name: string]: { sql: string[]; diff: string } }> {
+        const migrations: { [name: string]: { sql: string[]; diff: string } } = {};
 
         const connection = await this.connectionPool.getConnection();
 
@@ -758,18 +1015,19 @@ export class SQLPersistence extends DatabasePersistence {
         if (this.connection) this.connection.release();
     }
 
-    protected prepareAutoIncrement(classSchema: ReflectionClass<any>, count: number) {
-    }
+    protected prepareAutoIncrement(classSchema: ReflectionClass<any>, count: number) {}
 
-    protected populateAutoIncrementFields<T>(classSchema: ReflectionClass<T>, items: T[]) {
-    }
+    protected populateAutoIncrementFields<T>(classSchema: ReflectionClass<T>, items: T[]) {}
 
     async insert<T extends OrmEntity>(classSchema: ReflectionClass<T>, items: T[]): Promise<void> {
         await this.prepareAutoIncrement(classSchema, items.length);
         await this.doInsert(classSchema, items);
     }
 
-    async update<T extends OrmEntity>(classSchema: ReflectionClass<T>, changeSets: DatabasePersistenceChangeSet<T>[]): Promise<void> {
+    async update<T extends OrmEntity>(
+        classSchema: ReflectionClass<T>,
+        changeSets: DatabasePersistenceChangeSet<T>[],
+    ): Promise<void> {
         const batchSize = await this.session.adapter.getUpdateBatchSize(classSchema);
         const entity = getPreparedEntity(this.session.adapter, classSchema);
 
@@ -797,7 +1055,10 @@ export class SQLPersistence extends DatabasePersistence {
         }
     }
 
-    async batchUpdate<T extends OrmEntity>(entity: PreparedEntity, changeSets: DatabasePersistenceChangeSet<T>[]): Promise<void> {
+    async batchUpdate<T extends OrmEntity>(
+        entity: PreparedEntity,
+        changeSets: DatabasePersistenceChangeSet<T>[],
+    ): Promise<void> {
         //simple update implementation that is not particular performant nor does it support atomic updates (like $inc)
         const scopeSerializer = getPartialSerializeFunction(entity.type, this.platform.serializer.serializeRegistry);
         const updates: string[] = [];
@@ -840,7 +1101,7 @@ export class SQLPersistence extends DatabasePersistence {
 
     protected async batchInsert<T>(classSchema: ReflectionClass<T>, items: T[]) {
         const scopeSerializer = getSerializeFunction(classSchema.type, this.platform.serializer.serializeRegistry);
-        const placeholder = new this.platform.placeholderStrategy;
+        const placeholder = new this.platform.placeholderStrategy();
 
         const insert: string[] = [];
         const params: any[] = [];
@@ -887,15 +1148,20 @@ export class SQLPersistence extends DatabasePersistence {
     }
 
     async remove<T extends OrmEntity>(classSchema: ReflectionClass<T>, items: T[]): Promise<void> {
-        const scopeSerializer = getSerializeFunction(classSchema.type, this.platform.serializer.serializeRegistry);
+        // Serialize only the primary key (partial), never the whole entity: a full-entity
+        // serializer would touch unpopulated BackReference getters (DK-O200) for a plain delete.
+        const scopeSerializer = getPartialSerializeFunction(
+            classSchema.type,
+            this.platform.serializer.serializeRegistry,
+        );
         const pks: any[] = [];
         const primary = classSchema.getPrimary();
         const pkName = primary.name;
         const params: any[] = [];
-        const placeholder = new this.platform.placeholderStrategy;
+        const placeholder = new this.platform.placeholderStrategy();
 
         for (const item of items) {
-            const converted = scopeSerializer(item);
+            const converted = scopeSerializer({ [pkName]: (item as any)[pkName] });
             pks.push(placeholder.getPlaceholder());
             params.push(converted[pkName]);
         }
@@ -934,9 +1200,9 @@ export function prepareBatchUpdate(
     const values: { [name: string]: any[] } = {};
     const valuesSet: { [name: string]: any[] } = {};
     const setNames: string[] = [];
-    const aggregateSelects: { [name: string]: { id: any, sql: string }[] } = {};
+    const aggregateSelects: { [name: string]: { id: any; sql: string }[] } = {};
 
-    const assignReturning: { [name: string]: { item: any, names: string[] } } = {};
+    const assignReturning: { [name: string]: { item: any; names: string[] } } = {};
     const setReturning: { [name: string]: 1 } = {};
     const changedFields: string[] = [];
     const changedProperties: PreparedField[] = [];
@@ -950,7 +1216,10 @@ export function prepareBatchUpdate(
                     values[fieldName] = [];
                     valuesSet[fieldName] = [];
 
-                    setNames.push((options.setNamesWithTableName ? tableName + '.' : '') + `${entity.fieldMap[fieldName].columnNameEscaped} = _b.${entity.fieldMap[fieldName].columnNameEscaped}`);
+                    setNames.push(
+                        (options.setNamesWithTableName ? tableName + '.' : '') +
+                            `${entity.fieldMap[fieldName].columnNameEscaped} = _b.${entity.fieldMap[fieldName].columnNameEscaped}`,
+                    );
                 }
             }
         }
@@ -1013,5 +1282,4 @@ export function prepareBatchUpdate(
         setNames,
         tableName,
     };
-
 }

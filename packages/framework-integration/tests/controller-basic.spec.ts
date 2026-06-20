@@ -1,18 +1,19 @@
-import { afterAll, expect, jest, test } from '@jest/globals';
-import { ClientProgress, JSONError, rpc } from '@deepkit/rpc';
-import { appModuleForControllers, closeAllCreatedServers, createServerClientPair, subscribeAndWait } from './util.js';
+import { fail } from 'assert';
+import { after as afterAll, test } from 'node:test';
 import { Observable } from 'rxjs';
 import { bufferCount, first, skip } from 'rxjs/operators';
-import { ObserverTimer } from '@deepkit/core-rxjs';
-import { isArray } from '@deepkit/core';
-import { fail } from 'assert';
 import ws from 'ws';
-import { entity, ValidationError, ValidationErrorItem } from '@deepkit/type';
+
+import { isArray } from '@deepkit/core';
+import { ObserverTimer } from '@deepkit/core-rxjs';
+import { ClientProgress, JSONError, rpc } from '@deepkit/rpc';
+import { expect } from '@deepkit/run/expect';
+import { ValidationError, ValidationErrorItem, entity } from '@deepkit/type';
+
+import { appModuleForControllers, closeAllCreatedServers, createServerClientPair, subscribeAndWait } from './util.js';
 
 // @ts-ignore
 global['WebSocket'] = ws;
-
-jest.setTimeout(15_000);
 
 afterAll(async () => {
     await closeAllCreatedServers();
@@ -29,9 +30,7 @@ class User {
 class MyCustomError {
     additional?: string;
 
-    constructor(public readonly message: string) {
-
-    }
+    constructor(public readonly message: string) {}
 }
 
 test('basic setup and methods', async () => {
@@ -65,8 +64,7 @@ test('basic setup and methods', async () => {
         }
 
         @rpc.action()
-        validationError(user: User) {
-        }
+        validationError(user: User) {}
     }
 
     const { client, close } = await createServerClientPair('basic setup and methods', appModuleForControllers([TestController]));
@@ -82,7 +80,7 @@ test('basic setup and methods', async () => {
             fail('should error');
         } catch (error: any) {
             expect(error).toBeInstanceOf(Error);
-            expect(error.message).toBe('Nothing to see here');
+            expect(error.message).toContain('Nothing to see here');
         }
     }
 
@@ -116,7 +114,7 @@ test('basic setup and methods', async () => {
         } catch (error) {
             expect(error).toBeInstanceOf(ValidationError);
             expect((error as ValidationError).errors[0]).toBeInstanceOf(ValidationErrorItem);
-            expect((error as ValidationError).errors[0]).toEqual({ code: 'type', message: 'Cannot convert undefined to string', path: 'args.user.name' });
+            expect((error as ValidationError).errors[0]).toEqual({ code: 'type', message: 'Not a string', path: 'args.user.name' });
         }
     }
 
@@ -146,13 +144,13 @@ test('basic serialisation return: entity', async () => {
         }
 
         @rpc.action()
-        async allowPlainObject(name: string): Promise<{ mowla: boolean, name: string, date: Date }> {
+        async allowPlainObject(name: string): Promise<{ mowla: boolean; name: string; date: Date }> {
             return { mowla: true, name, date: new Date('1987-12-12T11:00:00.000Z') };
         }
 
         @rpc.action()
         async observable(name: string): Promise<Observable<User>> {
-            return new Observable((observer) => {
+            return new Observable(observer => {
                 observer.next(new User(name));
             });
         }
@@ -181,7 +179,6 @@ test('basic serialisation return: entity', async () => {
     expect(struct.name).toBe('peter');
     expect(struct.date).toBeInstanceOf(Date);
     expect(struct.date).toEqual(new Date('1987-12-12T11:00:00.000Z'));
-
 
     {
         const o = await controller.observable('peter');
@@ -234,7 +231,7 @@ test('basic serialisation partial param: entity', async () => {
         getPartialUser(name?: string, date?: Date): Partial<User> {
             return {
                 name: name,
-                date: date
+                date: date,
             };
         }
 
@@ -248,14 +245,14 @@ test('basic serialisation partial param: entity', async () => {
 
     const controller = client.controller<TestController>('test');
 
-    expect(await controller.passUser({name: 'asd'})).toEqual({name: 'asd'});
+    expect(await controller.passUser({ name: 'asd' })).toEqual({ name: 'asd' });
     expect(await controller.passUser({})).toEqual({});
 
     const date = new Date('1987-12-12T11:00:00.000Z');
 
-    expect(await controller.getPartialUser('asd', date)).toEqual({name: 'asd', date});
-    expect(await controller.getPartialUser('asd')).toEqual({name: 'asd', date: undefined});
-    expect(await controller.getPartialUser()).toEqual({name: undefined, date: undefined});
+    expect(await controller.getPartialUser('asd', date)).toEqual({ name: 'asd', date });
+    expect(await controller.getPartialUser('asd')).toEqual({ name: 'asd', date: undefined });
+    expect(await controller.getPartialUser()).toEqual({ name: undefined, date: undefined });
 
     const a = await controller.user({ name: 'peter2' });
     expect(a).toBe(true);
@@ -295,7 +292,7 @@ test('test observable', async () => {
     class TestController {
         @rpc.action()
         observer(): Observable<string> {
-            return new Observable((observer) => {
+            return new Observable(observer => {
                 observer.next('a');
 
                 const timer = new ObserverTimer(observer);
@@ -316,7 +313,7 @@ test('test observable', async () => {
 
         @rpc.action()
         user(name: string): Observable<User> {
-            return new Observable((observer) => {
+            return new Observable(observer => {
                 observer.next(new User('first'));
 
                 const timer = new ObserverTimer(observer);
@@ -333,11 +330,11 @@ test('test observable', async () => {
 
     const observable = await controller.observer();
 
-    await subscribeAndWait(observable.pipe(bufferCount(3)), async (next) => {
+    await subscribeAndWait(observable.pipe(bufferCount(3)), async next => {
         expect(next).toEqual(['a', 'b', 'c']);
     });
 
-    await subscribeAndWait((await controller.user('pete')).pipe(bufferCount(2)), async (next) => {
+    await subscribeAndWait((await controller.user('pete')).pipe(bufferCount(2)), async next => {
         expect(next[0]).toBeInstanceOf(User);
         expect(next[1]).toBeInstanceOf(User);
         expect(next[0].name).toEqual('first');

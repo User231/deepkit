@@ -7,8 +7,18 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-
-import { addHook } from 'pirates';
+// @ts-ignore
+import abstractSyntaxTree from 'abstract-syntax-tree';
+// abstract-syntax-tree's bundled estraverse predates ES2022 class nodes (StaticBlock,
+// PropertyDefinition) and throws "Unknown node type" while traversing classes that carry runtime
+// reflection metadata — the type compiler emits `static { this.__type = [...] }` on class
+// components, which surfaces under an ES2022 transpile target. estraverse supports a per-call
+// `keys` option that merges onto its built-in VisitorKeys, but the library's `replace`/`traverse`
+// wrappers don't forward it. We patch the shared estraverse module (the same instance the wrappers
+// use) once so every traversal learns these node types; a targeted key extension leaves traversal
+// of all other node types unchanged. `generate` already round-trips these nodes.
+// @ts-ignore - internal subpath import; abstract-syntax-tree ships no `exports` map and no types.
+import estraverse from 'abstract-syntax-tree/src/traverse/estraverse';
 import type {
     ArrayExpression,
     ArrayPattern,
@@ -25,15 +35,23 @@ import type {
     Property,
     RestElement,
     SpreadElement,
-    UnaryExpression
+    UnaryExpression,
 } from 'estree';
-// @ts-ignore
-import abstractSyntaxTree from 'abstract-syntax-tree';
-import { inDebugMode } from '@deepkit/core';
-import { escape, escapeHtml } from './utils.js';
+import { addHook } from 'pirates';
+
+import { DeepkitError, inDebugMode } from '@deepkit/core';
+
 import { voidElements } from './template.js';
+import { escape, escapeHtml } from './utils.js';
 
 const { parse, generate, replace } = abstractSyntaxTree;
+
+const ES2022_VISITOR_KEYS = { StaticBlock: ['body'], PropertyDefinition: ['key', 'value'] };
+for (const method of ['replace', 'traverse'] as const) {
+    const original = (estraverse as any)[method];
+    (estraverse as any)[method] = (tree: any, visitor: any) =>
+        original(tree, { ...visitor, keys: { ...(visitor && visitor.keys), ...ES2022_VISITOR_KEYS } });
+}
 
 export function transform(code: string, filename: string) {
     if (inDebugMode()) return code;
@@ -45,8 +63,7 @@ export function transform(code: string, filename: string) {
 
 addHook(transform, { exts: ['.js', '.tsx'] });
 
-class NotSerializable {
-}
+class NotSerializable {}
 
 export function parseCode(code: string) {
     return parse(code);
@@ -94,7 +111,13 @@ function optimizeAttributes(jsxRuntime: string, node: ObjectExpression): any {
         }
         expressions.push(createEscapedLiteral('="'));
 
-        if (value.type !== 'Literal' && !isPattern(value) && !isCreateElementCall(value) && !isEscapeCall(value) && !isHtmlCall(value)) {
+        if (
+            value.type !== 'Literal' &&
+            !isPattern(value) &&
+            !isCreateElementCall(value) &&
+            !isEscapeCall(value) &&
+            !isHtmlCall(value)
+        ) {
             expressions.push(toSafeString(jsxRuntime, toEscapeAttributeCall(jsxRuntime, value)));
         } else {
             if (value.type === 'Literal') {
@@ -111,22 +134,37 @@ function optimizeAttributes(jsxRuntime: string, node: ObjectExpression): any {
 }
 
 function isPattern(e: Node): e is ObjectPattern | ArrayPattern | RestElement | AssignmentPattern | MemberExpression {
-    return e.type === 'ArrayPattern' || e.type === 'ObjectPattern' || e.type === 'AssignmentPattern' || e.type === 'RestElement' || e.type === 'MemberExpression';
+    return (
+        e.type === 'ArrayPattern' ||
+        e.type === 'ObjectPattern' ||
+        e.type === 'AssignmentPattern' ||
+        e.type === 'RestElement' ||
+        e.type === 'MemberExpression'
+    );
 }
 
 //jsx_runtime_1.jsx()
 function isCjsJSXCall(node: Node): boolean {
     if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression') {
         const expression = node.callee;
-        return expression.property && expression.property.type === 'Identifier' && (expression.property.name === 'jsx' || expression.property?.name === 'jsxs');
+        return (
+            expression.property &&
+            expression.property.type === 'Identifier' &&
+            (expression.property.name === 'jsx' || expression.property?.name === 'jsxs')
+        );
     }
     return false;
 }
 
 function unwrapCallExpression(node: Node): MemberExpression | Identifier | undefined {
-    if (node.type === 'CallExpression' && node.callee.type === 'SequenceExpression'
-        && node.callee.expressions[0] && node.callee.expressions[0].type === 'Literal' && node.callee.expressions[0].value === 0
-        && node.callee.expressions[1]) {
+    if (
+        node.type === 'CallExpression' &&
+        node.callee.type === 'SequenceExpression' &&
+        node.callee.expressions[0] &&
+        node.callee.expressions[0].type === 'Literal' &&
+        node.callee.expressions[0].value === 0 &&
+        node.callee.expressions[1]
+    ) {
         if (node.callee.expressions[1].type === 'MemberExpression') return node.callee.expressions[1];
         if (node.callee.expressions[1].type === 'Identifier') return node.callee.expressions[1];
     }
@@ -140,13 +178,21 @@ function unwrapCallExpression(node: Node): MemberExpression | Identifier | undef
 function isAvoidedThisCjsJSXCall(node: Node): boolean {
     const expression = unwrapCallExpression(node);
     if (expression && expression.type === 'MemberExpression') {
-        return !!expression.property && expression.property.type === 'Identifier' && (expression.property.name === 'jsx' || expression.property?.name === 'jsxs');
+        return (
+            !!expression.property &&
+            expression.property.type === 'Identifier' &&
+            (expression.property.name === 'jsx' || expression.property?.name === 'jsxs')
+        );
     }
     return false;
 }
 
 function isESMJSXCall(node: Node): boolean {
-    return node.type === 'CallExpression' && node.callee.type === 'Identifier' && (node.callee.name === '_jsx' || node.callee.name === '_jsxs');
+    return (
+        node.type === 'CallExpression' &&
+        node.callee.type === 'Identifier' &&
+        (node.callee.name === '_jsx' || node.callee.name === '_jsxs')
+    );
 }
 
 /**
@@ -169,14 +215,19 @@ function optimizeNode(node: Expression, root: boolean = true): Expression {
     if (node.callee.type !== 'MemberExpression') return node;
     if (node.callee.object.type !== 'Identifier') return node;
 
-    const isCreateElementExpression = node.callee.property.type === 'Identifier' && node.callee.property?.name === 'createElement';
+    const isCreateElementExpression =
+        node.callee.property.type === 'Identifier' && node.callee.property?.name === 'createElement';
     if (!isCreateElementExpression) return node;
 
     const jsxRuntime = node.callee.object.name;
 
     //if first argument is a Fragment, we optimise for that
-    if (node.arguments[0].type === 'MemberExpression' && node.arguments[0].object.type === 'Identifier'
-        && node.arguments[0].property.type === 'Identifier' && node.arguments[0].property.name === 'Fragment') {
+    if (
+        node.arguments[0].type === 'MemberExpression' &&
+        node.arguments[0].object.type === 'Identifier' &&
+        node.arguments[0].property.type === 'Identifier' &&
+        node.arguments[0].property.name === 'Fragment'
+    ) {
         //we normalize Fragments (or all createElement(var)) to have as second parameter the attributes.
         //since Fragments don't have attributes, this is always an empty object, so we skip that
 
@@ -299,7 +350,7 @@ function optimizeNode(node: Expression, root: boolean = true): Expression {
 }
 
 function optimiseArguments(jsxRuntime: string, expressions: ConcatableType[], root: boolean): Expression {
-    if (expressions.length === 0) throw new Error('No expression for optimise arguments');
+    if (expressions.length === 0) throw new DeepkitError('DK-TPL001', 'No expression for optimise arguments');
 
     if (expressions.length === 1) {
         const e = expressions[0];
@@ -310,7 +361,8 @@ function optimiseArguments(jsxRuntime: string, expressions: ConcatableType[], ro
         }
     }
 
-    const result = expressions.length === 1 ? toOptimisedArrayExpression(expressions) : concatExpressions(jsxRuntime, expressions);
+    const result =
+        expressions.length === 1 ? toOptimisedArrayExpression(expressions) : concatExpressions(jsxRuntime, expressions);
 
     const safeString = getSafeString(result);
     if (safeString !== undefined) {
@@ -324,7 +376,7 @@ function optimiseArguments(jsxRuntime: string, expressions: ConcatableType[], ro
 function concatExpressions(jsxRuntime: string, expressions: ConcatableType[]): ConcatableType {
     if (expressions.length < 2) {
         console.dir(expressions, { depth: null });
-        throw new Error('concatExpressions requires at least 2 expressions');
+        throw new DeepkitError('DK-TPL002', 'concatExpressions requires at least 2 expressions');
     }
 
     const normalizedExpressions: ConcatableType[] = [];
@@ -386,7 +438,15 @@ function concatExpressions(jsxRuntime: string, expressions: ConcatableType[]): C
     }
 
     const allExpressionsConcatable = optimizedExpressions.every(e => {
-        return isOptimisedBinaryExpression(e) || isHtmlCall(e) || isSafeCall(e) || isEscapedLiteral(e) || getSafeString(e) !== undefined || isUserEscapeCall(e) || isOptimisedHtmlString(e);
+        return (
+            isOptimisedBinaryExpression(e) ||
+            isHtmlCall(e) ||
+            isSafeCall(e) ||
+            isEscapedLiteral(e) ||
+            getSafeString(e) !== undefined ||
+            isUserEscapeCall(e) ||
+            isOptimisedHtmlString(e)
+        );
     });
 
     const lastStep: ConcatableType[] = [];
@@ -423,7 +483,7 @@ function concatExpressions(jsxRuntime: string, expressions: ConcatableType[]): C
         };
     }
 
-    if (!lastBinaryExpression) throw new Error('Could not build binary expression');
+    if (!lastBinaryExpression) throw new DeepkitError('DK-TPL003', 'Could not build binary expression');
 
     return lastBinaryExpression;
 }
@@ -445,7 +505,7 @@ function normalizeLastStep(e: Expression): Expression {
             type: 'MemberExpression',
             object: e,
             computed: false,
-            property: { type: 'Identifier', name: 'htmlString' }
+            property: { type: 'Identifier', name: 'htmlString' },
         } as MemberExpression;
     }
 
@@ -464,11 +524,14 @@ function toOptimisedArrayExpression(expressions: ConcatableType[]): ArrayExpress
     return arrayExpression;
 }
 
-
-function createRenderObjectWithEscapedChildren(children?: Expression, render: Expression = { type: 'Identifier', name: 'undefined' }, attributes: Expression = {
-    type: 'Identifier',
-    name: 'undefined'
-}): Expression {
+function createRenderObjectWithEscapedChildren(
+    children?: Expression,
+    render: Expression = { type: 'Identifier', name: 'undefined' },
+    attributes: Expression = {
+        type: 'Identifier',
+        name: 'undefined',
+    },
+): Expression {
     const o: ObjectExpression = {
         type: 'ObjectExpression',
         properties: [
@@ -479,7 +542,7 @@ function createRenderObjectWithEscapedChildren(children?: Expression, render: Ex
                 kind: 'init',
                 computed: false,
                 method: false,
-                shorthand: false
+                shorthand: false,
             },
             {
                 type: 'Property',
@@ -488,9 +551,9 @@ function createRenderObjectWithEscapedChildren(children?: Expression, render: Ex
                 kind: 'init',
                 computed: false,
                 method: false,
-                shorthand: false
-            }
-        ]
+                shorthand: false,
+            },
+        ],
     };
 
     if (children) {
@@ -501,7 +564,7 @@ function createRenderObjectWithEscapedChildren(children?: Expression, render: Ex
             kind: 'init',
             computed: false,
             method: false,
-            shorthand: false
+            shorthand: false,
         });
     }
 
@@ -509,16 +572,24 @@ function createRenderObjectWithEscapedChildren(children?: Expression, render: Ex
 }
 
 function isRenderObject(e: Node) {
-    return e.type === 'ObjectExpression' && e.properties[0] && e.properties[0].type === 'Property'
-        && e.properties[0].key.type === 'Identifier' && e.properties[0].key.name === 'render'
-        ;
+    return (
+        e.type === 'ObjectExpression' &&
+        e.properties[0] &&
+        e.properties[0].type === 'Property' &&
+        e.properties[0].key.type === 'Identifier' &&
+        e.properties[0].key.name === 'render'
+    );
 }
 
 function isObjectAssignCall(e: Node) {
-    return e.type === 'CallExpression' && e.callee.type === 'MemberExpression'
-        && e.callee.object.type === 'Identifier' && e.callee.object.name === 'Object'
-        && e.callee.property.type === 'Identifier' && e.callee.property.name === 'assign'
-        ;
+    return (
+        e.type === 'CallExpression' &&
+        e.callee.type === 'MemberExpression' &&
+        e.callee.object.type === 'Identifier' &&
+        e.callee.object.name === 'Object' &&
+        e.callee.property.type === 'Identifier' &&
+        e.callee.property.name === 'assign'
+    );
 }
 
 function createEscapedLiteral(v: string | number | boolean | null | RegExp | undefined): Literal {
@@ -530,9 +601,13 @@ function isEscapedLiteral(e: Node): boolean {
 }
 
 function isCreateElementCall(e: Node) {
-    return e.type === 'CallExpression' && e.callee.type === 'MemberExpression'
-        && e.callee.object.type === 'Identifier'
-        && e.callee.property.type === 'Identifier' && e.callee.property.name === 'createElement';
+    return (
+        e.type === 'CallExpression' &&
+        e.callee.type === 'MemberExpression' &&
+        e.callee.object.type === 'Identifier' &&
+        e.callee.property.type === 'Identifier' &&
+        e.callee.property.name === 'createElement'
+    );
 }
 
 function isConcatenatable(e: Expression): boolean {
@@ -547,10 +622,10 @@ function toHtmlCall(jsxRuntime: string, expression: Expression): CallExpression 
             object: { type: 'Identifier', name: jsxRuntime },
             computed: false,
             optional: false,
-            property: { type: 'Identifier', name: 'html' }
+            property: { type: 'Identifier', name: 'html' },
         },
         optional: false,
-        arguments: [expression]
+        arguments: [expression],
     };
 }
 
@@ -577,10 +652,10 @@ function toEscapeAttributeCall(jsxRuntime: string, expression: Expression): Call
             object: { type: 'Identifier', name: jsxRuntime },
             computed: false,
             optional: false,
-            property: { type: 'Identifier', name: 'escapeAttribute' }
+            property: { type: 'Identifier', name: 'escapeAttribute' },
         },
         optional: false,
-        arguments: [expression]
+        arguments: [expression],
     };
 }
 
@@ -609,17 +684,33 @@ function isHtmlCall(object: Expression | SpreadElement): boolean {
 function getHtmlCallArg(e: Expression | SpreadElement): Expression | undefined {
     const expression = unwrapCallExpression(e);
     if (!expression) return;
-    if (e.type === 'CallExpression' && expression.type === 'MemberExpression'
-        && expression.object.type === 'Identifier' && expression.object.name === '_jsx'
-        && expression.property.type === 'Identifier' && expression.property.name === 'html'
-        && e.arguments[0]) return unwrapSpread(e.arguments[0]);
+    if (
+        e.type === 'CallExpression' &&
+        expression.type === 'MemberExpression' &&
+        expression.object.type === 'Identifier' &&
+        expression.object.name === '_jsx' &&
+        expression.property.type === 'Identifier' &&
+        expression.property.name === 'html' &&
+        e.arguments[0]
+    )
+        return unwrapSpread(e.arguments[0]);
 
-    if (e.type === 'CallExpression' && expression.type === 'MemberExpression'
-        && expression.object.type === 'Identifier'
-        && expression.property.type === 'Identifier' && expression.property.name === 'html'
-        && e.arguments[0]) return unwrapSpread(e.arguments[0]);
+    if (
+        e.type === 'CallExpression' &&
+        expression.type === 'MemberExpression' &&
+        expression.object.type === 'Identifier' &&
+        expression.property.type === 'Identifier' &&
+        expression.property.name === 'html' &&
+        e.arguments[0]
+    )
+        return unwrapSpread(e.arguments[0]);
 
-    if (e.type === 'CallExpression' && expression.type === 'Identifier' && expression.name === 'html' && e.arguments[0]) {
+    if (
+        e.type === 'CallExpression' &&
+        expression.type === 'Identifier' &&
+        expression.name === 'html' &&
+        e.arguments[0]
+    ) {
         return unwrapSpread(e.arguments[0]);
     }
 
@@ -634,17 +725,33 @@ function getSafeCallArg(e: Expression | SpreadElement): Expression | undefined {
     const expression = unwrapCallExpression(e);
     if (!expression) return;
 
-    if (e.type === 'CallExpression' && expression.type === 'MemberExpression'
-        && expression.object.type === 'Identifier' && expression.object.name === '_jsx'
-        && expression.property.type === 'Identifier' && expression.property.name === 'safe'
-        && e.arguments[0]) return unwrapSpread(e.arguments[0]);
+    if (
+        e.type === 'CallExpression' &&
+        expression.type === 'MemberExpression' &&
+        expression.object.type === 'Identifier' &&
+        expression.object.name === '_jsx' &&
+        expression.property.type === 'Identifier' &&
+        expression.property.name === 'safe' &&
+        e.arguments[0]
+    )
+        return unwrapSpread(e.arguments[0]);
 
-    if (e.type === 'CallExpression' && expression.type === 'MemberExpression'
-        && expression.object.type === 'Identifier'
-        && expression.property.type === 'Identifier' && expression.property.name === 'safe'
-        && e.arguments[0]) return unwrapSpread(e.arguments[0]);
+    if (
+        e.type === 'CallExpression' &&
+        expression.type === 'MemberExpression' &&
+        expression.object.type === 'Identifier' &&
+        expression.property.type === 'Identifier' &&
+        expression.property.name === 'safe' &&
+        e.arguments[0]
+    )
+        return unwrapSpread(e.arguments[0]);
 
-    if (e.type === 'CallExpression' && expression.type === 'Identifier' && expression.name === 'safe' && e.arguments[0]) {
+    if (
+        e.type === 'CallExpression' &&
+        expression.type === 'Identifier' &&
+        expression.name === 'safe' &&
+        e.arguments[0]
+    ) {
         return unwrapSpread(e.arguments[0]);
     }
 
@@ -652,8 +759,13 @@ function getSafeCallArg(e: Expression | SpreadElement): Expression | undefined {
 }
 
 function isChildren(e: Expression | SpreadElement): boolean {
-    if (e.type === 'MemberExpression' && (e.object.type === 'Identifier' || e.object.type === 'ThisExpression')
-        && e.property.type === 'Identifier' && e.property.name === 'children') return true;
+    if (
+        e.type === 'MemberExpression' &&
+        (e.object.type === 'Identifier' || e.object.type === 'ThisExpression') &&
+        e.property.type === 'Identifier' &&
+        e.property.name === 'children'
+    )
+        return true;
 
     if (e.type === 'Identifier' && e.name === 'children') {
         return true;
@@ -663,9 +775,14 @@ function isChildren(e: Expression | SpreadElement): boolean {
 }
 
 function getSafeString(e: Expression | SpreadElement): Expression | undefined {
-    if (e.type === 'ObjectExpression' && e.properties.length === 1 && e.properties[0].type === 'Property' && e.properties[0].key.type === 'MemberExpression'
-        && e.properties[0].key.property.type === 'Identifier' && e.properties[0].key.property.name === 'safeString'
-        && !isPattern(e.properties[0].value)
+    if (
+        e.type === 'ObjectExpression' &&
+        e.properties.length === 1 &&
+        e.properties[0].type === 'Property' &&
+        e.properties[0].key.type === 'MemberExpression' &&
+        e.properties[0].key.property.type === 'Identifier' &&
+        e.properties[0].key.property.name === 'safeString' &&
+        !isPattern(e.properties[0].value)
     ) {
         return e.properties[0].value;
     }
@@ -682,15 +799,15 @@ function toSafeString(jsxRuntime: string, e: Expression): ObjectExpression {
                     type: 'MemberExpression',
                     object: { type: 'Identifier', name: jsxRuntime },
                     computed: false,
-                    property: { type: 'Identifier', name: 'safeString' }
+                    property: { type: 'Identifier', name: 'safeString' },
                 } as MemberExpression,
                 value: e,
                 kind: 'init',
                 computed: true,
                 method: false,
-                shorthand: false
-            }
-        ]
+                shorthand: false,
+            },
+        ],
     };
 }
 
@@ -698,11 +815,13 @@ function isEscapeCall(e: Expression | SpreadElement): boolean {
     const expression = unwrapCallExpression(e);
     if (!expression) return false;
 
-    return e.type === 'CallExpression' && expression.type === 'MemberExpression'
-        && expression.object.type === 'Identifier'
-        && expression.property.type === 'Identifier'
-        && (expression.property.name === 'escape' || expression.property.name === 'escapeAttribute')
-        ;
+    return (
+        e.type === 'CallExpression' &&
+        expression.type === 'MemberExpression' &&
+        expression.object.type === 'Identifier' &&
+        expression.property.type === 'Identifier' &&
+        (expression.property.name === 'escape' || expression.property.name === 'escapeAttribute')
+    );
 }
 
 export function isOptimisedHtmlString(e: Expression | SpreadElement): boolean {
@@ -712,23 +831,35 @@ export function isOptimisedHtmlString(e: Expression | SpreadElement): boolean {
     const expression = unwrapCallExpression(e.object);
     if (!expression) return false;
 
-    return expression.type === 'MemberExpression'
-        && expression.property.type === 'Identifier' && expression.property.name === 'escape'
-        && e.property.type === 'Identifier' && e.property.name === 'htmlString';
+    return (
+        expression.type === 'MemberExpression' &&
+        expression.property.type === 'Identifier' &&
+        expression.property.name === 'escape' &&
+        e.property.type === 'Identifier' &&
+        e.property.name === 'htmlString'
+    );
 }
 
 function isUserEscapeCall(e: Expression | SpreadElement): boolean {
     const expression = unwrapCallExpression(e);
     if (!expression) return false;
 
-    if (e.type === 'CallExpression' && expression.type === 'MemberExpression'
-        && expression.object.type === 'Identifier'
-        && expression.property.type === 'Identifier'
-        && (expression.property.name === 'escape')) {
+    if (
+        e.type === 'CallExpression' &&
+        expression.type === 'MemberExpression' &&
+        expression.object.type === 'Identifier' &&
+        expression.property.type === 'Identifier' &&
+        expression.property.name === 'escape'
+    ) {
         return true;
     }
 
-    return e.type === 'CallExpression' && expression.type === 'Identifier' && expression.name === 'escape' && e.arguments[0] !== undefined;
+    return (
+        e.type === 'CallExpression' &&
+        expression.type === 'Identifier' &&
+        expression.name === 'escape' &&
+        e.arguments[0] !== undefined
+    );
 }
 
 function extractChildrenFromObjectExpressionProperties(props: Array<Property | SpreadElement>): Expression | undefined {
@@ -804,7 +935,7 @@ function convertNodeToCreateElement(node: Expression): Expression {
             type: 'MemberExpression',
             object: { type: 'Identifier', name: '_jsx' },
             computed: false,
-            property: { type: 'Identifier', name: 'createElement' }
+            property: { type: 'Identifier', name: 'createElement' },
         } as MemberExpression;
     } else if (isAvoidedCJS) {
         //convert (0, x)() to x()
@@ -825,14 +956,20 @@ function convertNodeToCreateElement(node: Expression): Expression {
 
     if (!node.arguments[1]) return node;
 
-    if (node.arguments[1].type === 'CallExpression' && node.arguments[1].callee.type === 'MemberExpression' && node.arguments[1].callee.object.type === 'Identifier' && node.arguments[1].callee.object.name === 'Object') {
+    if (
+        node.arguments[1].type === 'CallExpression' &&
+        node.arguments[1].callee.type === 'MemberExpression' &&
+        node.arguments[1].callee.object.type === 'Identifier' &&
+        node.arguments[1].callee.object.name === 'Object'
+    ) {
         //Object.assign(), means we have 2 entries, one with attributes, and second with `children`
         // Object.assign({id: 123}, {children: "Test"}) or
         // Object.assign({}, props, { id: "123" }, { children: "Test" })
         const objectAssignsArgs = node.arguments[1].arguments;
         const lastArgument = objectAssignsArgs[objectAssignsArgs.length - 1];
 
-        if (lastArgument.type !== 'ObjectExpression') throw new Error(`Expect ObjectExpression, got ${JSON.stringify(lastArgument)}`);
+        if (lastArgument.type !== 'ObjectExpression')
+            throw new DeepkitError('DK-TPL004', `Expect ObjectExpression, got ${JSON.stringify(lastArgument)}`);
 
         const children = extractChildrenFromObjectExpressionProperties(lastArgument.properties);
         if (children) {
@@ -868,27 +1005,43 @@ function convertNodeToCreateElement(node: Expression): Expression {
 }
 
 export function optimizeJSX(code: string): string {
-    const tree = parse(code);
+    // Best-effort: JSX optimization is a pure performance enhancement, so if the code contains
+    // syntax the bundled AST walker can't traverse (e.g. ES2022 `static {}` reflection blocks the
+    // type compiler emits on class components, which abstract-syntax-tree's estraverse predates and
+    // rejects with "Unknown node type"), fall back to the unoptimized code rather than crashing
+    // rendering. Correctness is preserved — only the optimization is skipped.
+    try {
+        const tree = parse(code);
 
-    replace(tree, (node: any) => {
-        if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
-            return optimizeNode(convertNodeToCreateElement(node), true);
-        }
-        return node;
-    });
+        replace(tree, (node: any) => {
+            if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
+                return optimizeNode(convertNodeToCreateElement(node), true);
+            }
+            return node;
+        });
 
-    return generate(tree);
+        return generate(tree);
+    } catch (error) {
+        if (inDebugMode()) console.warn('optimizeJSX skipped (unsupported syntax):', error);
+        return code;
+    }
 }
 
 export function convertJsxCodeToCreateElement(code: string): string {
-    const tree = parse(code);
+    // See optimizeJSX: best-effort, fall back to the original code on un-traversable syntax.
+    try {
+        const tree = parse(code);
 
-    replace(tree, (node: any) => {
-        if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
-            return convertNodeToCreateElement(node);
-        }
-        return node;
-    });
+        replace(tree, (node: any) => {
+            if (isESMJSXCall(node) || isCjsJSXCall(node) || isAvoidedThisCjsJSXCall(node)) {
+                return convertNodeToCreateElement(node);
+            }
+            return node;
+        });
 
-    return generate(tree);
+        return generate(tree);
+    } catch (error) {
+        if (inDebugMode()) console.warn('convertJsxCodeToCreateElement skipped (unsupported syntax):', error);
+        return code;
+    }
 }

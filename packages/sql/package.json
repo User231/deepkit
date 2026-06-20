@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/sql",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "deepkit/orm base SQL",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -27,54 +27,36 @@
     "access": "public"
   },
   "scripts": {
-    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "repository": "https://github.com/deepkit/deepkit-framework",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "peerDependencies": {
-    "@deepkit/app": "^1.0.1",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/injector": "^1.0.1",
-    "@deepkit/logger": "^1.0.1",
-    "@deepkit/orm": "^1.0.1",
-    "@deepkit/stopwatch": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@deepkit/app": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/injector": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/orm": "^2.0.0",
+    "@deepkit/stopwatch": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
   },
   "dependencies": {
-    "@types/sqlstring": "^2.2.1",
-    "date-fns": "^2.17.0",
-    "fast-glob": "^3.2.5",
-    "sqlstring": "^2.3.2",
-    "sqlstring-sqlite": "^0.1.1"
+    "@types/sqlstring": "2.3.2",
+    "date-fns": "2.30.0",
+    "fast-glob": "3.3.3",
+    "sqlstring": "2.3.3",
+    "sqlstring-sqlite": "0.1.1"
   },
   "devDependencies": {
-    "@deepkit/app": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/injector": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/orm": "^1.0.19",
-    "@deepkit/stopwatch": "^1.0.19",
-    "@deepkit/type": "^1.0.19"
-  },
-  "jest": {
-    "runner": "../../jest-serial-runner.js",
-    "testEnvironment": "node",
-    "transform": {
-      "^.+\\.(ts|tsx)$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/tsconfig.spec.json"
-        }
-      ]
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testTimeout": 50000,
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+    "@deepkit/app": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/injector": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/orm": "^2.0.0",
+    "@deepkit/stopwatch": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

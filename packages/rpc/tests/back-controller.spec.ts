@@ -1,12 +1,13 @@
-import { expect, test } from '@jest/globals';
-import { RpcKernel, RpcKernelConnection } from '../src/server/kernel.js';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
 import { DirectClient } from '../src/client/client-direct.js';
 import { rpc } from '../src/decorators.js';
+import { RpcKernel, RpcKernelConnection } from '../src/server/kernel.js';
 
 test('back controller', async () => {
     class Controller {
-        constructor(protected connection: RpcKernelConnection) {
-        }
+        constructor(protected connection: RpcKernelConnection) {}
 
         @rpc.action()
         foo(bar: string): string {

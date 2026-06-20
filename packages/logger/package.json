@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/logger",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit logger",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -18,40 +18,24 @@
     "access": "public"
   },
   "scripts": {
-    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json"
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "repository": "https://github.com/deepkit/deepkit-framework",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "peerDependencies": {
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/injector": "^1.0.1"
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/injector": "^2.0.0"
   },
   "dependencies": {
-    "@types/format-util": "^1.0.1",
-    "ansi-styles": "^4.3.0",
-    "format-util": "^1.0.5"
+    "@types/format-util": "1.0.4",
+    "ansi-styles": "4.3.0",
+    "format-util": "1.0.5"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/injector": "^1.0.19"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "transform": {
-      "^.+\\.(ts|tsx)$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/tsconfig.spec.json"
-        }
-      ]
-    },
-    "moduleNameMapper": {
-      "(.+)\\.js": "$1"
-    },
-    "testMatch": [
-      "**/tests/**/*.spec.ts"
-    ]
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/injector": "^2.0.0"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"
 }

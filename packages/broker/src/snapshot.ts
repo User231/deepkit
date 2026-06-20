@@ -1,4 +1,5 @@
 import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+
 import { BrokerState, Queue } from './kernel.js';
 import { QueueMessage, QueueMessageProcessing, SnapshotEntry, SnapshotEntryType } from './model.js';
 import { handleMessageDeduplication } from './utils.js';
@@ -18,11 +19,12 @@ export function snapshotState(state: BrokerState, writer: (v: Uint8Array) => voi
             amount: queue.messages.length,
         };
 
-        const bson = serializeEntry(q);
-        writer(bson);
+        const [entryBuffer, entrySize] = serializeEntry(q);
+        writer(entryBuffer.slice(0, entrySize));
 
         for (const message of queue.messages) {
-            writer(serializeMessage(message));
+            const [messageBuffer, messageSize] = serializeMessage(message);
+            writer(messageBuffer.slice(0, messageSize));
         }
     }
 }
@@ -80,5 +82,4 @@ export function restoreState(state: BrokerState, reader: (size: number) => Uint8
             }
         }
     }
-
 }

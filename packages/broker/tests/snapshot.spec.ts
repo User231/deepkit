@@ -1,7 +1,9 @@
-import { expect, test } from '@jest/globals';
+import { test } from 'node:test';
+import { expect } from '@deepkit/run/expect';
+
 import { BrokerState } from '../src/kernel.js';
-import { restoreState, snapshotState } from '../src/snapshot.js';
 import { QueueMessageProcessing, QueueMessageState } from '../src/model.js';
+import { restoreState, snapshotState } from '../src/snapshot.js';
 
 test('snapshot process message at least once', () => {
     const state = new BrokerState();
@@ -29,7 +31,7 @@ test('snapshot process message at least once', () => {
     });
 
     const chunks: Uint8Array[] = [];
-    snapshotState(state, (v) => {
+    snapshotState(state, v => {
         chunks.push(v);
     });
 
@@ -72,7 +74,7 @@ test('snapshot process message exactly least once', () => {
     });
 
     const chunks: Uint8Array[] = [];
-    snapshotState(state, (v) => {
+    snapshotState(state, v => {
         chunks.push(v);
     });
 

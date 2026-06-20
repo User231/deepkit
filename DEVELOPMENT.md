@@ -2,7 +2,8 @@
 
 ## Prerequisites
 
-Deepkit uses NPM and Lerna to manage this monorepo. Local package linking is managed through the NPM Workspaces.
+Deepkit uses Yarn 4 (see `packageManager` in `package.json`) and Lerna to manage this monorepo. Local
+package linking is managed through Yarn Workspaces. Package scripts are invoked with `npm run <script>`.
 
 Make sure `libpq5` and `libpq-dev` are installed. 
 These are needed for Postgres client `pg`, which is used in `@deepkit/postgres`.\
@@ -57,10 +58,16 @@ lerna notice cli v7.4.1
  >  Lerna (powered by Nx)   Successfully ran target build for 43 projects (1m)
 ```
 
-You can try running some tests
+You can try running some tests. Tests run on Node's built-in test runner (`node:test`) via the
+`@deepkit/run` loader — not Jest. Run the whole suite with `npm run test`, or a single package/file:
 
 ```shell
-npm run test packages/type/
+# whole suite
+npm run test
+
+# a single package or file
+node --import @deepkit/run --test 'packages/type/tests/**/*.spec.ts'
+node --import @deepkit/run --test packages/type/tests/serializer.spec.ts
 ```
 
 If everything went fine you can try out the example app:
@@ -88,8 +95,8 @@ deepkit-framework/packages/example-app » npm run start
 
 ## Making changes 
 
-In order to make sure that all packages are built correctly and that Jest understands cross-package references you
-should run the included build watcher commands during local development. Usually it's enough to run the `tsc-watch`,
+In order to make sure that all packages are built correctly and that the test runner resolves cross-package
+references you should run the included build watcher commands during local development. Usually it's enough to run the `tsc-watch`,
 but when ESM packages are consumed for example by our Angular apps, you need to run `tsc-watch:esm` as well.
 
 ```shell
