@@ -44,11 +44,11 @@
     "@deepkit/workflow": "^2.0.0"
   },
   "dependencies": {
-    "@deepkit/api-console-module": "^2.0.0",
+    "@deepkit/api-console-module": "*",
     "@deepkit/framework-debug-api": "^2.0.0",
-    "@deepkit/framework-debug-gui": "^2.0.0",
-    "@deepkit/orm-browser-api": "^2.0.0",
-    "@deepkit/orm-browser-gui": "^2.0.0",
+    "@deepkit/framework-debug-gui": "*",
+    "@deepkit/orm-browser-api": "*",
+    "@deepkit/orm-browser-gui": "*",
     "@types/ws": "7.4.7",
     "buffer": "5.7.1",
     "compression": "1.8.1",
