@@ -539,20 +539,32 @@ function validateActionArgs(callSchema: TypeObjectLiteral, args: any[]): void {
         // Optional / default-valued parameter left absent: nothing to validate.
         if (value === undefined && member.optional) continue;
 
-        if (validate(value, member.type).length === 0) continue;
+        const subErrors = validate(value, member.type);
+        if (subErrors.length === 0) continue;
 
         // Carve-out: any JS number is wire-acceptable for a `number` parameter (NaN/Infinity).
         if (member.type.kind === ReflectionKind.number && typeof value === 'number') continue;
 
         const name = member.name ? String(member.name) : String(i);
-        errors.push(
-            new ValidationErrorItem(
-                `args.${name}`,
-                'type',
-                `Cannot convert ${value} to ${stringifyType(member.type)}`,
-                value,
-            ),
-        );
+        // If the validator produced nested per-field errors (a class/object argument), propagate
+        // them re-anchored under args.<name> so the failing field is visible (e.g. args.user.name)
+        // instead of the opaque "Cannot convert [object Object] to User". For a scalar argument the
+        // validator's error carries no nested path, so keep the descriptive whole-value message.
+        const nested = subErrors.filter(e => e.path);
+        if (nested.length) {
+            for (const e of nested) {
+                errors.push(new ValidationErrorItem(`args.${name}.${e.path}`, e.code, e.message, (e as any).value));
+            }
+        } else {
+            errors.push(
+                new ValidationErrorItem(
+                    `args.${name}`,
+                    'type',
+                    `Cannot convert ${value} to ${stringifyType(member.type)}`,
+                    value,
+                ),
+            );
+        }
     }
 
     if (errors.length) throw new ValidationError(errors);
