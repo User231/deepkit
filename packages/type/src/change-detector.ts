@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { Builder, Ref, VarRef, arg, empty, fn, toFastProperties } from '@deepkit/core';
+import { Builder, Ref, arg, empty, fn, toFastProperties } from '@deepkit/core';
 
 import { Changes, ItemChanges, changeSetSymbol } from './changes.js';
 import { ReflectionClass } from './reflection/reflection.js';
@@ -70,10 +70,20 @@ function isNumeric(value: string): boolean {
  * Build state for change detector JIT function generation.
  */
 interface ChangeDetectorState {
-    /** Map from type to its cached detector function var */
-    fnCache: Map<Type, VarRef<Function>>;
+    /** Map from type to its cached detector holder (captured as a context const, lazily filled) */
+    fnCache: Map<Type, { fn: Function | undefined }>;
     /** Types currently being processed (for circular detection) */
     typeStack: Set<Type>;
+}
+
+/**
+ * Invokes a nested change detector through its holder. The holder is captured as a JIT
+ * context constant (stable across every builder scope) and `.fn` is dereferenced lazily,
+ * so the same detector can be reused across sibling property scopes and self-referential
+ * (circular) types without compiling to an out-of-scope variable reference.
+ */
+function callNestedDetector(holder: { fn: Function }, last: any, current: any, item: any): any {
+    return holder.fn(last, current, item);
 }
 
 /**
@@ -351,37 +361,33 @@ function buildNestedObjectComparator(
                     onChanged();
                 },
                 () => {
-                    // Both exist - use nested change detector
-                    let fnVar = state.fnCache.get(type);
+                    // Both exist - use nested change detector.
+                    // Cache the detector in a context-captured holder object, NOT a generated
+                    // `b.var_`: a var is scoped to the builder block that declared it, but the
+                    // cache is reused across sibling property scopes of the same nested type and
+                    // for self-referential (circular) types, so a cached VarRef referenced from a
+                    // different scope compiled to an undefined identifier -> `fn is not a function`.
+                    // The holder is captured as a stable external const and its `.fn` is read
+                    // lazily at call time; seeding the cache BEFORE the recursive build also
+                    // terminates circular types (the inner reference resolves to the same holder).
+                    let holder = state.fnCache.get(type);
 
-                    if (!fnVar) {
-                        // Check for circular reference
-                        if (state.typeStack.has(type)) {
-                            // Circular reference - use lazy initialization
-                            fnVar = b.var_<Function>(undefined as any);
-                            state.fnCache.set(type, fnVar);
-
-                            // Build the nested detector lazily
-                            const nestedDetector = createJITChangeDetectorForSnapshot(classSchema, state);
-                            b.setVar(fnVar, b.lit(nestedDetector));
-                        } else {
-                            // Not circular - build inline
-                            state.typeStack.add(type);
-                            try {
-                                const nestedDetector = createJITChangeDetectorForSnapshot(classSchema, state);
-                                fnVar = b.var_<Function>(b.lit(nestedDetector));
-                                state.fnCache.set(type, fnVar);
-                            } finally {
-                                state.typeStack.delete(type);
-                            }
+                    if (!holder) {
+                        holder = { fn: undefined };
+                        state.fnCache.set(type, holder);
+                        state.typeStack.add(type);
+                        try {
+                            holder.fn = createJITChangeDetectorForSnapshot(classSchema, state);
+                        } finally {
+                            state.typeStack.delete(type);
                         }
                     }
 
                     const itemValue = b.get(item, changedKey);
                     const thisChanged = b.let(
                         b.call<ItemChanges<any> | undefined>(
-                            (fn: Function, l: any, c: any, i: any) => fn(l, c, i),
-                            b.getVar(fnVar),
+                            callNestedDetector,
+                            b.lit(holder),
                             last,
                             current,
                             itemValue,

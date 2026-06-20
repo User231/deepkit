@@ -1,6 +1,7 @@
 import { getClassTypeFromInstance } from '@deepkit/core';
 
 import { DeepPartial } from './changes.js';
+import { UnpopulatedCheck, typeSettings } from './core.js';
 import { typeInfer } from './reflection/processor.js';
 import { ReceiveType, resolveReceiveType } from './reflection/reflection.js';
 import {
@@ -255,7 +256,16 @@ export function serialize<T>(
         '',
         buildOptions,
     );
-    return fn(data, options) as JSONSingle<T>;
+    // Reading a not-yet-populated reference/back-reference getter throws under the default
+    // UnpopulatedCheck.Throw; serialization should skip such relations (the reference handlers omit
+    // null/undefined/unpopulatedSymbol input) rather than throw — matching the HTTP response path.
+    const unpopulatedCheck = typeSettings.unpopulatedCheck;
+    typeSettings.unpopulatedCheck = UnpopulatedCheck.None;
+    try {
+        return fn(data, options) as JSONSingle<T>;
+    } finally {
+        typeSettings.unpopulatedCheck = unpopulatedCheck;
+    }
 }
 
 /**
