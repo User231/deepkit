@@ -433,13 +433,7 @@ export abstract class DefaultPlatform {
             for (const index of schema.indexes) {
                 if (index.options.name && table.hasIndexByName(index.options.name)) continue;
 
-                //index.names are property names; columns are registered under their
-                //(possibly remapped, e.g. DatabaseField<{name}>) column names.
-                const columns = index.names.map(v => table.getColumn(
-                    schema.hasProperty(v)
-                        ? this.namingStrategy.getColumnName(schema.getProperty(v), this.annotationId)
-                        : v,
-                ));
+                const columns = index.names.map(v => table.getColumn(v));
                 if (table.hasIndex(columns, index.options.unique)) continue;
 
                 const addedIndex = table.addIndex(index.options.name || '', index.options.unique);
