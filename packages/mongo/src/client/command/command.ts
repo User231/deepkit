@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { BSONDeserializer, deserializeBSONWithoutOptimiser, getBSONDeserializer } from '@deepkit/bson';
+import { BSONDeserializer, BSONError, deserializeBSONWithoutOptimiser, getBSONDeserializer } from '@deepkit/bson';
 import { asyncOperation, getClassName } from '@deepkit/core';
 import {
     InlineRuntimeType,
@@ -136,7 +136,10 @@ export abstract class Command<T> {
                 this.current.resolve(message);
             }
         } catch (error: any) {
-            if (error instanceof ValidationError || error instanceof SerializationError) {
+            // A Mongo error response (ok:0, no `cursor`) fails the cursor-shaped deserializer with a
+            // BSONError ("Cannot convert bson type UNDEFINED to {…}"), which extends DeepkitError
+            // directly — include it so the error-response recovery below surfaces the real errmsg.
+            if (error instanceof ValidationError || error instanceof SerializationError || error instanceof BSONError) {
                 if (this.current.responseType) {
                     const raw = deserializeBSONWithoutOptimiser(response);
                     if (raw.errmsg && raw.ok === 0) {

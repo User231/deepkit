@@ -131,6 +131,17 @@ export class MongoRawFactory implements RawFactory<[Command<any>]> {
         type?: ReceiveType<Entity>,
         resultType?: ReceiveType<ResultSchema>,
     ): MongoRawCommandQuery<ResultSchema> {
+        // A single-type-argument `raw<Entity>()` call reaches this two-type-param method through the
+        // unresolvable `database.raw` / `session.raw` proxy property, so the type-compiler emits the
+        // packed type in BARE form; the two-type-param read then splits it into type = Ω[0] (the first
+        // packed entry) and resultType = Ω[1] (the ops-marker string). A real second type argument is
+        // always a packed array, never a raw string — so a string `resultType` unambiguously signals
+        // the bare write. Recover the full packed type from this.create.Ω and default the result schema
+        // to the entity (AggregateCommand falls back to `this.schema`).
+        if (typeof resultType === 'string') {
+            type = [type, resultType] as any as ReceiveType<Entity>;
+            resultType = undefined;
+        }
         type = resolveReceiveType(type);
         const resultSchema = resultType ? resolveReceiveType(resultType) : undefined;
 

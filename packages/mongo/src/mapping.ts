@@ -9,7 +9,7 @@
  */
 import { ClassType } from '@deepkit/core';
 import { QueryCustomFields, QueryFieldNames, convertQueryFilter } from '@deepkit/orm';
-import { ReflectionClass, ReflectionKind, Type, deserialize, resolvePath, serialize, serializer } from '@deepkit/type';
+import { ReflectionClass, ReflectionKind, Type, deserialize, isMongoIdType, resolvePath, serialize, serializer } from '@deepkit/type';
 
 import './mongo-serializer';
 import { mongoSerializer } from './mongo-serializer.js';
@@ -41,7 +41,14 @@ export function convertClassQueryToMongo<T, K extends keyof T, Q extends FilterQ
         schema,
         query,
         (convertClassType: ReflectionClass<any>, path: string, value: any) => {
+            // An explicit undefined/null filter value means "IS NULL" (e.g. soft-delete's
+            // {deletedAt: undefined}); emit null directly. Passing undefined to serialize either
+            // throws for object-typed fields or yields undefined that BSON drops (losing the clause).
+            if (value === undefined || value === null) return null;
             const type = resolveValueType(path, schema.type);
+            // An empty MongoId string is the unassigned sentinel, not a valid 24-char ObjectId;
+            // filtering by it must match nothing (IS NULL) rather than crash the BSON ObjectId writer.
+            if (value === '' && isMongoIdType(type)) return null;
             return serialize(value, undefined, mongoSerializer, undefined, type);
         },
         fieldNamesMap,
@@ -59,7 +66,10 @@ export function convertPlainQueryToMongo<T, K extends keyof T>(
         classType,
         target,
         (convertClassType: ReflectionClass<any>, path: string, value: any) => {
+            // See convertClassQueryToMongo: an explicit undefined/null means "IS NULL".
+            if (value === undefined || value === null) return null;
             const type = resolveValueType(path, convertClassType.type);
+            if (value === '' && isMongoIdType(type)) return null;
             const classValue = deserialize(value, undefined, serializer, undefined, type);
             return serialize(classValue, undefined, mongoSerializer, undefined, type);
         },
