@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/broker-redis",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit Broker Redis adapter",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -24,11 +24,11 @@
     "test:node": "node --expose-gc --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "dependencies": {
-    "@deepkit/broker": "^1.0.19",
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@deepkit/broker": "^2.0.0",
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
     "ioredis": "5.11.1"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/mongo",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit ORM MongoDB adapter",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -25,20 +25,20 @@
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
   "peerDependencies": {
-    "@deepkit/bson": "^1.0.1",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/orm": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/orm": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
   },
   "dependencies": {
     "saslprep-patch": "1.0.6"
   },
   "devDependencies": {
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/orm": "^1.0.19",
-    "@deepkit/orm-integration": "^1.0.1",
-    "@deepkit/type": "^1.0.19",
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/orm": "^2.0.0",
+    "@deepkit/orm-integration": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
     "@types/mongodb": "3.6.20",
     "@types/node": "22.19.21",
     "mongodb": "6.21.0"

@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/ui-library",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "Collection of utilities for Deepkit's graphical user interfaces",
   "repository": "https://github.com/deepkit/deepkit-framework",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
@@ -26,19 +26,19 @@
     "@angular/common": "20.0.4",
     "@angular/core": "20.3.16",
     "@angular/forms": "20.0.4",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/desktop-ui": "^1.0.1",
-    "@deepkit/rpc": "^1.0.1",
-    "@deepkit/type": "^1.0.1"
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/desktop-ui": "^2.0.0",
+    "@deepkit/rpc": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
   },
   "dependencies": {
     "prismjs": "1.30.0"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/desktop-ui": "^1.0.1",
-    "@deepkit/rpc": "^1.0.1",
-    "@deepkit/type": "^1.0.1",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/desktop-ui": "^2.0.0",
+    "@deepkit/rpc": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
     "@types/prismjs": "1.26.6",
     "ng-packagr": "20.3.2",
     "ngxtension": "5.2.0",

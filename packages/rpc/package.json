@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/rpc",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -23,24 +23,24 @@
     "test:node": "node --expose-gc --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "peerDependencies": {
-    "@deepkit/bson": "^1.0.1",
-    "@deepkit/core": "^1.0.1",
-    "@deepkit/core-rxjs": "^1.0.1",
-    "@deepkit/injector": "^1.0.1",
-    "@deepkit/logger": "^1.0.1",
-    "@deepkit/type": "^1.0.1",
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/core-rxjs": "^2.0.0",
+    "@deepkit/injector": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
     "rxjs": "*"
   },
   "dependencies": {
     "dot-prop": "5.3.0"
   },
   "devDependencies": {
-    "@deepkit/bson": "^1.0.19",
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/core-rxjs": "^1.0.19",
-    "@deepkit/injector": "^1.0.19",
-    "@deepkit/logger": "^1.0.19",
-    "@deepkit/type": "^1.0.19",
+    "@deepkit/bson": "^2.0.0",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/core-rxjs": "^2.0.0",
+    "@deepkit/injector": "^2.0.0",
+    "@deepkit/logger": "^2.0.0",
+    "@deepkit/type": "^2.0.0",
     "@types/dot-prop": "5.0.4",
     "@types/fs-extra": "9.0.13",
     "@types/node": "22.19.21",

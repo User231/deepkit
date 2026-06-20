@@ -355,7 +355,7 @@ See `docs/TESTING.md` for test strategy and edge cases.
 ## Performance
 
 Deepkit achieves extreme performance through JIT compilation. With the v2 expression-tree JIT/serializer
-rewrite (see `docs/pr-description.md` and `benchmarks/`):
+rewrite (see `CHANGELOG.md`, `docs/BENCHMARKS.md`, and `benchmarks/`):
 
 - **Type serialize**: small-model ~135M ops/sec (1.5–14x faster than v1)
 - **Type validate / `is()`**: 3–17x faster than v1 (discriminated-union validation ~1000x via O(1) dispatch)

@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/filesystem-sftp",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit storage adapter for sFTP (via SSH)",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -24,8 +24,8 @@
     "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
   },
   "dependencies": {
-    "@deepkit/core": "^1.0.19",
-    "@deepkit/filesystem": "^1.0.19",
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/filesystem": "^2.0.0",
     "ssh2-sftp-client": "9.1.0"
   },
   "devDependencies": {

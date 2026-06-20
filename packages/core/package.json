@@ -1,6 +1,6 @@
 {
   "name": "@deepkit/core",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "Deepkit core library",
   "type": "commonjs",
   "main": "./dist/cjs/index.js",
@@ -25,7 +25,7 @@
     "to-fast-properties": "3.0.1"
   },
   "devDependencies": {
-    "@deepkit/bench": "^1.0.19",
+    "@deepkit/bench": "^2.0.0",
     "@types/dot-prop": "4.2.0"
   },
   "scripts": {
