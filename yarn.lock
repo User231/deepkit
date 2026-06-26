@@ -2876,7 +2876,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deepkit/api-console-module@npm:^2.0.0, @deepkit/api-console-module@workspace:packages/api-console-module":
+"@deepkit/api-console-module@npm:*, @deepkit/api-console-module@npm:^2.0.0, @deepkit/api-console-module@workspace:packages/api-console-module":
   version: 0.0.0-use.local
   resolution: "@deepkit/api-console-module@workspace:packages/api-console-module"
   dependencies:
@@ -3275,7 +3275,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deepkit/framework-debug-gui@npm:^2.0.0, @deepkit/framework-debug-gui@workspace:packages/framework-debug-gui":
+"@deepkit/framework-debug-gui@npm:*, @deepkit/framework-debug-gui@workspace:packages/framework-debug-gui":
   version: 0.0.0-use.local
   resolution: "@deepkit/framework-debug-gui@workspace:packages/framework-debug-gui"
   dependencies:
@@ -3374,7 +3374,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deepkit/framework@workspace:packages/framework"
   dependencies:
-    "@deepkit/api-console-module": "npm:^2.0.0"
+    "@deepkit/api-console-module": "npm:*"
     "@deepkit/app": "npm:^2.0.0"
     "@deepkit/broker": "npm:^2.0.0"
     "@deepkit/bson": "npm:^2.0.0"
@@ -3383,13 +3383,13 @@ __metadata:
     "@deepkit/event": "npm:^2.0.0"
     "@deepkit/filesystem": "npm:^2.0.0"
     "@deepkit/framework-debug-api": "npm:^2.0.0"
-    "@deepkit/framework-debug-gui": "npm:^2.0.0"
+    "@deepkit/framework-debug-gui": "npm:*"
     "@deepkit/http": "npm:^2.0.0"
     "@deepkit/injector": "npm:^2.0.0"
     "@deepkit/logger": "npm:^2.0.0"
     "@deepkit/orm": "npm:^2.0.0"
-    "@deepkit/orm-browser-api": "npm:^2.0.0"
-    "@deepkit/orm-browser-gui": "npm:^2.0.0"
+    "@deepkit/orm-browser-api": "npm:*"
+    "@deepkit/orm-browser-gui": "npm:*"
     "@deepkit/rpc": "npm:^2.0.0"
     "@deepkit/rpc-tcp": "npm:^2.0.0"
     "@deepkit/sql": "npm:^2.0.0"
@@ -3552,7 +3552,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deepkit/orm-browser-api@npm:^2.0.0, @deepkit/orm-browser-api@workspace:packages/orm-browser-api":
+"@deepkit/orm-browser-api@npm:*, @deepkit/orm-browser-api@npm:^2.0.0, @deepkit/orm-browser-api@workspace:packages/orm-browser-api":
   version: 0.0.0-use.local
   resolution: "@deepkit/orm-browser-api@workspace:packages/orm-browser-api"
   dependencies:
@@ -3566,7 +3566,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deepkit/orm-browser-gui@npm:^2.0.0, @deepkit/orm-browser-gui@workspace:packages/orm-browser-gui":
+"@deepkit/orm-browser-gui@npm:*, @deepkit/orm-browser-gui@npm:^2.0.0, @deepkit/orm-browser-gui@workspace:packages/orm-browser-gui":
   version: 0.0.0-use.local
   resolution: "@deepkit/orm-browser-gui@workspace:packages/orm-browser-gui"
   dependencies:
