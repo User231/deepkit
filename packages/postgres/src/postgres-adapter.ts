@@ -427,12 +427,23 @@ export class PostgresPersistence extends SQLPersistence {
     }
 
     protected getInsertSQL(classSchema: ReflectionClass<any>, fields: string[], values: string[]): string {
+        const entity = getPreparedEntity(this.session.adapter as SQLDatabaseAdapter, classSchema);
         const autoIncrement = classSchema.getAutoIncrement();
-        const returning = autoIncrement ? ` RETURNING ${this.platform.quoteIdentifier(autoIncrement.name)}` : '';
+        // RETURNING must reference the auto-increment's DB COLUMN name (honours
+        // `DatabaseField<{name}>`), aliased back to the PROPERTY name so
+        // `populateAutoIncrementFields` reads it by `autoIncrement.name`. Without the
+        // alias a renamed auto-increment column produces `RETURNING "propName"` for a
+        // column that doesn't exist — same class of bug as the renamed-PK fix in delete().
+        let returning = '';
+        if (autoIncrement) {
+            const column = entity.fieldMap[autoIncrement.name].columnNameEscaped;
+            const alias = this.platform.quoteIdentifier(autoIncrement.name);
+            returning = column === alias ? ` RETURNING ${column}` : ` RETURNING ${column} AS ${alias}`;
+        }
 
         if (fields.length === 0) {
-            const pkName = this.platform.quoteIdentifier(classSchema.getPrimary().name);
-            fields.push(pkName);
+            // All-defaults insert: reference the PK by its DB column name too.
+            fields.push(entity.fieldMap[classSchema.getPrimary().name].columnNameEscaped);
             values.fill('DEFAULT');
         }
 
