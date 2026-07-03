@@ -118,6 +118,14 @@ export class FrameworkConfig {
      */
     httpRpcBasePath: string = '';
 
+    /**
+     * @description When true, errors thrown by RPC actions called via httpRpcBasePath propagate
+     * to the HTTP workflow (onControllerError) instead of being serialized as an HTTP 200 +
+     * RpcTypes.Error envelope. This lets application error listeners map domain errors to real
+     * HTTP status codes. Off by default for wire compatibility with @deepkit/rpc HTTP clients.
+     */
+    httpRpcPropagateErrors: boolean = false;
+
     debugUrl: string = '_debug';
 
     /**

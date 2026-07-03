@@ -238,6 +238,7 @@ export class FrameworkModule extends createModuleClass({
 
         if (this.config.httpRpcBasePath) {
             const rpcBaseUrl = this.config.httpRpcBasePath;
+            const propagateErrors = this.config.httpRpcPropagateErrors;
 
             @http.controller(rpcBaseUrl)
             class HttpRpcController {
@@ -262,7 +263,7 @@ export class FrameworkModule extends createModuleClass({
                         },
                     });
                     request.body = await request.readBody();
-                    await connection.onRequest(rpcBaseUrl, request, response);
+                    await connection.onRequest(rpcBaseUrl, request, response, { propagateErrors });
                     return response;
                 }
             }
