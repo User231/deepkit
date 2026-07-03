@@ -132,6 +132,14 @@ export class RpcMessageBuilder {
     public strictSerialization: boolean = true;
     public logValidationErrors: boolean = false;
 
+    /**
+     * When true, `error()` throws the error instead of serializing it as an
+     * RpcTypes.Error message. Used by the HTTP transport (onRequest) so action
+     * errors can propagate to the surrounding HTTP framework's error handling
+     * (real status codes) instead of an HTTP 200 + error envelope.
+     */
+    public propagateErrors: boolean = false;
+
     public errorLabel: string = 'Error in serialization';
 
     constructor(
@@ -173,6 +181,9 @@ export class RpcMessageBuilder {
     }
 
     error(error: Error | string): void {
+        if (this.propagateErrors) {
+            throw typeof error === 'string' ? new RpcError(error) : error;
+        }
         const extracted = rpcEncodeError(error);
 
         this.write(this.messageFactory(RpcTypes.Error, typeOf<rpcError>(), extracted));
@@ -380,7 +391,12 @@ export abstract class RpcKernelBaseConnection {
         this.onMessage(message, response);
     }
 
-    onRequest(basePath: string, request: RpcHttpRequest, response: RpcHttpResponse): void | Promise<void> {
+    onRequest(
+        basePath: string,
+        request: RpcHttpRequest,
+        response: RpcHttpResponse,
+        options: { propagateErrors?: boolean } = {},
+    ): void | Promise<void> {
         throw new RpcError('Not supported');
     }
 
@@ -502,7 +518,12 @@ export class RpcKernelConnection extends RpcKernelBaseConnection {
         super.close();
     }
 
-    async onRequest(basePath: string, request: RpcHttpRequest, response: RpcHttpResponse) {
+    async onRequest(
+        basePath: string,
+        request: RpcHttpRequest,
+        response: RpcHttpResponse,
+        options: { propagateErrors?: boolean } = {},
+    ) {
         let routeType: any = RpcMessageRouteType.client;
         const id = 0;
         let source: Uint8Array | undefined = undefined;
@@ -540,6 +561,7 @@ export class RpcKernelConnection extends RpcKernelBaseConnection {
                 routeType === RpcMessageRouteType.peer ? source : undefined,
             );
             messageResponse.routeType = this.routeType;
+            messageResponse.propagateErrors = !!options.propagateErrors;
 
             const urlPath = url.pathname.substring(basePath.length);
             const lastSlash = urlPath.lastIndexOf('/');
@@ -585,6 +607,9 @@ export class RpcKernelConnection extends RpcKernelBaseConnection {
                 );
             }
         } catch (error: any) {
+            // With propagateErrors the caller (e.g. the framework's HTTP-RPC bridge)
+            // owns error rendering — rethrow so its framework maps status codes.
+            if (options.propagateErrors) throw error;
             this.logger.error('onRequest failed', error);
             response.writeHead(400);
             response.end(JSON.stringify({ error: error.message }));
