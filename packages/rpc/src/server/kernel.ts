@@ -7,6 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
+import { getBSONSerializer } from '@deepkit/bson';
 import { ClassType, arrayRemoveItem, bufferToString, createBuffer, ensureError, getClassName } from '@deepkit/core';
 import {
     DataEvent,
@@ -532,6 +533,11 @@ export class RpcKernelConnection extends RpcKernelBaseConnection {
         const url = new URL(request.url || '', 'http://localhost/' + basePath);
 
         try {
+            // Content negotiation: `Accept: application/bson` gets the message body
+            // BSON-encoded with the action's return type (a typed binary wire — real
+            // Dates/binary, no JSON.stringify/parse cost on fat payloads). JSON stays
+            // the default; the negotiated Content-Type tells the client which it got.
+            const wantsBson = String(request.headers?.['accept'] ?? '').includes('application/bson');
             const messageResponse = new RpcMessageBuilder(
                 this.stats,
                 this.logger,
@@ -541,13 +547,23 @@ export class RpcKernelConnection extends RpcKernelBaseConnection {
                     stats: RpcTransportStats,
                     progress?: SingleProgress,
                 ) => {
-                    response.setHeader('Content-Type', 'application/json');
+                    const useBson = wantsBson && !!message.body;
+                    response.setHeader('Content-Type', useBson ? 'application/bson' : 'application/json');
                     response.setHeader('X-Message-Type', message.type);
                     response.setHeader('X-Message-Composite', String(!!message.composite));
                     response.setHeader('X-Message-RouteType', String(message.routeType));
                     response.writeHead(200);
 
                     if (message.body) {
+                        if (useBson) {
+                            // BSON needs a document at the top level, so the wrapper
+                            // (`{v: …}` for ResponseActionSimple) is NOT unwrapped here —
+                            // the client unwraps after decoding (X-Message-Type carries
+                            // the shape).
+                            const [buffer, size] = getBSONSerializer(message.body.type)(message.body.body);
+                            response.end(buffer.subarray(0, size));
+                            return;
+                        }
                         let body = serialize(message.body.body, undefined, undefined, undefined, message.body.type);
                         if (message.type === RpcTypes.ResponseActionSimple) {
                             body = body.v;
