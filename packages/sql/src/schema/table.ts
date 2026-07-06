@@ -342,7 +342,11 @@ export class ColumnComparator {
             changedProperties.set('isNotNull', new ColumnPropertyDiff(from.isNotNull, to.isNotNull));
         if (from.isAutoIncrement !== to.isAutoIncrement)
             changedProperties.set('isAutoIncrement', new ColumnPropertyDiff(from.isAutoIncrement, to.isAutoIncrement));
-        if (!genericEqual(from.defaultValue, to.defaultValue))
+        // "no default" (introspection: undefined) and "DEFAULT NULL" (nullable
+        // entity: null) are the same schema in SQL — a nullable column without an
+        // explicit default defaults to NULL. Comparing them verbatim flags every
+        // nullable column as changed on each migration diff.
+        if (!genericEqual(from.defaultValue ?? null, to.defaultValue ?? null))
             changedProperties.set('defaultValue', new ColumnPropertyDiff(from.defaultValue, to.defaultValue));
         if (from.defaultExpression !== to.defaultExpression)
             changedProperties.set(

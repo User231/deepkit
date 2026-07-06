@@ -458,7 +458,12 @@ export abstract class DefaultPlatform {
                     }
                 }
 
-                const isNullable = property.isNullable() || property.isOptional();
+                // `any` admits null, and the serializer stores a JS null in an
+                // `any` column as SQL NULL (same as explicit `| null` unions) —
+                // so the column must accept NULL, else every null write violates
+                // a NOT NULL constraint the type system never promised.
+                const isNullable =
+                    property.isNullable() || property.isOptional() || property.type.kind === ReflectionKind.any;
                 column.isNotNull = !isNullable;
                 column.isPrimaryKey = property.isPrimaryKey();
                 if (property.isAutoIncrement()) {

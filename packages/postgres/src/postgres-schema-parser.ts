@@ -11,6 +11,26 @@ import { isNumeric } from '@deepkit/core';
 import { Column, DatabaseModel, ForeignKey, SchemaParser, Table, parseType } from '@deepkit/sql';
 
 export class PostgresSchemaParser extends SchemaParser {
+    /**
+     * information_schema reports the verbose SQL-standard spelling while entity
+     * definitions (and PostgresPlatform.addType) use the Postgres short alias.
+     * Both name the SAME type, but the migration comparator matches type strings
+     * verbatim — without normalization every `timestamptz` column diffs as
+     * "changed" forever, emitting no-op `ALTER … TYPE` statements on each
+     * `migration:create` run.
+     */
+    protected static readonly typeAliases: { [verbose: string]: string } = {
+        'timestamp without time zone': 'timestamp',
+        'timestamp with time zone': 'timestamptz',
+        'time without time zone': 'time',
+        'time with time zone': 'timetz',
+        'character varying': 'varchar',
+    };
+
+    static normalizeType(dataType: string): string {
+        return PostgresSchemaParser.typeAliases[dataType.trim().toLowerCase()] || dataType;
+    }
+
     protected defaultPrecisions = {
         char: 1,
         character: 1,
@@ -140,7 +160,7 @@ export class PostgresSchemaParser extends SchemaParser {
 
         for (const row of rows) {
             const column = table.addColumn(row.column_name);
-            parseType(column, row.data_type);
+            parseType(column, PostgresSchemaParser.normalizeType(row.data_type));
             const size = row.character_maximum_length || row.numeric_precision;
             const scale = row.numeric_scale;
             if (size && column.type && size !== this.defaultPrecisions[column.type]) {
@@ -179,7 +199,14 @@ export class PostgresSchemaParser extends SchemaParser {
             try {
                 //don't judge me
                 column.defaultValue = eval(dbDefault);
-                column.defaultValue = JSON.parse(column.defaultValue);
+                // Only json/jsonb defaults are JSON documents. For text-family
+                // columns the literal IS the value: `'[]'::text` defaults to the
+                // STRING "[]", not an empty array — parsing it corrupts the
+                // migration diff (defaultValue [] vs "[]" flags the column as
+                // changed forever).
+                if (column.type === 'json' || column.type === 'jsonb') {
+                    column.defaultValue = JSON.parse(column.defaultValue);
+                }
             } catch (error: any) {}
         }
 

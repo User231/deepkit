@@ -21,6 +21,7 @@ import {
     AutoIncrement,
     BackReference,
     Data,
+    DatabaseField,
     Embedded,
     Entity,
     Excluded,
@@ -1426,6 +1427,31 @@ test('database decorator', () => {
     expect(reflection.getProperty('email')!.getDatabase('sqlite')).toEqual({ type: 'varchar(128)' });
     expect(reflection.getProperty('config')!.getDatabase('postgres')).toEqual({ type: 'smallint' });
     expect(reflection.getProperty('nope')!.getDatabase('postgres')).toEqual(undefined);
+});
+
+test('annotations on the single real member of a nullable union are hoisted', () => {
+    class Row {
+        // annotation on the member — must behave identically to the union-level spelling
+        dedupeKey: (string & DatabaseField<{ name: 'dedupe_key' }>) | null = null;
+        sentAt: (Date & DatabaseField<{ name: 'sent_at'; type: 'timestamptz' }>) | null = null;
+        maybe?: string & DatabaseField<{ name: 'maybe_col' }>; // optional = T | undefined
+        indexed: (string & Index) | null = null;
+        // annotation on the union node — the already-working spelling, unchanged
+        alt: (string | null) & DatabaseField<{ name: 'alt_col' }> = null;
+        // more than one real member: member annotations stay member-scoped (ambiguous)
+        multi: (string & DatabaseField<{ name: 'nope' }>) | number | null = null;
+    }
+
+    const reflection = ReflectionClass.from(Row);
+    expect(reflection.getProperty('dedupeKey')!.getDatabase('postgres')).toEqual({ name: 'dedupe_key' });
+    expect(reflection.getProperty('sentAt')!.getDatabase('postgres')).toEqual({
+        name: 'sent_at',
+        type: 'timestamptz',
+    });
+    expect(reflection.getProperty('maybe')!.getDatabase('postgres')).toEqual({ name: 'maybe_col' });
+    expect(reflection.getProperty('indexed')!.getIndex()).toEqual({});
+    expect(reflection.getProperty('alt')!.getDatabase('postgres')).toEqual({ name: 'alt_col' });
+    expect(reflection.getProperty('multi')!.getDatabase('postgres')).toEqual(undefined);
 });
 
 test('enum const', () => {

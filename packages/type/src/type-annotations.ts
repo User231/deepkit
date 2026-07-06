@@ -104,7 +104,20 @@ export type Annotations = any; //actual { [name: symbol]: any[] };, but not supp
 export class AnnotationDefinition<T = true> {
     public symbol: symbol;
 
-    constructor(public readonly id: string) {
+    constructor(
+        public readonly id: string,
+        /**
+         * When true, a nullable/optional union (`T | null | undefined`) exposes the
+         * annotations of its single real member as its own. This makes the two
+         * equivalent spellings `(T & Annotation) | null` and `(T | null) & Annotation`
+         * behave identically. Opt-in per annotation kind: correct for PROPERTY-level
+         * metadata (database column mapping, index), but must stay off for
+         * annotations that classify the VALUE type itself (uuid/mongoId/nanoid,
+         * validators) — there the union serializer dispatches per member and hoisting
+         * would e.g. make `UUID | null` reject null.
+         */
+        public readonly hoistNullableUnion: boolean = false,
+    ) {
         this.symbol = Symbol(id);
     }
 
@@ -134,8 +147,24 @@ export class AnnotationDefinition<T = true> {
     }
 
     getAnnotations(type: Type): T[] {
-        if (type.annotations) return type.annotations[this.symbol] || [];
-        return [];
+        const own: T[] = (type.annotations && type.annotations[this.symbol]) || [];
+        // See `hoistNullableUnion`: for opted-in kinds, `T | null | undefined` is
+        // just "nullable/optional T" and the single real member's annotations belong
+        // to the whole type. Unions with more than one real member are left
+        // untouched (member annotations stay member-scoped — hoisting is ambiguous).
+        if (this.hoistNullableUnion && type.kind === ReflectionKind.union) {
+            let real: Type | undefined;
+            for (const member of type.types) {
+                if (member.kind === ReflectionKind.null || member.kind === ReflectionKind.undefined) continue;
+                if (real) return own; // second real member: not a nullable-T union
+                real = member;
+            }
+            if (real && real.annotations) {
+                const member: T[] = real.annotations[this.symbol] || [];
+                if (member.length) return own.length ? [...own, ...member] : member;
+            }
+        }
+        return own;
     }
 
     getFirst(type: Type): T | undefined {
@@ -519,7 +548,7 @@ export const typeAnnotation = new (class extends AnnotationDefinition<{ name: st
         return;
     }
 })('meta');
-export const indexAnnotation = new AnnotationDefinition<IndexOptions>('index');
+export const indexAnnotation = new AnnotationDefinition<IndexOptions>('index', true);
 export const databaseAnnotation = new (class extends AnnotationDefinition<{
     name: string;
     options: { [name: string]: any };
@@ -534,7 +563,7 @@ export const databaseAnnotation = new (class extends AnnotationDefinition<{
         }
         return options as any;
     }
-})('database');
+})('database', true);
 
 export const referenceAnnotation = new AnnotationDefinition<ReferenceOptions>('reference');
 export const inlineAnnotation = new AnnotationDefinition<InlineOptions>('inline');
