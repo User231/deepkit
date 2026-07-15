@@ -10,22 +10,43 @@
 import { getClassName } from './core.js';
 import { toFastProperties } from './perf.js';
 
+type AsyncMethod = (...args: any[]) => Promise<any>;
+
+/**
+ * A method decorator working under both decorator ABIs: legacy (experimentalDecorators)
+ * and standard (TC39, TS 5+).
+ */
+type DualMethodDecorator = ((value: AsyncMethod, context: ClassMethodDecoratorContext) => AsyncMethod) &
+    ((target: object, propertyKey: string, descriptor: TypedPropertyDescriptor<AsyncMethod>) => void);
+
+/**
+ * Builds a decorator from a `wrap(original, name)` function, dispatching on the decorator ABI:
+ * standard mode returns the replacement method, legacy mode mutates the descriptor.
+ */
+function wrapMethod(wrap: (orig: any, name: string) => any): DualMethodDecorator {
+    return function (target: any, context: any, descriptor?: any): any {
+        if ('object' === typeof context && context !== null && 'string' === typeof context.kind) {
+            //standard (TC39) ABI: target IS the method, the return value replaces it.
+            return wrap(target, String(context.name));
+        }
+        descriptor.value = wrap(descriptor.value, String(context));
+        return descriptor;
+    } as any;
+}
+
 /**
  * Logs every call to this method on stdout.
  *
  * @group Decorators
  */
 export function log() {
-    return function (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor) {
-        const orig = descriptor.value;
-        descriptor.value = function (...args: any[]) {
+    return wrapMethod(function (orig: any, propertyKey: string) {
+        return function (this: any, ...args: any[]) {
             const a = args.map(v => typeof v).join(',');
-            console.info(getClassName(target) + '::' + String(propertyKey) + '(' + a + ')');
+            console.info(getClassName(this) + '::' + propertyKey + '(' + a + ')');
             return orig.apply(this, args);
         };
-
-        return descriptor;
-    };
+    });
 }
 
 /**
@@ -34,15 +55,8 @@ export function log() {
  * @group Decorators
  */
 export function stack() {
-    return function (
-        target: object,
-        propertyKey: string,
-        descriptor: TypedPropertyDescriptor<(...args: any[]) => Promise<any>>,
-    ) {
-        const orig = descriptor.value;
-
-        // console.log('sync patch', propertyKey, constructor.prototype[propertyKey]);
-        descriptor.value = async function (...args: any[]) {
+    return wrapMethod(function (orig: any, propertyKey: string) {
+        return async function (this: any, ...args: any[]) {
             const name = '__c_' + propertyKey;
 
             if ((this as any)[name] === undefined) {
@@ -62,7 +76,7 @@ export function stack() {
                 (this as any)[name] = null;
             }
         };
-    };
+    });
 }
 
 /**
@@ -72,14 +86,8 @@ export function stack() {
  * @group Decorators
  */
 export function singleStack() {
-    return function (
-        target: object,
-        propertyKey: string,
-        descriptor: TypedPropertyDescriptor<(...args: any[]) => Promise<any>>,
-    ) {
-        const orig = descriptor.value;
-
-        descriptor.value = async function (...args: any[]) {
+    return wrapMethod(function (orig: any, propertyKey: string) {
+        return async function (this: any, ...args: any[]) {
             const name = '__sc_' + propertyKey;
 
             if ((this as any)[name] === undefined) {
@@ -99,5 +107,5 @@ export function singleStack() {
                 (this as any)[name] = null;
             }
         };
-    };
+    });
 }
