@@ -115,7 +115,6 @@ This is required to use the dependency injection container and other features.
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "experimentalDecorators": true,
     "strict": true,
     "esModuleInterop": true,
     "target": "es2020",

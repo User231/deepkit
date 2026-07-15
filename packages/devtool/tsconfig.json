@@ -11,15 +11,11 @@
     "importHelpers": true,
     "target": "es2022",
     "module": "ES2022",
+    "experimentalDecorators": true,
     "useDefineForClassFields": false,
-    "types": [
-      "jasmine",
-      "marked"
-    ]
+    "types": ["jasmine", "marked"]
   },
-  "reflection": [
-    "src/app/store.ts"
-  ],
+  "reflection": ["src/app/store.ts"],
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,

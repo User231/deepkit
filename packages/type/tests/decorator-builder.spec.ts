@@ -237,12 +237,14 @@ test('dual decorator', () => {
         }).toThrow(`Decorator 'name' can not be used on class MyClass`);
     }
     {
-        expect(() => {
-            class MyClass {
-                @((merged as any).controller('b'))
-                prop!: string;
-            }
-        }).toThrow(`Decorator 'controller' can not be used on class property MyClass.prop`);
+        class MyClass {
+            @((merged as any).controller('b'))
+            prop!: string;
+        }
+
+        //standard (TC39) decorators defer member application — misuse surfaces at first fetch,
+        //not at class definition (it was definition-time under experimentalDecorators).
+        expect(() => dec2._fetch(MyClass, 'prop')).toThrow(`Decorator 'controller' can not be used on class property MyClass.prop`);
     }
 });
 

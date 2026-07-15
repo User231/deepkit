@@ -4,7 +4,6 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "sourceMap": true,
-    "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "moduleResolution": "node",
     "target": "es2020",

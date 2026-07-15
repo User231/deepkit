@@ -8,7 +8,7 @@ If this is done successfully, `@deepkit/app` can be installed or the Deepkit fra
 npm install @deepkit/app
 ```
 
-Note that @deepkit/app is partially based on TypeScript decorators and this feature should be enabled accordingly with `experimentalDecorators`.
+Note that @deepkit/app is partially based on TypeScript decorators. Standard (TC39) decorators are supported out of the box with TypeScript 5+ (the legacy `experimentalDecorators` mode remains supported).
 If you use functions as controllers only, you do not need TypeScript decorators.
 
 _File: tsconfig.json_
@@ -18,8 +18,7 @@ _File: tsconfig.json_
   "compilerOptions": {
     "module": "CommonJS",
     "target": "es6",
-    "moduleResolution": "node",
-    "experimentalDecorators": true
+    "moduleResolution": "node"
   },
   "reflection": true
 }

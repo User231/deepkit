@@ -163,6 +163,29 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 - Type annotations via intersection: `string & MinLength<3>`
 - JIT compilation via `CompilerContext` for performance
 
+## Decorators: standard (TC39) mode is the default; the runtime is dual-mode — keep it that way
+
+- `tsconfig.base.json` no longer sets `experimentalDecorators` — every package (src + tests)
+  compiles as **standard TC39 decorators** (TS 5+). The Angular-toolchain packages (`desktop-ui`,
+  `ui-library`, `devtool`, `api-console-gui`, `framework-debug-gui`, `orm-browser-gui`, `website`)
+  re-pin `experimentalDecorators: true` locally — leave them on legacy.
+- The decorator runtime (`packages/type/src/decorator-builder.ts` + `core`'s
+  `log`/`stack`/`singleStack`) accepts **both ABIs permanently** — external consumers may still
+  compile legacy (NestJS/TypeORM interop). Never make it standard-only.
+- How standard member decorators work: no class access at decoration time, so they stash replay
+  thunks in `context.metadata` (`Symbol.for('Symbol.metadata')` polyfill, installed on module load)
+  and are drained with the real class by the first metadata read (`_fetch`, ReflectionClass) or
+  eagerly by a deepkit class decorator on the same class. **Any new read path for member metadata
+  must call `drainPendingDecorators(classType)` first** (today: both `_fetch` impls + the two
+  `__decorators` readers in reflection.ts/processor.ts). Never read the builder's closure Maps
+  directly.
+- Behavior delta (accepted, documented): classes without a deepkit class decorator run member
+  modifiers at first fetch, not at class definition. Statics stay unsupported (legacy parity).
+  Missing `context.metadata` throws `DK-T120` — never silently no-op it.
+- Tests: hand-invoked ABI suite in `packages/type/tests/decorator-builder-standard.spec.ts`;
+  real-emit fixtures in `packages/{type,http,rpc,event}/tests/standard-decorators/` (each has its
+  own tsconfig — that's how per-directory decorator modes work with the `@deepkit/run` loader).
+
 ## Error Code System
 
 Deepkit uses inline error codes for consistent, documented errors. Each error has a unique code (e.g., `DK-T100`) linking to documentation.

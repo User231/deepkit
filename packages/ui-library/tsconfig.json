@@ -8,17 +8,13 @@
     "downlevelIteration": true,
     "target": "es2022",
     "module": "es2020",
+    "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "noImplicitAny": true,
     "preserveSymlinks": true,
-    "types": [
-      "fs-extra",
-      "node"
-    ],
+    "types": ["fs-extra", "node"],
     "paths": {
-      "angular-ui-library": [
-        "dist/"
-      ]
+      "angular-ui-library": ["dist/"]
     }
   },
   "reflection": true,

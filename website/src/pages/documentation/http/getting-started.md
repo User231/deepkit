@@ -8,8 +8,7 @@ If this is done successfully, `@deepkit/app` can be installed or the Deepkit fra
 npm install @deepkit/http
 ```
 
-Note that `@deepkit/http` for the controller API is based on TypeScript annotations and this feature must be enabled accordingly with `experimentalDecorators` once the controller API is used.
-If you don't use classes, you don't need to enable this feature.
+The controller API is based on TypeScript decorators. Standard (TC39) decorators are supported out of the box with TypeScript 5+; the legacy `experimentalDecorators` mode remains supported as well.
 
 _File: tsconfig.json_
 
@@ -18,8 +17,7 @@ _File: tsconfig.json_
   "compilerOptions": {
     "module": "CommonJS",
     "target": "es6",
-    "moduleResolution": "node",
-    "experimentalDecorators": true
+    "moduleResolution": "node"
   },
   "reflection": true
 }

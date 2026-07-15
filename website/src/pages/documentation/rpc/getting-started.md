@@ -8,7 +8,7 @@ Once this is successfully done, `@deepkit/rpc` or the Deepkit Framework, which a
 npm install @deepkit/rpc
 ```
 
-Note that controller classes in `@deepkit/rpc` are based on TypeScript decorators, and this feature must be enabled with experimentalDecorators.
+Note that controller classes in `@deepkit/rpc` are based on TypeScript decorators. Standard (TC39) decorators are supported out of the box with TypeScript 5+ (the legacy `experimentalDecorators` mode remains supported).
 
 The `@deepkit/rpc` package must be installed on the server and client if they have their own package.json.
 

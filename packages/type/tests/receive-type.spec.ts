@@ -55,6 +55,9 @@ test('decorator call', () => {
 
         response<T>(name: string, description: string = '', type?: ReceiveType<T>): any {
             got = resolveReceiveType(type);
+            //standard (TC39) decorators require the decorator expression to evaluate to a
+            //function (legacy __decorate skipped falsy entries; __esDecorate calls them).
+            return () => {};
         }
     }
 

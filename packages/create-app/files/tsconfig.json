@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "experimentalDecorators": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -10,8 +9,5 @@
     "moduleResolution": "node"
   },
   "reflection": true,
-  "files": [
-    "client.rpc.ts",
-    "app.ts"
-  ]
+  "files": ["client.rpc.ts", "app.ts"]
 }

@@ -47,16 +47,6 @@ See [Runtime Type Installation](../runtime-types/getting-started.md).
 
 If this is done successfully, `@deepkit/orm` itself and a database adapter can be installed.
 
-If classes are to be used as entities, `experimentalDecorators` must be enabled in tsconfig.json:
-
-```json
-{
-  "compilerOptions": {
-    "experimentalDecorators": true
-  }
-}
-```
-
 Once the library is installed, a database adapter can be installed and the API of it can be used directly.
 
 ### SQLite

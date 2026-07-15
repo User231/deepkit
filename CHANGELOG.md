@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Standard (TC39) decorators supported — `experimentalDecorators` remains supported
+
+All deepkit decorators (`@entity`, `@http.*`, `@rpc.*`, `@cli`, `@eventDispatcher.listen`, `@t`,
+and anything built on `createClassDecoratorContext`/`createPropertyDecoratorContext`/
+`mergeDecorator`, plus `@deepkit/core`'s `log`/`stack`/`singleStack`) are now **dual-mode**: they
+accept both the standard TC39 decorator ABI (TypeScript 5+ with `experimentalDecorators` off — now
+the default in this repo and in `create-app` scaffolds) and the legacy ABI. Mixed compilation is
+safe — a legacy-compiled base class and a standard-compiled subclass compose correctly — so
+consumers can migrate incrementally, and projects that must stay on `experimentalDecorators`
+(e.g. alongside NestJS/TypeORM) keep working unchanged. Angular-toolchain packages
+(desktop-ui/GUIs/website) intentionally stay on the legacy flag locally.
+
+Details: a `Symbol.metadata` polyfill (`Symbol.for('Symbol.metadata')`) is installed when the
+decorator module loads; standard member decorators stash their data in `context.metadata` and are
+applied with the real class lazily at the first metadata read (or eagerly by a deepkit class
+decorator on the same class). One behavior delta: for classes with **no** deepkit class decorator
+(e.g. HTTP controllers), member-decorator side effects now run at first fetch instead of at class
+definition — boot time either way. Decorating **static** members remains unsupported (legacy
+parity). A missing `context.metadata` throws `DK-T120`. `emitDecoratorMetadata` (`design:*`) was
+never consumed by deepkit and is incompatible with standard decorators — drop it.
+
 ## 2.0.0 — Deepkit v2 (2026-06-19)
 
 Deepkit v2 is a ground-up rewrite of the framework's performance core — the JIT engine
