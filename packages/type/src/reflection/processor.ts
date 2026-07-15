@@ -11,6 +11,7 @@ import { ClassType, DeepkitError, isArray, isClass, isFunction, stringifyValueWi
 import { MappedModifier, ReflectionOp, TypeIntrinsic } from '@deepkit/type-spec';
 
 import { debug } from '../debug.js';
+import { drainPendingDecorators } from '../decorator-builder.js';
 import { isWithDeferredDecorators } from '../decorator.js';
 import { isExtendable } from './extends.js';
 import { ReflectionClass, TData } from './reflection.js';
@@ -2200,6 +2201,7 @@ export function typeInfer(value: any): Type {
 }
 
 function applyClassDecorators(type: TypeClass) {
+    drainPendingDecorators(type.classType);
     if (!isWithDeferredDecorators(type.classType)) return;
 
     for (const decorator of type.classType.__decorators) {

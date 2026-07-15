@@ -7,18 +7,107 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { AbstractClassType, ClassType, getClassName } from '@deepkit/core';
+import { AbstractClassType, ClassType, DeepkitError, getClassName } from '@deepkit/core';
 
-export type ClassDecoratorFn = (
-    classType: AbstractClassType,
-    property?: string,
-    parameterIndexOrDescriptor?: any,
-) => void;
-export type PropertyDecoratorFn = (
-    prototype: object,
-    property?: number | string | symbol,
-    parameterIndexOrDescriptor?: any,
-) => void;
+//standard (TC39) decorators: TypeScript's emit only creates `context.metadata` when
+//`Symbol.metadata` exists, and no engine ships it natively yet. Install it before the first
+//decorated class evaluates — applying any deepkit decorator transitively evaluates this module
+//first. `Symbol.for` so dual CJS/ESM copies of this package agree on the same symbol.
+(Symbol as any).metadata ??= Symbol.for('Symbol.metadata');
+
+//registry symbol (not a local one) for the same dual-package reason as Symbol.metadata above.
+const deepkitPendingDecorators = Symbol.for('deepkit:decorators:pending');
+
+//both decorator ABIs: standard (TC39) first, legacy last — the legacy signature must stay the
+//LAST intersection member because `Parameters<Fn>` (used for `_fetch`) resolves to it.
+export type ClassDecoratorFn = ((value: AbstractClassType, context: ClassDecoratorContext) => void) &
+    ((classType: AbstractClassType, property?: string, parameterIndexOrDescriptor?: any) => void);
+export type PropertyDecoratorFn = ((
+    value: unknown,
+    context:
+        | ClassMethodDecoratorContext
+        | ClassFieldDecoratorContext
+        | ClassGetterDecoratorContext
+        | ClassSetterDecoratorContext
+        | ClassAccessorDecoratorContext,
+) => void) &
+    ((prototype: object, property?: number | string | symbol, parameterIndexOrDescriptor?: any) => void);
+
+interface StandardDecoratorContext {
+    kind: 'class' | 'method' | 'field' | 'getter' | 'setter' | 'accessor';
+    name: string | symbol;
+    metadata?: Record<PropertyKey, unknown>;
+    static?: boolean;
+    private?: boolean;
+}
+
+function isStandardContext(v: unknown): v is StandardDecoratorContext {
+    return 'object' === typeof v && v !== null && 'string' === typeof (v as any).kind;
+}
+
+type PendingDecorator = (classType: ClassType) => void;
+
+//Object.hasOwn is ES2022 lib; this package targets es2020.
+function hasOwn(obj: object, key: PropertyKey): boolean {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+/**
+ * Standard member decorators receive no class/prototype — only `context.metadata`, which the
+ * runtime installs on the class as `Class[Symbol.metadata]` after definition. So member
+ * application is deferred: a replay thunk is stashed here and drained with the real class by
+ * the next deepkit class decorator on the same class (eager) or by the first metadata read
+ * (`_fetch`/reflection — lazy, see drainPendingDecorators()).
+ */
+function stashPendingDecorator(context: StandardDecoratorContext, thunk: PendingDecorator): void {
+    const metadata = context.metadata;
+    if (!metadata) {
+        //TS only wires context.metadata when Symbol.metadata exists at class-definition time.
+        //Silently no-opping here would quietly disable routes/listeners/entity metadata, so throw.
+        throw new DeepkitError(
+            'DK-T120',
+            `Decorator on ${String(context.name)}: context.metadata is undefined. ` +
+                `Ensure the Symbol.metadata polyfill ran before the decorated class was defined ` +
+                `(importing any deepkit decorator does this; otherwise: (Symbol as any).metadata ??= Symbol.for('Symbol.metadata')).`,
+        );
+    }
+    //own-key check: a subclass's metadata object prototype-chains to its parent's — without the
+    //guard a subclass would push into (and later drain from) its parent's pending array.
+    if (hasOwn(metadata, deepkitPendingDecorators)) {
+        (metadata[deepkitPendingDecorators] as PendingDecorator[]).push(thunk);
+    } else {
+        metadata[deepkitPendingDecorators] = [thunk];
+    }
+}
+
+function drainPendingFromMetadata(metadata: Record<PropertyKey, unknown> | undefined, classType: ClassType): void {
+    if (!metadata || !hasOwn(metadata, deepkitPendingDecorators)) return;
+    const pending = metadata[deepkitPendingDecorators] as PendingDecorator[];
+    delete metadata[deepkitPendingDecorators];
+    for (const thunk of pending) thunk(classType);
+}
+
+/**
+ * Applies member-decorator data stashed by standard (TC39) decorators (see
+ * stashPendingDecorator) to the builder's metadata stores. Idempotent; walks the prototype
+ * chain parent-first so exact-class store semantics match legacy decorators. Every metadata
+ * read that may observe member decorators must call this first — the builder's `_fetch`
+ * implementations and the two `__decorators` readers in reflection do.
+ */
+export function drainPendingDecorators(classType: object | undefined | null): void {
+    if ('function' !== typeof classType) return;
+    const chain: ClassType[] = [];
+    let current: any = classType;
+    while (current && current !== Object && 'function' === typeof current) {
+        chain.unshift(current);
+        current = Object.getPrototypeOf(current);
+    }
+    const metadataSymbol = (Symbol as any).metadata;
+    for (const ctor of chain) {
+        if (!hasOwn(ctor, metadataSymbol)) continue;
+        drainPendingFromMetadata((ctor as any)[metadataSymbol], ctor);
+    }
+}
 
 export type FluidDecorator<T, D extends Function> = {
     [name in keyof T]: T[name] extends (...args: infer K) => any
@@ -38,7 +127,24 @@ export function createFluidDecorator<API extends APIClass<any> | APIProperty<any
     returnCollapse: boolean = false,
     fluidFunctionSymbol?: symbol,
 ): FluidDecorator<ExtractClass<API>, D> {
-    const fn = function (target: object, property?: string, parameterIndexOrDescriptor?: any) {
+    const fn = function (target: any, property?: any, parameterIndexOrDescriptor?: any) {
+        if (isStandardContext(property)) {
+            const context = property;
+            if (context.kind === 'class') {
+                //standard member decorators of this class ran before us and stashed; apply them
+                //first so member-before-class ordering matches legacy decorators.
+                drainPendingFromMetadata(context.metadata, target);
+                collapse(modifier, target);
+                return;
+            }
+            //member decorator: no class at hand yet — defer through the legacy path (which
+            //recovers the class from the prototype) once a class is known. Statics replay with
+            //the constructor itself for exact legacy parity (legacy mis-keys statics; unsupported).
+            stashPendingDecorator(context, classType =>
+                collapse(modifier, context.static ? classType : classType.prototype, String(context.name), undefined),
+            );
+            return;
+        }
         const res = collapse(modifier, target, property, parameterIndexOrDescriptor);
         if (returnCollapse || target === Object) return res;
     };
@@ -157,7 +263,24 @@ export function mergeDecorator<T extends any[]>(
             parameterIndexOrDescriptor?: any,
         ) => void,
     ): any {
-        const fn = function (target: object, property?: string, parameterIndexOrDescriptor?: any) {
+        const fn = function (target: any, property?: any, parameterIndexOrDescriptor?: any) {
+            if (isStandardContext(property)) {
+                const context = property;
+                if (context.kind === 'class') {
+                    drainPendingFromMetadata(context.metadata, target);
+                    collapse(modifier, target);
+                    return;
+                }
+                stashPendingDecorator(context, classType =>
+                    collapse(
+                        modifier,
+                        context.static ? classType : classType.prototype,
+                        String(context.name),
+                        undefined,
+                    ),
+                );
+                return;
+            }
             const res = collapse(modifier, target, property, parameterIndexOrDescriptor);
             if (target === Object) return res;
         };
@@ -290,6 +413,7 @@ export function createClassDecoratorContext<API extends APIClass<any>, T = Extra
         enumerable: false,
         get: () => {
             return (target: object) => {
+                drainPendingDecorators(target);
                 const api = map.get(target);
                 return api ? api.t : undefined;
             };
@@ -370,6 +494,7 @@ export function createPropertyDecoratorContext<API extends APIProperty<any>>(
         enumerable: false,
         get: () => {
             return (target: object, property?: string, parameterIndexOrDescriptor?: any) => {
+                drainPendingDecorators(target);
                 const map = targetMap.get(target);
                 const secondIndex = 'number' === typeof parameterIndexOrDescriptor ? parameterIndexOrDescriptor : '';
                 const index = property + '$$' + secondIndex;

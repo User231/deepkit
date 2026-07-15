@@ -21,6 +21,7 @@ import {
     stringifyValueWithType,
 } from '@deepkit/core';
 
+import { drainPendingDecorators } from '../decorator-builder.js';
 import { isWithDeferredDecorators } from '../decorator.js';
 import { findCommonLiteral } from '../inheritance.js';
 import {
@@ -1016,6 +1017,7 @@ export class ReflectionClass<T> {
         this.description = this.type.description || this.description;
 
         //apply decorators
+        if (type.kind === ReflectionKind.class) drainPendingDecorators(type.classType);
         if (type.kind === ReflectionKind.class && isWithDeferredDecorators(type.classType)) {
             for (const decorator of type.classType.__decorators) {
                 if (decorator.target !== type.classType) continue;
