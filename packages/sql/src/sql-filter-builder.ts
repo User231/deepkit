@@ -183,9 +183,22 @@ export class SQLFilterBuilder {
         for (const i in filter) {
             if (!filter.hasOwnProperty(i)) continue;
 
-            if (i === '$or') return this.conditionsArray(filter[i], 'OR');
-            if (i === '$and') return this.conditionsArray(filter[i], 'AND');
-            if (i === '$not') return `NOT ` + this.conditionsArray(filter[i], 'AND');
+            //$or/$and/$not are ONE condition among their siblings — never an early
+            //`return`: that dropped every sibling condition from the SQL while their
+            //parameters were already bound, yielding unreferenced placeholders
+            //(postgres: `could not determine data type of parameter $1`) or, worse,
+            //silently un-scoped statements (`{tenantId, $or: [...]}` losing the
+            //tenant guard). Empty groups are skipped like empty sub-conditions.
+            if (i === '$or' || i === '$and') {
+                const group = this.conditionsArray(filter[i], i === '$or' ? 'OR' : 'AND');
+                if (group !== '') sql.push(group);
+                continue;
+            }
+            if (i === '$not') {
+                const group = this.conditionsArray(filter[i], 'AND');
+                if (group !== '') sql.push(`NOT ` + group);
+                continue;
+            }
 
             if (i === '$exists') sql.push(this.adapter.platform.quoteValue(this.schema.hasProperty(i)));
             else if (i[0] === '$') sql.push(this.condition(fieldName, filter[i], i.substring(1)));

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
-import { expect } from '@deepkit/run/expect';
 import { escape } from 'sqlstring';
 
+import { expect } from '@deepkit/run/expect';
 import { DatabaseField, PrimaryKey, ReflectionClass, ReflectionKind, entity, serializer } from '@deepkit/type';
 
 import { DefaultPlatform, SqlPlaceholderStrategy } from '../src/platform/default-platform.js';
@@ -134,4 +134,59 @@ test('QueryToSql', () => {
     expect(queryToSql.convert({ id: { $nin: [44, 55] } })).toBe(`user.id NOT IN (?, ?)`);
 
     expect(() => queryToSql.convert({ id: { $oasdads: 123 } })).toThrow('not supported');
+});
+
+test('filter: $or/$and/$not compose with sibling conditions', () => {
+    class User {
+        id!: number & PrimaryKey;
+        username!: string;
+        tenantId!: number;
+    }
+
+    const localAdapter: PreparedAdapter = {
+        ...adapter,
+        platform: new (class extends MyPlatform {
+            quoteIdentifier = quoteId;
+        })(),
+    };
+
+    const fresh = () => new SQLFilterBuilder(localAdapter, ReflectionClass.from(User), quoteId('user'), serializer, new SqlPlaceholderStrategy());
+
+    //sibling BEFORE the group: the sibling must stay in the SQL and its parameter
+    //must stay referenced (regression: an early `return` on $or dropped the sibling
+    //condition while its parameter was already bound).
+    let builder = fresh();
+    expect(
+        builder.convert({
+            tenantId: 7,
+            $or: [
+                { id: 44, username: 'Peter' },
+                { id: 45, username: 'Marie' },
+            ],
+        }),
+    ).toBe(`(user.tenantId = ? AND ((user.id = ? AND user.username = ?) OR (user.id = ? AND user.username = ?)))`);
+    expect(builder.params).toEqual([7, 44, 'Peter', 45, 'Marie']);
+
+    //sibling AFTER the group: iteration order must not matter.
+    builder = fresh();
+    expect(builder.convert({ $or: [{ id: 44 }, { id: 45 }], tenantId: 7 })).toBe(`((user.id = ? OR user.id = ?) AND user.tenantId = ?)`);
+    expect(builder.params).toEqual([44, 45, 7]);
+
+    builder = fresh();
+    expect(builder.convert({ tenantId: 7, $and: [{ id: 44 }, { username: 'Peter' }] })).toBe(`(user.tenantId = ? AND (user.id = ? AND user.username = ?))`);
+    expect(builder.params).toEqual([7, 44, 'Peter']);
+
+    builder = fresh();
+    expect(builder.convert({ tenantId: 7, $not: [{ id: 44 }] })).toBe(`(user.tenantId = ? AND NOT user.id = ?)`);
+    expect(builder.params).toEqual([7, 44]);
+
+    //empty groups vanish like empty sub-conditions; siblings survive.
+    builder = fresh();
+    expect(builder.convert({ tenantId: 7, $or: [] })).toBe(`user.tenantId = ?`);
+    expect(builder.params).toEqual([7]);
+
+    //pure groups are unchanged.
+    builder = fresh();
+    expect(builder.convert({ $or: [{ id: 44 }, { username: 'Peter' }] })).toBe(`(user.id = ? OR user.username = ?)`);
+    expect(builder.params).toEqual([44, 'Peter']);
 });
