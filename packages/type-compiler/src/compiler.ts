@@ -132,6 +132,7 @@ const {
     isMethodDeclaration,
     isMethodSignature,
     isModuleDeclaration,
+    isMetaProperty,
     isNamedExports,
     isNamedTupleMember,
     isNewExpression,
@@ -457,6 +458,18 @@ function getAssignTypeExpression(call: Expression): Expression | undefined {
     }
 
     return;
+}
+
+/**
+ * True when the access chain of `expression` bottoms out at a meta-property
+ * (`import.meta`, `new.target`) — e.g. `import.meta.glob`, `import.meta.env['MODE']`.
+ */
+function isMetaPropertyRooted(expression: Expression): boolean {
+    let current: Expression = expression;
+    while (isPropertyAccessExpression(current) || isElementAccessExpression(current)) {
+        current = current.expression;
+    }
+    return isMetaProperty(current);
 }
 
 function getReceiveTypeParameter(type: TypeNode): TypeReferenceNode | undefined {
@@ -1002,6 +1015,13 @@ export class ReflectionTransformer implements CustomTransformer {
                     //inline arrow functions are excluded from type passing
                     return node;
                 }
+
+                // Callees rooted at a meta-property — `import.meta.glob<T>(...)`, `new.target.*` —
+                // are host/bundler compile-time constructs, never runtime functions that could read Ω.
+                // Assigning `import.meta.glob.Ω = ...` even crashes under Vite, which rewrites the glob
+                // call away at build time and leaves the assignment behind on a property that does not
+                // exist at runtime.
+                if (isMetaPropertyRooted(expressionToCheck)) return node;
 
                 const typeExpressions: Expression[] = [];
                 for (const a of node.typeArguments) {

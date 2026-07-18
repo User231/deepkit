@@ -382,3 +382,29 @@ test('named re-export without __Ω symbol (no-op)', () => {
     // No __Ω re-export should be added since config is not a type
     expect(res['index.ts']).not.toContain('__Ω');
 });
+
+test('import.meta generic call gets no Ω assignment', () => {
+    // Vite's `import.meta.glob<T>(...)` (and any `import.meta.*`/`new.target.*` callee) is a
+    // host/bundler compile-time construct, not a runtime function that could read Ω. Emitting
+    // `import.meta.glob.Ω = [...]` crashed at runtime under Vite, which rewrites the glob call
+    // away and leaves the assignment behind on a property that does not exist.
+    const res = transform(
+        {
+            'app.ts': `
+            interface StoryModule {
+                story?: { title: string };
+            }
+            declare global {
+                interface ImportMeta {
+                    glob<T>(pattern: string, options?: { eager?: boolean }): Record<string, T>;
+                }
+            }
+            export const modules = import.meta.glob<StoryModule>('./**/*.story.tsx', { eager: true });
+        `,
+        },
+        { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+    );
+
+    expect(res['app.ts']).not.toContain('.Ω =');
+    expect(res['app.ts']).toContain('import.meta.glob');
+});
