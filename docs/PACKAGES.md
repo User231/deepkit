@@ -11,7 +11,6 @@ This document provides a comprehensive reference for all packages in the Deepkit
 5. [Data Layer](#data-layer)
 6. [Infrastructure](#infrastructure)
 7. [Build Tools](#build-tools)
-8. [Angular Integration](#angular-integration)
 9. [Debug Tools](#debug-tools)
 
 ---
@@ -555,66 +554,11 @@ preload = ["@deepkit/bun"]
 
 ---
 
-## Angular Integration
-
-### @deepkit/type-angular
-
-**Purpose:** Angular forms integration.
-
-**Key Exports:**
-- `TypedFormGroup` - Type-safe form group
-
-**Usage:**
-```typescript
-const form = TypedFormGroup.fromEntityClass(User);
-form.setValue(userData);
-```
-
----
-
-### @deepkit/angular-ssr
-
-**Purpose:** Angular SSR with Deepkit.
-
-**Key Exports:**
-- `AngularModule` - Deepkit module
-- `RequestHandler` - SSR handler
-
----
-
-### @deepkit/desktop-ui
-
-**Purpose:** Angular UI component library.
-
-**Components:**
-- Form inputs (text, checkbox, select, slider)
-- Table with sorting/filtering
-- Dialogs and overlays
-- Layout components
-- File browser
-
----
-
 ## Debug Tools
 
 ### @deepkit/framework-debug-api
 
 **Purpose:** Debug API interfaces.
-
-### @deepkit/framework-debug-gui
-
-**Purpose:** Angular debug GUI.
-
-**Features:**
-- Performance profiler (flamegraph)
-- HTTP route inspector
-- RPC action explorer
-- Module architecture view
-- Configuration inspector
-- Database browser
-- Filesystem browser
-
-**Access:** `http://localhost:8080/_debug/` (when debug mode enabled)
 
 ---
 

@@ -51,6 +51,7 @@
     "@deepkit/workflow": "^2.0.0",
     "@types/formidable": "3.5.1",
     "@types/node": "22.19.21",
+    "@types/qs": "6.15.1",
     "@types/send": "0.17.6"
   },
   "gitHead": "56081823b559bb68b77a8781957af5d9c2e019a7"

@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0",
+    "types": ["node"],
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "sourceMap": true,

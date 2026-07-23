@@ -12,7 +12,6 @@ export * from './src/application-server.js';
 export * from './src/worker.js';
 export * from './src/database/database-listener.js';
 // export * from './src/database/live-database.js';
-export * from './src/orm-browser/controller.js';
 export * from './src/rpc.js';
 export * from './src/module.config.js';
 export * from './src/module.js';

@@ -166,9 +166,10 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 ## Decorators: standard (TC39) mode is the default; the runtime is dual-mode — keep it that way
 
 - `tsconfig.base.json` no longer sets `experimentalDecorators` — every package (src + tests)
-  compiles as **standard TC39 decorators** (TS 5+). The Angular-toolchain packages (`desktop-ui`,
-  `ui-library`, `devtool`, `api-console-gui`, `framework-debug-gui`, `orm-browser-gui`, `website`)
-  re-pin `experimentalDecorators: true` locally — leave them on legacy.
+  compiles as **standard TC39 decorators** (TS 5+). (The Angular-toolchain packages that used to
+  re-pin legacy decorators — desktop-ui, ui-library, devtool, the debug GUIs, website — were
+  REMOVED from the fork 2026-07-22 along with all Angular support; see the "Angular/website
+  removal" note below.)
 - The decorator runtime (`packages/type/src/decorator-builder.ts` + `core`'s
   `log`/`stack`/`singleStack`) accepts **both ABIs permanently** — external consumers may still
   compile legacy (NestJS/TypeORM interop). Never make it standard-only.
@@ -185,6 +186,29 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 - Tests: hand-invoked ABI suite in `packages/type/tests/decorator-builder-standard.spec.ts`;
   real-emit fixtures in `packages/{type,http,rpc,event}/tests/standard-decorators/` (each has its
   own tsconfig — that's how per-directory decorator modes work with the `@deepkit/run` loader).
+
+## Angular/website removal (2026-07-22) + TypeScript 6.0.3
+
+- **The whole Angular constellation was REMOVED from the fork**: `website` (docs site) and
+  packages `angular-ssr`, `type-angular`, `desktop-ui`, `ui-library`, `devtool`,
+  `api-console-{api,gui,module}`, `framework-debug-gui`, `orm-browser{,-api,-gui,-example}`.
+  Consequences baked into the tree — don't resurrect any of it piecemeal:
+  - `@deepkit/framework` no longer depends on the debug GUIs: the `debug` config still serves
+    the JSON/RPC debug + media + profiler APIs (`DebugController`, `MediaController`,
+    `DebugHttpController`), but there is no bundled web UI, no `OrmBrowserController`, and no
+    internal `ApiConsoleModule` mount. `framework-debug-api` (pure contracts) is kept.
+  - Jest and typedoc are fully gone (were website/desktop-ui-only); `npm run docs` no longer
+    exists. The `docjson`/`docs.json` pipeline is gone with desktop-ui.
+  - `install-compiler.sh` patches only the root `typescript` now (no per-GUI installs).
+  - This removed the Angular ceiling (`@angular/compiler-cli` peer `<6.0`) that blocked the
+    TypeScript upgrade.
+- **The workspace runs TypeScript 6.0.3** (from 5.8.3; scope + evidence:
+  `../docs/deepkit/typescript-6-migration.md` in the app repo). TS 6.x is the FINAL JS-based
+  TypeScript line (7.x is Go-native with no transformer host — typescript-go#516), so this pin
+  outlives upstream releases; do not bump `typescript` to 7.x, it cannot run the type-compiler.
+  `tsconfig.base.json` carries `"ignoreDeprecations": "6.0"` (moduleResolution `node` is
+  deprecated-as-error in 6.0) and `"types": ["node"]` (TS 6 no longer auto-includes
+  `@types/*`; packages that need more declare their own `types`).
 
 ## Error Code System
 
@@ -317,7 +341,7 @@ class Service {
 ## Testing
 
 - Node's built-in test runner (`node:test`) via the `@deepkit/run` loader (`node --import @deepkit/run --test`).
-  Jest was removed from every package (including `@deepkit/template`'s `.spec.tsx`, run via the loader's `.tsx` support); it survives ONLY for the docs `website`, whose Angular `TestBed` + tsconfig path-alias tests need a DOM/Angular test harness, run from `website/` via its own `website/jest.config.js`.
+  Jest was removed from every package (including `@deepkit/template`'s `.spec.tsx`, run via the loader's `.tsx` support). It used to survive only for the docs `website`; the website was removed 2026-07-22, so Jest is gone entirely (the root jest/ts-jest/@jest/globals devDeps were deleted — don't reintroduce them).
 - `expect()` comes from the `@deepkit/run/expect` shim; `describe`/`test` from `node:test`.
 - Tests require the type-compiler: run `npm run postinstall` first.
 - Runner flags: `--expose-gc --test-force-exit` (no `--max_old_space_size`).

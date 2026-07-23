@@ -9,7 +9,6 @@
  */
 import { isAbsolute, join } from 'path';
 
-import { ApiConsoleModule } from '@deepkit/api-console-module';
 import { AppModule, ControllerConfig, DeepPartial, createModuleClass, onAppShutdown } from '@deepkit/app';
 import { BrokerBus, BrokerCache, BrokerDeepkitAdapter, BrokerKeyValue, BrokerLock, BrokerQueue } from '@deepkit/broker';
 import { ClassType, DeepkitError, ProcessLocker, isClass, isPrototypeOfBase } from '@deepkit/core';
@@ -57,12 +56,10 @@ import { DatabaseListener } from './database/database-listener.js';
 import { DebugBrokerBus } from './debug/broker.js';
 import { DebugHttpController } from './debug/debug-http.controller.js';
 import { DebugController } from './debug/debug.controller.js';
-import { registerDebugHttpController } from './debug/http-debug.controller.js';
 import { MediaController } from './debug/media.controller.js';
 import { FileStopwatchStore } from './debug/stopwatch/store.js';
 import { FilesystemRegistry, PublicFilesystem } from './filesystem.js';
 import { BrokerConfig, FrameworkConfig } from './module.config.js';
-import { OrmBrowserController } from './orm-browser/controller.js';
 import { RpcControllers, RpcKernelWithStopwatch } from './rpc.js';
 import { normalizeDirectory } from './utils.js';
 import { RpcServer, WebWorkerFactory } from './worker.js';
@@ -217,23 +214,13 @@ export class FrameworkModule extends createModuleClass({
         if (this.config.debug) {
             Zone.enable();
 
-            this.addProvider({
-                provide: OrmBrowserController,
-                useFactory: (registry: DatabaseRegistry) => new OrmBrowserController(registry.getDatabases()),
-            });
             this.addController(DebugController);
             this.addController(MediaController);
-            this.addController(OrmBrowserController);
-            registerDebugHttpController(this, this.config.debugUrl);
 
             @http.controller(this.config.debugUrl)
             class ScopedDebugHttpController extends DebugHttpController {}
 
             this.addController(ScopedDebugHttpController);
-
-            //only register the RPC controller
-            this.addImport(new ApiConsoleModule({ listen: false, markdown: '' }).rename('internalApi'));
-            // this.setupProvider(LiveDatabase).enableChangeFeed(DebugRequest);
         }
 
         if (this.config.httpRpcBasePath) {

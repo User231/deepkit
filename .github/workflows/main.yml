@@ -37,8 +37,6 @@ jobs:
       - name: Build
         run: |
           ./node_modules/.bin/tsc --build \
-            packages/api-console-module/tsconfig.json \
-            packages/angular-ssr/tsconfig.json \
             packages/broker/tsconfig.json \
             packages/broker-redis/tsconfig.json \
             packages/bson/tsconfig.json \
@@ -49,7 +47,6 @@ jobs:
             packages/framework/tsconfig.json \
             packages/framework-debug-api/tsconfig.json \
             packages/framework-integration/tsconfig.json \
-            packages/orm-browser-api/tsconfig.json \
             packages/rpc/tsconfig.json \
             packages/event/tsconfig.json \
             packages/workflow/tsconfig.json \
@@ -87,9 +84,9 @@ jobs:
             packages/stopwatch/ \
             packages/workflow/ \
             packages/type/
-# this is broken at the moment
-#      - name: Send coverage
-#        run: ./node_modules/.bin/codecov -f coverage/*.json
+  # this is broken at the moment
+  #      - name: Send coverage
+  #        run: ./node_modules/.bin/codecov -f coverage/*.json
 
   orm-postgres:
     needs:
@@ -124,9 +121,9 @@ jobs:
         env:
           POSTGRES_PORT: 5432
 
-# this is broken at the moment
-#      - name: Send coverage
-#        run: ./node_modules/.bin/codecov -f coverage/*.json
+  # this is broken at the moment
+  #      - name: Send coverage
+  #        run: ./node_modules/.bin/codecov -f coverage/*.json
 
   orm-mysql:
     needs:
@@ -160,9 +157,9 @@ jobs:
         env:
           MYSQL_PORT: 3306
 
-# this is broken at the moment
-#      - name: Send coverage
-#        run: ./node_modules/.bin/codecov -f coverage/*.json
+  # this is broken at the moment
+  #      - name: Send coverage
+  #        run: ./node_modules/.bin/codecov -f coverage/*.json
 
   orm-sqlite:
     needs:
@@ -182,9 +179,9 @@ jobs:
       - name: Test
         run: npm run test:coverage packages/sqlite/
 
-# this is broken at the moment
-#      - name: Send coverage
-#        run: ./node_modules/.bin/codecov -f coverage/*.json
+  # this is broken at the moment
+  #      - name: Send coverage
+  #        run: ./node_modules/.bin/codecov -f coverage/*.json
 
   orm-mongo:
     needs:

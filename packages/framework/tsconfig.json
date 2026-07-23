@@ -8,33 +8,14 @@
     "outDir": "./dist/cjs",
     "jsx": "react-jsx",
     "jsxImportSource": "..",
-    "types": [
-      "ws",
-      "clone",
-      "fs-extra",
-      "node"
-    ]
+    "types": ["ws", "clone", "fs-extra", "node"]
   },
   "reflection": true,
-  "include": [
-    "src",
-    "jsx",
-    "index.ts",
-    "jsx-runtime.ts",
-    "loader.ts"
-  ],
-  "exclude": [
-    "tests"
-  ],
+  "include": ["src", "jsx", "index.ts", "jsx-runtime.ts", "loader.ts"],
+  "exclude": ["tests"],
   "references": [
     {
-      "path": "../api-console-module/tsconfig.json"
-    },
-    {
       "path": "../framework-debug-api/tsconfig.json"
-    },
-    {
-      "path": "../orm-browser-api/tsconfig.json"
     },
     {
       "path": "../app/tsconfig.json"

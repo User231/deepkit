@@ -2,15 +2,6 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/angular-ssr/tsconfig.esm.json"
-    },
-    {
-      "path": "./packages/api-console-api/tsconfig.esm.json"
-    },
-    {
-      "path": "./packages/api-console-module/tsconfig.esm.json"
-    },
-    {
       "path": "./packages/app/tsconfig.esm.json"
     },
     {
@@ -81,12 +72,6 @@
     },
     {
       "path": "./packages/orm/tsconfig.esm.json"
-    },
-    {
-      "path": "./packages/orm-browser/tsconfig.esm.json"
-    },
-    {
-      "path": "./packages/orm-browser-api/tsconfig.esm.json"
     },
     {
       "path": "./packages/postgres/tsconfig.esm.json"

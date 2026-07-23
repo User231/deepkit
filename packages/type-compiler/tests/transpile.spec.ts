@@ -480,7 +480,13 @@ test('keep "use x" at top', () => {
         const a = (a: string) => {};
         `,
     });
-    expect(res.app.startsWith('"use client";')).toBe(true);
+    // TypeScript 6 emits an unconditional `"use strict";` as the first prologue directive.
+    // The guarded invariant: the custom directive stays in the prologue, above any injected
+    // reflection helpers — nothing but `"use strict";` may precede it.
+    const lines = res.app.split('\n').filter(v => v.trim());
+    const directiveIndex = lines.indexOf('"use client";');
+    expect(directiveIndex >= 0).toBe(true);
+    expect(lines.slice(0, directiveIndex).every(v => v === '"use strict";')).toBe(true);
 });
 
 test('Function', () => {

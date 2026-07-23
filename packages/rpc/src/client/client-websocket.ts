@@ -127,7 +127,9 @@ export class RpcWebSocketClientAdapter implements ClientTransportAdapter {
                     socket.close();
                 },
                 writeBinary(message) {
-                    socket.send(message);
+                    // rpc wire messages are always views over regular (non-shared) ArrayBuffers;
+                    // TS 5.9+ BufferSource no longer admits Uint8Array<ArrayBufferLike>.
+                    socket.send(message as Uint8Array<ArrayBuffer>);
                 },
             });
         };

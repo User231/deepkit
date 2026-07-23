@@ -50,15 +50,14 @@ function isPatched(code: string, id: string) {
     return code.includes(getPatchId(id));
 }
 
-function patchGetTransformers(deepkitDistPath: string, code: string): string {
-    const id = 'patchGetTransformers';
-    if (isPatched(code, id)) return '';
+const patchId = 'patchGetTransformers';
 
+function patchGetTransformers(deepkitDistPath: string, code: string): string {
     const find = /function getTransformers\([^)]+\)\s*{/;
     if (!code.match(find)) return '';
 
     code = code.replace(find, function (a) {
-        return a + '\n    ' + getCode(deepkitDistPath, 'customTransformers', id);
+        return a + '\n    ' + getCode(deepkitDistPath, 'customTransformers', patchId);
     });
 
     return code;
@@ -74,11 +73,32 @@ const deepkitDistPath = relative(typeScriptPath, __dirname).replace(/\\/g, '/');
 
 const paths = ['tsc.js', '_tsc.js', 'typescript.js'];
 
+// A patched (or already-patched) install is the success condition. If the typescript install
+// exists but NO file could be patched, the injection point (`function getTransformers(...)`)
+// changed shape — reflection would silently stop being emitted, so fail LOUDLY instead.
+let effective = 0;
+
 for (const fileName of paths) {
     const file = join(typeScriptPath, fileName);
     if (!existsSync(file)) continue;
-    const content = patchGetTransformers(deepkitDistPath, readFileSync(file, 'utf8'));
+    const original = readFileSync(file, 'utf8');
+    if (isPatched(original, patchId)) {
+        effective++;
+        continue;
+    }
+    const content = patchGetTransformers(deepkitDistPath, original);
     if (!content) continue;
     writeFileSync(file, content);
+    effective++;
     console.log('Deepkit Type: Injected TypeScript transformer at', file);
+}
+
+if (effective === 0) {
+    console.error(
+        'Deepkit Type: FAILED to inject the TypeScript transformer into ' +
+            typeScriptPath +
+            ' — no known injection point (`function getTransformers(...)`) matched.' +
+            ' This TypeScript version is likely incompatible with the patch; reflection would NOT be emitted by tsc.',
+    );
+    process.exit(1);
 }
