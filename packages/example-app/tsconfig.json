@@ -3,9 +3,6 @@
   "compilerOptions": {
     "declaration": false,
     "composite": false,
-    "useDefineForClassFields": false,
-    "target": "es2022",
-    "module": "commonjs",
     "preserveSymlinks": true,
     "outDir": "./dist",
     "jsx": "react-jsx",

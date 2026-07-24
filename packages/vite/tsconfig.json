@@ -1,19 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "es2018",
-    "outDir": "./dist/cjs",
-    "types": [
-      "node"
-    ]
+    "outDir": "./dist/esm",
+    "types": ["node"]
   },
-  "include": [
-    "src",
-    "index.ts"
-  ],
-  "exclude": [
-    "tests"
-  ],
+  "include": ["src", "index.ts"],
+  "exclude": ["tests"],
   "references": [
     {
       "path": "../type-compiler/tsconfig.json"

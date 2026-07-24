@@ -47,7 +47,10 @@ function isStandardContext(v: unknown): v is StandardDecoratorContext {
 
 type PendingDecorator = (classType: ClassType) => void;
 
-//Object.hasOwn is ES2022 lib; this package targets es2020.
+// Kept over `Object.hasOwn` deliberately. The old reason ("this package targets
+// es2020") stopped being true when the workspace unified on ES2022 — the current
+// one is runtime reach: @deepkit/type ships to browsers as well as Node, and this
+// form works everywhere without assuming Chrome 93+/Safari 15.4+.
 function hasOwn(obj: object, key: PropertyKey): boolean {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }

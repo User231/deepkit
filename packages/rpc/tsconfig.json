@@ -1,23 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "useDefineForClassFields": false,
-    "target": "es2022",
     "outDir": "./dist/cjs",
-    "types": [
-      "dot-prop",
-      "fs-extra",
-      "node"
-    ]
+    "types": ["dot-prop", "fs-extra", "node"]
   },
   "reflection": true,
-  "include": [
-    "src",
-    "index.ts"
-  ],
-  "exclude": [
-    "tests"
-  ],
+  "include": ["src", "index.ts"],
+  "exclude": ["tests"],
   "references": [
     {
       "path": "../bson/tsconfig.json"

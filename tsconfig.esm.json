@@ -113,9 +113,6 @@
       "path": "./packages/type-spec/tsconfig.esm.json"
     },
     {
-      "path": "./packages/vite/tsconfig.esm.json"
-    },
-    {
       "path": "./packages/workflow/tsconfig.esm.json"
     }
   ]

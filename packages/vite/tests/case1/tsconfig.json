@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "module": "esnext",
-    "target": "esnext",
+    "target": "ES2022",
     "outDir": "dist/tsc",
-    "moduleResolution": "nodenext",
+    "moduleResolution": "bundler",
     "experimentalDecorators": true
   },
   "include": ["./mod.ts"],

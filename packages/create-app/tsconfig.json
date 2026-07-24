@@ -1,17 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "useDefineForClassFields": false,
-    "target": "es2022",
     "outDir": "./dist/cjs",
     "types": []
   },
-  "include": [
-    "src",
-    "tests",
-    "main.ts",
-    "index.ts"
-  ],
+  "include": ["src", "tests", "main.ts", "index.ts"],
   "reflection": true,
   "references": [
     {

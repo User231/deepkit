@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
     "forceConsistentCasingInFileNames": true,
-    "ignoreDeprecations": "6.0",
     "types": ["node"],
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "sourceMap": true,
     "useDefineForClassFields": false,
-    "moduleResolution": "node",
-    "target": "es2020",
-    "module": "CommonJS",
+    "moduleResolution": "nodenext",
+    "target": "ES2022",
+    "module": "nodenext",
     "esModuleInterop": true,
     "declaration": true,
     "composite": true,

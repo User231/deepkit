@@ -2,26 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noImplicitAny": false,
-    "lib": [
-      "es2020",
-      "es2022.error"
-    ],
+    "lib": ["ES2022"],
     "outDir": "./dist/cjs",
-    "types": [
-      "better-sqlite3"
-    ]
+    "types": ["better-sqlite3"]
   },
-  "reflection": [
-    "tests/**/*.ts"
-  ],
-  "include": [
-    "benchmarks",
-    "src",
-    "index.ts"
-  ],
-  "exclude": [
-    "tests"
-  ],
+  "reflection": ["tests/**/*.ts"],
+  "include": ["benchmarks", "src", "index.ts"],
+  "exclude": ["tests"],
   "references": [
     {
       "path": "../core/tsconfig.json"

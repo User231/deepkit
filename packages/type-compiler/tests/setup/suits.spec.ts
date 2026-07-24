@@ -34,28 +34,51 @@ function build(currentDir = process.cwd(), useConfig = 'tsconfig.json'): { [path
     return result;
 }
 
+/**
+ * Whether `className` carries reflection metadata, INDEPENDENT of emit shape.
+ *
+ * The transformer attaches `__type` as a static member, and how TypeScript emits
+ * that depends on `target`:
+ *
+ *   target < ES2022   →  `WithTypes.__type = [...]`        (assignment after the class)
+ *   target >= ES2022  →  `class WithTypes { static __type = [...] }`  (native static field)
+ *
+ * These tests are about WHICH FILES get reflection (the `reflection` option's
+ * resolution across nested tsconfigs), not about codegen. Asserting the first
+ * shape as a raw string silently failed the moment the fixture's target rose —
+ * which is exactly what happened when the workspace unified on ES2022, and it
+ * looked like "reflection is broken" when reflection was perfectly fine.
+ *
+ * Each fixture file declares exactly one class, so matching the class name and a
+ * static `__type` anywhere in the file is unambiguous.
+ */
+function hasReflection(code: string, className: string): boolean {
+    if (code.includes(`${className}.__type`)) return true;
+    return code.includes(`class ${className}`) && code.includes('static __type');
+}
+
 test('suite1 base default', async () => {
     const files = build(__dirname + '/suite1');
-    expect(files['file1']).toContain('WithTypes.__type');
-    expect(files['backend/file3']).toContain('WithTypesBackend.__type');
+    expect(hasReflection(files['file1'], 'WithTypes')).toBe(true);
+    expect(hasReflection(files['backend/file3'], 'WithTypesBackend')).toBe(true);
     //frontend contains types because frontend/tsconfig.json is not picked.
-    expect(files['frontend/file2']).toContain('WithoutTypesFrontend.__type');
+    expect(hasReflection(files['frontend/file2'], 'WithoutTypesFrontend')).toBe(true);
 });
 
 test('suite1 base no-types', async () => {
     const files = build(__dirname + '/suite1', 'tsconfig.no-types.json');
-    expect(files['file1']).toContain('WithTypes.__type');
-    expect(files['backend/file3']).not.toContain('WithTypesBackend.__type');
+    expect(hasReflection(files['file1'], 'WithTypes')).toBe(true);
+    expect(hasReflection(files['backend/file3'], 'WithTypesBackend')).toBe(false);
     //frontend contains types because frontend/tsconfig.json is not picked.
-    expect(files['frontend/file2']).not.toContain('WithoutTypesFrontend.__type');
+    expect(hasReflection(files['frontend/file2'], 'WithoutTypesFrontend')).toBe(false);
 });
 
 test('suite1 frontend', async () => {
     const files = build(__dirname + '/suite1/frontend');
-    expect(files.file2).not.toContain('WithoutTypesFrontend.__type');
+    expect(hasReflection(files.file2, 'WithoutTypesFrontend')).toBe(false);
 });
 
 test('suite1 backend', async () => {
     const files = build(__dirname + '/suite1/backend');
-    expect(files.file3).toContain('WithTypesBackend.__type');
+    expect(hasReflection(files.file3, 'WithTypesBackend')).toBe(true);
 });

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist/esm",
     "moduleResolution": "bundler",
-    "module": "ES2020"
+    "module": "esnext"
   },
   "references": [
     {

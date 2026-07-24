@@ -1,22 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "useDefineForClassFields": false,
-    "target": "es2022",
     "outDir": "./dist",
-    "types": [
-      "clone",
-      "fs-extra",
-      "tmp",
-      "ws"
-    ]
+    "types": ["clone", "fs-extra", "tmp", "ws"]
   },
   "reflection": true,
-  "files": [
-    "tests/util.ts",
-    "tests/controller-basic.spec.ts",
-    "tests/live-database.spec.ts"
-  ],
+  "files": ["tests/util.ts", "tests/controller-basic.spec.ts", "tests/live-database.spec.ts"],
   "references": [
     {
       "path": "../app/tsconfig.json"

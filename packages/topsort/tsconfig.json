@@ -1,16 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "outDir": "./dist/cjs",
     "types": []
   },
-  "include": [
-    "src",
-    "index.ts"
-  ],
-  "exclude": [
-    "tests"
-  ],
+  "include": ["src", "index.ts"],
+  "exclude": ["tests"],
   "references": []
 }

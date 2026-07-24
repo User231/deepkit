@@ -2,22 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "preserveSymlinks": true,
-    "useDefineForClassFields": false,
-    "target": "es2022",
-    "baseUrl": ".",
     "outDir": "./dist/cjs",
     "types": []
   },
   "reflection": true,
-  "include": [
-    "src",
-    "jsx",
-    "tests",
-    "benchmark",
-    "index.ts",
-    "jsx-runtime",
-    "jsx-runtime.ts"
-  ],
+  "include": ["src", "jsx", "tests", "benchmark", "index.ts", "jsx-runtime", "jsx-runtime.ts"],
   "references": [
     {
       "path": "../bson/tsconfig.json"

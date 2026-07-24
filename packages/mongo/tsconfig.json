@@ -2,25 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noImplicitAny": false,
-    "lib": [
-      "es2020",
-      "es2022.error",
-      "es2021.weakref"
-    ],
+    "lib": ["ES2022"],
     "outDir": "./dist/cjs",
-    "types": [
-      "mongodb",
-      "node"
-    ]
+    "types": ["mongodb", "node"]
   },
   "reflection": true,
-  "include": [
-    "src",
-    "index.ts"
-  ],
-  "exclude": [
-    "tests"
-  ],
+  "include": ["src", "index.ts"],
+  "exclude": ["tests"],
   "references": [
     {
       "path": "../bson/tsconfig.json"

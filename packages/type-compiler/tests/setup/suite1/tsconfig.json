@@ -1,13 +1,11 @@
 {
   "compilerOptions": {
     "strict": true,
-    "moduleResolution": "node",
-    "target": "es2020",
-    "module": "CommonJS",
+    "moduleResolution": "nodenext",
+    "target": "ES2022",
+    "module": "nodenext",
     "esModuleInterop": true
   },
   "reflection": true,
-  "files": [
-    "app.ts"
-  ]
+  "files": ["app.ts"]
 }

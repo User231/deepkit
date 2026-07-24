@@ -2,10 +2,10 @@
   "compilerOptions": {
     "strict": true,
     "experimentalDecorators": true,
-    "moduleResolution": "node",
-    "target": "es2020",
+    "moduleResolution": "nodenext",
+    "target": "ES2022",
     "esModuleInterop": true,
-    "module": "CommonJS"
+    "module": "nodenext"
   },
   "reflection": true
 }
