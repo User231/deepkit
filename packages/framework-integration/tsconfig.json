@@ -8,6 +8,9 @@
   "files": ["tests/util.ts", "tests/controller-basic.spec.ts", "tests/live-database.spec.ts"],
   "references": [
     {
+      "path": "../run/tsconfig.json"
+    },
+    {
       "path": "../app/tsconfig.json"
     },
     {

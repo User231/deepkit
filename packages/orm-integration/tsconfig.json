@@ -3,16 +3,14 @@
   "compilerOptions": {
     "noImplicitAny": false,
     "outDir": "./dist",
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
   "reflection": true,
-  "include": [
-    "src",
-    "index.ts"
-  ],
+  "include": ["src", "index.ts"],
   "references": [
+    {
+      "path": "../run/tsconfig.json"
+    },
     {
       "path": "../core/tsconfig.json"
     },
