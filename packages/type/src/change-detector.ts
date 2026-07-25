@@ -15,6 +15,23 @@ import { ReflectionKind, Type, TypeIndexSignature } from './reflection/type.js';
 import { getConverterForSnapshot } from './snapshot.js';
 import { referenceAnnotation } from './type-annotations.js';
 
+/**
+ * Value equality for Date.
+ *
+ * Snapshots CLONE dates (`getConverterForSnapshot` emits `new Date(d.getTime())`),
+ * so the snapshot value and the live value are never the same object and a
+ * reference comparison would report every date as changed on every commit.
+ * Two invalid dates count as equal for the same reason — `NaN !== NaN` would
+ * otherwise make an unparseable date permanently "changed".
+ */
+export function dateEqual(a: any, b: any): boolean {
+    if (a === b) return true; // same reference, or both null/undefined
+    if (!a || !b) return false; // exactly one side is missing
+    const ta = a.getTime();
+    const tb = b.getTime();
+    return ta === tb || (Number.isNaN(ta) && Number.isNaN(tb));
+}
+
 function genericEqualArray(a: any[], b: any[]): boolean {
     if (a.length !== b.length) return false;
 
@@ -41,8 +58,12 @@ function genericEqualObject(a: { [name: string]: any }, b: { [name: string]: any
 }
 
 /**
- * This is a comparator function for the snapshots. They are either string, number, boolean, array, or objects.
- * No date, moment, or custom classes involved here.
+ * This is a comparator function for the snapshots. They are string, number, boolean, array,
+ * Date, or objects.
+ *
+ * Dates need the explicit branch below: snapshots clone them, and the generic object walk
+ * compares own enumerable properties — of which a Date has none, so any two dates would come
+ * out equal and a real change would be silently dropped.
  */
 export function genericEqual(a: any, b: any): boolean {
     //is array, the fast way
@@ -50,6 +71,8 @@ export function genericEqual(a: any, b: any): boolean {
     const bIsArray = b && 'string' !== typeof b && 'function' === b.slice && 'number' === typeof b.length;
     if (aIsArray) return bIsArray ? genericEqualArray(a, b) : false;
     if (bIsArray) return aIsArray ? genericEqualArray(a, b) : false;
+
+    if (a instanceof Date || b instanceof Date) return dateEqual(a, b);
 
     const aIsObject = 'object' === typeof a && a !== null;
     const bIsObject = 'object' === typeof b && b !== null;
@@ -127,6 +150,17 @@ function buildComparator(
                 onChanged,
                 state,
             );
+        } else if (type.kind === ReflectionKind.class && type.classType === Date) {
+            // Date is a VALUE object with no reflected members, so without this
+            // branch it falls through to the primitive `!==` below. The snapshot
+            // holds a clone, so that comparison is always true: every date is
+            // reported as changed on every commit, and the unit of work then
+            // writes the stale snapshot value back over the row — silently
+            // reverting whatever else had updated that column.
+            b.if_(b.not(b.call<boolean>(dateEqual, last, current)), () => {
+                b.set(changesSlot, changedKey, b.get(item, changedKey));
+                onChanged();
+            });
         } else if (
             (type.kind === ReflectionKind.class || type.kind === ReflectionKind.objectLiteral) &&
             type.types.length

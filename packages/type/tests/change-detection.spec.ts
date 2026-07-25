@@ -369,3 +369,81 @@ test('change-detection class in array', () => {
         expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item)).toMatchObject({});
     }
 });
+
+test('change-detection date: unchanged date is not a change', () => {
+    interface s {
+        created: Date;
+    }
+
+    const item = deserialize<s>({ created: '2026-07-25T10:00:00.000Z' });
+    const snapshot = createSnapshot(ReflectionClass.from(typeOf<s>()), item);
+
+    // Nothing was touched. A Date property must compare BY VALUE — the snapshot
+    // holds a cloned Date, so a reference comparison reports every date as
+    // changed on every commit and the ORM writes stale values back over
+    // whatever else touched the row.
+    expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item).empty).toBe(true);
+});
+
+test('change-detection date: a real change is detected', () => {
+    interface s {
+        created: Date;
+    }
+
+    const item = deserialize<s>({ created: '2026-07-25T10:00:00.000Z' });
+    const snapshot = createSnapshot(ReflectionClass.from(typeOf<s>()), item);
+    item.created = new Date('2026-07-25T11:30:00.000Z');
+
+    expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item)).toMatchObject({
+        $set: { created: item.created },
+    });
+});
+
+test('change-detection date: optional/null transitions', () => {
+    interface s {
+        at: Date | null;
+    }
+
+    {
+        const item = deserialize<s>({ at: null });
+        const snapshot = createSnapshot(ReflectionClass.from(typeOf<s>()), item);
+        expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item).empty).toBe(true);
+    }
+
+    {
+        const item = deserialize<s>({ at: null });
+        const snapshot = createSnapshot(ReflectionClass.from(typeOf<s>()), item);
+        item.at = new Date('2026-07-25T10:00:00.000Z');
+        expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item)).toMatchObject({
+            $set: { at: item.at },
+        });
+    }
+
+    {
+        const item = deserialize<s>({ at: '2026-07-25T10:00:00.000Z' });
+        const snapshot = createSnapshot(ReflectionClass.from(typeOf<s>()), item);
+        item.at = null;
+        expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item)).toMatchObject({
+            $set: { at: null },
+        });
+    }
+
+    // A union routes through `genericEqual`, whose object walk compares own
+    // enumerable properties — a Date has none, so without an explicit branch
+    // ANY two dates compare equal and a real change is silently dropped.
+    {
+        const item = deserialize<s>({ at: '2026-07-25T10:00:00.000Z' });
+        const snapshot = createSnapshot(ReflectionClass.from(typeOf<s>()), item);
+        item.at = new Date('2026-07-25T11:30:00.000Z');
+        expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item)).toMatchObject({
+            $set: { at: item.at },
+        });
+    }
+
+    // ...and an untouched date inside a union must still be no change.
+    {
+        const item = deserialize<s>({ at: '2026-07-25T10:00:00.000Z' });
+        const snapshot = createSnapshot(ReflectionClass.from(typeOf<s>()), item);
+        expect(buildChanges(ReflectionClass.from(typeOf<s>()), snapshot, item).empty).toBe(true);
+    }
+});
