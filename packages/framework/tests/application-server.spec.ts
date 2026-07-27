@@ -1,15 +1,14 @@
 import { afterEach, describe, it, test } from 'node:test';
 
-import { expect, jest } from '@deepkit/run/expect';
-
 import { App } from '@deepkit/app';
 import { sleep } from '@deepkit/core';
 import { HttpRequest, http } from '@deepkit/http';
 import { InjectorContext } from '@deepkit/injector';
 import { ConsoleTransport, Logger, MemoryLoggerTransport } from '@deepkit/logger';
 import { rpc } from '@deepkit/rpc';
+import { expect, jest } from '@deepkit/run/expect';
 
-import { ApplicationServer } from '../src/application-server.js';
+import { ApplicationServer, onServerBootstrap, onServerBootstrapDone, onServerMainBootstrap, onServerMainBootstrapDone } from '../src/application-server.js';
 import { FrameworkModule } from '../src/module.js';
 import { createTestingApp } from '../src/testing.js';
 import { RpcServer, RpcServerInterface, WebWorker } from '../src/worker.js';
@@ -47,6 +46,23 @@ describe('application-server', () => {
 
         expect(await controller.foo()).toBe('bar');
         expect(testing.app.get(MemoryLoggerTransport).messageStrings.includes('bar'));
+        await testing.stopServer();
+    });
+
+    test('bootstrap events fire exactly once in single-process start', async () => {
+        // Regression: start() dispatched onServerBootstrap before the cluster branch AND
+        // again inside the single-process (workers=0) branch, so every bootstrap listener
+        // ran twice on a plain start.
+        const counts = { bootstrap: 0, main: 0, done: 0, mainDone: 0 };
+
+        const testing = createTestingApp({});
+        testing.app.listen(onServerBootstrap, () => void counts.bootstrap++);
+        testing.app.listen(onServerMainBootstrap, () => void counts.main++);
+        testing.app.listen(onServerBootstrapDone, () => void counts.done++);
+        testing.app.listen(onServerMainBootstrapDone, () => void counts.mainDone++);
+
+        await testing.startServer();
+        expect(counts).toEqual({ bootstrap: 1, main: 1, done: 1, mainDone: 1 });
         await testing.stopServer();
     });
 

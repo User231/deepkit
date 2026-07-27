@@ -353,7 +353,9 @@ export class ApplicationServer {
                 process.on('SIGINT', stopServer('SIGINT'));
                 process.on('SIGTERM', stopServer('SIGTERM'));
             }
-            await this.eventDispatcher.dispatch(onServerBootstrap, new ServerBootstrapEvent());
+            // onServerBootstrap was already dispatched above (before the cluster branch) —
+            // dispatching it here again made every bootstrap listener run twice in the
+            // single-process path (workers=0), while the cluster path fired it once.
             await this.eventDispatcher.dispatch(onServerMainBootstrap, new ServerBootstrapEvent());
             if (this.needsHttpWorker && startHttpServer) {
                 this.httpWorker = this.webWorkerFactory.create(1, this.config);
