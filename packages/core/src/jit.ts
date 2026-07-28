@@ -2035,6 +2035,12 @@ export function fnJITTop<R>(...args: any[]): (...args: any[]) => R {
     _activeBuilder = prevActive;
     const block = builder.build(result as Ref<R> | undefined);
 
+    // CSP environment: compilation units don't exist in exec mode, so the
+    // isolation this function provides is moot — fall back like fn() does.
+    if (!canJIT) {
+        return createExecutor<R>(block) as any;
+    }
+
     // Always create a separate compilation unit (never register as nested)
     const gen = new CodeGenerator(argCount, inputNames, undefined, inputDefaults);
     return gen.compile<(...args: any[]) => R>(block);
