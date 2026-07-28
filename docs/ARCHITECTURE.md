@@ -237,12 +237,8 @@ Defined in `@deepkit/type-spec`, the bytecode consists of ~90 operations encoded
 | `@deepkit/vite` | Vite plugin | `deepkitType` |
 | `@deepkit/bun` | Bun plugin | `deepkitType` |
 
-**Angular Integration:**
-| Package | Purpose | Key Exports |
-|---------|---------|-------------|
-| `@deepkit/type-angular` | Form integration | `TypedFormGroup` |
-| `@deepkit/angular-ssr` | SSR support | `AngularModule`, `RequestHandler` |
-| `@deepkit/desktop-ui` | UI components | Form, Table, Dialog components |
+(The Angular integration packages — `type-angular`, `angular-ssr`, `desktop-ui`, the debug
+GUIs, and the docs website — were removed from this fork 2026-07-22.)
 
 ---
 

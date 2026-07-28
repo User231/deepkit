@@ -37,11 +37,10 @@ every package's `tests/` directory:
 }
 ```
 
-There is no root-level `jest` config. Every package — including `@deepkit/template`'s `.spec.tsx`
+There is no `jest` config anywhere. Every package — including `@deepkit/template`'s `.spec.tsx`
 (the `@deepkit/run` loader transpiles `.tsx` and the root `test` glob matches `*.spec.{ts,tsx}`) —
-runs on `node:test`. Jest survives solely for the docs `website`, whose Angular `TestBed` +
-tsconfig path-alias tests need a DOM/Angular test harness; it runs from `website/` via its own
-`website/jest.config.js`.
+runs on `node:test`. Jest is fully gone: its last holdout was the docs `website`, which was
+removed 2026-07-22 together with the whole Angular constellation.
 
 ### Requirements
 

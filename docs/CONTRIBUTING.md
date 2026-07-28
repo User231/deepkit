@@ -58,8 +58,7 @@ deepkit-framework/
 │   ├── http/          # HTTP router
 │   ├── rpc/           # Binary RPC
 │   ├── orm/           # Database ORM
-│   └── ...            # ~50 packages total
-├── website/           # Documentation website
+│   └── ...            # ~40 packages total
 ├── docs/              # Internal documentation
 └── CLAUDE.md          # AI assistant guidance
 ```
@@ -366,11 +365,8 @@ When adding features, update relevant READMEs:
 - `packages/*/README.md` - Package-specific docs
 - `README.md` - Main project README for major features
 
-### Website Documentation
-
-For significant features, add documentation pages:
-- Location: `website/src/pages/documentation/`
-- Format: Markdown with frontmatter
+(The docs `website/` was removed 2026-07-22 with the Angular constellation — package READMEs,
+`docs/`, and JSDoc are the documentation surfaces now.)
 
 ---
 
