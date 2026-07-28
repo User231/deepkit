@@ -44,7 +44,7 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   `injector`, `workflow` — server-side packages where `new Function` is always available.
   Migrating them to `jit.ts` only matters if those packages ever need to run under blocked
   codegen (edge runtimes). No current need.
-- **AOT tier** from the JIT/CSP design (`docs/todo/jit-csp/design.md`): never built. The
+- **AOT tier** from the JIT/CSP design (`docs/design/jit-serializer-design.md`): never built. The
   interpreter fallback covers CSP environments; AOT would only close the perf gap there.
 - **Cross-runtime CI** (Deno/Bun/Workers): not built. The no-codegen environment is covered
   in-suite by `csp-fallback.spec.ts` (subprocess with
@@ -71,8 +71,8 @@ You are an **orchestrator/supervisor**. You coordinate work but delegate executi
 
 ### How to Continue Work
 
-1. **Check `docs/todo/` folder** for existing issue folders (they are work archives for
-   completed efforts unless listed under Active Work above)
+1. **Check `docs/todo/` folder** for existing issue folders (only open items live there —
+   completed-work archives were removed 2026-07-28, see git history)
 2. **Pick an item** from Active Work / Known Remaining Work, or whatever the consuming app
    needs
 3. **Skip items marked `BLOCKED` or `NOT-YET`**
@@ -169,6 +169,8 @@ docs/todo/<issue-id>/
 └── comments/       # GitHub comments sync (if needed)
 ```
 
-The existing folders (`jit-csp/`, `bson-rewrite/`, numbered issues) are **archives of
-completed work** — their internal phase checklists and "failing tests" lists describe the
-state DURING that work, not today's; trust the suites and `CHANGELOG.md` for current truth.
+Housekeeping 2026-07-28: the completed-work archives (numbered issue folders, `bson-rewrite/`
+phase docs, jit-csp tracker/failing-tests) were **removed** (git history keeps them), and the
+durable design records were promoted to **`docs/design/`** (`jit-serializer-design.md`,
+`jit-exec-mode.md`, `bson-{serialization,deserialization}-strategy.md`). What still sits under
+`docs/todo/` besides the template is an **open item**.

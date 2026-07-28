@@ -1,3 +1,8 @@
+> **Benchmark-derived strategy behind the shipped v2 `@deepkit/bson` deserializer** (moved from
+> `docs/todo/bson-rewrite/DESERIALIZATION-STRATEGY.md` 2026-07-28). Implementation authoritative:
+> `packages/bson/src/deserializer.ts`. Tuned constants were measured on V8/Node — absolute
+> crossover points may differ on JSC/Bun.
+
 # BSON Deserialization Strategy - Final Specification
 
 This document defines the optimal JIT code generation strategy for BSON deserialization, based on extensive benchmarking.

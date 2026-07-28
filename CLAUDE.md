@@ -559,10 +559,11 @@ docs/
 │   ├── docs.md       # 📝 Dana - Documentation keeper
 │   └── impact.md     # 🌊 River - Impact analyst
 │
-└── todo/             # Issue and task tracking
-    ├── todo.md       # Main tracker (GitHub issues, codebase issues)
+├── design/           # Durable design records (v2 JIT/serializer, exec mode, BSON strategies)
+│
+├── todo.md           # Main tracker (active + known remaining work)
+└── todo/             # Open items only (completed-work archives removed 2026-07-28)
     ├── _ISSUE_TEMPLATE/
-    ├── packages/     # Per-package improvement checklists
     └── <issue-id>/   # Issue-specific work folders
 ```
 

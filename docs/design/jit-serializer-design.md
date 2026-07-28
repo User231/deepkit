@@ -1,3 +1,8 @@
+> **Design record of the shipped v2 serializer/JIT** (moved from `docs/todo/jit-csp/design.md`
+> 2026-07-28). Written during the rewrite; where text and code differ, the implementation in
+> `packages/core/src/jit.ts` + `packages/type/src/serializer/` is authoritative. The CRITICAL
+> RULE below still governs new code: never reintroduce `CompilerContext` — extend `jit.ts`.
+
 # Serializer Rewrite Design Document
 
 ## Overview

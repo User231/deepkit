@@ -1,3 +1,8 @@
+> **Design record of the shipped exec (closure-executor) mode** (moved from
+> `docs/todo/jit-csp/exec-mode-redesign.md` 2026-07-28). The implementation in
+> `packages/core/src/jit.ts` is authoritative; since 2026-07-28 `fnJITTop()` also falls back
+> to this executor when codegen is unavailable (CSP), see `bson/tests/csp-fallback.spec.ts`.
+
 # Exec Mode Redesign: Operation Tree Architecture
 
 ## Current Problem

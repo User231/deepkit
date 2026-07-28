@@ -1,3 +1,7 @@
+> **Benchmark-derived strategy behind the shipped v2 `@deepkit/bson` serializer** (moved from
+> `docs/todo/bson-rewrite/SERIALIZATION-STRATEGY.md` 2026-07-28). Implementation authoritative:
+> `packages/bson/src/serializer.ts` (zero-copy shared-buffer tuple API).
+
 # BSON Serialization Strategy - Final Specification
 
 This document defines the optimal JIT code generation strategy for BSON serialization, based on extensive benchmarking.
