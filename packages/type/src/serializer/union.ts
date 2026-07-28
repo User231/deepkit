@@ -160,16 +160,29 @@ function getPrimitiveTypeCheck(member: Type, input: Ref, b: Builder, loose: bool
             const lit = (member as TypeLiteral).literal;
             if (loose) {
                 if (typeof lit === 'number') {
-                    // In loose mode, accept non-empty strings that convert to the same number
-                    // Empty string converts to 0 but shouldn't match number literal 0
-                    const isNonEmptyNumericString = b.and(
+                    // In loose mode, accept numeric strings that convert to the same number.
+                    // Number('') and Number('   ') are both 0, so empty AND whitespace-only
+                    // strings must be excluded or they silently match a 0 literal.
+                    const isNonBlankNumericString = b.and(
                         b.isType(input, 'string'),
                         b.and(
-                            b.neq(input, b.lit('')), // Exclude empty string
+                            b.call((s: string) => s.trim() !== '', input),
                             b.eq(b.call(Number, input), b.lit(lit)),
                         ),
                     );
-                    return b.or(b.eq(input, b.lit(lit)), isNonEmptyNumericString);
+                    return b.or(b.eq(input, b.lit(lit)), isNonBlankNumericString);
+                }
+                if (typeof lit === 'bigint') {
+                    // In loose mode, accept integers and integer strings that convert to
+                    // the same bigint. The integer regex also excludes ''/whitespace-only
+                    // (BigInt('') and BigInt('  ') are 0n) and floats (BigInt('1.5') throws).
+                    const convertsToLiteral = b.call(
+                        (v: unknown) =>
+                            (typeof v === 'number' && Number.isInteger(v) && BigInt(v) === lit) ||
+                            (typeof v === 'string' && /^-?\d+$/.test(v) && BigInt(v) === lit),
+                        input,
+                    );
+                    return b.or(b.eq(input, b.lit(lit)), convertsToLiteral);
                 }
                 if (typeof lit === 'string') {
                     // In loose mode, accept numbers that convert to the same string

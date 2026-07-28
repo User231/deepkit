@@ -882,6 +882,26 @@ test('issue-478: small literal unions should validate values', () => {
     expect(validate<'a' | 'b' | 'c' | 'd'>('invalid')[0].message).toContain('Cannot convert');
 });
 
+test('issue-478 gaps: blank strings and bigint literals in loose union coercion', () => {
+    // Number('') and Number('   ') are both 0 — blank strings must NOT match a 0 literal
+    // (the empty string already threw; whitespace-only used to silently coerce to 0).
+    expect(() => deserialize<0 | 1 | 2>('')).toThrow('Cannot convert');
+    expect(() => deserialize<0 | 1 | 2>(' ')).toThrow('Cannot convert');
+    expect(() => deserialize<0 | 1 | 2>('\t\n')).toThrow('Cannot convert');
+    expect(deserialize<0 | 1 | 2>('2')).toBe(2);
+
+    // bigint literal unions coerce integers and integer strings in loose mode
+    expect(deserialize<1n | 2n>('1', { loosely: true })).toBe(1n);
+    expect(deserialize<1n | 2n>(2, { loosely: true })).toBe(2n);
+    expect(deserialize<1n | 2n>(1n)).toBe(1n);
+    // BigInt('') and BigInt('  ') are 0n — blank strings must not match a 0n literal
+    expect(() => deserialize<0n | 1n>('', { loosely: true })).toThrow('Cannot convert');
+    expect(() => deserialize<0n | 1n>('  ', { loosely: true })).toThrow('Cannot convert');
+    // floats can't become bigint; strict mode never coerces
+    expect(() => deserialize<1n | 2n>('1.5', { loosely: true })).toThrow('Cannot convert');
+    expect(() => deserialize<1n | 2n>('1', { loosely: false })).toThrow('Cannot convert');
+});
+
 test('intersected mapped type key', () => {
     type SORT_ORDER = 'asc' | 'desc' | any;
     type Sort<T, ORDER extends SORT_ORDER = SORT_ORDER> = { [P in keyof T & string]?: ORDER };
