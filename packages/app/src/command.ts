@@ -185,7 +185,16 @@ export function parseCliArgs(
                 append(current, true);
             }
             current = arg.substr(2);
-            if (current.includes(' ')) {
+            if (current.includes('=')) {
+                // --name=value: everything after the first '=' is the value
+                // (which may itself contain '='). Silently treating the whole
+                // token as a flag NAME made `--projection=x` parse as the
+                // never-matching flag "projection=x" and the value fall back
+                // to its default — dangerous for destructive commands.
+                const idx = current.indexOf('=');
+                append(current.substr(0, idx), current.substr(idx + 1));
+                current = undefined;
+            } else if (current.includes(' ')) {
                 const [name, value] = current.split(' ');
                 append(name, value);
                 current = undefined;
@@ -195,6 +204,11 @@ export function parseCliArgs(
                 append(current, true);
             }
             current = arg.substr(1);
+            if (current.includes('=')) {
+                const idx = current.indexOf('=');
+                append(current.substr(0, idx), current.substr(idx + 1));
+                current = undefined;
+            }
         } else {
             if (current) {
                 append(current, arg);

@@ -1,9 +1,9 @@
 import { test } from 'node:test';
-import { expect } from '@deepkit/run/expect';
 
 import { EventDispatcher } from '@deepkit/event';
 import { InjectorContext, InjectorModule } from '@deepkit/injector';
 import { Logger, MemoryLogger } from '@deepkit/logger';
+import { expect } from '@deepkit/run/expect';
 import { Stopwatch } from '@deepkit/stopwatch';
 import { PrimaryKey, Reference } from '@deepkit/type';
 
@@ -19,6 +19,15 @@ test('parser', async () => {
     expect(parseCliArgs(['1234', 'abc', '--id', '1'])).toEqual({ '@': ['1234', 'abc'], id: '1' });
     expect(parseCliArgs(['1234', 'abc', '--id 1'])).toEqual({ '@': ['1234', 'abc'], id: '1' });
     expect(parseCliArgs(['1234', 'abc', '--id 1', '--id 2'])).toEqual({ '@': ['1234', 'abc'], id: ['1', '2'] });
+
+    // --name=value / -n=value: the '=' form must parse as (name, value), not as
+    // a flag literally named "name=value" whose real flag then silently keeps
+    // its default (dangerous for destructive commands).
+    expect(parseCliArgs(['--id=1'])).toEqual({ id: '1' });
+    expect(parseCliArgs(['--id=1', '--id=2'])).toEqual({ id: ['1', '2'] });
+    expect(parseCliArgs(['--filter=a=b'])).toEqual({ filter: 'a=b' });
+    expect(parseCliArgs(['-i=1'])).toEqual({ i: '1' });
+    expect(parseCliArgs(['--id=1', '--verbose'])).toEqual({ id: '1', verbose: true });
 });
 
 function builder(module: InjectorModule, commands: (ParsedCliControllerConfig | Function)[]) {
