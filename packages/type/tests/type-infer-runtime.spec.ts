@@ -5,6 +5,7 @@ import { expect } from '@deepkit/run/expect';
 import { typeInfer } from '../src/reflection/processor.js';
 import { ReflectionClass, typeOf } from '../src/reflection/reflection.js';
 import { InlineRuntimeType, ReflectionKind, Type, TypeLiteral, TypeObjectLiteral, TypePropertySignature, stringifyResolvedType, typeDecorators, widenLiteral } from '../src/reflection/type.js';
+import { serialize } from '../src/serializer-facade.js';
 import { Entity, Maximum, MinLength, Reference, Unique, entityAnnotation, float } from '../src/type-annotations.js';
 import { validate } from '../src/validator.js';
 import { expectEqualType } from './utils.js';
@@ -44,6 +45,37 @@ test('container', () => {
         typeOf<Map<number, string>>() as any,
         { noOrigin: true },
     );
+});
+
+test('container widening is permanent: (typeof arr)[number] never resurrects a literal', () => {
+    // Regression: the container-widened element type kept its literal `origin`, and the
+    // end-of-program narrowOriginalLiteral() — which exists for the DIRECT scalar case
+    // (`const x = 'a'; typeof x` => 'a') — un-widened the program RESULT whenever a later op
+    // (index access) made the element type the result: `(typeof IDS)[number]` resolved to the
+    // FIRST literal 'google', and serializing any sibling value silently rewrote it.
+    const IDS = ['google', 'github', 'microsoft'] as const;
+    type K = (typeof IDS)[number];
+    const k = typeOf<K>();
+    expect(k.kind).toBe(ReflectionKind.string);
+    expect((k as any).literal).toBe(undefined);
+
+    // The widened element type itself carries no origin.
+    const arr = typeInfer(['google', 'github', 'microsoft']);
+    expect(arr.kind).toBe(ReflectionKind.array);
+    expect((arr as any).type.kind).toBe(ReflectionKind.string);
+    expect((arr as any).type.origin).toBe(undefined);
+
+    // Wire shape: values must round-trip untouched through the indexed type.
+    interface View {
+        oauth: K[];
+    }
+    expect(serialize<View>({ oauth: ['google', 'github'] })).toEqual({ oauth: ['google', 'github'] });
+
+    // The direct scalar behavior is unchanged: typeof a const string is its literal.
+    const s = 'a';
+    const st = typeOf<typeof s>();
+    expect(st.kind).toBe(ReflectionKind.literal);
+    expect((st as TypeLiteral).literal).toBe('a');
 });
 
 test('class', () => {

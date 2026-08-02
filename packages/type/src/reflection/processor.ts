@@ -2111,6 +2111,13 @@ function typeInferFromContainer(container: Iterable<any>): Type {
     const union: TypeUnion = { kind: ReflectionKind.union, types: [] };
     for (const item of container) {
         const type = widenLiteral(typeInfer(item));
+        // Container widening is permanent (`typeof ['a']` is string[], never 'a'[]), so the
+        // widened literal's `origin` must not survive here: the end-of-program
+        // narrowOriginalLiteral() exists for the DIRECT scalar case (`const x = 'a'; typeof x`
+        // => 'a') and would otherwise resurrect the FIRST item's literal whenever a later op
+        // makes this element type the program result — `(typeof arr)[number]` resolved to the
+        // literal 'a' instead of string, silently corrupting every such union on serialize.
+        if (type.origin) type.origin = undefined;
         if (!isTypeIncluded(union.types, type)) union.types.push(type);
     }
 
