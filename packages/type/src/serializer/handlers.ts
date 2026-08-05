@@ -2436,7 +2436,9 @@ export const handleObjectLiteral: JsonTypeHandler = (type, input, b, state) => {
             // Bind to a variable: checkCircular pushes onto the stack as a side effect, so it must
             // run exactly once. An unbound call expression would be re-emitted (and re-pushed) at
             // each use (the condition and the popStack argument).
-            const stackRef = b.let(b.call(checkCircular, input, state.optionsRef.get('_stack' as any), state.optionsRef));
+            const stackRef = b.let(
+                b.call(checkCircular, input, state.optionsRef.get('_stack' as any), state.optionsRef),
+            );
 
             b.if_(b.neq(stackRef, b.lit(undefined)), () => {
                 const innerResult = buildObjectLiteralBody(objType, members, input, b, state, isDeserialize);
@@ -2686,7 +2688,14 @@ function buildObjectLiteralBody(
                     }
                 },
                 () => {
-                    if (isNullable(memberType)) {
+                    // Property ABSENT from the input. Only deserialize fills a nullable member with
+                    // null (a missing DB column/JSON key IS null for the target class). In serialize
+                    // mode this branch only runs for OPTIONAL members (needsHasCheck), where absence
+                    // must stay absence: a Partial<T>/patch serialize that invented `null` here wrote
+                    // `col = NULL` over every untouched nullable column of an UPDATE (found 2026-08-05
+                    // when `patchMany({status})` on a bot-outbox row silently erased its unique
+                    // `dedupe_key` — the outbox replay-idempotency key).
+                    if (isDeserialize && isNullable(memberType)) {
                         b.set(result, outputKey, b.lit(null));
                     }
                 },
@@ -3836,10 +3845,7 @@ export const guardReferenceFast: JsonTypeHandler = (type, input, b, state) => {
         // An unpopulated reference (the lazy getter yields undefined/null/unpopulatedSymbol when
         // UnpopulatedCheck isn't Throw — e.g. during persist validation) carries no value to check,
         // so accept it: the FK isn't a column we validate on an unloaded relation.
-        b.or(
-            b.isType(input, 'undefined'),
-            b.or(b.isNull(input), b.eq(input, b.lit(unpopulatedSymbol))),
-        ),
+        b.or(b.isType(input, 'undefined'), b.or(b.isNull(input), b.eq(input, b.lit(unpopulatedSymbol)))),
         () => {
             b.setVar(result, b.lit(true) as Ref<boolean>);
         },
