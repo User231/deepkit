@@ -40,6 +40,7 @@ import {
     SQLStatement,
     SqlBuilder,
     asAliasName,
+    getPreparedEntity,
     prepareBatchUpdate,
     splitDotPath,
 } from '@deepkit/sql';
@@ -522,12 +523,28 @@ export class SQLiteQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T
         const sqlBuilderFrame = this.session.stopwatch ? this.session.stopwatch.start('SQL Builder') : undefined;
         const select: string[] = [];
         const selectParams: any[] = [];
-        const tableName = this.platform.getTableIdentifier(this.classSchema);
+        const entity = getPreparedEntity(this.adapter, this.classSchema);
+        const tableName = entity.tableNameEscaped;
         const primaryKey = this.classSchema.getPrimary();
+        // PK's DB COLUMN name (honours `DatabaseField<{name}>`); `primaryKey.name` is the property
+        // name and stays the `_b` alias, so result rows keep property keys (postgres parity).
+        const pkColumn = entity.fieldMap[primaryKey.name].columnNameEscaped;
         const primaryKeyConverted = primaryKeyObjectConverter(
             this.classSchema,
             this.platform.serializer.deserializeRegistry,
         );
+
+        // Property path → real column access, honouring `DatabaseField<{name}>` renames — every
+        // COLUMN READ below goes through this (aliases stay property-named so read-back keys and
+        // the `_b` join don't change). The dot-path form maps the column segment and keeps the
+        // JSON path.
+        const columnAccessor = (path: string): string => {
+            if (path.includes('.')) {
+                const [first, second] = splitDotPath(path);
+                return this.platform.getDeepColumnAccessor('', entity.fieldMap[first]?.columnName ?? first, second);
+            }
+            return entity.fieldMap[path]?.columnNameEscaped ?? this.platform.quoteIdentifier(path);
+        };
 
         const fieldsSet: { [name: string]: 1 } = {};
         const aggregateFields: { [name: string]: { converted: (v: any) => any } } = {};
@@ -550,7 +567,7 @@ export class SQLiteQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T
             for (const i in changes.$unset) {
                 if (!changes.$unset.hasOwnProperty(i)) continue;
                 fieldsSet[i] = 1;
-                select.push(`NULL as ${this.platform.quoteIdentifier(i)}`);
+                select.push(`NULL as ${this.platform.quoteIdentifier(asAliasName(i))}`);
             }
 
         for (const i of model.returning) {
@@ -563,7 +580,7 @@ export class SQLiteQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T
                     this.platform.serializer.deserializeRegistry,
                 ),
             };
-            select.push(`(${this.platform.quoteIdentifier(i)} ) as ${this.platform.quoteIdentifier(i)}`);
+            select.push(`(${columnAccessor(i)}) as ${this.platform.quoteIdentifier(i)}`);
         }
 
         if (changes.$inc)
@@ -578,30 +595,31 @@ export class SQLiteQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T
                 };
 
                 select.push(
-                    `(${this.platform.getColumnAccessor('', i)} + ${this.platform.quoteValue(changes.$inc[i])}) as ${this.platform.quoteIdentifier(asAliasName(i))}`,
+                    `(${columnAccessor(i)} + ${this.platform.quoteValue(changes.$inc[i])}) as ${this.platform.quoteIdentifier(asAliasName(i))}`,
                 );
             }
 
         const set: string[] = [];
         for (const i in fieldsSet) {
+            const bRef = `_b.${this.platform.quoteIdentifier(asAliasName(i))}`;
             if (i.includes('.')) {
                 let [firstPart, secondPart] = splitDotPath(i);
                 if (!secondPart.startsWith('[')) secondPart = '.' + secondPart;
-                set.push(
-                    `${this.platform.quoteIdentifier(firstPart)} = json_set(${this.platform.quoteIdentifier(firstPart)}, '$${secondPart}', _b.${this.platform.quoteIdentifier(asAliasName(i))})`,
-                );
+                const column =
+                    entity.fieldMap[firstPart]?.columnNameEscaped ?? this.platform.quoteIdentifier(firstPart);
+                set.push(`${column} = json_set(${column}, '$${secondPart}', ${bRef})`);
             } else {
-                set.push(`${this.platform.quoteIdentifier(i)} = _b.${this.platform.quoteIdentifier(i)}`);
+                set.push(`${columnAccessor(i)} = ${bRef}`);
             }
         }
 
         let bPrimaryKey = primaryKey.name;
         //we need a different name because primaryKeys could be updated as well
         if (fieldsSet[primaryKey.name]) {
-            select.unshift(this.platform.quoteIdentifier(primaryKey.name) + ' as __' + primaryKey.name);
+            select.unshift(`${pkColumn} as ${this.platform.quoteIdentifier('__' + primaryKey.name)}`);
             bPrimaryKey = '__' + primaryKey.name;
         } else {
-            select.unshift(this.platform.quoteIdentifier(primaryKey.name));
+            select.unshift(`${pkColumn} as ${this.platform.quoteIdentifier(primaryKey.name)}`);
         }
 
         const sqlBuilder = new SqlBuilder(this.adapter, selectParams);
@@ -616,7 +634,7 @@ export class SQLiteQueryResolver<T extends OrmEntity> extends SQLQueryResolver<T
             SET ${set.join(', ')}
             FROM
                 _b
-            WHERE ${tableName}.${this.platform.quoteIdentifier(primaryKey.name)} = _b.${this.platform.quoteIdentifier(bPrimaryKey)};
+            WHERE ${tableName}.${pkColumn} = _b.${this.platform.quoteIdentifier(bPrimaryKey)};
         `;
         if (sqlBuilderFrame) sqlBuilderFrame.end();
 
