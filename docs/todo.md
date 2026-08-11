@@ -15,8 +15,10 @@ This is the central task tracker for this fork. Read this entire section before 
 **This fork (`User231/deepkit`) owns Deepkit v2.** Upstream abandoned `feat/next`; the v2
 work (expression-tree JIT, serializer rewrite, BSON rewrite) was completed here and is merged
 on **`master`** — there is no pending "big PR", no local-first embargo, and no plan to sync
-upstream's issue tracker. The fork's consumer is the `bwith` app (the parent repo vendoring
-this as a submodule); its CLAUDE.md + `docs/deepkit/*.md` record the integration history.
+upstream's issue tracker. The fork's consumers are the applications that vendor it as a
+submodule; each one's CLAUDE.md + `docs/02-platform/deepkit/*.md` record its own integration
+history. This fork does not name them — it is shared, so naming one consumer in here both
+goes stale and leaks that product's identity into every other checkout.
 
 Landed and verified (see `CHANGELOG.md` for the full v2 record):
 

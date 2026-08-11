@@ -3,8 +3,8 @@
 > **Pruned 2026-07-28.** The original file was the upstream project's public-community
 > roadmap (release cadence, npm/Discord growth targets, Q1-2025 documentation and DX
 > initiatives, GraphQL/caching/serverless/cloud-platform plans, feature-request process).
-> None of that governs this fork, which is not published and has exactly one consumer —
-> the `bwith` app that vendors it as a submodule. The old text is in git history.
+> None of that governs this fork, which is not published and is consumed only by the
+> applications that vendor it as a submodule. The old text is in git history.
 
 ## The fork's actual roadmap
 
