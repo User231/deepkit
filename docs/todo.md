@@ -15,10 +15,14 @@ This is the central task tracker for this fork. Read this entire section before 
 **This fork (`User231/deepkit`) owns Deepkit v2.** Upstream abandoned `feat/next`; the v2
 work (expression-tree JIT, serializer rewrite, BSON rewrite) was completed here and is merged
 on **`master`** — there is no pending "big PR", no local-first embargo, and no plan to sync
-upstream's issue tracker. The fork's consumers are the applications that vendor it as a
-submodule; each one's CLAUDE.md + `docs/02-platform/deepkit/*.md` record its own integration
-history. This fork does not name them — it is shared, so naming one consumer in here both
-goes stale and leaks that product's identity into every other checkout.
+upstream's issue tracker. The fork is vendored as a submodule by the applications that
+consume it, and each records its own integration history in its own docs.
+
+**This repo is self-contained: nothing consumer-specific belongs in it** — not a product
+name, not a directory layout, not a build or docs convention from downstream. The fork is
+SHARED, so anything true of only one consumer is both stale here the moment that consumer
+changes and visible in every other checkout that vendors this tree. Describe the framework;
+let each consumer describe how it uses the framework.
 
 Landed and verified (see `CHANGELOG.md` for the full v2 record):
 
@@ -60,7 +64,7 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   urgent.
 
 Upstream's GitHub issue backlog is **not tracked here anymore** — this fork fixes what its
-consumer needs. The old triage tables (and the 35+ issues fixed during the feat/next work)
+consumers need. The old triage tables (and the 35+ issues fixed during the feat/next work)
 are in this file's git history and in `CHANGELOG.md`.
 
 ---
@@ -75,8 +79,7 @@ You are an **orchestrator/supervisor**. You coordinate work but delegate executi
 
 1. **Check `docs/todo/` folder** for existing issue folders (only open items live there —
    completed-work archives were removed 2026-07-28, see git history)
-2. **Pick an item** from Active Work / Known Remaining Work, or whatever the consuming app
-   needs
+2. **Pick an item** from Active Work / Known Remaining Work, or whatever a consumer needs
 3. **Skip items marked `BLOCKED` or `NOT-YET`**
 
 ### How to Work

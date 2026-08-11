@@ -46,6 +46,6 @@ deliberately dropped the rest. Summary so nobody re-derives intent from the old 
   (Phase 5); RPC binary protocol (Phase 6).
 - Phases 7–13 (validator additions, SSE/rate-limit/cache/OpenAPI/HTTP2, DI lifecycle/testing
   utilities, OpenTelemetry/Prometheus/health modules, testing infrastructure, frontend
-  integrations, LLM/edge/migration tooling). The consuming app implements the observability,
-  SSE, and rate-limiting pieces **app-side, zero-dep** by its supply-chain posture, so
-  framework-level versions have no consumer.
+  integrations, LLM/edge/migration tooling). **No consumer has asked for the framework-level
+  versions** — the observability, SSE and rate-limiting pieces are built downstream instead —
+  so they stay unbuilt here.

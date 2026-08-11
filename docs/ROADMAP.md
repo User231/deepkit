@@ -16,8 +16,8 @@ Tracked in [`docs/todo.md`](todo.md):
 - **Optional / unscheduled:** migrate the remaining `CompilerContext` users
   (`http`/`injector`/`workflow`) to `jit.ts`; cross-runtime CI; BSON deserialize perf
   ceiling.
-- Otherwise: fix what the consuming app surfaces, with tests, per the quality gates in
-  `docs/todo.md` and the conventions in `CLAUDE.md`.
+- Otherwise: fix what consumers surface, with tests, per the quality gates in
+  `docs/todo.md` and the conventions in `CLAUDE.md` (both this repo's own).
 
 Historical record of what already landed (v2 JIT/serializer/BSON, TS 6, standard
 decorators, `node:test`, Angular removal): `CHANGELOG.md`, `docs/MIGRATION.md`, and
