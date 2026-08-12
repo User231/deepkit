@@ -1,10 +1,10 @@
 import { test } from 'node:test';
-import { expect } from '@deepkit/run/expect';
 
 import { sleep } from '@deepkit/core';
 import { MemoryLogger } from '@deepkit/logger';
 import { DatabaseEntityRegistry, UniqueConstraintFailure } from '@deepkit/orm';
 import { User, UserCredentials } from '@deepkit/orm-integration';
+import { expect } from '@deepkit/run/expect';
 import { sql } from '@deepkit/sql';
 import {
     AutoIncrement,
@@ -1118,4 +1118,29 @@ test('count with pagination returns total count (#668)', async () => {
     const [skippedItems, totalSkipped] = await Promise.all([queryWithSkip.find(), queryWithSkip.count()]);
     expect(skippedItems.length).toBe(5); // only 5 items left after skip 20
     expect(totalSkipped).toBe(25); // count ignores skip/limit
+});
+
+test('groupBy on a column-mapped property returns property-named rows', async () => {
+    // Regression: groupBy selected the raw column (`product_category`) without
+    // aliasing it back to the property name, so rows came back keyed by the
+    // database column whenever DatabaseField/NamingStrategy renamed it.
+    @entity.name('groupby_mapped')
+    class Product {
+        id: number & PrimaryKey & AutoIncrement = 0;
+        category: string & DatabaseField<{ name: 'product_category' }> = '';
+        price: number = 0;
+    }
+
+    const database = await databaseFactory([Product]);
+
+    await database.persist(cast<Product>({ category: 'toys', price: 100 }), cast<Product>({ category: 'toys', price: 200 }), cast<Product>({ category: 'planets', price: 45549 }));
+
+    const rows = await database.query(Product).groupBy('category').withCount('id', 'amount').orderBy('category').find();
+
+    expect(rows).toEqual([
+        { category: 'planets', amount: 1 },
+        { category: 'toys', amount: 2 },
+    ]);
+
+    database.disconnect();
 });

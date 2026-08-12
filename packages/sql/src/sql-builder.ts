@@ -127,9 +127,22 @@ export class SqlBuilder {
         if (model.aggregate.size || model.groupBy.size || model.sqlSelect) {
             //we select only what is aggregated
             for (const name of model.groupBy.values()) {
-                this.sqlSelect.push(
-                    tableName + '.' + prepared.fieldMap[name]?.columnNameEscaped || this.platform.quoteIdentifier(name),
-                );
+                const preparedField = prepared.fieldMap[name];
+                if (!preparedField) {
+                    this.sqlSelect.push(this.platform.quoteIdentifier(name));
+                } else if (preparedField.name !== preparedField.columnName) {
+                    //alias mapped columns back to the property name, like the
+                    //non-aggregate path below — result rows are keyed by property.
+                    this.sqlSelect.push(
+                        tableName +
+                            '.' +
+                            preparedField.columnNameEscaped +
+                            ' AS ' +
+                            this.platform.quoteIdentifier(preparedField.name),
+                    );
+                } else {
+                    this.sqlSelect.push(tableName + '.' + preparedField.columnNameEscaped);
+                }
             }
             for (const [as, a] of model.aggregate.entries()) {
                 if (a.property.isBackReference()) continue;
