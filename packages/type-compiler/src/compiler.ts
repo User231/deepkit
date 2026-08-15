@@ -3137,19 +3137,19 @@ export class ReflectionTransformer implements CustomTransformer {
                     //if deeply available?
                     let found = false;
                     const searchArgument = (node: Node): Node => {
-                        node = visitEachChild(node, searchArgument, this.context);
-
-                        if (isIdentifier(node) && node.escapedText === argumentName) {
-                            //transform to infer T
+                        if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && node.typeName.escapedText === argumentName) {
+                            //transform the whole `T` reference to `infer T`. An InferTypeNode is only valid in
+                            //TypeNode positions — putting it in the typeName slot of a TypeReferenceNode fails
+                            //TypeScript's isEntityName assertion (active when NODE_ENV=development).
                             found = true;
-                            node = this.f.createInferTypeNode(declaration);
+                            return this.f.createInferTypeNode(declaration);
                         }
 
-                        return node;
+                        return visitEachChild(node, searchArgument, this.context);
                     };
 
                     if (isIdentifier(parameter.name)) {
-                        const updatedParameterType = visitEachChild(parameter.type, searchArgument, this.context);
+                        const updatedParameterType = searchArgument(parameter.type) as TypeNode;
                         if (found) {
                             foundUsers.push({ type: updatedParameterType, parameterName: parameter.name });
                         }

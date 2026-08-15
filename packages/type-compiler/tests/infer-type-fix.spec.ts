@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import ts from 'typescript';
 
 import { expect } from '@deepkit/run/expect';
 
@@ -15,6 +16,11 @@ import { transform } from './utils.js';
  * The fix replaces the entire TypeReferenceNode with an InferTypeNode instead
  * of just the identifier inside it.
  */
+
+// TypeScript's visitEachChild only asserts node shapes when NODE_ENV=development
+// (e.g. under vite dev). Enable them here so a malformed AST fails these tests
+// instead of only crashing in consumers' dev servers.
+(ts as any).Debug.setAssertionLevel(1);
 
 test('generic type parameter passing between functions', () => {
     // This was the original failing case from issue #509
@@ -149,6 +155,28 @@ test('generic type parameter in type reference with type arguments', () => {
 
     expect(res.app).toContain('wrap.__type');
     expect(res.app).toContain('makeArray.__type');
+});
+
+test('nested arrow function referencing enclosing generic parameters', () => {
+    // The parameter of the inner arrow references A of the enclosing function, so the
+    // compiler resolves A by inferring from `fn: (...args: A) => R`. Replacing the `A`
+    // identifier (instead of its whole TypeReferenceNode) with `infer A` crashed
+    // visitEachChild's isEntityName assertion.
+    const res = transform({
+        app: `
+            function useRef<T>(v: T): { current: T } { return { current: v }; }
+            export function useStableCallback<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+                const latest = useRef(fn);
+                latest.current = fn;
+                const stable = useRef((...args: A) => latest.current(...args));
+                return stable.current;
+            }
+        `,
+    });
+
+    expect(res.app).toContain('useStableCallback.__type');
+    //the inner arrow function must carry a type referencing `typeof fn` for inference
+    expect(res.app).toContain('() => fn');
 });
 
 test('generic type parameter in union types', () => {
