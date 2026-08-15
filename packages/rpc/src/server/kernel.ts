@@ -548,28 +548,38 @@ export class RpcKernelConnection extends RpcKernelBaseConnection {
                     progress?: SingleProgress,
                 ) => {
                     const useBson = wantsBson && !!message.body;
-                    response.setHeader('Content-Type', useBson ? 'application/bson' : 'application/json');
-                    response.setHeader('X-Message-Type', message.type);
-                    response.setHeader('X-Message-Composite', String(!!message.composite));
-                    response.setHeader('X-Message-RouteType', String(message.routeType));
-                    response.writeHead(200);
-
+                    // Serialize BEFORE touching the response: once writeHead(200) is
+                    // out, a serialization failure can no longer surface as an HTTP
+                    // error — the connection would just hang open behind the already-
+                    // sent status. Serialized first, a throw here propagates with the
+                    // headers still unsent, so the surrounding framework renders a
+                    // real error response and always completes the request.
+                    let payload: Uint8Array | string | undefined;
                     if (message.body) {
                         if (useBson) {
                             // BSON needs a document at the top level, so the wrapper
                             // (`{v: …}` for ResponseActionSimple) is NOT unwrapped here —
                             // the client unwraps after decoding (X-Message-Type carries
-                            // the shape).
+                            // the shape). Copy out of the serializer's shared buffer
+                            // (`slice`, not `subarray`): the response may queue the
+                            // buffer until the socket flushes, and the next serialize
+                            // call overwrites it.
                             const [buffer, size] = getBSONSerializer(message.body.type)(message.body.body);
-                            response.end(buffer.subarray(0, size));
-                            return;
+                            payload = buffer.slice(0, size);
+                        } else {
+                            let body = serialize(message.body.body, undefined, undefined, undefined, message.body.type);
+                            if (message.type === RpcTypes.ResponseActionSimple) {
+                                body = body.v;
+                            }
+                            payload = JSON.stringify(body);
                         }
-                        let body = serialize(message.body.body, undefined, undefined, undefined, message.body.type);
-                        if (message.type === RpcTypes.ResponseActionSimple) {
-                            body = body.v;
-                        }
-                        response.end(JSON.stringify(body));
                     }
+                    response.setHeader('Content-Type', useBson ? 'application/bson' : 'application/json');
+                    response.setHeader('X-Message-Type', message.type);
+                    response.setHeader('X-Message-Composite', String(!!message.composite));
+                    response.setHeader('X-Message-RouteType', String(message.routeType));
+                    response.writeHead(200);
+                    response.end(payload);
                 },
                 this.transportOptions,
                 id,
