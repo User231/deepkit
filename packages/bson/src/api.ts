@@ -11,7 +11,7 @@ import { ReceiveType, ReflectionKind, Type, resolveReceiveType, validate } from 
 
 import { getBSONDeserializer } from './deserializer.js';
 import { BSONError } from './errors.js';
-import { getBSONSerializer, serializeAnyObjectRuntime } from './serializer.js';
+import { getBSONSerializer, serializeAnyObjectRuntime, serializeWithGrowth } from './serializer.js';
 
 /**
  * Deserialize a BSON buffer to a typed object using the JIT deserializer.
@@ -85,16 +85,11 @@ export function getBSONEncoder<T>(receiveType?: ReceiveType<T>) {
 }
 
 /**
- * Shared buffer for untyped serialization (avoids allocation per call).
- */
-let untypedBuffer = new Uint8Array(1024 * 1024); // 1MB initial
-let untypedView = new DataView(untypedBuffer.buffer);
-
-/**
  * Serialize any plain object to BSON without type information.
  * Uses runtime type detection (slower than JIT but works without types).
+ * Shares the serializer's growing buffer (serializeWithGrowth).
  */
 export function serializeBSONWithoutOptimiser(data: Record<string, any>): Uint8Array {
-    const size = serializeAnyObjectRuntime(untypedBuffer, untypedView, 0, data);
-    return untypedBuffer.slice(0, size);
+    const [buffer, size] = serializeWithGrowth((b, view) => serializeAnyObjectRuntime(b, view, 0, data));
+    return buffer.slice(0, size);
 }

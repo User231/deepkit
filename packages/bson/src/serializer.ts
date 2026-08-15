@@ -145,10 +145,66 @@ const serializerCache = new WeakMap<Type, (data: any) => SerializeResult>();
 
 /**
  * Shared buffer for serialization (avoids allocation per call).
- * Grows as needed.
+ * Starts at 1MB and grows on demand (see serializeWithGrowth). Documents
+ * larger than MAX_RETAINED_BUFFER_SIZE are served from a temporary buffer
+ * instead, so one huge document doesn't pin its size in process memory.
  */
-let sharedBuffer = new Uint8Array(1024 * 1024); // 1MB initial
+const INITIAL_BUFFER_SIZE = 1024 * 1024;
+const MAX_RETAINED_BUFFER_SIZE = 16 * 1024 * 1024;
+/** BSON frames a document with an int32 byte length — nothing above this is representable. */
+const MAX_BSON_DOCUMENT_SIZE = 0x7fffffff;
+
+let sharedBuffer = new Uint8Array(INITIAL_BUFFER_SIZE);
 let sharedView = new DataView(sharedBuffer.buffer);
+
+function allocateSerializeBuffer(minSize: number): [buffer: Uint8Array, view: DataView] {
+    if (minSize > MAX_BSON_DOCUMENT_SIZE) {
+        throw new BSONError(
+            `BSON document exceeds the maximum representable size of ${MAX_BSON_DOCUMENT_SIZE} bytes`,
+            'DK-B031',
+        );
+    }
+    let next = sharedBuffer.byteLength;
+    while (next < minSize) next = Math.min(next * 2, MAX_BSON_DOCUMENT_SIZE);
+    if (next <= MAX_RETAINED_BUFFER_SIZE) {
+        sharedBuffer = new Uint8Array(next);
+        sharedView = new DataView(sharedBuffer.buffer);
+        return [sharedBuffer, sharedView];
+    }
+    const buffer = new Uint8Array(next);
+    return [buffer, new DataView(buffer.buffer)];
+}
+
+/**
+ * Run a serialize function against the shared buffer, growing it when the
+ * document doesn't fit. Overflow surfaces in one of two ways, and both retry
+ * from offset 0 with a larger buffer (writes are strictly sequential, so a
+ * partial document leaves no state behind beyond the circular-reference set,
+ * which is cleared before retrying):
+ *
+ * - a DataView write past the end throws a RangeError — the final size is
+ *   unknown at that point, so the buffer doubles;
+ * - plain byte writes past the end of a Uint8Array are silently dropped and
+ *   only the returned offset reveals the true size — the buffer grows to it.
+ */
+export function serializeWithGrowth(write: (buffer: Uint8Array, view: DataView) => number): SerializeResult {
+    let buffer: Uint8Array = sharedBuffer;
+    let view: DataView = sharedView;
+    while (true) {
+        let size: number;
+        try {
+            size = write(buffer, view);
+        } catch (error) {
+            if (!(error instanceof RangeError) || buffer.byteLength >= MAX_BSON_DOCUMENT_SIZE) throw error;
+            if (globalCircularSet) globalCircularSet.clear();
+            [buffer, view] = allocateSerializeBuffer(Math.min(buffer.byteLength * 2, MAX_BSON_DOCUMENT_SIZE));
+            continue;
+        }
+        if (size <= buffer.byteLength) return [buffer, size];
+        if (globalCircularSet) globalCircularSet.clear();
+        [buffer, view] = allocateSerializeBuffer(size);
+    }
+}
 
 /**
  * Run the JIT serialize function with the framework's "unpopulated" semantics.
@@ -167,7 +223,7 @@ function runSerialize(serializeFn: SerializeFn, data: any): SerializeResult {
     const previousCheck = typeSettings.unpopulatedCheck;
     typeSettings.unpopulatedCheck = UnpopulatedCheck.ReturnSymbol;
     try {
-        return [sharedBuffer, serializeFn(sharedBuffer, sharedView, 0, data)];
+        return serializeWithGrowth((buffer, view) => serializeFn(buffer, view, 0, data));
     } catch (e) {
         // Clear stale entries from circular reference tracking on error.
         // Without this, a throw mid-serialization leaves the global Set
@@ -395,10 +451,10 @@ function createTopLevelArraySerializer(type: TypeArray | TypeTuple): (data: any)
 function createTopLevelAnySerializer(): (data: any) => SerializeResult {
     return (data: any): SerializeResult => {
         if (Array.isArray(data)) {
-            return [sharedBuffer, serializeAnyArrayRuntime(sharedBuffer, sharedView, 0, data)];
+            return serializeWithGrowth((buffer, view) => serializeAnyArrayRuntime(buffer, view, 0, data));
         }
         if (data !== null && typeof data === 'object') {
-            return [sharedBuffer, serializeAnyObjectRuntime(sharedBuffer, sharedView, 0, data)];
+            return serializeWithGrowth((buffer, view) => serializeAnyObjectRuntime(buffer, view, 0, data));
         }
         throw new BSONError(
             `Cannot serialize ${stringifyValueWithType(data)} as a top-level BSON document (expected an object or array)`,
@@ -473,7 +529,18 @@ function serializeObjectProperties(
         // common non-reference path keeps its current (faster) shape.
         if (isReferenceType(propType) || isBackReferenceType(propType)) {
             b.if_(b.neq(propValue, b.lit(unpopulatedSymbol)), () => {
-                serializeReferencePropertyValue(b, buffer, view, o, data, jsPropName, bsonPropName, prop, propValue, propCtx);
+                serializeReferencePropertyValue(
+                    b,
+                    buffer,
+                    view,
+                    o,
+                    data,
+                    jsPropName,
+                    bsonPropName,
+                    prop,
+                    propValue,
+                    propCtx,
+                );
             });
             continue;
         }
@@ -716,7 +783,14 @@ export function throwBsonConversion(value: any, path: string, typeName: string):
  */
 function formatBsonValue(value: any): string {
     const t = typeof value;
-    if (value === null || value === undefined || t === 'number' || t === 'string' || t === 'boolean' || t === 'bigint') {
+    if (
+        value === null ||
+        value === undefined ||
+        t === 'number' ||
+        t === 'string' ||
+        t === 'boolean' ||
+        t === 'bigint'
+    ) {
         return String(value);
     }
     return stringifyValueWithType(value);
