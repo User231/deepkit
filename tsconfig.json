@@ -65,6 +65,9 @@
       "path": "./packages/framework-integration/tsconfig.json"
     },
     {
+      "path": "./packages/graphql/tsconfig.json"
+    },
+    {
       "path": "./packages/http/tsconfig.json"
     },
     {

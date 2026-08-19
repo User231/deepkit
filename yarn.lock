@@ -1125,6 +1125,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deepkit/graphql@workspace:packages/graphql":
+  version: 0.0.0-use.local
+  resolution: "@deepkit/graphql@workspace:packages/graphql"
+  dependencies:
+    "@deepkit/core": "npm:^2.0.0"
+    "@deepkit/type": "npm:^2.0.0"
+    graphql: "npm:17.0.2"
+  peerDependencies:
+    "@deepkit/core": ^2.0.0
+    "@deepkit/type": ^2.0.0
+  languageName: unknown
+  linkType: soft
+
 "@deepkit/http@npm:^2.0.0, @deepkit/http@workspace:packages/http":
   version: 0.0.0-use.local
   resolution: "@deepkit/http@workspace:packages/http"
@@ -6996,6 +7009,13 @@ __metadata:
   version: 4.2.11
   resolution: "graceful-fs@npm:4.2.11"
   checksum: 10c0/386d011a553e02bc594ac2ca0bd6d9e4c22d7fa8cfbfc448a6d148c59ea881b092db9dbe3547ae4b88e55f1b01f7c4a2ecc53b310c042793e63aa44cf6c257f2
+  languageName: node
+  linkType: hard
+
+"graphql@npm:17.0.2":
+  version: 17.0.2
+  resolution: "graphql@npm:17.0.2"
+  checksum: 10c0/766546216b891439ed09fd8584963df2013e26f2f79f096036eaaa2788c38964e049c8a142d68e3afdabdd8bbe70042639e83f0f4b82edbc7c6850421f072bb6
   languageName: node
   linkType: hard
 

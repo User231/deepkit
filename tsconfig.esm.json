@@ -56,6 +56,9 @@
       "path": "./packages/framework-debug-api/tsconfig.esm.json"
     },
     {
+      "path": "./packages/graphql/tsconfig.esm.json"
+    },
+    {
       "path": "./packages/http/tsconfig.esm.json"
     },
     {

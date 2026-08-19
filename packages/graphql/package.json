@@ -1,0 +1,38 @@
+{
+  "name": "@deepkit/graphql",
+  "version": "2.0.0",
+  "description": "GraphQL server integration on runtime types: decorators, schema binding, and TypeScript-to-SDL compatibility checking",
+  "type": "commonjs",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cjs/index.d.ts",
+      "require": "./dist/cjs/index.js",
+      "default": "./dist/esm/index.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
+  },
+  "repository": "https://github.com/deepkit/deepkit-framework",
+  "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
+  },
+  "dependencies": {
+    "graphql": "17.0.2"
+  },
+  "devDependencies": {
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
+  }
+}
