@@ -52,6 +52,7 @@ export {
     isAbstractType,
     getNamedType,
     getNullableType,
+    defaultFieldResolver,
 } from 'graphql';
 
 export type {
