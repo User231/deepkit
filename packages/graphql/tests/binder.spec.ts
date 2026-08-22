@@ -145,9 +145,65 @@ test('arguments are validated against the declared parameter types at call time'
     // directly through a nullable position with a non-null-expecting runtime.
     const good = await run(schema, '{ greet(name: "x") }');
     expect(good.errors).toBe(undefined);
-    // deepkit's deserializer normalizes an omitted nullable to null — same
-    // value the schema would deliver for an explicit null.
-    expect(good.data).toEqual({ greet: 'x:null' });
+    // An OMITTED nullable argument stays omitted (undefined) — the deserializer
+    // alone would normalize it to null, erasing GraphQL's absent/null distinction.
+    expect(good.data).toEqual({ greet: 'x:undefined' });
+    const explicit = await run(schema, '{ greet(name: "x", excited: null) }');
+    expect(explicit.data).toEqual({ greet: 'x:null' });
+});
+
+test('an omitted input field stays absent and an explicit null stays null, at every depth', async () => {
+    const sdl = `
+        type Query { ping: String }
+        type Mutation { update(id: ID!, data: UpdateInput!, tags: [String]): String! }
+        input UpdateInput { title: String, parentId: ID, nested: Nested, kinds: [String] }
+        input Nested { note: String, flag: Boolean = true }
+    `;
+    interface Nested {
+        note?: string | null;
+        flag?: boolean | null;
+    }
+    interface UpdateInput {
+        title?: string | null;
+        parentId?: string | null;
+        nested?: Nested | null;
+        kinds?: (string | null)[] | null;
+    }
+
+    @graphql.resolver()
+    class Resolvers {
+        @graphql.query()
+        ping(): string {
+            return 'pong';
+        }
+
+        @graphql.mutation()
+        update(id: string, data: UpdateInput, tags?: (string | null)[] | null): string {
+            const keys = (object: object) => Object.keys(object).sort().join(',');
+            return [
+                `data:${keys(data)}`,
+                `parentId:${String(data.parentId)}`,
+                `nested:${data.nested ? keys(data.nested) : String(data.nested)}`,
+                `flag:${String(data.nested?.flag)}`,
+                `kinds:${JSON.stringify(data.kinds)}`,
+                `tags:${JSON.stringify(tags)}`,
+            ].join(' ');
+        }
+    }
+
+    const schema = buildSchema(sdl);
+    bindResolvers(schema, [new Resolvers()]);
+
+    // Nothing but the title: parentId/nested/kinds are ABSENT, not null.
+    const omitted = await run(schema, 'mutation { update(id: "1", data: {title: "t"}) }');
+    expect(omitted.errors).toBe(undefined);
+    expect(omitted.data).toEqual({ update: 'data:title parentId:undefined nested:undefined flag:undefined kinds:undefined tags:undefined' });
+
+    // An explicit null travels as null — "move to the root" is not "leave it".
+    const explicit = await run(schema, 'mutation { update(id: "1", data: {title: "t", parentId: null, nested: {note: null}, kinds: [null, "a"]}, tags: null) }');
+    expect(explicit.errors).toBe(undefined);
+    // `flag` has a schema DEFAULT: it is present even though the client never sent it.
+    expect(explicit.data).toEqual({ update: 'data:kinds,nested,parentId,title parentId:null nested:flag,note flag:true kinds:[null,"a"] tags:null' });
 });
 
 test('validateResults catches a resolver violating its own declaration', async () => {

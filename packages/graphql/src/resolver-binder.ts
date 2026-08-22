@@ -43,7 +43,10 @@ import { checkInputCompatibility, checkOutputCompatibility } from './schema-comp
  *
  * Arguments are deserialized and validated against the declared parameter
  * types with precompiled functions (the router's pattern); a mismatch throws
- * `ValidationError` from the resolver, for the transport layer to map.
+ * `ValidationError` from the resolver, for the transport layer to map. An
+ * input field the client did not send stays ABSENT (`undefined`) after the
+ * cast, and an explicit `null` stays `null` — GraphQL's distinction, which the
+ * deserializer alone would erase (see {@link restoreOmissions}).
  */
 export interface BoundField {
     typeName: string;
@@ -73,6 +76,8 @@ interface ParamPlan {
     deserialize?: (value: unknown) => unknown;
     validate?: (value: unknown) => ValidationErrorItem[];
     type?: Type;
+    /** The PARAMETER is optional (`name?: T`) — optionality lives on the parameter, not in its type. */
+    optional?: boolean;
 }
 
 export function bindResolvers(schema: GraphQLSchema, instances: object[], options: BindOptions = {}): BindReport {
@@ -199,6 +204,7 @@ export function bindResolvers(schema: GraphQLSchema, instances: object[], option
                 kind: 'argument',
                 name: parameter.name,
                 type: parameter.type,
+                optional: parameter.isOptional(),
                 deserialize: getSerializeFunction(parameter.type, serializer.deserializeRegistry),
                 validate: validateFunction(serializer, parameter.type),
             });
@@ -252,8 +258,11 @@ function attach(
         const values = plans.map(plan => {
             if (plan.kind === 'context') return context;
             if (plan.kind === 'parent') return source;
-            const value = plan.deserialize!(args ? args[plan.name] : undefined);
-            const failures = plan.validate!(value);
+            const raw = args ? args[plan.name] : undefined;
+            const value = restoreOmissions(plan.deserialize!(raw), raw, plan.type!, plan.optional === true);
+            // An absent optional parameter has nothing to validate — its type
+            // does not carry the optionality, the parameter does.
+            const failures = value === undefined && plan.optional ? [] : plan.validate!(value);
             if (failures.length)
                 throw ValidationError.from(
                     failures.map(failure => ({ ...failure, path: `${plan.name}.${failure.path}`.replace(/\.$/, '') })),
@@ -275,4 +284,66 @@ function attach(
             return resolved;
         });
     };
+}
+
+/**
+ * GraphQL distinguishes an ABSENT input field from an explicit `null` — graphql-js
+ * hands the resolver only the keys the client actually sent — and deepkit's
+ * deserializer erases that distinction: an OPTIONAL nullable property
+ * (`?: T | null`) absent from the input comes back materialised as `null`. Many
+ * legacy APIs mean two different things by the two ("leave the parent alone" vs
+ * "move to the root"), so the cast's invention is undone here, walking the
+ * DECLARED type beside the raw input: a property the declaration marks optional,
+ * which the client did not send and the cast filled with `null`, is removed
+ * again, at every depth. A REQUIRED nullable property stays `null` (the shape
+ * demands the key, and null is deepkit's honest value for it), a property the
+ * cast filled with a DEFAULT stays (a default is a declared value, not an
+ * invented one), and list items are never absent in GraphQL (a list holds values
+ * or nulls), so arrays are walked but never shortened.
+ */
+function restoreOmissions(value: unknown, raw: unknown, type: Type, optional: boolean): unknown {
+    if (value === null) return optional && raw === undefined ? undefined : value;
+    const shape = unwrapNullable(type);
+    if (shape.kind === ReflectionKind.array) {
+        if (Array.isArray(value) && Array.isArray(raw)) {
+            for (let index = 0; index < value.length; index++) {
+                value[index] = restoreOmissions(value[index], raw[index], shape.type, false);
+            }
+        }
+        return value;
+    }
+    if (shape.kind !== ReflectionKind.objectLiteral && shape.kind !== ReflectionKind.class) return value;
+    if (!isInputObject(value) || !isInputObject(raw)) return value;
+    for (const member of shape.types) {
+        if (member.kind !== ReflectionKind.propertySignature && member.kind !== ReflectionKind.property) continue;
+        const key = String(member.name);
+        if (!(key in value)) continue;
+        if (!(key in raw)) {
+            if (member.optional && value[key] === null) delete value[key];
+            continue;
+        }
+        value[key] = restoreOmissions(value[key], raw[key], member.type, member.optional === true);
+    }
+    return value;
+}
+
+/** `T | null | undefined` → `T` when exactly one member is neither; otherwise the type as given (not walkable). */
+function unwrapNullable(type: Type): Type {
+    if (type.kind !== ReflectionKind.union) return type;
+    const members = type.types.filter(
+        member => member.kind !== ReflectionKind.null && member.kind !== ReflectionKind.undefined,
+    );
+    return members.length === 1 ? members[0] : type;
+}
+
+/** An input OBJECT (interface or class instance) — not a list, not a boxed scalar like a Date. */
+function isInputObject(value: unknown): value is Record<string, unknown> {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value) &&
+        !(value instanceof Date) &&
+        !(value instanceof Map) &&
+        !(value instanceof Set)
+    );
 }
