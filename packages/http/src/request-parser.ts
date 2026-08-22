@@ -125,6 +125,29 @@ function parseBody(options: HttpParserOptions, req: HttpRequest, foundFiles: { [
     });
 }
 
+/**
+ * Parse a request body the way the ROUTER parses it — form fields plus an
+ * {@link UploadedFile} per file part — from a controller that reads its own
+ * body instead of declaring an `HttpBody<T>` parameter.
+ *
+ * A transport that owns its request shape (a GraphQL endpoint serving the
+ * multipart request spec, a webhook receiver) cannot go through the compiled
+ * route parser: it has no typed body to cast into. Without this it would have
+ * to bring a second multipart parser into a process that already has one,
+ * with its own limits and its own bugs. Same `parseBody`, same formidable,
+ * same options — under a name a hand-written route can call.
+ *
+ * Files land under their FIELD NAME as `UploadedFile` (`path` is a temp file
+ * the framework removes when the request ends); every other field is a string,
+ * or a string array when the form repeats a name.
+ */
+export function parseRequestBody(
+    request: HttpRequest,
+    options: HttpParserOptions = {},
+): Promise<Record<string, unknown>> {
+    return parseBody(options, request, {}) as Promise<Record<string, unknown>>;
+}
+
 export class ParameterForRequestParser {
     regexPosition?: number;
 
