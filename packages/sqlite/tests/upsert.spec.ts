@@ -162,3 +162,26 @@ test('splits a multi-row upsert at SQLite’s own bind-parameter ceiling', async
         database.disconnect();
     }
 });
+
+test('rejects a DO UPDATE set with duplicate conflict keys (SQLite would last-win)', async () => {
+    @entity.name('ut_upsert_dup_key')
+    class KV {
+        key: string & PrimaryKey = '';
+        value: integer = 0;
+    }
+
+    const database = await memoryDatabase([KV]);
+    try {
+        // SQLite's own answer here is a silent last-wins, Postgres's is an error. The rule is
+        // the writer's, not the dialect's, so both report the caller's ambiguity the same way.
+        await expect(
+            database.query(KV).insertOrUpdate([
+                { key: 'a', value: 1 },
+                { key: 'a', value: 2 },
+            ]),
+        ).rejects.toThrowError('two rows carry the same conflict key (key=a)');
+        expect(await database.query(KV).count()).toBe(0);
+    } finally {
+        database.disconnect();
+    }
+});

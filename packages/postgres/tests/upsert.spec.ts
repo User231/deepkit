@@ -271,3 +271,35 @@ test('a failed upsert states the driver reason in its own message', async () => 
         database.disconnect();
     }
 });
+
+test('rejects a DO UPDATE set with duplicate conflict keys — split or not', async () => {
+    @entity.name('upsert_dup_key')
+    class KV {
+        key: string & PrimaryKey = '';
+        value: integer = 0;
+    }
+
+    const database = await databaseFactory([KV]);
+    try {
+        const dupes = [
+            { key: 'a', value: 1 },
+            { key: 'a', value: 2 },
+        ];
+
+        // Postgres itself rejects a second row for one key ("cannot affect row a second time").
+        // Caught before the statement now, so the answer cannot depend on where a chunk boundary
+        // fell: forcing one row per statement must fail the SAME way, not silently last-win.
+        await expect(database.query(KV).insertOrUpdate(dupes)).rejects.toThrowError('two rows carry the same conflict key (key=a)');
+
+        (database.adapter.platform as any).maxBindParams = 2; // one row per statement
+        await expect(database.query(KV).insertOrUpdate(dupes)).rejects.toThrowError('two rows carry the same conflict key (key=a)');
+        expect(await database.query(KV).count()).toBe(0); // nothing ran
+
+        // DO NOTHING keeps its meaning: the first row wins, both dialects, split or not.
+        const ignored = await database.query(KV).insertOrIgnore(dupes);
+        expect(ignored.modified).toBe(1);
+        expect((await database.query(KV).filter({ key: 'a' }).findOne()).value).toBe(1);
+    } finally {
+        database.disconnect();
+    }
+});

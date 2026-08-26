@@ -452,6 +452,9 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
      * A row set whose `rows x columns` exceeds the platform's bind-parameter
      * ceiling ({@link DefaultPlatform.maxBindParams}) is written as several
      * statements on that one connection — callers never have to chunk by hand.
+     * So that the split stays unobservable, a DO UPDATE set must carry DISTINCT
+     * conflict keys (rejected here, not left to the dialect); what a split does
+     * change is atomicity when there is no surrounding transaction.
      */
     async upsert(rows: Partial<T>[], options: UpsertOptions<T>, result: PatchResult<T>): Promise<void> {
         if (rows.length === 0) return;
@@ -481,16 +484,6 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
         }
         const insertNames = new Set(insertFields.map(f => f.name));
 
-        // Shape-check the WHOLE row set before any statement runs: a set that outgrows the
-        // platform's parameter ceiling is written as several statements (below), and a bad
-        // row found halfway would leave the ones before it written.
-        for (const row of rows) {
-            const keys = Object.keys(row);
-            if (keys.length !== insertFields.length || keys.some(k => !insertNames.has(k))) {
-                throw new SqlError('DK-SQL013', 'upsert(): every row must specify the same columns.');
-            }
-        }
-
         const conflictFields = options.on && options.on.length ? options.on.map(resolveField) : [prepared.primaryKey];
         const conflictNames = new Set(conflictFields.map(f => f.name));
 
@@ -510,6 +503,43 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
                 }
                 guard.push({ column: resolveField(name).columnNameEscaped, op });
             }
+        }
+
+        // One validation pass over the WHOLE row set before the first statement runs: a set
+        // that outgrows the platform's parameter ceiling is written as several statements
+        // (below), so anything caught mid-set would leave the rows before it written.
+        //
+        // A conflict key may appear only ONCE. Postgres rejects the second row for a key
+        // outright ("ON CONFLICT DO UPDATE command cannot affect row a second time"); SQLite
+        // quietly lets the last one win. Splitting the set would make that a difference
+        // between CHUNK BOUNDARIES as well — the same rows erroring or silently last-winning
+        // depending on how many columns the entity happens to have — so the rule is stated
+        // here once, for every dialect and every row count: a DO UPDATE set carries distinct
+        // conflict keys or it does not run. DO NOTHING is exempt; "the first one wins" is what
+        // insertOrIgnore means, and the dialects already agree on it.
+        const keyFields =
+            updateFields.length > 0 && rows.length > 1 && conflictFields.every(f => insertNames.has(f.name))
+                ? conflictFields
+                : undefined;
+        const seenKeys = keyFields ? new Set<string>() : undefined;
+        for (const row of rows) {
+            const keys = Object.keys(row);
+            if (keys.length !== insertFields.length || keys.some(k => !insertNames.has(k))) {
+                throw new SqlError('DK-SQL013', 'upsert(): every row must specify the same columns.');
+            }
+            if (!keyFields || !seenKeys) continue;
+            const values = keyFields.map(f => (row as any)[f.name]);
+            // Tagged with the runtime type so 1 and '1' are not reported as the same key.
+            const key = values.map(v => `${typeof v}:${String(v)}`).join('\u0000');
+            if (seenKeys.has(key)) {
+                const named = keyFields.map((f, i) => `${f.name}=${String(values[i])}`).join(', ');
+                throw new SqlError(
+                    'DK-SQL013',
+                    `upsert(): two rows carry the same conflict key (${named}). A DO UPDATE upsert ` +
+                        `applies ONE row per key — de-duplicate the set first, keeping the write that wins.`,
+                );
+            }
+            seenKeys.add(key);
         }
 
         const columns = insertFields.map(f => f.columnNameEscaped);
