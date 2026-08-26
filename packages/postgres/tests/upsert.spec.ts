@@ -203,3 +203,71 @@ test('upsert runs on the session transaction (commit + rollback)', async () => {
         database.disconnect();
     }
 });
+
+test('splits a multi-row upsert that exceeds the driver bind-parameter limit', async () => {
+    @entity.name('upsert_bind_limit')
+    class Row {
+        id: string & PrimaryKey = '';
+        c1: string = '';
+        c2: string = '';
+        c3: string = '';
+        c4: string = '';
+        c5: string = '';
+        c6: string = '';
+        c7: string = '';
+        c8: string = '';
+        c9: string = '';
+        c10: string = '';
+        n: integer = 0;
+    }
+
+    const database = await databaseFactory([Row]);
+    try {
+        // 6575 rows x 12 columns = 78900 bind parameters — past Postgres' 65535.
+        const rows = Array.from({ length: 6575 }, (_, i) => ({
+            id: String(i),
+            c1: 'a',
+            c2: 'b',
+            c3: 'c',
+            c4: 'd',
+            c5: 'e',
+            c6: 'f',
+            c7: 'g',
+            c8: 'h',
+            c9: 'i',
+            c10: 'j',
+            n: i,
+        }));
+
+        const inserted = await database.query(Row).insertOrUpdate(rows);
+        expect(inserted.modified).toBe(rows.length);
+        expect(await database.query(Row).count()).toBe(rows.length);
+
+        // The same rows again, with a changed column: every row updates in place.
+        const updated = await database.query(Row).insertOrUpdate(rows.map(r => ({ ...r, n: r.n + 1 })));
+        expect(updated.modified).toBe(rows.length);
+        expect(await database.query(Row).count()).toBe(rows.length);
+        expect((await database.query(Row).filter({ id: '6574' }).findOne()).n).toBe(6575);
+    } finally {
+        database.disconnect();
+    }
+});
+
+test('a failed upsert states the driver reason in its own message', async () => {
+    @entity.name('upsert_no_constraint')
+    class Row {
+        id: integer & PrimaryKey & AutoIncrement = 0;
+        name: string = '';
+    }
+
+    const database = await databaseFactory([Row]);
+    try {
+        // No unique index on `name` → Postgres rejects the ON CONFLICT target. The wrapper's
+        // message must carry that reason: logs render `${error}`, which never walks `cause`.
+        const failing = database.query(Row).insertOrUpdate({ id: 1, name: 'a' }, { on: ['name'] });
+        await expect(failing).rejects.toThrowError('Could not upsert Row into database');
+        await expect(failing).rejects.toThrowError('no unique or exclusion constraint matching the ON CONFLICT specification');
+    } finally {
+        database.disconnect();
+    }
+});

@@ -38,6 +38,19 @@ export function ensureDatabaseError(error: Error | string): Error {
     return new DatabaseError('DK-O001', error.message, { cause: error });
 }
 
+/**
+ * Appends the reason a wrapper error is hiding. The write wrappers below carry a generic
+ * message ("Could not upsert X into database") and keep the driver's own words on `cause` —
+ * but `${error}` and `error.message`, which is how logs, retry lines and health endpoints
+ * render an error, never walk a cause chain. So the reason belongs IN the message: the
+ * cause's first line (a nested DeepkitError puts its code/docs block on later lines),
+ * appended once, and skipped when the wrapper already restates it.
+ */
+function withCause(message: string, cause?: Error): string {
+    const reason = cause?.message?.split('\n')[0].trim();
+    return !reason || message.includes(reason) ? message : `${message}: ${reason}`;
+}
+
 export class DatabaseInsertError extends DatabaseError {
     constructor(
         public readonly entity: ReflectionClass<any>,
@@ -45,7 +58,7 @@ export class DatabaseInsertError extends DatabaseError {
         message: string,
         options?: { cause?: Error },
     ) {
-        super('DK-O010', message, options);
+        super('DK-O010', withCause(message, options?.cause), options);
     }
 }
 
@@ -56,7 +69,7 @@ export class DatabaseUpdateError extends DatabaseError {
         message: string,
         options?: { cause?: Error },
     ) {
-        super('DK-O011', message, options);
+        super('DK-O011', withCause(message, options?.cause), options);
     }
 }
 
@@ -68,7 +81,7 @@ export class DatabasePatchError extends DatabaseError {
         message: string,
         options?: { cause?: Error },
     ) {
-        super('DK-O012', message, options);
+        super('DK-O012', withCause(message, options?.cause), options);
     }
 }
 
@@ -81,7 +94,7 @@ export class DatabaseDeleteError extends DatabaseError {
         message: string,
         options?: { cause?: Error },
     ) {
-        super('DK-O013', message, options);
+        super('DK-O013', withCause(message, options?.cause), options);
     }
 }
 
