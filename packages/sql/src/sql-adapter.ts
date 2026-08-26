@@ -448,6 +448,10 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
      * specify the same columns so the multi-row `VALUES` stays aligned. Runs on
      * the session's (possibly transaction-bound) connection, so it commits with
      * the surrounding unit of work / projection batch.
+     *
+     * A row set whose `rows x columns` exceeds the platform's bind-parameter
+     * ceiling ({@link DefaultPlatform.maxBindParams}) is written as several
+     * statements on that one connection — callers never have to chunk by hand.
      */
     async upsert(rows: Partial<T>[], options: UpsertOptions<T>, result: PatchResult<T>): Promise<void> {
         if (rows.length === 0) return;
@@ -477,22 +481,14 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
         }
         const insertNames = new Set(insertFields.map(f => f.name));
 
-        const placeholder = new this.platform.placeholderStrategy();
-        const params: any[] = [];
-        const tuples: string[] = [];
+        // Shape-check the WHOLE row set before any statement runs: a set that outgrows the
+        // platform's parameter ceiling is written as several statements (below), and a bad
+        // row found halfway would leave the ones before it written.
         for (const row of rows) {
             const keys = Object.keys(row);
             if (keys.length !== insertFields.length || keys.some(k => !insertNames.has(k))) {
                 throw new SqlError('DK-SQL013', 'upsert(): every row must specify the same columns.');
             }
-            const converted = serialize(row);
-            const tuple: string[] = [];
-            for (const field of insertFields) {
-                const v = converted[field.name];
-                params.push(v === undefined ? null : v);
-                tuple.push(field.sqlTypeCast(placeholder.getPlaceholder()));
-            }
-            tuples.push(`(${tuple.join(', ')})`);
         }
 
         const conflictFields = options.on && options.on.length ? options.on.map(resolveField) : [prepared.primaryKey];
@@ -516,28 +512,63 @@ export class SQLQueryResolver<T extends OrmEntity> extends GenericQueryResolver<
             }
         }
 
-        // The dialect SQL (ON CONFLICT vs ON DUPLICATE KEY UPDATE, alias rules) lives in the platform.
-        const sql = this.platform.getUpsertSQL({
-            tableNameEscaped: prepared.tableNameEscaped,
-            columns: insertFields.map(f => f.columnNameEscaped),
-            valueTuples: tuples,
-            conflictColumns: conflictFields.map(f => f.columnNameEscaped),
-            updateColumns: updateFields.map(f => f.columnNameEscaped),
-            guard,
-        });
+        const columns = insertFields.map(f => f.columnNameEscaped);
+        const conflictColumns = conflictFields.map(f => f.columnNameEscaped);
+        const updateColumns = updateFields.map(f => f.columnNameEscaped);
+
+        // rows x columns bind parameters all land in ONE statement, and every driver caps how
+        // many that may be ({@link DefaultPlatform.maxBindParams}). That count comes from the
+        // caller's DATA, not from a knob it picked, so the writer splits itself along the
+        // ceiling instead of handing the driver a statement it mangles: node-postgres writes
+        // the count as an int16, so 78900 parameters wrap to 13364 and Postgres answers with
+        // the unrelated-sounding "bind message has 13364 parameter formats but 0 parameters".
+        // Split writes are ONE unit of work only inside a transaction (the projection-batch
+        // idiom); outside one a mid-set failure leaves the earlier statements committed —
+        // safe to re-run, since every statement this method emits is an idempotent upsert.
+        const rowsPerStatement = Math.max(1, Math.floor(this.platform.maxBindParams / insertFields.length));
 
         const connection = await this.connectionPool.getConnection(this.session.assignedTransaction);
+        result.modified = 0;
         try {
-            await connection.run(sql, params);
-            result.modified = await connection.getChanges();
-        } catch (error: any) {
-            error = new DatabaseInsertError(
-                this.classSchema,
-                rows as OrmEntity[],
-                `Could not upsert ${this.classSchema.getClassName()} into database`,
-                { cause: error },
-            );
-            throw this.handleSpecificError(error);
+            for (let offset = 0; offset < rows.length; offset += rowsPerStatement) {
+                const chunk = rows.slice(offset, offset + rowsPerStatement);
+                const placeholder = new this.platform.placeholderStrategy();
+                const params: any[] = [];
+                const tuples: string[] = [];
+                for (const row of chunk) {
+                    const converted = serialize(row);
+                    const tuple: string[] = [];
+                    for (const field of insertFields) {
+                        const v = converted[field.name];
+                        params.push(v === undefined ? null : v);
+                        tuple.push(field.sqlTypeCast(placeholder.getPlaceholder()));
+                    }
+                    tuples.push(`(${tuple.join(', ')})`);
+                }
+
+                // The dialect SQL (ON CONFLICT vs ON DUPLICATE KEY UPDATE, alias rules) lives in the platform.
+                const sql = this.platform.getUpsertSQL({
+                    tableNameEscaped: prepared.tableNameEscaped,
+                    columns,
+                    valueTuples: tuples,
+                    conflictColumns,
+                    updateColumns,
+                    guard,
+                });
+
+                try {
+                    await connection.run(sql, params);
+                    result.modified += await connection.getChanges();
+                } catch (error: any) {
+                    error = new DatabaseInsertError(
+                        this.classSchema,
+                        chunk as OrmEntity[],
+                        `Could not upsert ${this.classSchema.getClassName()} into database`,
+                        { cause: error },
+                    );
+                    throw this.handleSpecificError(error);
+                }
+            }
         } finally {
             connection.release();
         }

@@ -135,3 +135,30 @@ test('a genuinely modified Date is still written on commit', async () => {
         database.disconnect();
     }
 });
+
+test('splits a multi-row upsert at SQLite’s own bind-parameter ceiling', async () => {
+    @entity.name('ut_upsert_bind_limit')
+    class Row {
+        id: integer & PrimaryKey = 0;
+        a: string = '';
+        b: string = '';
+        n: integer = 0;
+    }
+
+    // 10000 rows x 4 columns = 40000 bind parameters — past SQLITE_MAX_VARIABLE_NUMBER (32766),
+    // which is LOWER than Postgres's 65535: the writer splits along the platform's own ceiling.
+    const rows = Array.from({ length: 10_000 }, (_, i) => ({ id: i, a: 'a', b: 'b', n: i }));
+
+    const database = await memoryDatabase([Row]);
+    try {
+        const inserted = await database.query(Row).insertOrUpdate(rows);
+        expect(inserted.modified).toBe(rows.length);
+        expect(await database.query(Row).count()).toBe(rows.length);
+
+        await database.query(Row).insertOrUpdate(rows.map(r => ({ ...r, n: r.n + 1 })));
+        expect(await database.query(Row).count()).toBe(rows.length);
+        expect((await database.query(Row).filter({ id: 9999 }).findOne()).n).toBe(10_000);
+    } finally {
+        database.disconnect();
+    }
+});

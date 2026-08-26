@@ -65,6 +65,9 @@ export class SQLitePlatform extends DefaultPlatform {
     override schemaParserType = SQLiteSchemaParser;
     protected override defaultNowExpression = `(datetime('now'))`;
 
+    // SQLITE_MAX_VARIABLE_NUMBER: 32766 since SQLite 3.32, which is what better-sqlite3 bundles.
+    public override maxBindParams: number = 32766;
+
     public override readonly serializer: Serializer = sqliteSerializer;
 
     constructor() {

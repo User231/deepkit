@@ -183,6 +183,14 @@ export abstract class DefaultPlatform {
     public namingStrategy: NamingStrategy = new DefaultNamingStrategy();
     public placeholderStrategy: ClassType<SqlPlaceholderStrategy> = SqlPlaceholderStrategy;
 
+    /**
+     * How many bind parameters one statement may carry. Postgres and MySQL send the parameter
+     * count as an int16 on the wire (65535); SQLite's ceiling is its compile-time
+     * SQLITE_MAX_VARIABLE_NUMBER. Multi-row writers (see `SQLQueryResolver.upsert`) split their
+     * statements along this so a big row set never becomes a statement the driver mangles.
+     */
+    public maxBindParams: number = 65535;
+
     applyLimitAndOffset(sql: Sql, limit?: number, offset?: number): void {
         if (limit !== undefined) sql.append('LIMIT ' + this.quoteValue(limit));
         if (offset) sql.append('OFFSET ' + this.quoteValue(offset));
