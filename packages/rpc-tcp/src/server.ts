@@ -119,7 +119,13 @@ export class RpcWebSocketServer {
                 },
             });
 
-            ws.on('message', (message: Uint8Array) => {
+            ws.on('message', (message: Uint8Array | string, isBinary?: boolean) => {
+                // Binary-only protocol: a text frame is a foreign protocol, not an RPC message.
+                // See the same guard in @deepkit/framework's RpcServer.
+                if ('string' === typeof message || false === isBinary) {
+                    ws.close(1003, 'RPC expects binary messages');
+                    return;
+                }
                 connection.feed(message);
             });
 

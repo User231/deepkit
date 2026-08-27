@@ -374,7 +374,19 @@ export abstract class RpcKernelBaseConnection {
 
     public feed(buffer: Uint8Array, bytes?: number): void {
         this.stats.increase('incomingBytes', bytes ?? buffer.byteLength);
-        this.reader.feed(buffer, bytes);
+        try {
+            this.reader.feed(buffer, bytes);
+        } catch (error) {
+            // Transports call feed() from a socket event handler ('message'/'data'), where a throw
+            // is an uncaught exception on the event loop and kills the PROCESS. A peer that sends
+            // a frame we cannot parse — a foreign protocol that reached this port, a truncated
+            // message, a hostile one — may only lose its own connection.
+            const cause = ensureError(error, RpcError);
+            this.logger.warn(
+                `RPC connection ${this.clientAddress() ?? 'unknown'} sent an unreadable message, closing it: ${cause.message}`,
+            );
+            this.close(cause);
+        }
     }
 
     public handleMessage(message: RpcMessage): void {

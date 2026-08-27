@@ -287,6 +287,50 @@ describe('application-server', () => {
 
             await applicationServer.close();
         });
+
+        test('refuses a text frame instead of feeding it to the binary reader', () => {
+            // The RPC WebSocket server answers EVERY upgrade path of the app's port, so a client
+            // of some other protocol (graphql-ws, socket.io) lands here and opens with a TEXT
+            // frame. `ws@7` hands text over as a string and `ws@8` as a Buffer with isBinary=false;
+            // both index into character codes, which the BSON reader decodes as a nonsense
+            // document size. Refuse the frame at the transport with the close code that says so.
+            const socketListeners = new Map<string, Function>();
+            const socket = {
+                on: (event: string, callback: Function) => void socketListeners.set(event, callback),
+                close: jest.fn(),
+                send: jest.fn(),
+                bufferedAmount: 0,
+            };
+
+            let onConnection: Function | undefined;
+            class FakeRpcServer extends RpcServer {
+                protected createWebSocketServer(): any {
+                    return {
+                        on: (event: string, callback: Function) => {
+                            if ('connection' === event) onConnection = callback;
+                        },
+                        close: jest.fn(),
+                    };
+                }
+            }
+
+            const fed: Uint8Array[] = [];
+            new FakeRpcServer().start({}, () => ({ feed: (message: Uint8Array) => void fed.push(message) }) as any);
+            onConnection!(socket, { getRemoteAddress: () => '127.0.0.1' } as unknown as HttpRequest);
+
+            const onMessage = socketListeners.get('message')!;
+
+            onMessage('{"type":"connection_init"}');
+            expect(fed).toHaveLength(0);
+            expect(socket.close).toHaveBeenCalledWith(1003, 'RPC expects binary messages');
+
+            onMessage(Buffer.from('{"type":"connection_init"}'), false);
+            expect(fed).toHaveLength(0);
+
+            // A binary frame is still an RPC message and reaches the kernel connection.
+            onMessage(new Uint8Array([5, 0, 0, 0, 0]), true);
+            expect(fed).toHaveLength(1);
+        });
     });
 });
 

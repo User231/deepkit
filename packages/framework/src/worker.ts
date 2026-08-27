@@ -143,7 +143,16 @@ export class RpcServer implements RpcServerInterface {
                 req,
             );
 
-            ws.on('message', (message: Uint8Array) => {
+            ws.on('message', (message: Uint8Array | string, isBinary?: boolean) => {
+                // The RPC wire protocol is binary-only. A text frame is never an RPC message —
+                // it is a foreign protocol that reached this port, since the RPC WebSocket server
+                // answers every upgrade path. `ws@7` hands text over as a string, `ws@8` as a
+                // Buffer with isBinary=false; both index into character codes rather than bytes,
+                // so the BSON reader would read a nonsense document size out of them.
+                if ('string' === typeof message || false === isBinary) {
+                    ws.close(1003, 'RPC expects binary messages');
+                    return;
+                }
                 connection.feed(message);
             });
 
