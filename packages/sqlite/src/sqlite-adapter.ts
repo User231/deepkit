@@ -226,11 +226,21 @@ export class SQLiteConnectionPool extends SQLConnectionPool {
     constructor(
         protected dbPath: string | ':memory:',
         protected logger: Logger,
-        protected stopwatch?: Stopwatch,
+        stopwatch?: Stopwatch,
     ) {
-        super(logger);
+        super(logger, stopwatch);
         //memory databases can not have more than one connection
         if (dbPath === ':memory:') this.maxConnections = 1;
+    }
+
+    /**
+     * Unlike a real pool, this one KEEPS its first connection alive, so a
+     * stopwatch attached later would never reach it (its queries would stay
+     * unreported for the lifetime of the process).
+     */
+    setStopwatch(stopwatch?: Stopwatch) {
+        super.setStopwatch(stopwatch);
+        if (this.firstConnection) this.firstConnection.stopwatch = stopwatch;
     }
 
     close() {
@@ -716,6 +726,13 @@ export class SQLiteDatabaseAdapter extends SQLDatabaseAdapter {
     setLogger(logger: Logger) {
         super.setLogger(logger);
         this.connectionPool.setLogger(logger);
+    }
+
+    setStopwatch(stopwatch?: Stopwatch) {
+        super.setStopwatch(stopwatch);
+        // The pool captured `this.stopwatch` at construction; every query frame
+        // is started by the connections it hands out.
+        this.connectionPool.setStopwatch(stopwatch);
     }
 
     async getInsertBatchSize(schema: ReflectionClass<any>): Promise<number> {

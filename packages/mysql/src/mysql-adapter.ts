@@ -230,9 +230,9 @@ export class MySQLConnectionPool extends SQLConnectionPool {
     constructor(
         protected pool: Pool,
         protected logger: Logger,
-        protected stopwatch?: Stopwatch,
+        stopwatch?: Stopwatch,
     ) {
-        super(logger);
+        super(logger, stopwatch);
     }
 
     async getConnection(transaction?: MySQLDatabaseTransaction): Promise<MySQLConnection> {
@@ -674,6 +674,13 @@ export class MySQLDatabaseAdapter extends SQLDatabaseAdapter {
     setLogger(logger: Logger) {
         super.setLogger(logger);
         this.connectionPool.setLogger(logger);
+    }
+
+    setStopwatch(stopwatch?: Stopwatch) {
+        super.setStopwatch(stopwatch);
+        // The pool captured `this.stopwatch` at construction; every query frame
+        // is started by the connections it hands out.
+        this.connectionPool.setStopwatch(stopwatch);
     }
 
     getName(): string {

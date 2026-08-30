@@ -157,10 +157,21 @@ export abstract class SQLConnection {
 export abstract class SQLConnectionPool {
     protected activeConnections = 0;
 
-    constructor(protected logger: Logger) {}
+    constructor(
+        protected logger: Logger,
+        public stopwatch?: Stopwatch,
+    ) {}
 
     setLogger(logger: Logger) {
         this.logger = logger;
+    }
+
+    /**
+     * Connections are created per checkout and read this at that moment, so a
+     * stopwatch attached after the pool was built still reaches every query.
+     */
+    setStopwatch(stopwatch?: Stopwatch) {
+        this.stopwatch = stopwatch;
     }
 
     /**

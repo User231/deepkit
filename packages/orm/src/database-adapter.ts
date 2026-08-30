@@ -129,6 +129,14 @@ export abstract class DatabaseAdapter {
         this.logger = logger;
     }
 
+    /**
+     * Adapters that hand the stopwatch to long-lived children (a connection
+     * pool) must override this and propagate — see SQLConnectionPool.
+     */
+    setStopwatch(stopwatch?: Stopwatch) {
+        this.stopwatch = stopwatch;
+    }
+
     abstract queryFactory(session: DatabaseSession<this>): DatabaseAdapterQueryFactory;
 
     rawFactory(session: DatabaseSession<this>): RawFactory<any> {

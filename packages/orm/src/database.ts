@@ -197,6 +197,21 @@ export class Database<ADAPTER extends DatabaseAdapter = DatabaseAdapter> {
         this.adapter.setLogger(logger);
     }
 
+    /**
+     * Attaches a stopwatch to this database AND to its adapter.
+     *
+     * Assigning `database.stopwatch` alone only reaches the sessions (the
+     * 'SQL Builder'/'Formatter'/'Connection acquisition' frames): the actual
+     * per-query frames are started by the adapter's connections, which read
+     * the ADAPTER's stopwatch — captured by the connection pool. Nothing ever
+     * propagated it there, so `FrameCategory.databaseQuery` frames could never
+     * fire. Use this instead of the bare field assignment.
+     */
+    setStopwatch(stopwatch?: Stopwatch) {
+        this.stopwatch = stopwatch;
+        this.adapter.setStopwatch(stopwatch);
+    }
+
     registerPlugin(...plugins: DatabasePlugin[]): void {
         for (const plugin of plugins) {
             this.pluginRegistry.add(plugin);
