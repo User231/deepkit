@@ -79,6 +79,7 @@ npm run postinstall  # Builds type-compiler
 # Development
 npm run tsc          # TypeScript build
 npm run tsc-watch    # Watch mode
+npm run build:force  # From nothing: deletes every dist/, then tsc --build --force
 
 # Testing (node:test via the @deepkit/run loader — NOT Jest)
 npm run test                                                                  # All tests
@@ -101,14 +102,29 @@ Each package has a dual build output:
 - `dist/cjs/` - CommonJS build (from `tsconfig.json`)
 - `dist/esm/` - ES Modules build (from `tsconfig.esm.json`)
 
-**CRITICAL:** Each package's `npm run build` script creates a `dist/esm/package.json` with `{"type": "module"}` to enable ES modules. If you delete `dist/` manually, you MUST run `npm run build` in that package to recreate this file, otherwise ES module imports will fail.
+**`dist/` is 100% build output — nothing under it is tracked** (no `.gitkeep` placeholders, no
+committed `dist/esm/package.json`; both were dropped 2026-09-01). The `{"type": "module"}` marker
+that makes `dist/esm` load as ES modules is written by `scripts/write-esm-markers.mjs`, the last
+step of the root `npm run build` — a plain loop over every package with a `tsconfig.esm.json`.
+Each package's own `npm run build` still writes its marker for single-package work.
+
+**Why not `lerna run build` for that step (removed 2026-09-01):** lerna runs tasks through Nx,
+and Nx's task cache treated `{projectRoot}/dist` as the task's output — on a cache hit it DELETED
+the dist tsc had just written and copied an older snapshot back, mtimes included. That shipped
+stale framework builds silently and tripped the app's staleness guard on any machine where a
+checkout had touched a source file without changing it. `nx.json` now pins `build` to
+`cache: false` so the trap cannot be re-armed by routing the step back through lerna.
 
 ```bash
-# If you deleted dist/ in a package, run:
-cd packages/<package-name> && npm run build
+# If you deleted dist/ in a package, rebuild it and re-stamp the marker:
+npm run tsc -- --build packages/<name>/tsconfig.json packages/<name>/tsconfig.esm.json
+cd packages/<name> && npm run build
 
-# Or rebuild everything:
+# Rebuild everything incrementally:
 npm run build
+
+# Rebuild everything from nothing: rm -rf every dist/ + .nx, then tsc --build --force
+npm run build:force
 ```
 
 **When rebuilding a single package:** Always build both tsconfig files:

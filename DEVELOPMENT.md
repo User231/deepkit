@@ -36,27 +36,14 @@ You should see the build messages and a _success_ summary in the end:
 
 ```shell
 > build
-> build
-> tsc --build tsconfig.json && tsc --build tsconfig.esm.json && lerna run build
+> tsc --build tsconfig.json && tsc --build tsconfig.esm.json && node scripts/write-esm-markers.mjs
 
-lerna notice cli v7.4.1
-
-    ✔  @deepkit/core:build (320ms)
-    ✔  @deepkit/topsort:build (324ms)
-    ✔  @deepkit/type-spec:build (324ms)
-    ✔  @deepkit/core-rxjs:build (326ms)
-    ✔  @deepkit/filesystem:build (326ms)
-    ...
-    ✔  @deepkit/api-console-gui:build (19s)
-    ✔  @deepkit/api-console-module:build (297ms)
-    ✔  @deepkit/orm-browser-gui:build (21s)
-    ✔  @deepkit/framework-debug-gui:build (29s)
-    ✔  @deepkit/orm-browser:build (295ms)
-
- ——————————————————————————————————————————————
-
- >  Lerna (powered by Nx)   Successfully ran target build for 43 projects (1m)
+write-esm-markers: stamped 39 packages' dist/esm as ES modules
 ```
+
+A build from nothing — every `dist/` deleted first, then `tsc --build --force` — is
+`npm run build:force`. The build deliberately does not go through lerna/Nx: Nx's task cache
+once restored old `dist/` snapshots over fresh compiler output.
 
 You can try running some tests. Tests run on Node's built-in test runner (`node:test`) via the
 `@deepkit/run` loader — not Jest. Run the whole suite with `npm run test`, or a single package/file:
