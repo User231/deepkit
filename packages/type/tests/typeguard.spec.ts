@@ -206,6 +206,19 @@ test('any', () => {
     expect(is<any>([])).toEqual(true);
 });
 
+test('unknown admits every value, `null` included, alone and as a record value', () => {
+    expect(is<unknown>(null)).toEqual(true);
+    expect(is<unknown>(undefined)).toEqual(true);
+    expect(is<unknown>('a')).toEqual(true);
+    expect(is<unknown>({})).toEqual(true);
+
+    // An opaque JSON document: values of any shape, nulls included.
+    type Doc = Record<string, unknown>;
+    expect(is<Doc>({ managingOrgId: null, name: 'x', nested: { a: [1, null] } })).toEqual(true);
+    expect(cast<Doc>({ managingOrgId: null })).toEqual({ managingOrgId: null });
+    expect(is<{ payload: unknown }>({ payload: null })).toEqual(true);
+});
+
 test('array any', () => {
     expect(is<any[]>(['a'])).toEqual(true);
     expect(is<any[]>([1])).toEqual(true);

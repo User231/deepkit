@@ -4396,6 +4396,9 @@ export function registerTypeGuards(serializer: Serializer): void {
     reg.register(ReflectionKind.null, guardNullFast);
     reg.register(ReflectionKind.undefined, guardUndefinedFast);
     reg.register(ReflectionKind.any, guardAnyFast);
+    // `unknown` admits every value exactly as `any` does — without this entry a
+    // `Record<string, unknown>` rejected `null` values ("Cannot convert null to unknown").
+    reg.register(ReflectionKind.unknown, guardAnyFast);
     reg.register(ReflectionKind.literal, guardLiteralFast);
 
     // Compound types
