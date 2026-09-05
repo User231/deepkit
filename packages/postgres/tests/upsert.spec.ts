@@ -177,6 +177,35 @@ test('round-trips a scalar-union (string | number | null) jsonb column', async (
     }
 });
 
+test('an `unknown` jsonb column is the same opaque document as `any`', async () => {
+    @entity.name('upsert_jsonb_unknown')
+    class Doc {
+        id: integer & PrimaryKey & AutoIncrement = 0;
+        kind: string = '';
+        value?: unknown & DatabaseField<{ type: 'jsonb' }>;
+    }
+
+    const database = await databaseFactory([Doc]);
+    try {
+        await database.query(Doc).insertOrUpdate([
+            { kind: 'obj', value: { a: 1, b: ['x', { c: null }] } },
+            { kind: 'str', value: 'hello' },
+            { kind: 'numeric-string', value: '42' },
+            { kind: 'num', value: 42 },
+            { kind: 'nul', value: null },
+        ]);
+        const rows = await database.query(Doc).orderBy('kind', 'asc').find();
+        const byKind = Object.fromEntries(rows.map(r => [r.kind, r.value]));
+        expect(byKind.obj).toEqual({ a: 1, b: ['x', { c: null }] });
+        expect(byKind.str).toBe('hello');
+        expect(byKind['numeric-string']).toBe('42');
+        expect(byKind.num).toBe(42);
+        expect(byKind.nul).toBeUndefined();
+    } finally {
+        database.disconnect();
+    }
+});
+
 test('upsert runs on the session transaction (commit + rollback)', async () => {
     @entity.name('upsert_tx')
     class Row {

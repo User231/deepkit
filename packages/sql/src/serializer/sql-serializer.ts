@@ -272,9 +272,12 @@ export class SqlSerializer extends Serializer {
 
         // --- SQL overrides on top of the defaults ---
 
-        // `any`: JSON-encode direct entity columns.
+        // `any` / `unknown`: JSON-encode direct entity columns. The two are one
+        // column type — an opaque document — see `isOpaqueJsonType`.
         this.serializeRegistry.replaceKind(ReflectionKind.any, serializeSqlAny);
         this.deserializeRegistry.replaceKind(ReflectionKind.any, deserializeSqlAny);
+        this.serializeRegistry.replaceKind(ReflectionKind.unknown, serializeSqlAny);
+        this.deserializeRegistry.replaceKind(ReflectionKind.unknown, deserializeSqlAny);
 
         // string deserialize: no coercion — UUID/MongoId arrive as binary and are handled by
         // their decorators above/in the defaults, plain strings come back verbatim from the DB.

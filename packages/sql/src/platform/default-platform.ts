@@ -86,8 +86,18 @@ export function typeResolvesToInteger(type: Type): boolean {
     return false;
 }
 
+/**
+ * `any` and `unknown` are the same column: an opaque JSON document the ORM
+ * stores and returns without interpreting. `unknown` is the spelling an
+ * application under `no-explicit-any` can write — it says "opaque" without
+ * switching the type checker off at every read.
+ */
+export function isOpaqueJsonType(type: Type): boolean {
+    return type.kind === ReflectionKind.any || type.kind === ReflectionKind.unknown;
+}
+
 export function typeRequiresJSONCast(type: Type): boolean {
-    if (type.kind === ReflectionKind.any) return true;
+    if (isOpaqueJsonType(type)) return true;
     if (type.kind === ReflectionKind.objectLiteral || isCustomTypeClass(type)) return true;
     if (type.kind === ReflectionKind.array) return true;
     if (typeResolvesToBoolean(type) || typeResolvesToNumber(type) || typeResolvesToString(type)) return false;
@@ -466,12 +476,11 @@ export abstract class DefaultPlatform {
                     }
                 }
 
-                // `any` admits null, and the serializer stores a JS null in an
-                // `any` column as SQL NULL (same as explicit `| null` unions) —
-                // so the column must accept NULL, else every null write violates
+                // `any`/`unknown` admit null, and the serializer stores a JS null
+                // in such a column as SQL NULL (same as explicit `| null` unions)
+                // — so the column must accept NULL, else every null write violates
                 // a NOT NULL constraint the type system never promised.
-                const isNullable =
-                    property.isNullable() || property.isOptional() || property.type.kind === ReflectionKind.any;
+                const isNullable = property.isNullable() || property.isOptional() || isOpaqueJsonType(property.type);
                 column.isNotNull = !isNullable;
                 column.isPrimaryKey = property.isPrimaryKey();
                 if (property.isAutoIncrement()) {
