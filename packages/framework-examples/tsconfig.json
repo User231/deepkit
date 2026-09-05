@@ -3,6 +3,8 @@
   "compilerOptions": {
     "declaration": false,
     "composite": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "rootDir": "./src",
     "outDir": "./dist",
     "jsx": "react-jsx",
