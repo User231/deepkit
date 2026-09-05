@@ -612,12 +612,17 @@ function buildScoredUnion(type: TypeUnion, input: Ref, b: Builder, state: JsonBu
                     return bestMember;
                 };
 
-                // Get the best matching member at runtime and build it
+                // Get the best matching member at runtime and build it. The member's compiled
+                // function receives the CALLER's runtime options (`loosely`, …): it used to get
+                // `{}`, so a strict deserialize turned loose inside any union with an object
+                // member — `deserialize<T | null>(…, { loosely: false })` coerced where
+                // `deserialize<T>` did not.
                 const buildBestMember = (
                     inputObj: any,
                     memberTypes: Type[],
                     scoreFn: typeof scoreMember,
                     st: JsonBuildContext,
+                    options: any,
                 ): any => {
                     const bestMember = findBestMember(inputObj, memberTypes, scoreFn);
                     if (!bestMember) return undefined;
@@ -627,7 +632,7 @@ function buildScoredUnion(type: TypeUnion, input: Ref, b: Builder, state: JsonBu
                         direction === 'serialize'
                             ? serializer.buildSerializer(bestMember)
                             : serializer.buildDeserializer(bestMember);
-                    return fn(inputObj, {});
+                    return fn(inputObj, options);
                 };
 
                 const builtResult = b.call(
@@ -636,6 +641,7 @@ function buildScoredUnion(type: TypeUnion, input: Ref, b: Builder, state: JsonBu
                     b.lit(objectMembers),
                     b.lit(scoreMember),
                     b.lit(state),
+                    state.optionsRef,
                 );
                 b.if_(b.neq(builtResult, b.lit(undefined)), () => {
                     b.setVar(result, builtResult);
@@ -658,16 +664,16 @@ function buildScoredUnion(type: TypeUnion, input: Ref, b: Builder, state: JsonBu
         b.if_(b.not(b.getVar(matched)), () => {
             b.if_(b.call(Array.isArray, input), () => {
                 // For arrays, try special class types first (Map/Set serialize to arrays)
-                const trySpecialTypes = (inputArr: any, members: Type[], st: JsonBuildContext): any => {
+                const trySpecialTypes = (inputArr: any, members: Type[], st: JsonBuildContext, options: any): any => {
                     for (const member of members) {
                         if (member.kind !== ReflectionKind.class) continue;
                         const classType = (member as TypeClass).classType;
                         if (classType === Map || classType === Set) {
-                            // Try to deserialize as Map or Set
+                            // Try to deserialize as Map or Set (with the caller's runtime options)
                             try {
                                 const serializer = (st as any).serializer;
                                 const fn = serializer.buildDeserializer(member);
-                                return fn(inputArr, {});
+                                return fn(inputArr, options);
                             } catch {
                                 // If deserialization fails, continue to next
                             }
@@ -676,7 +682,13 @@ function buildScoredUnion(type: TypeUnion, input: Ref, b: Builder, state: JsonBu
                     return undefined;
                 };
 
-                const specialResult = b.call(trySpecialTypes, input, b.lit(specialClassMembers), b.lit(state));
+                const specialResult = b.call(
+                    trySpecialTypes,
+                    input,
+                    b.lit(specialClassMembers),
+                    b.lit(state),
+                    state.optionsRef,
+                );
                 b.if_(b.neq(specialResult, b.lit(undefined)), () => {
                     b.setVar(result, specialResult);
                     b.setVar(matched, b.lit(true));

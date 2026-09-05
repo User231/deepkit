@@ -552,8 +552,11 @@ export const deserializeBoolean: JsonTypeHandler = (type, input, b, state) => {
 
 export const deserializeBigInt: JsonTypeHandler = (type, input, b, state) => {
     const isLoose = state.isLoose();
+    // A signed-integer STRING is bigint's canonical JSON form (`handleBigInt` serializes to
+    // `String(value)`), so it is read back in strict mode too — a typed wire that emits the
+    // canonical form must decode it with `loosely: false`. A number is a coercion: loose only.
     const canCoerceString = b.var_(b.lit(false));
-    b.if_(b.and(isLoose, b.isType(input, 'string')), () => {
+    b.if_(b.isType(input, 'string'), () => {
         b.setVar(canCoerceString, b.call(isSignedIntegerString, input));
     });
     const canCoerceNumber = b.and(isLoose, b.isType(input, 'number'));
@@ -4317,6 +4320,10 @@ export function registerDefaultHandlers(serializer: Serializer): void {
     deserializeRegistry.register(ReflectionKind.null, handleNull);
     serializeRegistry.register(ReflectionKind.undefined, serializeUndefined);
     deserializeRegistry.register(ReflectionKind.undefined, handleUndefined);
+    // `void` is `undefined` on the wire: JSON has no undefined, so it travels as null (like
+    // `undefined` does) and must come back as undefined — a `Promise<void>` action's result.
+    serializeRegistry.register(ReflectionKind.void, serializeUndefined);
+    deserializeRegistry.register(ReflectionKind.void, handleUndefined);
     serializeRegistry.register(ReflectionKind.any, handleAny);
     deserializeRegistry.register(ReflectionKind.any, handleAny);
     serializeRegistry.register(ReflectionKind.unknown, handleUnknown);
