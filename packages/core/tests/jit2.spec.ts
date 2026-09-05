@@ -1740,3 +1740,32 @@ describe('jit2', () => {
         });
     });
 });
+
+describe('nested function markers across compilation units', () => {
+    test('a nested fn registered in one unit and reused from another is adopted, not dangling', () => {
+        // A sub-function built INSIDE another fnJIT body registers as a nested function of that
+        // unit (`_nfn_N`). @deepkit/type caches such sub-functions per type and reuses them from
+        // later top-level compiles, whose generated code then called `_nfn_N` without defining it
+        // ("_nfn_N is not defined" — seen validating a tuple holding an object whose member
+        // validators were compiled earlier). The definition now travels with the marker and a
+        // unit that does not own it adopts it.
+        let inner: ((n: number) => number) | undefined;
+        const first = fnJIT(arg<number>(), (b, n) => {
+            inner = fnJIT(arg<number>(), (b2, m) => b2.add(m, b2.lit(1)));
+            return b.call(inner, n);
+        });
+        expect(first(1)).toBe(2);
+        if (!inner) throw new Error('inner marker not registered');
+
+        // Reused from a second top-level unit, twice (adopted once).
+        const second = fnJIT(arg<number>(), (b, n) => b.call(inner!, b.call(inner!, n)));
+        expect(second(1)).toBe(3);
+
+        // Reused from INSIDE a nested function of a third unit.
+        const third = fnJIT(arg<number>(), (b, n) => {
+            const wrap = fnJIT(arg<number>(), (b2, k) => b2.call(inner!, k));
+            return b.call(wrap, n);
+        });
+        expect(third(5)).toBe(6);
+    });
+});

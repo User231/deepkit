@@ -640,6 +640,14 @@ function isValidIdentifier(key: string): boolean {
 class CodeGenerator {
     private externals: Map<any, string>;
     private reservedNames: Set<string>;
+    /**
+     * Ids of the nested functions whose definition THIS compilation unit emits (shared with child
+     * generators). A marker outside this set came from another Builder — a sub-function cached per
+     * type and reused across top-level compiles — and must be adopted, see {@link addExternal}.
+     */
+    private ownedNested: Set<number>;
+    /** Definitions adopted from other units (id → code), emitted at the `new Function` scope level. */
+    private adoptedNested: Map<number, string>;
     private argCount: number;
     /** Helper functions collected during code generation: fnId -> code */
     private helperFunctions = new Map<number, string>();
@@ -658,13 +666,20 @@ class CodeGenerator {
     constructor(
         argCount: number,
         inputNames?: string[],
-        sharedState?: { externals: Map<any, string>; reservedNames: Set<string> },
+        sharedState?: {
+            externals: Map<any, string>;
+            reservedNames: Set<string>;
+            ownedNested?: Set<number>;
+            adoptedNested?: Map<number, string>;
+        },
         inputDefaults?: (string | undefined)[],
     ) {
         this.argCount = argCount;
-        // Share externals/reservedNames with parent CodeGenerator if provided
+        // Share externals/reservedNames/nested bookkeeping with parent CodeGenerator if provided
         this.externals = sharedState?.externals || new Map();
         this.reservedNames = sharedState?.reservedNames || new Set();
+        this.ownedNested = sharedState?.ownedNested || new Set();
+        this.adoptedNested = sharedState?.adoptedNested || new Map();
         // Use provided names or default to v0, v1, ...
         this.inputNames =
             inputNames && inputNames.length === argCount
@@ -708,7 +723,22 @@ class CodeGenerator {
     private addExternal(value: any, hint: string = 'ext'): string {
         // Check for nested function marker — use the nested function name directly
         if (value && typeof value === 'function' && typeof (value as any).__nestedFnId === 'number') {
-            return `_nfn_${(value as any).__nestedFnId}`;
+            const id: number = (value as any).__nestedFnId;
+            if (!this.ownedNested.has(id)) {
+                // The marker was registered on a DIFFERENT Builder: a sub-function compiled while
+                // building one type, cached, and now referenced from another top-level compile.
+                // Its definition is not part of this unit — emitting `_nfn_N(...)` alone would be
+                // a ReferenceError at call time. Adopt the definition into this unit (hoisted
+                // function declarations, so placement does not matter); without one at hand,
+                // fall through and call the marker's closure executor as a plain external.
+                const def = (value as any).__nestedFnDef as NestedFnDef | undefined;
+                if (def) {
+                    this.adoptedNested.set(id, this.compileNestedFn(id, def));
+                    return `_nfn_${id}`;
+                }
+            } else {
+                return `_nfn_${id}`;
+            }
         }
         // Check if already registered
         for (const [v, name] of this.externals) {
@@ -1119,14 +1149,19 @@ class CodeGenerator {
      * Uses a child CodeGenerator that shares externals/reservedNames with the parent.
      */
     private compileNestedFn(id: number, def: NestedFnDef): string {
+        this.ownedNested.add(id);
         const childGen = new CodeGenerator(def.inputNames.length, def.inputNames, {
             externals: this.externals,
             reservedNames: this.reservedNames,
+            ownedNested: this.ownedNested,
+            adoptedNested: this.adoptedNested,
         });
 
-        // Recursively compile any nested functions within this nested function
+        // Recursively compile any nested functions within this nested function.
+        // Own every sibling first: one may call another before its turn.
         let childNestedDefs = '';
         if (def.block.nestedFunctions) {
+            for (const [nid] of def.block.nestedFunctions) this.ownedNested.add(nid);
             for (const [nid, ndef] of def.block.nestedFunctions) {
                 childNestedDefs += childGen.compileNestedFn(nid, ndef);
             }
@@ -1144,15 +1179,20 @@ class CodeGenerator {
     }
 
     compile<T>(block: Block): T {
-        // Compile nested function definitions first (they may add externals)
+        // Compile nested function definitions first (they may add externals).
+        // Own every id before compiling any body: a sibling may call another.
         let nestedDefs = '';
         if (block.nestedFunctions) {
+            for (const [id] of block.nestedFunctions) this.ownedNested.add(id);
             for (const [id, def] of block.nestedFunctions) {
                 nestedDefs += this.compileNestedFn(id, def);
             }
         }
 
         const body = this.blockToCode(block);
+
+        // Definitions adopted from other units are discovered while generating the code above.
+        const adoptedDefs = [...this.adoptedNested.values()].join('');
 
         // Build argument list with defaults (e.g., "buffer,offset=0")
         const argNames = this.inputNames
@@ -1170,9 +1210,9 @@ class CodeGenerator {
         // V8 TurboFan generates 2.6x worse machine code when the main function is inside
         // an IIFE closure, even with identical inner functions (168M → 65M for int32x3).
         let fnBody: string;
-        if (nestedDefs || this.helperFunctions.size > 0) {
+        if (nestedDefs || adoptedDefs || this.helperFunctions.size > 0) {
             const helpers = [...this.helperFunctions.values()].join('');
-            fnBody = `${nestedDefs}${helpers}return function(${argNames}){\n${body}}`;
+            fnBody = `${nestedDefs}${adoptedDefs}${helpers}return function(${argNames}){\n${body}}`;
         } else {
             fnBody = `return function(${argNames}){\n${body}}`;
         }
@@ -1856,6 +1896,9 @@ export class Builder {
         // - In Exec mode, the executor calls this function directly (closure-based fallback)
         const marker = createExecutor(block) as any;
         marker.__nestedFnId = id;
+        // The definition travels with the marker so a compilation unit that did not register it
+        // (a cached sub-function reused across compiles) can still emit it — CodeGenerator.addExternal.
+        marker.__nestedFnDef = { block, inputNames } satisfies NestedFnDef;
         return marker;
     }
 
