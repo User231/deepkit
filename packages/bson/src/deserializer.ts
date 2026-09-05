@@ -494,7 +494,7 @@ function buildShapeValueReadInline(
 
         case BSONType.DATE:
             if (tf.type.kind === ReflectionKind.class && (tf.type as TypeClass).classType === Date) {
-                b.setVar(outVal, b.new_(FastDate, b.call(readInt64AsNumber, buf, d)));
+                b.setVar(outVal, b.new_(bsonDateClass, b.call(readInt64AsNumber, buf, d)));
                 b.setVar(outOff, b.add(d, b.lit(8)));
             } else {
                 b.return_(b.lit(BAILOUT));
@@ -856,6 +856,28 @@ function buildShapeDispatcher(
 // ============================================================================
 // Cache
 // ============================================================================
+
+/**
+ * The class a BSON DATE materializes as. Default: the fork's `FastDate` — a Date-compatible
+ * object that defers the real Date (≈95× cheaper to construct; the ORM's hot path). It has no
+ * [[DateValue]] slot, so what only a REAL Date satisfies breaks on it: `new Date(value)` parses
+ * its string form and drops the milliseconds, `Date.prototype.x.call(value)` throws,
+ * `structuredClone` copies fields, `value.constructor !== Date`. A process whose consumers hand
+ * Dates to such code — a browser RPC client — switches to the native class with
+ * {@link setBSONDateClass}. The class is captured when a decoder is JIT-compiled and decoders are
+ * cached per type: switch before the first decode (a client does so at module load).
+ */
+let bsonDateClass: new (ms: number) => Date = FastDate as unknown as new (ms: number) => Date;
+
+/** Choose the class BSON DATE values materialize as — `Date` for real Dates, `FastDate` (default) for the deferred ones. */
+export function setBSONDateClass(dateClass: new (ms: number) => Date): void {
+    bsonDateClass = dateClass;
+}
+
+/** The class BSON DATE values currently materialize as (see {@link setBSONDateClass}). */
+export function getBSONDateClass(): new (ms: number) => Date {
+    return bsonDateClass;
+}
 
 const deserializerCache = new WeakMap<Type, BSONDeserializer<any>>();
 
@@ -2619,7 +2641,7 @@ function buildDocumentBody(
                                         rb.set(
                                             rb.lit(_r),
                                             rb.lit(0) as any,
-                                            rb.new_(FastDate, rb.call(readInt64AsNumber, rbuffer, dataOffset)),
+                                            rb.new_(bsonDateClass, rb.call(readInt64AsNumber, rbuffer, dataOffset)),
                                         );
                                         rb.set(rb.lit(_r), rb.lit(1) as any, rb.add(dataOffset, rb.lit(8)));
                                         rb.return_();
@@ -3244,7 +3266,7 @@ function deserializeValueInto(
                 b.if_(
                     b.eq(bsonType, b.lit(BSONType.DATE)),
                     () => {
-                        b.setVar(target, b.new_(FastDate, b.call(readInt64AsNumber, buffer, b.getVar(o))));
+                        b.setVar(target, b.new_(bsonDateClass, b.call(readInt64AsNumber, buffer, b.getVar(o))));
                         b.setVar(o, b.add(b.getVar(o), b.lit(8)));
                     },
                     () => {

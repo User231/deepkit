@@ -26,7 +26,7 @@ export {
 } from './src/parser.js';
 
 // deserializer
-export { getBSONDeserializer } from './src/deserializer.js';
+export { getBSONDeserializer, getBSONDateClass, setBSONDateClass } from './src/deserializer.js';
 
 // serializer
 export type { SerializeResult } from './src/serializer.js';
