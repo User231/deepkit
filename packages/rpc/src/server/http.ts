@@ -1,5 +1,5 @@
 import { base64ToUint8Array } from '@deepkit/core';
-import { ReceiveType, cast, resolveReceiveType } from '@deepkit/type';
+import { ReceiveType, SerializationOptions, cast, resolveReceiveType } from '@deepkit/type';
 
 import { RpcError } from '../model.js';
 import { BodyDecoder, RpcMessage, RpcMessageRouteType, rpcDecodeError } from '../protocol.js';
@@ -20,6 +20,12 @@ export interface RpcHttpResponse {
 }
 
 export class HttpRpcMessage extends RpcMessage {
+    /**
+     * @param castOptions how `parseBody`/`decodeBody` cast the JSON: a JSON BODY carries exact
+     *   types (a string is a string, a number a number — the typed client serialized it through
+     *   the same parameter types), so the bridge casts it with `loosely: false`; `?arg=` query
+     *   strings are text and keep the loose (coercing) default.
+     */
     constructor(
         public id: number,
         public composite: boolean,
@@ -27,6 +33,7 @@ export class HttpRpcMessage extends RpcMessage {
         public routeType: RpcMessageRouteType,
         public headers: RpcHttpRequest['headers'],
         public json?: any,
+        public castOptions: SerializationOptions = {},
     ) {
         super(id, composite, type, routeType);
     }
@@ -62,7 +69,7 @@ export class HttpRpcMessage extends RpcMessage {
         if (!json) {
             throw new RpcError('No body found');
         }
-        return cast(json, undefined, undefined, undefined, resolveReceiveType(type));
+        return cast(json, this.castOptions, undefined, undefined, resolveReceiveType(type));
     }
 
     decodeBody<T>(decoder: BodyDecoder<T>): T {
@@ -70,7 +77,7 @@ export class HttpRpcMessage extends RpcMessage {
         if (!json) {
             throw new RpcError('No body found');
         }
-        return cast(json, undefined, undefined, undefined, decoder.type);
+        return cast(json, this.castOptions, undefined, undefined, decoder.type);
     }
 
     getBodies(): RpcMessage[] {
@@ -79,7 +86,17 @@ export class HttpRpcMessage extends RpcMessage {
 
         const result: RpcMessage[] = [];
         for (const item of json) {
-            result.push(new HttpRpcMessage(this.id, false, item.type, this.routeType, this.headers, item.body));
+            result.push(
+                new HttpRpcMessage(
+                    this.id,
+                    false,
+                    item.type,
+                    this.routeType,
+                    this.headers,
+                    item.body,
+                    this.castOptions,
+                ),
+            );
         }
 
         return result;
