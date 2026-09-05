@@ -77,8 +77,9 @@ yarn
 npm run postinstall  # Builds type-compiler
 
 # Development
-npm run tsc          # TypeScript build
-npm run tsc-watch    # Watch mode
+npm run build        # THE build after a source edit: tsc --build on BOTH tsconfigs (dist/cjs + dist/esm) + ESM markers
+npm run tsc          # CJS half ONLY (a bare `tsc --build` = tsconfig.json → dist/cjs): a typecheck, not the build
+npm run tsc-watch    # Watch mode — CJS half only, same caveat
 npm run build:force  # From nothing: deletes every dist/, then tsc --build --force
 
 # Testing (node:test via the @deepkit/run loader — NOT Jest)
@@ -93,7 +94,9 @@ npm run clean        # Clean artifacts
 
 **Critical:** Always run `npm run postinstall` after cloning or when type-compiler changes.
 
-**Important:** After modifying TypeScript source files, run `tsc --build` (or `npm run tsc`) to compile the changes before running tests. Tests execute the compiled JavaScript in `dist/`, not the TypeScript source directly.
+**Important:** After modifying TypeScript source files, run `npm run build` to compile the changes before running tests or an app. Tests execute the compiled JavaScript in `dist/`, not the TypeScript source directly.
+
+**`npm run tsc` / `npm run typecheck` build ONLY the CJS half.** A bare `tsc --build` takes the cwd's `tsconfig.json` — the CJS project (`dist/cjs`, what Node consumers load). `dist/esm` — what browsers load through the vite plugin — is produced only by `tsc --build tsconfig.esm.json`, which `npm run build` runs right after the CJS one. A CJS-only build leaves the ESM bundle stale with no error at all until a browser hits a missing export (2026-09-05, `@deepkit/bson`: "does not provide an export named setBSONDateClass" while every mtime check read fresh). The app repo's `npm run build:check` judges each half separately.
 
 ### Package Build Structure
 
