@@ -127,16 +127,18 @@ export class Serializer {
      * @returns A function that serializes data of that type
      */
     buildSerializer<T>(type: Type): SerializeFunction<T> {
-        return fn(
-            arg<T>(),
-            arg<SerializationOptions>(),
-            (b: Builder, data: Ref<T>, options: Ref<SerializationOptions>) => {
-                // Ensure options is always an object (for safe property access in handlers)
-                const optionsRef = b.let(b.nullish(options, b.emptyObj()));
-                const state = new JsonBuildContext('serialize', this, b, optionsRef, this.serializeRegistry);
+        return this.cachedBuild(type, this.serializeRegistry, () =>
+            fn(
+                arg<T>(),
+                arg<SerializationOptions>(),
+                (b: Builder, data: Ref<T>, options: Ref<SerializationOptions>) => {
+                    // Ensure options is always an object (for safe property access in handlers)
+                    const optionsRef = b.let(b.nullish(options, b.emptyObj()));
+                    const state = new JsonBuildContext('serialize', this, b, optionsRef, this.serializeRegistry);
 
-                return state.build(type, data);
-            },
+                    return state.build(type, data);
+                },
+            ),
         );
     }
 
@@ -147,17 +149,46 @@ export class Serializer {
      * @returns A function that deserializes data to that type
      */
     buildDeserializer<T>(type: Type): SerializeFunction<any, T> {
-        return fn(
-            arg<any>(),
-            arg<SerializationOptions>(),
-            (b: Builder, data: Ref<any>, options: Ref<SerializationOptions>) => {
-                // Ensure options is always an object (for safe property access in handlers)
-                const optionsRef = b.let(b.nullish(options, b.emptyObj()));
-                const state = new JsonBuildContext('deserialize', this, b, optionsRef, this.deserializeRegistry);
+        return this.cachedBuild(type, this.deserializeRegistry, () =>
+            fn(
+                arg<any>(),
+                arg<SerializationOptions>(),
+                (b: Builder, data: Ref<any>, options: Ref<SerializationOptions>) => {
+                    // Ensure options is always an object (for safe property access in handlers)
+                    const optionsRef = b.let(b.nullish(options, b.emptyObj()));
+                    const state = new JsonBuildContext('deserialize', this, b, optionsRef, this.deserializeRegistry);
 
-                return state.build(type, data);
-            },
+                    return state.build(type, data);
+                },
+            ),
         );
+    }
+
+    /**
+     * One compiled function per (type, registry generation). `buildSerializer` /
+     * `buildDeserializer` are not only the entry points behind `serialize()` /
+     * `deserialize()` — compiled code calls them back at RUNTIME wherever a
+     * member can only be chosen from the input: the scored union of object
+     * literals (union.ts `buildBestMember`), a tuple's rest elements
+     * (handlers.ts `processRest`), Map/Set union members. Uncached, every such
+     * call ran the whole code generator again — a `{ kind: 'quantity' } |
+     * { kind: 'text' } | …` cell union deserialized N values with N compiles,
+     * and an event-sourced aggregate replay spent 75% of its CPU in the JIT
+     * (measured 2026-09-06 on a legacy import; the compile took ~4 ms, the
+     * function it produced ~0.01 ms).
+     *
+     * The cache lives on the type's own jit container (like `getSerializeFunction`),
+     * keyed by the registry's id: a registry re-numbers itself on every
+     * mutation (`invalidateCache`), so a handler registered later gets a fresh
+     * build instead of a stale one.
+     */
+    private cachedBuild<F>(type: Type, registry: HandlerRegistry<JsonBuildContext>, build: () => F): F {
+        const jitContainer = getTypeJitContainer(type);
+        const id = `${registry.id}_build_${registry.direction}`;
+        if (jitContainer[id]) return jitContainer[id];
+        jitContainer[id] = build();
+        toFastProperties(jitContainer);
+        return jitContainer[id];
     }
 
     /**
