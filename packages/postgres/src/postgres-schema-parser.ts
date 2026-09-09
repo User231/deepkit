@@ -71,7 +71,8 @@ export class PostgresSchemaParser extends SchemaParser {
         const oid = `'"${table.schemaName || 'public'}"."${table.getName()}"'::regclass`;
 
         const indexes = await this.connection.execAndReturnAll(`
-        SELECT DISTINCT ON (cls.relname) cls.relname as idxname, indkey, idx.indisunique as unique, idx.indisprimary as primary
+        SELECT DISTINCT ON (cls.relname) cls.relname as idxname, indkey, idx.indisunique as unique, idx.indisprimary as primary,
+               EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid = idx.indexrelid) as constraint_backed
         FROM pg_index idx
                  JOIN pg_class cls ON cls.oid = indexrelid
         WHERE indrelid = ${oid}
@@ -87,6 +88,8 @@ export class PostgresSchemaParser extends SchemaParser {
 
             if (!row.idxname) continue;
             const index = table.addIndex(row.idxname, row.unique);
+            // Whether Postgres will let this go through DROP INDEX or only through its constraint.
+            index.isConstraint = row.constraint_backed === true;
 
             const attnums = row.indkey.split(' ');
             for (const attnum of attnums) {

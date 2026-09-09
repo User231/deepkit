@@ -251,8 +251,19 @@ export class PostgresPlatform extends DefaultPlatform {
         return `CONSTRAINT ${this.getIdentifier(unique)} UNIQUE (${this.getColumnListDDL(unique.columns)})`;
     }
 
+    /**
+     * A unique key exists in one of two forms, and Postgres drops each ONLY its own way: an
+     * index that backs a constraint (`UNIQUE (...)` in CREATE TABLE — what `getUniqueDDL`
+     * emits) goes through `DROP CONSTRAINT`, and `DROP INDEX` refuses it; a plain
+     * `CREATE UNIQUE INDEX` (what `getAddIndexDDL` emits on a diff, and what hand-written
+     * migrations mostly say) goes through `DROP INDEX`, and `DROP CONSTRAINT` answers 42704.
+     * Until 2026-09-09 every unique index was dropped as a constraint, so a migration
+     * generated against a database whose unique index was ever ADDED (rather than created
+     * with its table) failed on its first statement. The schema parser now records which
+     * form it found (`IndexModel.isConstraint`).
+     */
     getDropIndexDDL(index: IndexModel): string {
-        if (index.isUnique) {
+        if (index.isUnique && index.isConstraint) {
             return `ALTER TABLE ${this.getIdentifier(index.table)} DROP CONSTRAINT ${this.getIdentifier(index)}`;
         }
         return super.getDropIndexDDL(index);

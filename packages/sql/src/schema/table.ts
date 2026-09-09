@@ -228,6 +228,16 @@ export class IndexModel {
 
     public size: number = 0;
 
+    /**
+     * A unique index that BACKS a table constraint (`UNIQUE (...)` in CREATE TABLE, or
+     * `ALTER TABLE ... ADD CONSTRAINT`), as opposed to one created with `CREATE UNIQUE INDEX`.
+     * Postgres drops the two differently — a constraint-backed index only through its
+     * constraint, a plain one only through `DROP INDEX` — so the schema parser records which
+     * it found, and the platform picks the statement that will actually run. Meaningful only
+     * on an index parsed from a live database; one built from an entity is not yet either.
+     */
+    public isConstraint: boolean = false;
+
     constructor(
         public table: Table,
         public name: string,
