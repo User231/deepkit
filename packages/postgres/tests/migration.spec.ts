@@ -16,7 +16,13 @@ test('custom type', async () => {
 
     const reflection = ReflectionClass.from(post);
     reflection.getProperty('slug');
-    const adapter = new PostgresDatabaseAdapter({ host: '127.0.0.1', port: parseInt(process.env.POSTGRES_PORT || '15432', 10), database: 'postgres', user: 'postgres' });
+    const adapter = new PostgresDatabaseAdapter({
+        host: process.env.POSTGRES_HOST || '127.0.0.1',
+        port: parseInt(process.env.POSTGRES_PORT || '15432', 10),
+        database: process.env.POSTGRES_DB || 'postgres',
+        user: process.env.POSTGRES_USER || 'postgres',
+        password: process.env.POSTGRES_PASSWORD || undefined,
+    });
     const [postTable] = adapter.platform.createTables(DatabaseEntityRegistry.from([post]));
     expect(postTable.getColumn('slug').type).toBe('varchar');
     expect(postTable.getColumn('slug').size).toBe(255);
@@ -38,7 +44,13 @@ test('default expression', async () => {
         opt?: boolean;
     }
 
-    const adapter = new PostgresDatabaseAdapter({ host: '127.0.0.1', port: parseInt(process.env.POSTGRES_PORT || '15432', 10), database: 'postgres', user: 'postgres' });
+    const adapter = new PostgresDatabaseAdapter({
+        host: process.env.POSTGRES_HOST || '127.0.0.1',
+        port: parseInt(process.env.POSTGRES_PORT || '15432', 10),
+        database: process.env.POSTGRES_DB || 'postgres',
+        user: process.env.POSTGRES_USER || 'postgres',
+        password: process.env.POSTGRES_PASSWORD || undefined,
+    });
     const [postTable] = adapter.platform.createTables(DatabaseEntityRegistry.from([post]));
 
     expect(postTable.getColumn('str').defaultValue).toBe('abc');
@@ -64,7 +76,13 @@ test('numbers', async () => {
         default: number = 0;
     }
 
-    const adapter = new PostgresDatabaseAdapter({ host: '127.0.0.1', port: parseInt(process.env.POSTGRES_PORT || '15432', 10), database: 'postgres', user: 'postgres' });
+    const adapter = new PostgresDatabaseAdapter({
+        host: process.env.POSTGRES_HOST || '127.0.0.1',
+        port: parseInt(process.env.POSTGRES_PORT || '15432', 10),
+        database: process.env.POSTGRES_DB || 'postgres',
+        user: process.env.POSTGRES_USER || 'postgres',
+        password: process.env.POSTGRES_PASSWORD || undefined,
+    });
     const [postTable] = adapter.platform.createTables(DatabaseEntityRegistry.from([post]));
 
     const DDL = await schemaMigrationRoundTrip([post], adapter);
@@ -104,5 +122,14 @@ interface Post extends Entity<{ name: 'migration_post' }> {
 }
 
 test('postgres', async () => {
-    await schemaMigrationRoundTrip([typeOf<User>(), typeOf<Post>()], new PostgresDatabaseAdapter({ host: 'localhost', port: parseInt(process.env.POSTGRES_PORT || '15432', 10), database: 'postgres', user: 'postgres' }));
+    await schemaMigrationRoundTrip(
+        [typeOf<User>(), typeOf<Post>()],
+        new PostgresDatabaseAdapter({
+            host: process.env.POSTGRES_HOST || 'localhost',
+            port: parseInt(process.env.POSTGRES_PORT || '15432', 10),
+            database: process.env.POSTGRES_DB || 'postgres',
+            user: process.env.POSTGRES_USER || 'postgres',
+            password: process.env.POSTGRES_PASSWORD || undefined,
+        }),
+    );
 });
