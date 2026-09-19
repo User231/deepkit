@@ -84,6 +84,17 @@ export class DatabaseRegistry {
 
             const database = this.injectorContext.get(databaseType.classType, databaseType.module);
 
+            // ONE instance provided under several tokens (a factory for token B
+            // that returns token A's instance — an app that serves two roles from
+            // one pool until a second URL is configured) is ONE database: map the
+            // token to it and move on. Without this the instance's own name
+            // collides with itself below, and the only escape would be a second
+            // instance — a second pool — that the app was configured not to open.
+            if (this.databases.includes(database)) {
+                this.databaseMap.set(databaseType.classType, database);
+                continue;
+            }
+
             for (const classSchema of database.entityRegistry.all()) {
                 classSchema.data['orm.database'] = database;
             }
