@@ -543,6 +543,13 @@ function extractReceiveTypeMapping(typeParameters: readonly TypeParameterDeclara
 export class Cache {
     resolver: ReflectionConfigCache = {};
     sourceFiles: { [fileName: string]: SourceFile } = {};
+    /** Set by a long-lived host to learn which files a transform's reflection read (see `Resolver`). */
+    onSourceFile?: (fileName: string) => void;
+
+    /** Forget one file: the next resolution reads it again. */
+    invalidate(fileName: string): void {
+        delete this.sourceFiles[fileName];
+    }
 
     globalSourceFiles?: SourceFile[];
 
@@ -633,7 +640,7 @@ export class ReflectionTransformer implements CustomTransformer {
         // compilerHost has no internal cache and is cheap to build, so no cache needed.
         // Resolver loads SourceFile which has cache implemented.
         this.host = createCompilerHost(this.compilerOptions);
-        this.resolver = new Resolver(this.compilerOptions, this.host, this.cache.sourceFiles);
+        this.resolver = new Resolver(this.compilerOptions, this.host, this.cache.sourceFiles, fileName => this.cache.onSourceFile?.(fileName));
         this.parseConfigHost = {
             useCaseSensitiveFileNames: true,
             fileExists: (path: string) => this.host.fileExists(path),

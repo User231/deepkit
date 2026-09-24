@@ -1,3 +1,4 @@
+import { realpathSync } from 'fs';
 import type { CompilerOptions, SourceFile, TransformationContext } from 'typescript';
 import ts from 'typescript';
 
@@ -42,6 +43,14 @@ export interface DeepkitLoaderOptions {
  * const output = loader.transform(code, '/path/to/file.ts');
  * ```
  */
+function realPathOf(path: string): string {
+    try {
+        return realpathSync(path);
+    } catch {
+        return path;
+    }
+}
+
 export class DeepkitLoader {
     protected options: CompilerOptions;
     protected host: ts.CompilerHost;
@@ -92,6 +101,25 @@ export class DeepkitLoader {
     }
 
     /**
+     * Forget everything cached about a file — its last source, its parsed
+     * form, and the resolver's bound copy that other files' reflection reads
+     * through. A long-lived host (a dev server) calls this when the file
+     * changes on disk; the next transform of any file that imports a type
+     * from it then sees the new content. Without it the resolver cache
+     * outlives the file: a type added to a module keeps reflecting as unknown
+     * (`never` at runtime) until the process restarts.
+     */
+    invalidate(path: string): void {
+        // TypeScript's module resolution records the REAL path (symlinks
+        // resolved), a watcher may report the path it was given: forget both.
+        for (const key of new Set([path, realPathOf(path)])) {
+            delete this.knownFiles[key];
+            delete this.sourceFiles[key];
+            this.cache.invalidate(key);
+        }
+    }
+
+    /**
      * Transform a TypeScript source file with Deepkit type reflection.
      *
      * @param source - The TypeScript source code
@@ -99,6 +127,15 @@ export class DeepkitLoader {
      * @returns The transformed JavaScript code
      */
     transform(source: string, path: string): string {
+        return this.transformWithDependencies(source, path).code;
+    }
+
+    /**
+     * `transform`, plus the files the reflection read while transforming —
+     * every module a type was resolved through (barrels included), so a
+     * bundler can watch them and `invalidate` on change.
+     */
+    transformWithDependencies(source: string, path: string): { code: string; dependencies: string[] } {
         this.knownFiles[path] = source;
         const sourceFile = ts.createSourceFile(
             path,
@@ -108,6 +145,14 @@ export class DeepkitLoader {
             path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
         );
         this.sourceFiles[path] = sourceFile;
+        // The caller hands us the CURRENT source: a resolver copy of this
+        // file, bound from an earlier read, would be the stale one.
+        this.cache.invalidate(path);
+
+        const dependencies = new Set<string>();
+        this.cache.onSourceFile = fileName => {
+            if (fileName !== path) dependencies.add(fileName);
+        };
 
         let newSource = source;
 
@@ -133,6 +178,7 @@ export class DeepkitLoader {
             this.options,
         );
 
-        return newSource;
+        this.cache.onSourceFile = undefined;
+        return { code: newSource, dependencies: [...dependencies] };
     }
 }

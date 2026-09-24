@@ -34,6 +34,15 @@ export class Resolver {
         public compilerOptions: CompilerOptions,
         public host: CompilerHost,
         protected sourceFiles: { [fileName: string]: SourceFile },
+        /**
+         * Called with every source file a resolution lands on, cached or freshly
+         * read — the files a transform's reflection DEPENDS on. A long-lived
+         * host (a bundler's dev server) needs the list to watch them and to
+         * drop them from `sourceFiles` when they change; without it the cache
+         * outlives the files and a type added to a module keeps reflecting as
+         * unknown until the process restarts.
+         */
+        protected onResolve?: (fileName: string) => void,
     ) {}
 
     resolve(
@@ -94,6 +103,7 @@ export class Resolver {
         }
 
         const fileName = result.resolvedFileName;
+        this.onResolve?.(fileName);
         if (this.sourceFiles[fileName]) return this.sourceFiles[fileName];
 
         const source = this.host.readFile(result.resolvedFileName);

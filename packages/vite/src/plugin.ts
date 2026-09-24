@@ -69,12 +69,24 @@ export function deepkitType(options: Options = {}): Plugin {
         transform(code: string, fileName: string) {
             if (!filter(fileName)) return null;
 
-            const transformed = loader.transform(code, fileName);
+            const { code: transformed, dependencies } = loader.transformWithDependencies(code, fileName);
+            // The files this file's reflection read — a barrel, the module a
+            // type lives in. Watching them makes Vite re-transform THIS file
+            // when one changes (and see them at all when they sit outside the
+            // root, an aliased workspace package say).
+            for (const dependency of dependencies) this.addWatchFile(dependency);
 
             return {
                 code: transformed,
                 map: null,
             };
+        },
+        // A changed, created or deleted file leaves the loader's caches, so the
+        // re-transforms Vite triggers resolve types against the new content.
+        // Without this the resolver cache outlived the dev server's files and a
+        // type added to a module reflected as `never` until a restart.
+        watchChange(id: string) {
+            loader.invalidate(id);
         },
     };
 }
