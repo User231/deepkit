@@ -39,14 +39,14 @@
   },
   "devDependencies": {
     "@types/lz-string": "1.5.0",
-    "@types/micromatch": "4.0.10"
+    "@types/micromatch": "4.0.10",
+    "@typescript/vfs": "1.6.4"
   },
   "dependencies": {
     "@deepkit/core": "^2.0.0",
     "@deepkit/type-spec": "^2.0.0",
     "@marcj/ts-clone-node": "2.2.0",
     "@rollup/pluginutils": "5.4.0",
-    "@typescript/vfs": "1.6.4",
     "get-tsconfig": "4.14.0",
     "lz-string": "1.5.0",
     "micromatch": "4.0.8",

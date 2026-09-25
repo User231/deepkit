@@ -7,7 +7,6 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { knownLibFilesForCompilerOptions } from '@typescript/vfs';
 import ts, {
     ArrayTypeNode,
     ArrowFunction,
@@ -84,6 +83,7 @@ import { MappedModifier, ReflectionOp, TypeIntrinsic, TypeNumberBrand } from '@d
 import { ConfigResolver, MatchResult, ReflectionConfig, ReflectionConfigCache, ResolvedConfig, getConfigResolver, reflectionModeMatcher } from './config.js';
 import { debug, debug2 } from './debug.js';
 import { TypeCompilerError } from './error.js';
+import { knownLibFilesForCompilerOptions } from './known-lib-files.js';
 import {
     NodeConverter,
     PackExpression,
@@ -2618,13 +2618,13 @@ export class ReflectionTransformer implements CustomTransformer {
 
         //todo also read compiler options "types" + typeRoot
 
-        //currently knownLibFilesForCompilerOptions from @typescript/vfs doesn't return correct lib files for esnext,
-        //so we switch here to es2022 if bigger than es2022.
+        //knownLibFilesForCompilerOptions (vendored from @typescript/vfs, known-lib-files.ts) doesn't return
+        //correct lib files for esnext, so we switch here to es2022 if bigger than es2022.
         const options = { ...this.compilerOptions };
         if (options.target && options.target === ScriptTarget.ESNext) {
             options.target = ScriptTarget.ES2022;
         }
-        const libs = knownLibFilesForCompilerOptions(options, ts);
+        const libs = knownLibFilesForCompilerOptions(options);
 
         for (const lib of libs) {
             if (this.isExcluded(lib)) continue;
