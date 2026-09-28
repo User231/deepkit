@@ -733,6 +733,7 @@ export abstract class DefaultPlatform {
 
         if (options.isIndex()) {
             for (const [from] of diff.modifiedIndices.values()) ddl.push(this.getDropIndexDDL(from));
+            for (const [from, to] of diff.renamedIndices.values()) ddl.push(...this.getRenameIndexDDL(from, to));
         }
 
         //merge field changes into one command. This is more compatible especially with PK constraints.
@@ -885,6 +886,14 @@ export abstract class DefaultPlatform {
 
     getDropIndexDDL(index: IndexModel): string {
         return `DROP INDEX ${this.getIdentifier(index)}`;
+    }
+
+    /**
+     * Give an existing index the name the model declares. The portable fallback is a
+     * drop + create (the index is rebuilt); platforms with an in-place rename override it.
+     */
+    getRenameIndexDDL(from: IndexModel, to: IndexModel): string[] {
+        return [this.getDropIndexDDL(from), this.getAddIndexDDL(to)];
     }
 
     getUniqueDDL(unique: IndexModel): string {

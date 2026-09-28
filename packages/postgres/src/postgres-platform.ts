@@ -269,6 +269,15 @@ export class PostgresPlatform extends DefaultPlatform {
         return super.getDropIndexDDL(index);
     }
 
+    /**
+     * In place: the index (and, for a constraint-backed unique key, its constraint —
+     * Postgres renames both) keeps its data, no rebuild. The new name is unqualified —
+     * an index always lives in its table's schema.
+     */
+    getRenameIndexDDL(from: IndexModel, to: IndexModel): string[] {
+        return [`ALTER INDEX ${this.getIdentifier(from)} RENAME TO ${this.getIdentifier(to)}`];
+    }
+
     supportsInlineForeignKey(): boolean {
         return false;
     }

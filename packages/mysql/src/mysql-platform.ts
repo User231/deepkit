@@ -149,6 +149,12 @@ export class MySQLPlatform extends DefaultPlatform {
         return `DROP INDEX ${this.getIdentifier(index)} ON ${this.getIdentifier(index.table)}`;
     }
 
+    getRenameIndexDDL(from: IndexModel, to: IndexModel): string[] {
+        return [
+            `ALTER TABLE ${this.getIdentifier(to.table)} RENAME INDEX ${this.getIdentifier(from)} TO ${this.getIdentifier(to)}`,
+        ];
+    }
+
     getColumnDDL(column: Column) {
         const ddl: string[] = [];
 

@@ -226,6 +226,20 @@ export class IndexModel {
     public spatial: boolean = false;
     public partial: boolean = false;
 
+    /**
+     * The index keys on an expression rather than on plain columns (Postgres `indexprs`).
+     * Such a key has no column the model can name, so the parsed `columns` list only
+     * holds its plain members — never enough to decide the index equals another.
+     */
+    public hasExpressions: boolean = false;
+
+    /**
+     * The access method when it is not the platform's default (`gin`, `gist`, … — Postgres
+     * `pg_am.amname`), `''` for the default. A GIN index over a column is not the btree
+     * index an entity declares on it, even though both list the same column.
+     */
+    public method: string = '';
+
     public size: number = 0;
 
     /**
@@ -383,6 +397,23 @@ export class IndexComparator {
 
         return from.isUnique !== to.isUnique;
     }
+
+    /**
+     * Whether two indexes that differ ONLY by name are the same index — the pair a
+     * diff reports as a rename instead of a drop plus a create. Deliberately narrow:
+     * both must be plain (no partial predicate, no expression key, the default access
+     * method, same spatial flag) with the same columns in the same order and the same
+     * uniqueness. Anything the model cannot fully see stays a drop + create, so a
+     * rename never smuggles a different index in under the declared name.
+     */
+    static isRename(from: IndexModel, to: IndexModel): boolean {
+        if (!from.columns.length || !to.columns.length) return false;
+        if (from.partial || to.partial) return false;
+        if (from.hasExpressions || to.hasExpressions) return false;
+        if (from.method !== to.method) return false;
+        if (from.spatial !== to.spatial) return false;
+        return !IndexComparator.computeDiff(from, to);
+    }
 }
 
 export class ForeignKeyComparator {
@@ -429,6 +460,7 @@ export class TableDiff {
     public addedIndices: IndexModel[] = [];
     public removedIndices: IndexModel[] = [];
     public modifiedIndices: [from: IndexModel, to: IndexModel][] = [];
+    public renamedIndices: [from: IndexModel, to: IndexModel][] = [];
 
     public addedFKs: ForeignKey[] = [];
     public modifiedFKs: [from: ForeignKey, to: ForeignKey][] = [];
@@ -510,6 +542,11 @@ export class TableDiff {
         if (this.removedIndices.length) {
             lines.push('   removedIndices:');
             for (const index of this.removedIndices) lines.push(`     ${index.valueOf()}`);
+        }
+
+        if (this.renamedIndices.length) {
+            lines.push('   renamedIndices:');
+            for (const [from, to] of this.renamedIndices) lines.push(`     ${from.getName()} -> ${to.getName()}`);
         }
 
         if (this.modifiedIndices.length) {
@@ -655,6 +692,20 @@ export class TableComparator {
                     arrayRemoveItem(fromIndices, fromIndex);
                     arrayRemoveItem(toIndices, toIndex);
                 }
+            }
+        }
+
+        // The same index under another name (a hand-written migration's own naming, a
+        // generator-naming change) is a RENAME — not a create that duplicates it while
+        // the old one lingers (without `drop`) or a drop + rebuild (with it).
+        for (const fromIndex of fromIndices.slice()) {
+            for (const toIndex of toIndices) {
+                if (!IndexComparator.isRename(fromIndex, toIndex)) continue;
+                this.diff.renamedIndices.push([fromIndex, toIndex]);
+                differences++;
+                arrayRemoveItem(fromIndices, fromIndex);
+                arrayRemoveItem(toIndices, toIndex);
+                break;
             }
         }
 

@@ -72,9 +72,11 @@ export class PostgresSchemaParser extends SchemaParser {
 
         const indexes = await this.connection.execAndReturnAll(`
         SELECT DISTINCT ON (cls.relname) cls.relname as idxname, indkey, idx.indisunique as unique, idx.indisprimary as primary,
-               EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid = idx.indexrelid) as constraint_backed
+               EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid = idx.indexrelid) as constraint_backed,
+               idx.indpred IS NOT NULL as partial, idx.indexprs IS NOT NULL as expressions, am.amname as method
         FROM pg_index idx
                  JOIN pg_class cls ON cls.oid = indexrelid
+                 JOIN pg_am am ON am.oid = cls.relam
         WHERE indrelid = ${oid}
           AND NOT indisprimary
         ORDER BY cls.relname
@@ -90,6 +92,11 @@ export class PostgresSchemaParser extends SchemaParser {
             const index = table.addIndex(row.idxname, row.unique);
             // Whether Postgres will let this go through DROP INDEX or only through its constraint.
             index.isConstraint = row.constraint_backed === true;
+            // What the column list cannot say — the rename heuristic must not match these
+            // to a plain declared index (`IndexComparator.isRename`).
+            index.partial = row.partial === true;
+            index.hasExpressions = row.expressions === true;
+            index.method = row.method === 'btree' ? '' : String(row.method ?? '');
 
             const attnums = row.indkey.split(' ');
             for (const attnum of attnums) {
