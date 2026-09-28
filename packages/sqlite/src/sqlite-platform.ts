@@ -120,7 +120,6 @@ export class SQLitePlatform extends DefaultPlatform {
             false ||
             diff.modifiedFKs.length > 0 ||
             diff.modifiedIndices.length > 0 ||
-            diff.renamedIndices.length > 0 ||
             diff.modifiedColumns.length > 0 ||
             diff.renamedColumns.length > 0 ||
             diff.removedFKs.length > 0 ||
