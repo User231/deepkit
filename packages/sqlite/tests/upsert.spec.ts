@@ -1,24 +1,9 @@
 import { test } from 'node:test';
 
-import { Database } from '@deepkit/orm';
 import { expect } from '@deepkit/run/expect';
 import { AutoIncrement, PrimaryKey, entity, integer } from '@deepkit/type';
 
-import { SQLiteDatabaseAdapter } from '../src/sqlite-adapter.js';
 import { databaseFactory } from './factory.js';
-
-/**
- * An isolated in-memory database for tests that must not contend with anything else.
- * The shared `databaseFactory` points every spec at one `/tmp/db.sqlite`, so specs
- * running in parallel intermittently lose the write lock ("database is locked").
- */
-async function memoryDatabase(entities: any[]): Promise<Database<SQLiteDatabaseAdapter>> {
-    const adapter = new SQLiteDatabaseAdapter(':memory:');
-    const database = new Database(adapter);
-    database.registerEntity(...entities);
-    await adapter.createTables(database.entityRegistry);
-    return database;
-}
 
 /**
  * SQLite shares Postgres's `ON CONFLICT` upsert syntax (no INSERT alias), so the same
@@ -90,7 +75,7 @@ test('a loaded-but-untouched row does not revert a Date written by insertOrUpdat
     const t0 = new Date('2026-07-25T10:00:00.000Z');
     const t1 = new Date('2026-07-25T11:30:00.000Z');
 
-    const database = await memoryDatabase([Row]);
+    const database = await databaseFactory([Row]);
     try {
         await database.query(Row).insertOrUpdate({ id: 1, label: 'first', version: 1, updatedAt: t0 });
 
@@ -120,7 +105,7 @@ test('a genuinely modified Date is still written on commit', async () => {
     const t0 = new Date('2026-07-25T10:00:00.000Z');
     const t1 = new Date('2026-07-25T11:30:00.000Z');
 
-    const database = await memoryDatabase([Row]);
+    const database = await databaseFactory([Row]);
     try {
         await database.query(Row).insertOrUpdate({ id: 1, updatedAt: t0 });
 
@@ -149,7 +134,7 @@ test('splits a multi-row upsert at SQLite’s own bind-parameter ceiling', async
     // which is LOWER than Postgres's 65535: the writer splits along the platform's own ceiling.
     const rows = Array.from({ length: 10_000 }, (_, i) => ({ id: i, a: 'a', b: 'b', n: i }));
 
-    const database = await memoryDatabase([Row]);
+    const database = await databaseFactory([Row]);
     try {
         const inserted = await database.query(Row).insertOrUpdate(rows);
         expect(inserted.modified).toBe(rows.length);
@@ -170,7 +155,7 @@ test('rejects a DO UPDATE set with duplicate conflict keys (SQLite would last-wi
         value: integer = 0;
     }
 
-    const database = await memoryDatabase([KV]);
+    const database = await databaseFactory([KV]);
     try {
         // SQLite's own answer here is a silent last-wins, Postgres's is an error. The rule is
         // the writer's, not the dialect's, so both report the caller's ambiguity the same way.
