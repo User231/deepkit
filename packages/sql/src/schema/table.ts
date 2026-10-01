@@ -227,6 +227,15 @@ export class IndexModel {
     public partial: boolean = false;
 
     /**
+     * The predicate of a partial index as the entity declares it (`IndexOptions.where`),
+     * `''` for a plain index. Only a DECLARED index carries it: a database rewrites the
+     * predicate it stores, so the text parsed back could never be compared. The diff
+     * compares `partial` instead, and the predicate is part of the generated NAME — a
+     * changed predicate is a different index (drop + create), never a silent no-op.
+     */
+    public where: string = '';
+
+    /**
      * The index keys on an expression rather than on plain columns (Postgres `indexprs`).
      * Such a key has no column the model can name, so the parsed `columns` list only
      * holds its plain members — never enough to decide the index equals another.
@@ -262,6 +271,7 @@ export class IndexModel {
         if (!this.name) {
             const hash: string[] = [];
             for (const column of this.columns) hash.push(column.name + '/' + column.size);
+            if (this.where) hash.push('where/' + this.where);
             const prefix = this.isUnique ? 'u' : 'i';
             return this.table.getName() + '_' + prefix + cyrb53(hash.join('|'));
         }
@@ -394,6 +404,9 @@ export class IndexComparator {
             .join(',')
             .toLowerCase();
         if (fromColumnNames !== toColumnNames) return true;
+        // A partial index is not the plain index over the same columns (it constrains,
+        // and serves, a subset of the rows).
+        if (from.partial !== to.partial) return true;
 
         return from.isUnique !== to.isUnique;
     }

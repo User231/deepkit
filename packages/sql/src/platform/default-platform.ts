@@ -538,6 +538,8 @@ export abstract class DefaultPlatform {
                 const addedIndex = table.addIndex(index.options.name || '', index.options.unique);
                 addedIndex.columns = columns;
                 addedIndex.spatial = index.options.spatial || false;
+                addedIndex.where = index.options.where || '';
+                addedIndex.partial = addedIndex.where !== '';
             }
 
             //sqlite and postgres do not create a index for foreign keys. But this
@@ -849,7 +851,8 @@ export abstract class DefaultPlatform {
             columns.push(`${this.getIdentifier(column)}`);
         }
 
-        return `CREATE${u} INDEX ${this.getIdentifier(index)} ON ${this.getIdentifier(index.table)} (${columns.join(', ')})`;
+        const where = index.where ? ` WHERE ${index.where}` : '';
+        return `CREATE${u} INDEX ${this.getIdentifier(index)} ON ${this.getIdentifier(index.table)} (${columns.join(', ')})${where}`;
     }
 
     getDropTableDDL(table: Table): string {

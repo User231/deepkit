@@ -252,6 +252,13 @@ export type IndexOptions = {
 
     //only in mongodb
     fulltext?: boolean;
+
+    /**
+     * The predicate of a PARTIAL index, in the database's own SQL over column names
+     * (`"alias" = false`) — SQL adapters emit it as `CREATE INDEX … WHERE <where>`
+     * (Postgres, SQLite; MySQL has no partial indexes). On a class-level
+     * `entity.index([...], { where })` only.
+     */
     where?: string;
 
     expireAfterSeconds?: number;
