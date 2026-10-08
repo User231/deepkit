@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';
+import { MinLength, ValidationError } from '@deepkit/type';
 
 import { rpc } from '../src/decorators.js';
 import { RpcKernel } from '../src/server/kernel.js';
@@ -115,4 +116,53 @@ test('http unknown method with propagateErrors: rethrown', async () => {
 
     expect(thrown).toBeInstanceOf(Error);
     expect(written.status).toBe(undefined);
+});
+
+test('http argument validation with propagateErrors: the typed ValidationError is rethrown, its items kept', async () => {
+    @rpc.controller('strict')
+    class StrictController {
+        @rpc.action()
+        greet(name: string & MinLength<3>): string {
+            return `hello ${name}`;
+        }
+    }
+    const kernel = new RpcKernel();
+    kernel.registerController(StrictController);
+
+    const { request, response, written } = createMocks('/rpc/strict/greet');
+    request.body = Buffer.from(JSON.stringify({ args: ['a'] }));
+    let thrown: any;
+    try {
+        await createConnection(kernel).onRequest('/rpc', request as any, response as any, {
+            propagateErrors: true,
+        });
+    } catch (error) {
+        thrown = error;
+    }
+
+    // The bridge gets the error itself — a transport mapping it to an HTTP body
+    // reads the field and the rule from `errors`, not from a text dump.
+    expect(thrown).toBeInstanceOf(ValidationError);
+    expect(thrown.errors.length).toBeGreaterThan(0);
+    expect(thrown.errors[0].code).toBe('minLength');
+    expect(written.status).toBe(undefined);
+});
+
+test('http argument validation without propagateErrors: the labelled text in the envelope, as before', async () => {
+    @rpc.controller('strict2')
+    class StrictController {
+        @rpc.action()
+        greet(name: string & MinLength<3>): string {
+            return `hello ${name}`;
+        }
+    }
+    const kernel = new RpcKernel();
+    kernel.registerController(StrictController);
+
+    const { request, response, written } = createMocks('/rpc/strict2/greet');
+    request.body = Buffer.from(JSON.stringify({ args: ['a'] }));
+    await createConnection(kernel).onRequest('/rpc', request as any, response as any);
+
+    expect(written.status).toBe(200);
+    expect(written.body).toContain('Validation error for arguments of StrictController.greet');
 });

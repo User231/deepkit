@@ -629,6 +629,13 @@ export class RpcServerAction {
                 this.logger.warn(message, error);
             }
             triggerError(error);
+            // A propagating transport (the framework's HTTP-RPC bridge) gets
+            // the typed error — a ValidationError keeps its `errors` items, so
+            // the HTTP edge can answer with the field and the rule instead of
+            // this dump; the serialized protocol keeps the labelled text (a
+            // ValidationError rebuilds its message from the items on the
+            // other side, so a prefix would not survive the wire anyway).
+            if (response.propagateErrors && error instanceof Error) return response.error(error);
             return response.error(`${message}: ${error.message}`);
         }
 
@@ -660,6 +667,9 @@ export class RpcServerAction {
             if (action.strictSerialization) {
                 const message = `Validation error for arguments of ${label}: ${error.message}`;
                 triggerError(error);
+                // Same split as the decode failure above: the typed error for a
+                // propagating transport, the labelled text for the protocol.
+                if (response.propagateErrors) return response.error(error);
                 return response.error(message);
             }
         }
