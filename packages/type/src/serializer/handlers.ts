@@ -4008,7 +4008,21 @@ function validateDiscriminatedUnionWithErrors(
     path: string,
     typeDescription: string,
 ): boolean {
-    const discValue = value?.[discriminatorProperty];
+    // Nothing but an object carries a discriminator: a missing, null or primitive value
+    // is the property's own error (not a `.kind` path under it), worded like the deserializer's.
+    if (value === null || typeof value !== 'object') {
+        errors.push(
+            new ValidationErrorItem(
+                path,
+                'type',
+                `Cannot convert ${stringifyValueWithType(value)} to ${typeDescription}. Not an object`,
+                value,
+            ),
+        );
+        return false;
+    }
+
+    const discValue = value[discriminatorProperty];
     const matchedMember = valueToMember.get(discValue);
 
     if (matchedMember) {
@@ -4210,7 +4224,6 @@ export const guardUnionFast: JsonTypeHandler = (type, input, b, state) => {
     const disc = detectDiscriminator(unionType);
     if (disc) {
         // Fast JIT switch for both error and non-error paths
-        const discValue = b.get(input, b.lit(disc.property));
         const resultVar = b.var_<boolean>(false);
 
         const cases: Array<[any, () => void]> = [];
@@ -4224,8 +4237,14 @@ export const guardUnionFast: JsonTypeHandler = (type, input, b, state) => {
             ]);
         }
 
-        b.switch_(discValue, cases, () => {
-            b.setVar(resultVar, b.lit(false));
+        // A required property's guard receives the raw value even when it is missing;
+        // reading the discriminator off null/undefined is a TypeError inside the JIT
+        // function. Only an object can carry a discriminator — anything else is `false`.
+        b.if_(b.and(b.not(b.isNullish(input)), b.isType(input, 'object')), () => {
+            const discValue = b.get(input, b.lit(disc.property));
+            b.switch_(discValue, cases, () => {
+                b.setVar(resultVar, b.lit(false));
+            });
         });
 
         const result = b.getVar(resultVar);

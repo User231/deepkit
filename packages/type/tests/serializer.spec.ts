@@ -1328,6 +1328,40 @@ test('function rest parameters', () => {
     }
 });
 
+test('discriminated union: a missing, null or primitive input is a validation error, not a TypeError', () => {
+    type Outcome = { kind: 'completed'; result: unknown } | { kind: 'failed'; error: string } | { kind: 'cancelled' };
+    interface Body {
+        worker: string;
+        outcome: Outcome;
+    }
+
+    // A required property's handler receives the raw (missing) value; reading the
+    // discriminator off undefined/null crashed the JIT function with a TypeError.
+    for (const input of [{}, { worker: 'w' }, { worker: 'w', outcome: null }, { worker: 'w', outcome: 5 }, { worker: 'w', outcome: 'completed' }]) {
+        expect(() => cast<Body>(input as any)).toThrow(ValidationError);
+        expect(() => deserialize<Body>(input as any)).toThrow(ValidationError);
+        const errors = validate<Body>(input as any);
+        expect(errors.length).toBeGreaterThanOrEqual(1);
+        expect(errors.find(e => e.path === 'outcome')).toBeDefined();
+    }
+
+    let thrown: unknown;
+    try {
+        cast<Body>({ worker: 'w' } as any);
+    } catch (error) {
+        thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(ValidationError);
+    expect((thrown as ValidationError).errors[0].path).toBe('outcome');
+    expect((thrown as ValidationError).errors[0].message).toContain('Not an object');
+
+    // A bare union (no owning object) is guarded the same way.
+    expect(() => cast<Outcome>(undefined as any)).toThrow(ValidationError);
+    expect(() => cast<Outcome>(null as any)).toThrow(ValidationError);
+    expect(cast<Outcome>({ kind: 'cancelled' })).toEqual({ kind: 'cancelled' });
+    expect(cast<Body>({ worker: 'w', outcome: { kind: 'failed', error: 'x' } })).toEqual({ worker: 'w', outcome: { kind: 'failed', error: 'x' } });
+});
+
 test('discriminated union with string date in type guard', () => {
     expect(is<number | string>(12)).toBe(true);
     expect(is<number | string>('abc')).toBe(true);

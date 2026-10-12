@@ -46,9 +46,19 @@ function buildDiscriminatedUnion(
     b: Builder,
     state: JsonBuildContext,
 ): Ref {
-    const discValue = input.get(disc.property);
     const result = b.var_<any>(undefined);
     const matched = b.var_(false);
+
+    // A required property's handler receives the raw value even when it is missing
+    // (the object handler leaves the error to the type). Reading the discriminator
+    // off null/undefined (or a primitive) is a TypeError inside the JIT function,
+    // not a validation error — guard before the lookup so a missing or non-object
+    // input is a ValidationError like every other type mismatch.
+    b.if_(b.or(b.isNullish(input), b.not(b.isType(input, 'object'))), () => {
+        state.throw_(type, input, 'Not an object');
+    });
+
+    const discValue = input.get(disc.property);
 
     const cases: Array<[any, () => void]> = [];
 
