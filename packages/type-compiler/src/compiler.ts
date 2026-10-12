@@ -89,6 +89,7 @@ import {
     PackExpression,
     ensureImportIsEmitted,
     extractJSDocAttribute,
+    extractJSDocDescription,
     findSourceFile,
     getEscapedText,
     getGlobalsOfSourceFile,
@@ -140,6 +141,15 @@ const {
     isOptionalTypeNode,
     isParameter,
     isParenthesizedExpression,
+    isSpreadElement,
+    isArrayLiteralExpression,
+    isAsExpression,
+    isSatisfiesExpression,
+    isNumericLiteral,
+    isNoSubstitutionTemplateLiteral,
+    isBigIntLiteral,
+    isPrefixUnaryExpression,
+    isVariableDeclarationList,
     isParenthesizedTypeNode,
     isPropertyAccessExpression,
     isPropertyAccessChain,
@@ -2012,7 +2022,7 @@ export class ReflectionTransformer implements CustomTransformer {
                     if (narrowed.name) this.resolveTypeName(getIdentifierName(narrowed.name), program);
 
                     // for whatever reason: narrowed.name.parent !== narrowed. narrowed.name.parent has jsDoc, narrowed.name not.
-                    const description = extractJSDocAttribute(this.sourceFile, narrowed.name?.parent, 'description');
+                    const description = extractJSDocDescription(this.sourceFile, narrowed.name?.parent);
                     if (description) program.pushOp(ReflectionOp.description, program.findOrAddStackEntry(description));
                 }
                 break;
@@ -2125,7 +2135,7 @@ export class ReflectionTransformer implements CustomTransformer {
                 if (isTypeLiteralNode(narrowed)) {
                     descriptionNode = narrowed.parent;
                 }
-                const description = descriptionNode && extractJSDocAttribute(this.sourceFile, descriptionNode, 'description');
+                const description = descriptionNode && extractJSDocDescription(this.sourceFile, descriptionNode);
                 if (description) program.pushOp(ReflectionOp.description, program.findOrAddStackEntry(description));
 
                 if (isInterfaceDeclaration(narrowed)) {
@@ -2193,7 +2203,7 @@ export class ReflectionTransformer implements CustomTransformer {
                     if (narrowed.questionToken) program.pushOp(ReflectionOp.optional);
                     if (hasModifier(narrowed, SyntaxKind.ReadonlyKeyword)) program.pushOp(ReflectionOp.readonly);
 
-                    const description = extractJSDocAttribute(this.sourceFile, narrowed, 'description');
+                    const description = extractJSDocDescription(this.sourceFile, narrowed);
                     if (description) program.pushOp(ReflectionOp.description, program.findOrAddStackEntry(description));
                 } else {
                     program.pushOp(ReflectionOp.unknown);
@@ -2233,7 +2243,7 @@ export class ReflectionTransformer implements CustomTransformer {
                     );
                 }
 
-                const description = extractJSDocAttribute(this.sourceFile, narrowed, 'description');
+                const description = extractJSDocDescription(this.sourceFile, narrowed);
                 if (description) program.pushOp(ReflectionOp.description, program.findOrAddStackEntry(description));
 
                 break;
@@ -2357,7 +2367,7 @@ export class ReflectionTransformer implements CustomTransformer {
                     if (hasModifier(parameter, SyntaxKind.PrivateKeyword)) program.pushOp(ReflectionOp.private);
                     if (hasModifier(parameter, SyntaxKind.ProtectedKeyword)) program.pushOp(ReflectionOp.protected);
                     if (hasModifier(parameter, SyntaxKind.ReadonlyKeyword)) program.pushOp(ReflectionOp.readonly);
-                    const description = extractJSDocAttribute(this.sourceFile, parameter, 'description');
+                    const description = extractJSDocDescription(this.sourceFile, parameter);
                     if (description) program.pushOp(ReflectionOp.description, program.findOrAddStackEntry(description));
                     if (parameter.initializer && parameter.type && !getReceiveTypeParameter(parameter.type)) {
                         program.pushOp(ReflectionOp.defaultValue, program.findOrAddStackEntry(this.f.createArrowFunction(undefined, undefined, [], undefined, undefined, parameter.initializer)));
@@ -2391,7 +2401,7 @@ export class ReflectionTransformer implements CustomTransformer {
                     if (hasModifier(narrowed, SyntaxKind.AbstractKeyword)) program.pushOp(ReflectionOp.abstract);
                     if (hasModifier(narrowed, SyntaxKind.StaticKeyword)) program.pushOp(ReflectionOp.static);
                 }
-                const description = extractJSDocAttribute(this.sourceFile, narrowed, 'description');
+                const description = extractJSDocDescription(this.sourceFile, narrowed);
                 if (description) program.pushOp(ReflectionOp.description, program.findOrAddStackEntry(description));
                 program.popFrameImplicit();
                 break;
@@ -2462,7 +2472,7 @@ export class ReflectionTransformer implements CustomTransformer {
                     }
                 }
                 program.pushOp(ReflectionOp.enum);
-                const description = extractJSDocAttribute(this.sourceFile, narrowed, 'description');
+                const description = extractJSDocDescription(this.sourceFile, narrowed);
                 if (description) program.pushOp(ReflectionOp.description, program.findOrAddStackEntry(description));
                 if (narrowed.name) this.resolveTypeName(getIdentifierName(narrowed.name), program);
                 program.popFrameImplicit();
@@ -2498,6 +2508,18 @@ export class ReflectionTransformer implements CustomTransformer {
                 // }
                 if (isIdentifier(narrowed.exprName)) {
                     const resolved = this.resolveDeclaration(narrowed.exprName);
+
+                    // `typeof X` where `const X = <literal> as const`: the runtime value cannot
+                    // carry the assertion (an array infers as `string[]`, never `readonly ['a', 'b']`),
+                    // so the declared type is read from the initializer at compile time — a tuple of
+                    // literals, an object literal of readonly literal members — and nothing is
+                    // evaluated at runtime. An initializer the static walk cannot express (a call, a
+                    // spread, a reference) keeps the runtime `typeof` below.
+                    const constInitializer = resolved && this.getConstAssertedInitializer(resolved.declaration);
+                    if (constInitializer && this.extractPackStructOfConstExpression(constInitializer, program)) {
+                        break;
+                    }
+
                     if (resolved && findSourceFile(resolved.declaration) !== this.sourceFile && resolved.importDeclaration) {
                         ensureImportIsEmitted(resolved.importDeclaration, narrowed.exprName);
                     }
@@ -2639,6 +2661,98 @@ export class ReflectionTransformer implements CustomTransformer {
      * This is a custom resolver based on populated `locals` from the binder. It uses a custom resolution algorithm since
      * we have no access to the binder/TypeChecker directly and instantiating a TypeChecker per file/transformer is incredible slow.
      */
+    /**
+     * The initializer of `const X = <expression> as const` (parentheses and `satisfies` seen
+     * through), or undefined when `declaration` is anything else.
+     */
+    protected getConstAssertedInitializer(declaration: Node): Expression | undefined {
+        if (!isVariableDeclaration(declaration) || !declaration.initializer) return;
+        if (!isVariableDeclarationList(declaration.parent) || !(declaration.parent.flags & NodeFlags.Const)) return;
+
+        let expression: Expression = declaration.initializer;
+        let asserted = false;
+        while (true) {
+            if (isParenthesizedExpression(expression) || isSatisfiesExpression(expression)) {
+                expression = expression.expression;
+            } else if (isAsExpression(expression) && isTypeReferenceNode(expression.type) && isIdentifier(expression.type.typeName) && getIdentifierName(expression.type.typeName) === 'const') {
+                asserted = true;
+                expression = expression.expression;
+            } else {
+                break;
+            }
+        }
+        return asserted ? expression : undefined;
+    }
+
+    /**
+     * Emits the type TypeScript gives `expression` under `as const`: a literal stays a literal,
+     * an array literal is a readonly tuple, an object literal an object with readonly members.
+     * Returns false — with nothing emitted — when the expression is not fully literal.
+     */
+    protected extractPackStructOfConstExpression(expression: Expression, program: CompilerProgram): boolean {
+        if (!this.isConstExpression(expression)) return false;
+        this.emitConstExpression(expression, program);
+        return true;
+    }
+
+    protected isConstExpression(expression: Expression): boolean {
+        if (isParenthesizedExpression(expression) || isSatisfiesExpression(expression)) return this.isConstExpression(expression.expression);
+        if (isAsExpression(expression)) return this.isConstExpression(expression.expression);
+        if (isStringLiteral(expression) || isNoSubstitutionTemplateLiteral(expression) || isNumericLiteral(expression) || isBigIntLiteral(expression)) return true;
+        if (expression.kind === SyntaxKind.TrueKeyword || expression.kind === SyntaxKind.FalseKeyword || expression.kind === SyntaxKind.NullKeyword) return true;
+        if (isIdentifier(expression) && getIdentifierName(expression) === 'undefined') return true;
+        if (isPrefixUnaryExpression(expression)) {
+            return (expression.operator === SyntaxKind.MinusToken || expression.operator === SyntaxKind.PlusToken) && (isNumericLiteral(expression.operand) || isBigIntLiteral(expression.operand));
+        }
+        if (isArrayLiteralExpression(expression)) {
+            return expression.elements.every(element => !isSpreadElement(element) && this.isConstExpression(element));
+        }
+        if (isObjectLiteralExpression(expression)) {
+            return expression.properties.every(property => {
+                if (!isPropertyAssignment(property)) return false;
+                if (!isIdentifier(property.name) && !isStringLiteral(property.name) && !isNumericLiteral(property.name)) return false;
+                return this.isConstExpression(property.initializer);
+            });
+        }
+        return false;
+    }
+
+    protected emitConstExpression(expression: Expression, program: CompilerProgram): void {
+        if (isParenthesizedExpression(expression) || isSatisfiesExpression(expression) || isAsExpression(expression)) {
+            this.emitConstExpression(expression.expression, program);
+        } else if (expression.kind === SyntaxKind.TrueKeyword) {
+            program.pushOp(ReflectionOp.literal, program.pushStack(this.f.createTrue()));
+        } else if (expression.kind === SyntaxKind.FalseKeyword) {
+            program.pushOp(ReflectionOp.literal, program.pushStack(this.f.createFalse()));
+        } else if (expression.kind === SyntaxKind.NullKeyword) {
+            program.pushOp(ReflectionOp.null);
+        } else if (isIdentifier(expression)) {
+            program.pushOp(ReflectionOp.undefined);
+        } else if (isArrayLiteralExpression(expression)) {
+            program.pushFrame();
+            for (const element of expression.elements) {
+                this.emitConstExpression(element, program);
+            }
+            program.pushOp(ReflectionOp.tuple);
+            program.popFrameImplicit();
+            program.pushOp(ReflectionOp.readonly);
+        } else if (isObjectLiteralExpression(expression)) {
+            program.pushFrame();
+            for (const property of expression.properties) {
+                if (!isPropertyAssignment(property)) continue;
+                this.emitConstExpression(property.initializer, program);
+                const name = getPropertyName(this.f, property.name);
+                program.pushOp(ReflectionOp.propertySignature, program.findOrAddStackEntry(name));
+                program.pushOp(ReflectionOp.readonly);
+            }
+            program.pushOp(ReflectionOp.objectLiteral);
+            program.popFrameImplicit();
+        } else {
+            // string, template, number, bigint, a signed number: the literal node is the value
+            program.pushOp(ReflectionOp.literal, program.findOrAddStackEntry(expression));
+        }
+    }
+
     protected resolveDeclaration(typeName: EntityName): { declaration: Node; importDeclaration?: ImportDeclaration | JSDocImportTag; typeOnly?: boolean } | void {
         let current: Node = typeName.parent;
         if (typeName.kind === SyntaxKind.QualifiedName) return; //namespace access not supported yet, e.g. type a = Namespace.X;

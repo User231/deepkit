@@ -8,6 +8,7 @@ import { InlineRuntimeType, ReflectionKind, Type, TypeLiteral, TypeObjectLiteral
 import { serialize } from '../src/serializer-facade.js';
 import { Entity, Maximum, MinLength, Reference, Unique, entityAnnotation, float } from '../src/type-annotations.js';
 import { validate } from '../src/validator.js';
+import { IMPORTED_IDS } from './fixtures/as-const-ids.js';
 import { expectEqualType } from './utils.js';
 
 const symbol = Symbol();
@@ -53,7 +54,8 @@ test('container widening is permanent: (typeof arr)[number] never resurrects a l
     // (`const x = 'a'; typeof x` => 'a') — un-widened the program RESULT whenever a later op
     // (index access) made the element type the result: `(typeof IDS)[number]` resolved to the
     // FIRST literal 'google', and serializing any sibling value silently rewrote it.
-    const IDS = ['google', 'github', 'microsoft'] as const;
+    // A mutable array (no `as const`) is `string[]` in TypeScript too, so its element is string.
+    const IDS = ['google', 'github', 'microsoft'];
     type K = (typeof IDS)[number];
     const k = typeOf<K>();
     expect(k.kind).toBe(ReflectionKind.string);
@@ -76,6 +78,61 @@ test('container widening is permanent: (typeof arr)[number] never resurrects a l
     const st = typeOf<typeof s>();
     expect(st.kind).toBe(ReflectionKind.literal);
     expect((st as TypeLiteral).literal).toBe('a');
+});
+
+test('typeof an `as const` array is the readonly tuple of its literals, read at compile time', () => {
+    // The runtime value cannot carry the assertion, so the compiler reads the initializer:
+    // `(typeof IDS)[number]` is the literal union TypeScript gives it, and validates as one.
+    const IDS = ['google', 'github', 'microsoft'] as const;
+    type K = (typeof IDS)[number];
+
+    const tuple = typeOf<typeof IDS>();
+    expect(tuple.kind).toBe(ReflectionKind.tuple);
+    expect((tuple as any).readonly).toBe(true);
+    expect(stringifyResolvedType(tuple)).toBe(`['google', 'github', 'microsoft']`); // stringify prints no readonly on tuples
+
+    const k = typeOf<K>();
+    expect(k.kind).toBe(ReflectionKind.union);
+    expect(stringifyResolvedType(k)).toBe(`'google' | 'github' | 'microsoft'`);
+
+    interface View {
+        oauth: K[];
+    }
+    expect(serialize<View>({ oauth: ['google', 'github'] })).toEqual({ oauth: ['google', 'github'] });
+    expect(validate<View>({ oauth: ['google'] })).toEqual([]);
+    expect(validate<View>({ oauth: ['gitlab'] }).length).toBe(1);
+
+    // The assertion is seen through parentheses and `satisfies`.
+    const WRAPPED = ['a', 'b'] as const satisfies readonly string[];
+    expect(stringifyResolvedType(typeOf<(typeof WRAPPED)[number]>())).toBe(`'a' | 'b'`);
+
+    // Every literal kind, nested, and an object literal with readonly members.
+    const MIXED = { name: 'x', count: 3, neg: -1, on: true, none: null, big: 1n, list: ['p', 2] } as const;
+    const mixed = typeOf<typeof MIXED>() as TypeObjectLiteral;
+    expect(mixed.kind).toBe(ReflectionKind.objectLiteral);
+    const names = mixed.types.map(v => (v as TypePropertySignature).name);
+    expect(names).toEqual(['name', 'count', 'neg', 'on', 'none', 'big', 'list']);
+    expect(mixed.types.every(v => (v as TypePropertySignature).readonly === true)).toBe(true);
+    expect(stringifyResolvedType(typeOf<(typeof MIXED)['name']>())).toBe(`'x'`);
+    expect(stringifyResolvedType(typeOf<(typeof MIXED)['neg']>())).toBe(`-1`);
+    expect(stringifyResolvedType(typeOf<(typeof MIXED)['none']>())).toBe(`null`);
+    expect(stringifyResolvedType(typeOf<(typeof MIXED)['list']>())).toBe(`['p', 2]`);
+    expect((typeOf<(typeof MIXED)['list']>() as any).readonly).toBe(true);
+    expect(stringifyResolvedType(typeOf<keyof typeof MIXED>())).toBe(`'name' | 'count' | 'neg' | 'on' | 'none' | 'big' | 'list'`);
+
+    // Not fully literal: a reference or a call keeps the runtime inference (no widening of the
+    // whole into `never`), so the element stays string as before.
+    const other = 'z';
+    const WITH_REF = ['a', other] as const;
+    expect(typeOf<(typeof WITH_REF)[number]>().kind).toBe(ReflectionKind.string);
+    const FROM_CALL = ['a', 'b'].map(v => v) as unknown as readonly ['a', 'b'];
+    expect(typeOf<(typeof FROM_CALL)[number]>().kind).toBe(ReflectionKind.string);
+});
+
+test('typeof an imported `as const` array reflects its literals', () => {
+    type K = (typeof IMPORTED_IDS)[number];
+    expect(stringifyResolvedType(typeOf<K>())).toBe(`'alpha' | 'beta'`);
+    expect(validate<{ id: K }>({ id: 'gamma' }).length).toBe(1);
 });
 
 test('class', () => {

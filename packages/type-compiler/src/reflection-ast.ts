@@ -47,6 +47,9 @@ const {
     isStringLiteralLike,
     setOriginalNode,
     getLeadingCommentRanges,
+    getTrailingCommentRanges,
+    isParameter,
+    isTypeParameterDeclaration,
     isNoSubstitutionTemplateLiteral,
     NodeFlags,
     SyntaxKind,
@@ -88,10 +91,16 @@ export function joinQualifiedName(name: EntityName): string {
 }
 
 export function getCommentOfNode(sourceFile: SourceFile, node: Node): string | undefined {
-    const comment = getLeadingCommentRanges(sourceFile.text, node.pos);
-    if (!comment) return;
+    const ranges = getLeadingCommentRanges(sourceFile.text, node.pos) || [];
+    // A comment on the same line as the preceding token is a TRAILING range at `node.pos`
+    // (`(/** the locale *\/ locale: string)`): TypeScript's own JSDoc attachment adds those
+    // for parameters and type parameters, which have no line of their own, and so do we.
+    if (isParameter(node) || isTypeParameterDeclaration(node)) {
+        ranges.unshift(...(getTrailingCommentRanges(sourceFile.text, node.pos) || []));
+    }
+    if (!ranges.length) return;
 
-    return comment.map(v => sourceFile.text.substring(v.pos, v.end)).join('\n');
+    return ranges.map(v => sourceFile.text.substring(v.pos, v.end)).join('\n');
 }
 
 export function parseJSDocAttributeFromText(comment: string, attribute: string): string | undefined {
@@ -150,6 +159,47 @@ export function extractJSDocAttribute(
     if (!comment) return undefined;
 
     return parseJSDocAttributeFromText(comment, attribute);
+}
+
+/**
+ * The description of a node for reflection: an explicit `@description` tag wins; without
+ * one, the SUMMARY of the node's JSDoc comment — the free text of its last `/** … *\/` block
+ * before the first `@tag` — is the description, as it is for every doc tool. Line comments and
+ * plain block comments (`/* … *\/`, a license header) carry no summary.
+ */
+export function extractJSDocDescription(sourceFile: SourceFile, node: Node | undefined): string | undefined {
+    if (!node) return undefined;
+    const comment = getCommentOfNode(sourceFile, node);
+    if (!comment) return undefined;
+
+    const explicit = parseJSDocAttributeFromText(comment, 'description');
+    if (explicit !== undefined) return explicit;
+
+    return parseJSDocSummaryFromText(comment);
+}
+
+/**
+ * The free text of the LAST JSDoc block in `comment` (leading comments are joined, the one
+ * closest to the node is last) up to its first `@tag`, with the `*` gutter removed.
+ */
+export function parseJSDocSummaryFromText(comment: string): string | undefined {
+    const start = comment.lastIndexOf('/**');
+    if (start === -1) return undefined;
+    const end = comment.indexOf('*/', start + 3);
+    if (end === -1) return undefined;
+    const body = comment.substring(start + 3, end);
+
+    const lines: string[] = [];
+    for (const raw of body.split('\n')) {
+        let line = raw.trim();
+        if (line.startsWith('*')) line = line.substring(1).trim();
+        if (line.startsWith('@')) break;
+        lines.push(line);
+    }
+    while (lines.length && lines[0] === '') lines.shift();
+    while (lines.length && lines[lines.length - 1] === '') lines.pop();
+    if (!lines.length) return undefined;
+    return lines.join('\n');
 }
 
 export function getPropertyName(f: NodeFactory, node?: PropertyName): string | symbol | number | ArrowFunction {

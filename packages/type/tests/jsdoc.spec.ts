@@ -74,3 +74,54 @@ test('description available on TypeEnum', () => {
     const type = typeOf<RESULTS>() as TypeEnum;
     expect(type.description).toEqual('results enum');
 });
+
+test('a doc comment without @description is the description', () => {
+    /**
+     * The person who signed in.
+     *
+     * Spans two paragraphs; tags end it.
+     * @deprecated use Account
+     */
+    interface IUser {
+        /** The handle shown in the UI. */
+        username: string;
+        // a line comment is not documentation
+        age: number;
+        /* nor is a plain block comment */
+        email: string;
+        /** @description explicit wins */
+        role: string;
+    }
+
+    const reflection = ReflectionClass.from(typeOf<IUser>());
+    expect(reflection.description).toEqual('The person who signed in.\n\nSpans two paragraphs; tags end it.');
+    expect(reflection.getProperty('username').getDescription()).toEqual('The handle shown in the UI.');
+    expect(reflection.getProperty('age').getDescription()).toEqual('');
+    expect(reflection.getProperty('email').getDescription()).toEqual('');
+    expect(reflection.getProperty('role').getDescription()).toEqual('explicit wins');
+
+    /** Order a shop can place. */
+    type Order = {
+        /** ISO currency code */
+        currency: string;
+        items: number;
+    };
+    const order = ReflectionClass.from(typeOf<Order>());
+    expect(order.description).toEqual('Order a shop can place.');
+    expect(order.getProperty('currency').getDescription()).toEqual('ISO currency code');
+
+    /** Summarises a user. */
+    class Summary {
+        /** Count of items. */
+        count: number = 0;
+        /** Describe it. */
+        describe(/** the locale */ locale: string): string {
+            return locale;
+        }
+    }
+    const summary = ReflectionClass.from(typeOf<Summary>());
+    expect(summary.description).toEqual('Summarises a user.');
+    expect(summary.getProperty('count').getDescription()).toEqual('Count of items.');
+    expect(summary.getMethod('describe').getDescription()).toEqual('Describe it.');
+    expect(summary.getMethod('describe').getParameter('locale').parameter.description).toEqual('the locale');
+});
