@@ -633,6 +633,18 @@ export function getJitThreshold(): number {
 
 const identifierRegex = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 
+/**
+ * A name hint as a JavaScript binding can carry it: every character a binding
+ * refuses becomes `_`, and a leading digit (or nothing) gets one in front.
+ */
+export function sanitizeIdentifier(name: string): string {
+    let sanitized = name.replace(/[^a-zA-Z0-9_$]/g, '_');
+    if (sanitized.length === 0 || /^[0-9]/.test(sanitized)) {
+        sanitized = '_' + sanitized;
+    }
+    return sanitized;
+}
+
 function isValidIdentifier(key: string): boolean {
     return identifierRegex.test(key);
 }
@@ -694,10 +706,15 @@ class CodeGenerator {
         return this.indentStr.repeat(this.indentLevel);
     }
 
-    /** Get variable name by id */
+    /**
+     * Get variable name by id. A hint is a HINT, not an identifier: builders
+     * pass property names through (`b.var_(UNSET, 'carried-differently')`), so
+     * every character JavaScript refuses in a binding is replaced — the same
+     * rule {@link reserveName} applies to external references.
+     */
     private varName(id: number): string {
         const name = this.varNames.get(id);
-        return name ? `${name}_${id}` : `v${id}`;
+        return name ? `${sanitizeIdentifier(name)}_${id}` : `v${id}`;
     }
 
     /** Register a variable name hint */
@@ -706,10 +723,7 @@ class CodeGenerator {
     }
 
     private reserveName(name: string): string {
-        let sanitized = name.replace(/[^a-zA-Z0-9_$]/g, '_');
-        if (sanitized.length === 0 || /^[0-9]/.test(sanitized)) {
-            sanitized = '_' + sanitized;
-        }
+        const sanitized = sanitizeIdentifier(name);
         for (let i = 0; i < 10000; i++) {
             const candidate = sanitized + '_' + i;
             if (!this.reservedNames.has(candidate)) {
