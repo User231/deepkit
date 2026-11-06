@@ -63,6 +63,15 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   `require('uuid')` works under the flag, so it's loader interop, test-only. Annoying, not
   urgent.
 
+- **Inline generic type arguments are resolved per call** (`cast<T[]>(x)` emits
+  `cast.Ω = [() => __ΩT, 'n!F']` as a fresh array at the call site, so `resolveReceiveType` finds no
+  cached `__type` and runs the processor every time — ~15 µs a call). The leak this fed (the
+  serializer's type-guard cache keyed strongly by Type) was closed 2026-11-06 (`serializer.ts`,
+  `serializer-build-cache.spec.ts`); the CPU cost stands. The fix would be the type-compiler hoisting
+  the packed program of a call-site type argument to a module-level constant (as it does for
+  named types' `__Ω…`), so the `__type` cache holds. Consumers on hot paths hoist by hand meanwhile
+  (`const T = typeOf<…>()`).
+
 Upstream's GitHub issue backlog is **not tracked here anymore** — this fork fixes what its
 consumers need. The old triage tables (and the 35+ issues fixed during the feat/next work)
 are in this file's git history and in `CHANGELOG.md`.

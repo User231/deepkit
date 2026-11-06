@@ -4,7 +4,7 @@ import { expect } from '@deepkit/run/expect';
 
 import { Serializer, serializer } from '../index.js';
 import { typeOf } from '../src/reflection/reflection.js';
-import { ReflectionKind, TypeUnion } from '../src/reflection/type.js';
+import { ReflectionKind, Type, TypeUnion } from '../src/reflection/type.js';
 import { deserialize, serialize } from '../src/serializer-facade.js';
 
 /**
@@ -62,5 +62,33 @@ describe('serializer build cache', () => {
         expect(performance.now() - started).toBeLessThan(500);
         // Round trip through the serializer side too.
         expect(serialize<ValuesSet>(out).changes[5].value).toEqual({ kind: 'flag', on: true });
+    });
+
+    test('a type guard built for a transient Type does not pin the Type (the guard cache is weak)', async () => {
+        // An inline `cast<T[]>()` resolves a NEW Type object per call (its packed program is a
+        // fresh array each time); the guard cache keyed strongly by Type grew by one compiled
+        // guard per call. With `--expose-gc` the Type must be collectable once the caller drops it.
+        const own = new Serializer('weak-guard-cache-test');
+        let ref: WeakRef<Type> | undefined;
+        (() => {
+            const type: Type = { kind: ReflectionKind.array, type: { kind: ReflectionKind.string } };
+            const guard = own.buildFastTypeGuard<string[]>(type);
+            expect(typeof guard).toBe('function');
+            // The same Type object still hits the cache while it lives.
+            expect(own.buildFastTypeGuard<string[]>(type)).toBe(guard);
+            ref = new WeakRef(type);
+        })();
+        const collect = (globalThis as any).gc as (() => void) | undefined;
+        if (!collect) return; // the runner passes --expose-gc; without it there is nothing to assert
+        const tick = () => new Promise(resolve => setTimeout(resolve, 5));
+        let alive = true;
+        for (let i = 0; i < 20 && alive; i++) {
+            collect();
+            await tick();
+            alive = ref!.deref() !== undefined;
+            // A deref that answers keeps its target alive for the rest of THIS job: let the job end before the next gc.
+            await tick();
+        }
+        expect(alive).toBe(false);
     });
 });

@@ -50,6 +50,17 @@ export type Guard<T> = (data: any, state?: { errors?: ValidationErrorItem[] }) =
  * const result = serialize({ name: 'John', age: 30 });
  * ```
  */
+type TypeGuardCache = { cache: WeakMap<Type, (data: unknown) => boolean>; building: WeakSet<Type> };
+
+/** One weak cache + in-progress set per guard mode (see `Serializer.typeGuardCaches`). */
+function freshTypeGuardCaches(): Record<'fast' | 'strict' | 'weak', TypeGuardCache> {
+    return {
+        fast: { cache: new WeakMap(), building: new WeakSet() },
+        strict: { cache: new WeakMap(), building: new WeakSet() },
+        weak: { cache: new WeakMap(), building: new WeakSet() },
+    };
+}
+
 export class Serializer {
     /** Registry for serialization handlers */
     readonly serializeRegistry = new HandlerRegistry<JsonBuildContext>('serialize');
@@ -67,12 +78,14 @@ export class Serializer {
      */
     inlineReferences: boolean = false;
 
-    /** Caches and building sets for each type guard mode */
-    private readonly typeGuardCaches = {
-        fast: { cache: new Map<Type, (data: unknown) => boolean>(), building: new Set<Type>() },
-        strict: { cache: new Map<Type, (data: unknown) => boolean>(), building: new Set<Type>() },
-        weak: { cache: new Map<Type, (data: unknown) => boolean>(), building: new Set<Type>() },
-    };
+    /**
+     * Caches and building sets for each type guard mode, keyed WEAKLY by the Type object:
+     * a Type resolved per call (an inline `cast<T[]>()` whose packed program is a fresh
+     * array on every call, so `resolveReceiveType` computes a new Type each time) must not
+     * pin its compiled guard here forever — a strong Map grew by one guard per cast and took
+     * a long-running process to the heap limit.
+     */
+    private typeGuardCaches = freshTypeGuardCaches();
 
     constructor(public name: string = 'json') {
         // Let handlers reach serializer-level settings (e.g. inlineReferences) via the registry,
@@ -114,10 +127,7 @@ export class Serializer {
         this.serializeRegistry.clear();
         this.deserializeRegistry.clear();
         this.typeGuards.clear();
-        for (const entry of Object.values(this.typeGuardCaches)) {
-            entry.cache.clear();
-            entry.building.clear();
-        }
+        this.typeGuardCaches = freshTypeGuardCaches();
     }
 
     /**
