@@ -1,7 +1,7 @@
 import { test } from 'node:test';
-import { expect } from '@deepkit/run/expect';
 
 import { DatabaseEntityRegistry, MigrateOptions } from '@deepkit/orm';
+import { expect } from '@deepkit/run/expect';
 import { AutoIncrement, DatabaseField, Index, PrimaryKey, Reference, ReflectionClass, ReflectionKind, Unique, entity } from '@deepkit/type';
 
 import { DefaultPlatform } from '../src/platform/default-platform.js';
@@ -98,6 +98,35 @@ test('add and remove column', async () => {
 
     const sql = platform.getModifyTableDDL(diff!, new MigrateOptions());
     expect(sql).toContain('ALTER TABLE "leagues" ADD "organisation" integer NULL, DROP COLUMN "dayOfWeek"');
+});
+
+test('a changed column type is a modification', async () => {
+    const platform = new MyPlatform();
+
+    @entity.name('cells')
+    class Cells1 {
+        id!: number & PrimaryKey;
+        errorRef?: number & DatabaseField<{ type: 'bigint' }>;
+    }
+
+    @entity.name('cells')
+    class Cells2 {
+        id!: number & PrimaryKey;
+        errorRef?: string & DatabaseField<{ type: 'text' }>;
+    }
+
+    const db1 = platform.createTables(DatabaseEntityRegistry.from([Cells1]));
+    const db2 = platform.createTables(DatabaseEntityRegistry.from([Cells2]));
+    const diff = TableComparator.computeDiff(db1[0], db2[0]);
+
+    expect(diff).toBeDefined();
+    expect(diff!.modifiedColumns.length).toBe(1);
+    expect(diff!.modifiedColumns[0].changedProperties.get('type')).toMatchObject({ from: 'bigint', to: 'text' });
+
+    // The same spelling in another case is the same type.
+    const db3 = platform.createTables(DatabaseEntityRegistry.from([Cells1]));
+    db3[0].getColumn('errorRef').type = 'BIGINT';
+    expect(TableComparator.computeDiff(db1[0], db3[0])).toBeUndefined();
 });
 
 test('skip index', async () => {

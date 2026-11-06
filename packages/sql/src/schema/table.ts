@@ -368,6 +368,20 @@ export class ColumnComparator {
     static compareColumns(from: Column, to: Column) {
         const changedProperties = new Map<keyof Column, ColumnPropertyDiff>();
 
+        // The TYPE, compared case-insensitively (a parser reads `bigint`, a platform
+        // may write `BIGINT`) and only where both sides know it — an auto-increment
+        // column's type is the platform's (`SERIAL`), judged by `isAutoIncrement`
+        // below. Without this a column changed from bigint to text in the entity was
+        // invisible to the diff, while every platform already renders the change
+        // (`ALTER … TYPE`) once a ColumnDiff carries it.
+        if (
+            from.type !== undefined &&
+            to.type !== undefined &&
+            !from.isAutoIncrement &&
+            !to.isAutoIncrement &&
+            from.type.toLowerCase() !== to.type.toLowerCase()
+        )
+            changedProperties.set('type', new ColumnPropertyDiff(from.type, to.type));
         if (from.scale !== to.scale) changedProperties.set('scale', new ColumnPropertyDiff(from.scale, to.scale));
         if (from.size !== to.size) changedProperties.set('size', new ColumnPropertyDiff(from.size, to.size));
         if (from.unsigned !== to.unsigned)
