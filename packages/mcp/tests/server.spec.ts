@@ -6,7 +6,7 @@ import { MinLength, Positive, integer } from '@deepkit/type';
 import { mcp } from '../src/decorator.js';
 import { ERROR, MCP_PROTOCOL_VERSION, META } from '../src/protocol.js';
 import { McpCallContext, McpRegistry } from '../src/registry.js';
-import { McpFrame, McpServer } from '../src/server.js';
+import { McpFrame, McpServer, structuredContentOf } from '../src/server.js';
 
 interface EchoInput {
     /** What to echo. */
@@ -244,9 +244,19 @@ test('progress notifications leave before the response, only with a progressToke
     expect(silent.map(f => f.kind)).toEqual(['response']);
 });
 
-test('a tool with no input takes no arguments and answers an array as text + structuredContent', async () => {
+test('a tool with no input takes no arguments and answers an array as text, and wrapped as `{ items }` in structuredContent (the specification wants an object)', async () => {
     const r = await result(request('tools/call', { name: 'noInput' }));
-    expect(r.structuredContent).toEqual(['a', 'b']);
+    expect(r.content[0].text).toBe('[\n  "a",\n  "b"\n]');
+    expect(r.structuredContent).toEqual({ items: ['a', 'b'] });
+});
+
+test('structuredContentOf: an object as is, an array wrapped, nothing for a primitive, null or a value past the budget', () => {
+    expect(structuredContentOf({ a: 1 }, true)).toEqual({ a: 1 });
+    expect(structuredContentOf([1], true)).toEqual({ items: [1] });
+    expect(structuredContentOf('text', true)).toBeUndefined();
+    expect(structuredContentOf(null, true)).toBeUndefined();
+    expect(structuredContentOf(7, true)).toBeUndefined();
+    expect(structuredContentOf({ a: 1 }, false)).toBeUndefined();
 });
 
 test('the authorize hook refuses as a TOOL error; without groups it is never asked', async () => {

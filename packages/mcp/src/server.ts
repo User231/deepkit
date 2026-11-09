@@ -39,6 +39,18 @@ export type McpFrame =
     /** The final answer. `httpStatus` is what Streamable HTTP sends: 200, or the protocol error's status. */
     | { kind: 'response'; message: JsonRpcResponse; httpStatus: number };
 
+/**
+ * The `structuredContent` of a tool result: the specification makes it an OBJECT, so an
+ * array is wrapped as `{ items }`; a primitive, `null`, or a value past the text budget
+ * has none (the text block carries it). A client that shows the model `structuredContent`
+ * when present (Claude Code does, dropping the text blocks) then always sees the whole value.
+ */
+export function structuredContentOf(value: unknown, withinBudget: boolean): Record<string, unknown> | undefined {
+    if (!withinBudget || value === null || typeof value !== 'object') return undefined;
+    if (Array.isArray(value)) return { items: value };
+    return value as Record<string, unknown>;
+}
+
 export interface McpServerOptions {
     registry: McpRegistry;
     serverInfo: Implementation;
@@ -289,13 +301,13 @@ export class McpServer {
         }
     }
 
-    /** A tool result: the JSON as text (cut at the budget), and the value itself as `structuredContent` when it is an object. */
+    /** A tool result: the JSON as text (cut at the budget), and the value as `structuredContent` (`structuredContentOf`). */
     private toolResult(value: unknown): Record<string, unknown> {
         if (value === undefined) return { content: [], isError: false };
         const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
         const content: ContentBlock[] = [{ type: 'text', text: this.cut(text) }];
-        const structured = value !== null && typeof value === 'object' && text.length <= this.maxTextChars;
-        return structured ? { content, structuredContent: value, isError: false } : { content, isError: false };
+        const structuredContent = structuredContentOf(value, text.length <= this.maxTextChars);
+        return structuredContent ? { content, structuredContent, isError: false } : { content, isError: false };
     }
 
     private toolError(message: string): Record<string, unknown> {
