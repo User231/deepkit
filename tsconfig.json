@@ -74,6 +74,9 @@
       "path": "./packages/injector/tsconfig.json"
     },
     {
+      "path": "./packages/json-schema/tsconfig.json"
+    },
+    {
       "path": "./packages/logger/tsconfig.json"
     },
     {

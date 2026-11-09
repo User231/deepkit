@@ -1185,6 +1185,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deepkit/json-schema@workspace:packages/json-schema":
+  version: 0.0.0-use.local
+  resolution: "@deepkit/json-schema@workspace:packages/json-schema"
+  dependencies:
+    "@deepkit/core": "npm:^2.0.0"
+    "@deepkit/type": "npm:^2.0.0"
+  peerDependencies:
+    "@deepkit/core": ^2.0.0
+    "@deepkit/type": ^2.0.0
+  languageName: unknown
+  linkType: soft
+
 "@deepkit/logger@npm:^2.0.0, @deepkit/logger@workspace:packages/logger":
   version: 0.0.0-use.local
   resolution: "@deepkit/logger@workspace:packages/logger"

@@ -1,0 +1,35 @@
+{
+  "name": "@deepkit/json-schema",
+  "version": "2.0.0",
+  "description": "Deepkit runtime types to JSON Schema (draft 2020-12): named object types as $defs, literal unions as enums, discriminated unions as oneOf, validators as keywords, doc comments as descriptions",
+  "type": "commonjs",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cjs/index.d.ts",
+      "require": "./dist/cjs/index.js",
+      "default": "./dist/esm/index.js"
+    }
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test:node": "node --import @deepkit/run --test --test-force-exit 'tests/**/*.spec.ts'"
+  },
+  "repository": "https://github.com/deepkit/deepkit-framework",
+  "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
+  },
+  "devDependencies": {
+    "@deepkit/core": "^2.0.0",
+    "@deepkit/type": "^2.0.0"
+  }
+}

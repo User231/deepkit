@@ -65,6 +65,9 @@
       "path": "./packages/injector/tsconfig.esm.json"
     },
     {
+      "path": "./packages/json-schema/tsconfig.esm.json"
+    },
+    {
       "path": "./packages/logger/tsconfig.esm.json"
     },
     {
