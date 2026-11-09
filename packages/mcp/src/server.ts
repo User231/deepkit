@@ -360,8 +360,10 @@ function describeValidation(error: ValidationError): string {
     return error.errors.map(item => `${item.path || '(root)'}: ${item.message} [${item.code}]`).join('; ');
 }
 
+/** An error's message without `DeepkitError`'s appended code and docs link — the model reads the sentence, the code is for operators. */
 function errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
+    return message.split('\n\nError code: ')[0];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

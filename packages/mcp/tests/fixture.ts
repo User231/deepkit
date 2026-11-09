@@ -5,6 +5,12 @@ import { MCP_PROTOCOL_VERSION, META } from '../src/protocol.js';
 import { McpCallContext, McpRegistry } from '../src/registry.js';
 import { McpServer } from '../src/server.js';
 
+interface MirroredInput {
+    controller: string;
+    action: string;
+    payload?: Record<string, unknown>;
+}
+
 /** The provider the binding tests drive: an echo, a slow counter that reports progress and notices cancellation, a resource. */
 export class BindingTools {
     static aborted: string[] = [];
@@ -30,6 +36,11 @@ export class BindingTools {
     @mcp.tool('who')
     who(input: Record<string, never>, context: McpCallContext): { principal: unknown } {
         return { principal: context.principal };
+    }
+
+    @(mcp.tool('mirrored').header('controller', 'Controller').header('action', 'Action'))
+    mirrored(input: MirroredInput): MirroredInput {
+        return input;
     }
 
     @(mcp.resource('mz://status').mimeType('application/json'))

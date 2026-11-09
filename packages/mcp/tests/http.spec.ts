@@ -192,3 +192,26 @@ test('the principal the application resolves reaches the tool; requiredGroups re
         http.close();
     }
 });
+
+test('Mcp-Param headers are validated against the arguments: present and equal, or absent together', async () => {
+    const { http, url } = await listen();
+    try {
+        const body = request('tools/call', { name: 'mirrored', arguments: { controller: 'tables', action: 'getTable', payload: {} } }, 11);
+        const ok = await post(url, body, headersFor(body, { 'mcp-param-controller': 'tables', 'mcp-param-action': 'getTable' }));
+        expect(ok.status).toBe(200);
+        expect(((await ok.json()) as any).result.structuredContent).toEqual({ controller: 'tables', action: 'getTable', payload: {} });
+
+        const missing = await post(url, body, headersFor(body, { 'mcp-param-controller': 'tables' }));
+        expect(missing.status).toBe(400);
+        expect(((await missing.json()) as any).error.message).toContain('mcp-param-action is required');
+
+        const wrong = await post(url, body, headersFor(body, { 'mcp-param-controller': 'orgs', 'mcp-param-action': 'getTable' }));
+        expect(((await wrong.json()) as any).error.code).toBe(ERROR.headerMismatch);
+
+        const encoded = `=?base64?${Buffer.from('tables').toString('base64')}?=`;
+        const decoded = await post(url, body, headersFor(body, { 'mcp-param-controller': encoded, 'mcp-param-action': 'getTable' }));
+        expect(decoded.status).toBe(200);
+    } finally {
+        http.close();
+    }
+});

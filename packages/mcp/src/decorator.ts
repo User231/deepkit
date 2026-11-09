@@ -27,6 +27,14 @@ export class McpTool {
     annotations: ToolAnnotations = {};
     /** Emit an `outputSchema` from the method's return type (opt-in: the schema is a promise the result then has to keep). */
     outputSchema: boolean = false;
+    /**
+     * Input parameters MIRRORED into HTTP headers (`x-mcp-header`): param name →
+     * the `{Name}` of `Mcp-Param-{Name}`. A Streamable HTTP client sends the
+     * header beside the body; the binding validates they agree. What it buys: a
+     * guard can read the value BEFORE the body is parsed (an RPC action's own
+     * groups, say). Primitive parameters only.
+     */
+    headers: Record<string, string> = {};
 }
 
 /**
@@ -151,6 +159,11 @@ class McpProperty {
 
     outputSchema(emit: boolean = true) {
         if (this.t instanceof McpTool) this.t.outputSchema = emit;
+    }
+
+    /** Mirror the input parameter `param` into the HTTP header `Mcp-Param-{name}` (see `McpTool.headers`). */
+    header(param: string, name: string) {
+        if (this.t instanceof McpTool) this.t.headers[param] = name;
     }
 }
 

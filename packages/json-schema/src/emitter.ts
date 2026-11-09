@@ -1,3 +1,4 @@
+import { DeepkitError } from '@deepkit/core';
 import {
     ReflectionKind,
     Type,
@@ -136,7 +137,10 @@ export class SchemaEmitter {
             case ReflectionKind.promise:
                 return this.ref(type.type, hint);
             default:
-                throw new Error(`json-schema: cannot express ${ReflectionKind[type.kind]} (${hint}) as JSON Schema.`);
+                throw new DeepkitError(
+                    'DK-JS100',
+                    `json-schema: cannot express ${ReflectionKind[type.kind]} (${hint}) as JSON Schema.`,
+                );
         }
     }
 
@@ -252,7 +256,7 @@ function literalSchema(type: TypeLiteral): JsonSchema {
     const literal = type.literal;
     if (isJsonLiteral(literal)) return { const: literal };
     if (typeof literal === 'bigint') return { const: literal.toString() };
-    throw new Error(`json-schema: a ${typeof literal} literal has no JSON form.`);
+    throw new DeepkitError('DK-JS101', `json-schema: a ${typeof literal} literal has no JSON form.`);
 }
 
 function isJsonLiteral(value: unknown): value is string | number | boolean {

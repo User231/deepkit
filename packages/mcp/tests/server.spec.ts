@@ -305,3 +305,27 @@ test('a second tool under the same name is refused at registration', () => {
     }
     expect(() => new McpRegistry().addProvider(FakeTools).addProvider(Twin)).toThrow('already registered');
 });
+
+test('a mirrored parameter lands on the input schema as x-mcp-header and on the entry as its header name', () => {
+    class Mirrored {
+        @(mcp.tool('call').header('controller', 'Controller').header('action', 'Action'))
+        call(input: { controller: string; action: string; payload?: Record<string, unknown> }) {
+            return input;
+        }
+    }
+    const reg = new McpRegistry().addProvider(Mirrored);
+    const entry = reg.toolNamed('call');
+    if (!entry) throw new Error('unreachable');
+    expect((entry.definition.inputSchema.properties as any).controller['x-mcp-header']).toBe('Controller');
+    expect([...entry.headerParams.entries()]).toEqual([
+        ['controller', 'mcp-param-controller'],
+        ['action', 'mcp-param-action'],
+    ]);
+    class Bad {
+        @(mcp.tool('bad').header('payload', 'Payload'))
+        bad(input: { payload: Record<string, unknown> }) {
+            return input;
+        }
+    }
+    expect(() => new McpRegistry().addProvider(Bad)).toThrow('not a string, integer or boolean');
+});

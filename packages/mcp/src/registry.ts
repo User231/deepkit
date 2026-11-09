@@ -1,4 +1,4 @@
-import { ClassType } from '@deepkit/core';
+import { ClassType, DeepkitError } from '@deepkit/core';
 import { typeToJsonSchema } from '@deepkit/json-schema';
 import { ReflectionClass, ReflectionKind, Type } from '@deepkit/type';
 
@@ -31,6 +31,8 @@ export interface RegisteredTool {
     inputType: Type | undefined;
     /** Where the `McpCallContext` parameter sits, if the method asks for one. */
     contextIndex: number | undefined;
+    /** The mirrored parameters: param name → the lowercase header name (`mcp-param-…`) the binding validates. */
+    headerParams: ReadonlyMap<string, string>;
 }
 
 export interface RegisteredResource {
@@ -116,7 +118,8 @@ export class McpRegistry {
     }
 
     private registerTool(tool: McpTool, reflection: ReflectionClass<any>): void {
-        if (this.byName.has(tool.name)) throw new Error(`mcp: a tool named "${tool.name}" is already registered.`);
+        if (this.byName.has(tool.name))
+            throw new DeepkitError('DK-MCP100', `mcp: a tool named "${tool.name}" is already registered.`);
         const method = reflection.getMethod(tool.method);
         const parameters = method.getParameters();
         const contextIndex = parameters.findIndex(p => {
@@ -125,7 +128,8 @@ export class McpRegistry {
         });
         const inputs = parameters.filter((_, index) => index !== contextIndex);
         if (inputs.length > 1) {
-            throw new Error(
+            throw new DeepkitError(
+                'DK-MCP101',
                 `mcp: tool "${tool.name}" takes ${inputs.length} input parameters; a tool takes ONE object (and optionally a McpCallContext).`,
             );
         }
@@ -146,11 +150,35 @@ export class McpRegistry {
                 `${pascal(tool.name)}Output`,
             );
         if (Object.keys(tool.annotations).length > 0) definition.annotations = { ...tool.annotations };
+        const headerParams = new Map<string, string>();
+        for (const [param, name] of Object.entries(tool.headers)) {
+            if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name))
+                throw new DeepkitError(
+                    'DK-MCP102',
+                    `mcp: tool "${tool.name}" mirrors "${param}" into an invalid header name "${name}".`,
+                );
+            const properties = definition.inputSchema.properties;
+            const property = isRecord(properties) ? properties[param] : undefined;
+            if (!isRecord(property))
+                throw new DeepkitError(
+                    'DK-MCP103',
+                    `mcp: tool "${tool.name}" mirrors "${param}", which its input does not declare.`,
+                );
+            if (!['string', 'integer', 'boolean'].includes(String(property.type))) {
+                throw new DeepkitError(
+                    'DK-MCP104',
+                    `mcp: tool "${tool.name}" mirrors "${param}", which is not a string, integer or boolean.`,
+                );
+            }
+            property['x-mcp-header'] = name;
+            headerParams.set(param, `mcp-param-${name.toLowerCase()}`);
+        }
         const entry: RegisteredTool = {
             tool,
             definition,
             inputType,
             contextIndex: contextIndex === -1 ? undefined : contextIndex,
+            headerParams,
         };
         this.toolList.push(entry);
         this.byName.set(tool.name, entry);
@@ -194,6 +222,10 @@ export class McpRegistry {
             variableNames,
         });
     }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function unwrapPromise(type: Type): Type {

@@ -6,6 +6,7 @@
  * (https://modelcontextprotocol.io/specification/2026-07-28); what the server does
  * with them is `server.ts`.
  */
+import { DeepkitError } from '@deepkit/core';
 
 /** The one revision served. A legacy `initialize` is answered with an error naming it. */
 export const MCP_PROTOCOL_VERSION = '2026-07-28';
@@ -124,21 +125,26 @@ export interface ServerCapabilities {
  * the Streamable HTTP binding sends for it. A tool's OWN failure is never one of
  * these: it is a tool result with `isError: true`, which the model can act on.
  */
-export class McpProtocolError extends Error {
+export class McpProtocolError extends DeepkitError {
     constructor(
-        public readonly code: number,
+        /** The JSON-RPC error code — the wire's; `DeepkitError.code` is the class's own `DK-MCP001`. */
+        public readonly rpcCode: number,
         message: string,
         public readonly httpStatus: number = 400,
         public readonly data?: unknown,
     ) {
-        super(message);
+        super('DK-MCP001', message);
         this.name = 'McpProtocolError';
+        this.rpcMessage = message;
     }
+
+    /** The message as the wire carries it — `DeepkitError.message` appends the code and a docs link, which a JSON-RPC error has fields for. */
+    readonly rpcMessage: string;
 
     toJsonRpc(): JsonRpcError {
         return this.data === undefined
-            ? { code: this.code, message: this.message }
-            : { code: this.code, message: this.message, data: this.data };
+            ? { code: this.rpcCode, message: this.rpcMessage }
+            : { code: this.rpcCode, message: this.rpcMessage, data: this.data };
     }
 }
 

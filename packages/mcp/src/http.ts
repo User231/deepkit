@@ -1,5 +1,7 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http';
 
+import { DeepkitError } from '@deepkit/core';
+
 import { ERROR, JsonRpcId, META, McpProtocolError } from './protocol.js';
 import { McpRegistry } from './registry.js';
 import { McpFrame, McpRequestContext, McpServer } from './server.js';
@@ -33,6 +35,8 @@ export interface McpHttpOptions {
     principal?: (request: IncomingMessage) => unknown;
     /** The body cap, bytes. Default 4 MiB; over it is 413. */
     maxBodyBytes?: number;
+    /** The body, when the host framework has already read it off the stream (`HttpRequest.readBodyText()`). */
+    bodyText?: string;
 }
 
 /** The mirrored headers, as the body's values they must equal (Base64 sentinels decoded). */
@@ -107,7 +111,7 @@ export async function handleMcpHttp(
 
     let body: unknown;
     try {
-        const text = await readBody(request, options.maxBodyBytes ?? 4 * 1024 * 1024);
+        const text = options.bodyText ?? (await readBody(request, options.maxBodyBytes ?? 4 * 1024 * 1024));
         body = JSON.parse(text);
     } catch (error) {
         if (error instanceof BodyTooLarge)
@@ -122,7 +126,7 @@ export async function handleMcpHttp(
     const id = readableId(body);
     const isNotification = isRecord(body) && !('id' in body) && typeof body.method === 'string';
     if (!isNotification) {
-        const mismatch = headerMismatch(request.headers, body);
+        const mismatch = headerMismatch(request.headers, body, server.registry);
         if (mismatch) return sendJson(response, 400, errorBody(id, ERROR.headerMismatch, mismatch));
     }
 
@@ -176,7 +180,7 @@ function originAllowed(origin: string, allowed: McpHttpOptions['allowedOrigins']
  * A legacy `initialize` carries no headers by design and is left to the core,
  * which refuses it by name.
  */
-function headerMismatch(headers: IncomingHttpHeaders, body: unknown): string | undefined {
+function headerMismatch(headers: IncomingHttpHeaders, body: unknown, registry: McpRegistry): string | undefined {
     if (!isRecord(body) || typeof body.method !== 'string') return undefined; // the core answers -32600
     if (body.method === 'initialize') return undefined;
     const read = readMcpHeaders(headers);
@@ -199,10 +203,46 @@ function headerMismatch(headers: IncomingHttpHeaders, body: unknown): string | u
             return `Header mismatch: Mcp-Name header value '${read.name}' does not match body value '${expected}'.`;
         }
     }
+    if (body.method === 'tools/call' && typeof params.name === 'string')
+        return paramHeaderMismatch(headers, params, registry.toolNamed(params.name));
     return undefined;
 }
 
-class BodyTooLarge extends Error {}
+/**
+ * The `Mcp-Param-{Name}` headers a tool declares (`x-mcp-header`): present and
+ * equal whenever the argument is, absent whenever it is not. Integers compare
+ * numerically, booleans as `true` / `false`, strings after sentinel decoding.
+ */
+function paramHeaderMismatch(
+    headers: IncomingHttpHeaders,
+    params: Record<string, unknown>,
+    tool: ReturnType<McpRegistry['toolNamed']>,
+): string | undefined {
+    if (!tool || tool.headerParams.size === 0) return undefined;
+    const args = isRecord(params.arguments) ? params.arguments : {};
+    for (const [param, header] of tool.headerParams) {
+        const raw = headers[header];
+        const sent = Array.isArray(raw) ? raw[0] : raw;
+        const value = args[param];
+        if (value === undefined || value === null) {
+            if (sent !== undefined) return `Header mismatch: ${header} is present but the argument '${param}' is not.`;
+            continue;
+        }
+        if (sent === undefined)
+            return `Header mismatch: ${header} is required while the argument '${param}' is present.`;
+        const decoded = decodeHeaderValue(sent);
+        const agrees = typeof value === 'number' ? Number(decoded) === value : decoded === String(value);
+        if (!agrees)
+            return `Header mismatch: ${header} header value '${decoded}' does not match body value '${String(value)}'.`;
+    }
+    return undefined;
+}
+
+class BodyTooLarge extends DeepkitError {
+    constructor(message: string) {
+        super('DK-MCP200', message);
+    }
+}
 
 function readBody(request: IncomingMessage, max: number): Promise<string> {
     return new Promise((resolve, reject) => {
