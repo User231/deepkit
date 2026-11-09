@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/esm",
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "references": [
+    {
+      "path": "../core/tsconfig.esm.json"
+    },
+    {
+      "path": "../type/tsconfig.esm.json"
+    },
+    {
+      "path": "../json-schema/tsconfig.esm.json"
+    }
+  ]
+}

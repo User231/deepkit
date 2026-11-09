@@ -1185,7 +1185,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deepkit/json-schema@workspace:packages/json-schema":
+"@deepkit/json-schema@npm:^2.0.0, @deepkit/json-schema@workspace:packages/json-schema":
   version: 0.0.0-use.local
   resolution: "@deepkit/json-schema@workspace:packages/json-schema"
   dependencies:
@@ -1209,6 +1209,20 @@ __metadata:
   peerDependencies:
     "@deepkit/core": ^2.0.0
     "@deepkit/injector": ^2.0.0
+  languageName: unknown
+  linkType: soft
+
+"@deepkit/mcp@workspace:packages/mcp":
+  version: 0.0.0-use.local
+  resolution: "@deepkit/mcp@workspace:packages/mcp"
+  dependencies:
+    "@deepkit/core": "npm:^2.0.0"
+    "@deepkit/json-schema": "npm:^2.0.0"
+    "@deepkit/type": "npm:^2.0.0"
+  peerDependencies:
+    "@deepkit/core": ^2.0.0
+    "@deepkit/json-schema": ^2.0.0
+    "@deepkit/type": ^2.0.0
   languageName: unknown
   linkType: soft
 

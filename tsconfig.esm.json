@@ -68,6 +68,9 @@
       "path": "./packages/json-schema/tsconfig.esm.json"
     },
     {
+      "path": "./packages/mcp/tsconfig.esm.json"
+    },
+    {
       "path": "./packages/logger/tsconfig.esm.json"
     },
     {
