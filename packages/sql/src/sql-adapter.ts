@@ -801,6 +801,10 @@ export class MigrationStateEntity {
 export class SqlMigrationHandler {
     constructor(protected database: Database<SQLDatabaseAdapter>) {}
 
+    /**
+     * Records `version` as applied — one ledger row per migration. The name is
+     * historical: it does not have to be the highest version the ledger holds.
+     */
     public async setLatestMigrationVersion(version: number): Promise<void> {
         const session = this.database.createSession();
         session.add(new MigrationStateEntity(version));
@@ -812,11 +816,25 @@ export class SqlMigrationHandler {
         await session.query(MigrationStateEntity).filter({ version }).deleteOne();
     }
 
+    /**
+     * The highest applied version, 0 when none. NOT what decides which
+     * migrations are pending — that is {@link getAppliedMigrationVersions}
+     * (see `unappliedMigrations`); `migration:down` reverts this one.
+     */
     public async getLatestMigrationVersion(): Promise<number> {
+        const versions = await this.getAppliedMigrationVersions();
+        return versions[versions.length - 1] ?? 0;
+    }
+
+    /**
+     * Every applied version, ascending — the ledger itself. Creates the
+     * ledger table when it does not exist yet (and answers none).
+     */
+    public async getAppliedMigrationVersions(): Promise<number[]> {
         const session = this.database.createSession();
         try {
-            const version = await session.query(MigrationStateEntity).sort({ version: 'desc' }).findOneOrUndefined();
-            return version ? version.version : 0;
+            const rows = await session.query(MigrationStateEntity).sort({ version: 'asc' }).find();
+            return rows.map(row => row.version);
         } catch (error) {
             const connection = await this.database.adapter.connectionPool.getConnection();
             try {
@@ -827,7 +845,7 @@ export class SqlMigrationHandler {
                 for (const sql of createSql) {
                     await connection.run(sql);
                 }
-                return 0;
+                return [];
             } finally {
                 connection.release();
             }

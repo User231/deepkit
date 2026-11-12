@@ -12,6 +12,7 @@ import { empty } from '@deepkit/core';
 import { LoggerInterface } from '@deepkit/logger';
 
 import { MigrationProvider } from '../migration/migration-provider.js';
+import { unappliedMigrations } from '../migration/migration.js';
 import { SqlMigrationHandler } from '../sql-adapter.js';
 import { BaseCommand } from './base-command.js';
 
@@ -45,8 +46,10 @@ export class MigrationPendingCommand extends BaseCommand {
 
         for (const [database, migrations] of migrationsPerDatabase.entries()) {
             const migrationHandler = new SqlMigrationHandler(database);
-            const latestVersion = await migrationHandler.getLatestMigrationVersion();
-            const migrationsToApply = migrations.filter(v => v.version > latestVersion);
+            const migrationsToApply = unappliedMigrations(
+                migrations,
+                await migrationHandler.getAppliedMigrationVersions(),
+            );
             if (migrationsToApply.length) {
                 this.logger.log(`Database <green>${database.name}</green>: Pending migrations`);
                 let i = 1;

@@ -13,7 +13,7 @@ import { LoggerInterface } from '@deepkit/logger';
 import { Database } from '@deepkit/orm';
 
 import { MigrationProvider } from '../migration/migration-provider.js';
-import { Migration } from '../migration/migration.js';
+import { Migration, unappliedMigrations } from '../migration/migration.js';
 import { SQLDatabaseAdapter, SqlMigrationHandler } from '../sql-adapter.js';
 import { BaseCommand } from './base-command.js';
 
@@ -52,8 +52,10 @@ export class MigrationUpCommand extends BaseCommand {
 
             if (database.adapter instanceof SQLDatabaseAdapter) {
                 const migrationHandler = new SqlMigrationHandler(database);
-                const latestVersion = await migrationHandler.getLatestMigrationVersion();
-                const migrationToApply = migrations.filter(v => v.version > latestVersion);
+                const migrationToApply = unappliedMigrations(
+                    migrations,
+                    await migrationHandler.getAppliedMigrationVersions(),
+                );
 
                 if (!migrationToApply.length) {
                     this.logger.log('<green>All migrations executed</green>');
