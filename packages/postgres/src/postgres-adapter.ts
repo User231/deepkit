@@ -236,7 +236,30 @@ export class PostgresDatabaseTransaction extends DatabaseTransaction {
     }
 }
 
+/**
+ * What a pool can say about itself. The first three are the driver's own
+ * counts at this moment. The last two are RUNNING TOTALS since the pool was
+ * built, so a reader takes the difference between two reads: the mean wait of
+ * an interval is `acquireWaitMs` over `acquired`, and it catches a queue that
+ * formed and drained between two reads, which `waiting` alone cannot.
+ */
+export interface PostgresPoolStats {
+    /** Clients the pool holds open, checked out or idle. */
+    total: number;
+    /** Open clients nobody holds. */
+    idle: number;
+    /** Callers queued for a client: every client is checked out and the pool is at its maximum. */
+    waiting: number;
+    /** Checkouts completed. A connection kept by a transaction counts once. */
+    acquired: number;
+    /** Milliseconds those checkouts spent waiting for a client, summed. */
+    acquireWaitMs: number;
+}
+
 export class PostgresConnectionPool extends SQLConnectionPool {
+    protected acquired = 0;
+    protected acquireWaitMs = 0;
+
     constructor(
         protected pool: Pool,
         protected logger: Logger,
@@ -245,13 +268,26 @@ export class PostgresConnectionPool extends SQLConnectionPool {
         super(logger, stopwatch);
     }
 
+    getStats(): PostgresPoolStats {
+        return {
+            total: this.pool.totalCount,
+            idle: this.pool.idleCount,
+            waiting: this.pool.waitingCount,
+            acquired: this.acquired,
+            acquireWaitMs: this.acquireWaitMs,
+        };
+    }
+
     async getConnection(transaction?: PostgresDatabaseTransaction): Promise<PostgresConnection> {
         //when a transaction object is given, it means we make the connection sticky exclusively to that transaction
         //and only release the connection when the transaction is commit/rollback is executed.
 
         if (transaction && transaction.connection) return transaction.connection;
 
+        const askedAt = performance.now();
         const poolClient = await this.pool.connect();
+        this.acquired++;
+        this.acquireWaitMs += performance.now() - askedAt;
         this.activeConnections++;
         const connection = new PostgresConnection(this, poolClient, this.logger, transaction, this.stopwatch);
         if (transaction) {
