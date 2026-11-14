@@ -1569,9 +1569,24 @@ export class Processor {
         this.pushType(t);
     }
 
+    /**
+     * Whether `type` is the placeholder of a program that is still running: a
+     * `{kind: unknown}` object that becomes the real type when its program ends
+     * (`assignResult`). A member written `unknown` is the same kind and is NOT one.
+     */
+    private isPendingResult(type: Type): boolean {
+        for (let program: Program | undefined = this.program; program; program = program.previous) {
+            if (!program.active) continue;
+            if (program.resultType === type || program.resultTypes?.includes(type)) return true;
+        }
+        return false;
+    }
+
     private handleIntersection() {
         const types = this.popFrame() as Type[];
         let result: Type | undefined = { kind: ReflectionKind.unknown };
+        // Whether `result` is one of the members. Until then it is the empty start value above.
+        let resolved = false;
         if (!types.length) {
             this.pushType({ kind: ReflectionKind.never });
             return;
@@ -1692,13 +1707,18 @@ export class Processor {
                 break;
             } else if (result.kind === ReflectionKind.unknown) {
                 result = type;
+                resolved = true;
                 appendAnnotations(type);
             } else {
                 result = collapse(result, type);
             }
         }
 
-        if (result.kind === ReflectionKind.unknown) {
+        // `unknown` is two things here: the placeholder of a type that is not calculated yet, and the
+        // type a member wrote (`unknown & DatabaseField<{ name: 'payload' }>`). Only the first waits.
+        // The second IS the result: its annotations are applied now, as for every other type. Scheduling
+        // them dropped them, because no program ever completes a written `unknown`.
+        if (result.kind === ReflectionKind.unknown && (!resolved || this.isPendingResult(result))) {
             //type not calculated yet, so schedule annotations. Those will be applied once the type is fully computed.
             result.scheduleDecorators = decorators;
         } else {

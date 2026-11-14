@@ -37,6 +37,7 @@ import {
     autoIncrementAnnotation,
     databaseAnnotation,
     entityAnnotation,
+    groupAnnotation,
     integer,
     primaryKeyAnnotation,
     referenceAnnotation,
@@ -1452,6 +1453,48 @@ test('annotations on the single real member of a nullable union are hoisted', ()
     expect(reflection.getProperty('indexed')!.getIndex()).toEqual({});
     expect(reflection.getProperty('alt')!.getDatabase('postgres')).toEqual({ name: 'alt_col' });
     expect(reflection.getProperty('multi')!.getDatabase('postgres')).toEqual(undefined);
+});
+
+test('annotations on a written `unknown` are applied, not scheduled away', () => {
+    // `unknown` is also the processor's placeholder for a type that is not calculated yet, whose
+    // annotations wait for it. A member WRITTEN `unknown` never arrives: its annotations used to be
+    // scheduled and so dropped, and a jsonb column declared this way silently lost its name.
+    class Row {
+        payload: unknown & DatabaseField<{ name: 'pay_load'; type: 'jsonb' }> = null;
+        indexed: unknown & Index = null;
+        // the order of the members does not matter
+        flipped: DatabaseField<{ name: 'flip_ped' }> & unknown = null;
+        // a real member next to it still wins the kind, and keeps the annotation
+        narrowed: unknown & string & DatabaseField<{ name: 'nar_rowed' }> = '';
+        plain: unknown = null;
+    }
+
+    const reflection = ReflectionClass.from(Row);
+    const payload = reflection.getProperty('payload')!;
+    expect(payload.type.kind).toBe(ReflectionKind.unknown);
+    expect(payload.getDatabase('postgres')).toEqual({ name: 'pay_load', type: 'jsonb' });
+    expect(reflection.getProperty('indexed')!.getIndex()).toEqual({});
+    expect(reflection.getProperty('flipped')!.getDatabase('postgres')).toEqual({ name: 'flip_ped' });
+    expect(reflection.getProperty('narrowed')!.type.kind).toBe(ReflectionKind.string);
+    expect(reflection.getProperty('narrowed')!.getDatabase('postgres')).toEqual({ name: 'nar_rowed' });
+    expect(reflection.getProperty('plain')!.getDatabase('postgres')).toEqual(undefined);
+
+    const type = typeOf<unknown & DatabaseField<{ name: 'x' }>>();
+    expect(type.kind).toBe(ReflectionKind.unknown);
+    expect(databaseAnnotation.getDatabase(type, 'postgres')).toEqual({ name: 'x' });
+});
+
+test('a type that is still being calculated keeps waiting for its annotations', () => {
+    // The other meaning of `unknown` in an intersection: the placeholder of a recursive alias.
+    // Its annotation is applied when the alias is complete, as before.
+    type Tree = { name: string; children: (Tree & Group<'nodes'>)[] };
+    const type = typeOf<Tree>();
+    assertType(type, ReflectionKind.objectLiteral);
+    const children = type.types.find(member => member.kind === ReflectionKind.propertySignature && member.name === 'children');
+    assertType(children, ReflectionKind.propertySignature);
+    assertType(children.type, ReflectionKind.array);
+    expect(children.type.type.kind).toBe(ReflectionKind.objectLiteral);
+    expect(groupAnnotation.getAnnotations(children.type.type)).toEqual(['nodes']);
 });
 
 test('enum const', () => {
