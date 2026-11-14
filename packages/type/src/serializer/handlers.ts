@@ -50,6 +50,7 @@ import {
     resolveProperty,
     resolveTypeMembers,
     stringifyType,
+    validationAnnotation,
 } from '../reflection/type.js';
 import {
     BinaryBigIntType,
@@ -191,10 +192,25 @@ function pushTypeErrorWhen(
 
 /**
  * Check if a type's guard can use pure expression-only code (no statements).
+ *
+ * `guardObjectFast` chains the guards of a pure object's members with `&&`, behind its own
+ * object check. A member guard that emits STATEMENTS has them placed above that chain, where
+ * they run before the object check and read `input.<member>` off whatever was passed in.
+ *
+ * A type with validators is therefore not pure — at any depth, since a nested pure object is
+ * part of the same chain. The validation hook keeps the validators' verdict in a variable:
+ * its statements, hoisted above the chain, read `v.params.startRate` of a `v` that is `null`
+ * or has no `params`, and the guard threw a `TypeError` on exactly the inputs it is there to
+ * answer `false` for. (A class's `@t.validator` method has always counted, below.)
+ *
+ * Still taken for pure although their guards emit statements too, and throwing the same way
+ * for a `null` in the object's place: a tuple member, a `Reference`, a discriminated union.
  */
 function isPureTypeGuard(type: Type, visited: Set<Type> = new Set()): boolean {
     if (visited.has(type)) return true;
     visited.add(type);
+
+    if (validationAnnotation.getAnnotations(type).length > 0) return false;
 
     switch (type.kind) {
         case ReflectionKind.string:

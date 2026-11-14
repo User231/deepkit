@@ -90,16 +90,41 @@ interface Payload {
     params: Rates;
 }
 
-test('assert: the validators of a nested object run however often its types were printed in between', () => {
+test('assert: the validators of a nested object run when a print of its type and the walk for validators coincide', () => {
+    // The headline symptom. `assert()` asks `hasValidatorsDeep()` — a `visit()` — before every
+    // check, and an error message prints a nested type alone, which marks it one level higher
+    // than the walk meets it. With the marks on the type, the walk whose id equalled that
+    // print's id took `params` for a cycle, stopped before its validators and reported none:
+    // `assert()` went down the fast path — whose guard, for a type with validators, did not
+    // parse then, so what the caller saw was a `SyntaxError` for valid and invalid data alike.
+    // (Now that the fast guard compiles and runs the validators itself, a wrong turn there
+    // would answer the same; the walk's own answer is what the first test holds.)
+    //
+    // So the collision is built here, as the first test builds it for `visit()`: every round
+    // prints `params` and has `assert()` walk `Payload` straight after, and moves the two old
+    // counters one step relative to each other — the print counter ahead in the first loop,
+    // the walk counter in the second, so whichever was ahead, they meet. A round counts:
+    //   print `params`                 print +1
+    //   cast, valid (its assert walks)             walk +1
+    //   print `params`                 print +1
+    //   assert, invalid                print +1 (the error's message), walk +1
+    // — print three, walk two; two more walks of an unrelated type turn that around.
     const good = { id: '1', profile: 'stairs', params: { startRate: 5, steps: 2 } };
     const bad = { id: '1', profile: 'stairs', params: { startRate: 50, steps: 2 } };
     const params = (typeOf<Payload>() as any).types[2].type as Type;
-    for (let round = 0; round < 800; round++) {
-        // What an error message does to a type between two validations of it.
+    const unrelated = typeOf<Tree>();
+
+    const round = () => {
         stringifyType(params);
-        if (round % 2) stringifyType(params);
         expect(cast<Payload>(good)).toEqual(good);
+        stringifyType(params);
         expect(() => assert<Payload>(bad)).toThrow(ValidationError);
+    };
+    for (let i = 0; i < 600; i++) round();
+    for (let i = 0; i < 1800; i++) {
+        walk(unrelated);
+        walk(unrelated);
+        round();
     }
 });
 
@@ -130,4 +155,14 @@ test('buildFastTypeGuard: a type with validators compiles, and the validators de
     expect(nested({ id: '1', profile: 'stairs', params: { startRate: 5, steps: 2 } })).toBe(true);
     expect(nested({ id: '1', profile: 'stairs', params: { startRate: 0, steps: 2 } })).toBe(false);
     expect(nested({ id: '1', profile: 'other', params: { startRate: 5, steps: 2 } })).toBe(false);
+
+    // Compiling is half of it: the guard has to answer for what is NOT of the shape, too. It
+    // threw a TypeError for these — fast-guard-validators.spec.ts holds the kinds one by one.
+    for (const wrong of [null, undefined, 'x', 5, [], {}, { startRate: 5 }, { startRate: '5', steps: 2 }]) {
+        expect(flat(wrong)).toBe(false);
+    }
+    const head = { id: '1', profile: 'stairs' };
+    for (const wrong of [null, undefined, 'x', 5, [], {}, head, { ...head, params: null }, { ...head, params: 5 }, { ...head, params: {} }]) {
+        expect(nested(wrong)).toBe(false);
+    }
 });
