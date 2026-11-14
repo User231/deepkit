@@ -1397,7 +1397,22 @@ export const guardTupleFast: JsonTypeHandler = (type, input, b, state) => {
             }
 
             // Check rest elements (validate each against rest type)
-            if (restType) {
+            if (restType && state.collectErrors) {
+                // Collecting errors: a rest element is built in place, under its own index, as
+                // an array's element is — so a failing one reports what is wrong with it, at
+                // its path. Checked through a prebuilt guard (below) it could only say "no":
+                // `validate()` answered `[]` for a tuple it had just found invalid.
+                const restEnd = b.sub(input.len(), b.lit(afterRestCount));
+                b.forRange(
+                    b.lit(restIndex),
+                    restEnd,
+                    (idx, elem) => {
+                        const elemValid = state.forIndex(idx).build(restType, elem!) as Ref<boolean>;
+                        b.if_(b.not(elemValid), () => b.setVar(result, b.lit(false)));
+                    },
+                    { arr: input },
+                );
+            } else if (restType) {
                 const restGuard = state.serializer.buildFastTypeGuard(restType);
                 const validateRest = (
                     arr: any[],
@@ -4479,11 +4494,16 @@ export function registerTypeGuards(serializer: Serializer): void {
             return next();
         }
 
-        // Skip compound types that handle their own error collection
+        // Skip compound types that handle their own error collection.
+        //
+        // A tuple is NOT one of them. Its guard reports what is wrong with a member, through
+        // the member's own guard — and nothing for what is wrong with the tuple itself: not
+        // an array, too long, short of a member whose guard accepts a missing value. Listed
+        // here it was invalid with no error at all (`validate<[string, number]>('x')` answered
+        // `[]`), so it takes the net below: a failure that reported nothing reports the tuple.
         if (
             type.kind === ReflectionKind.union ||
             type.kind === ReflectionKind.array ||
-            type.kind === ReflectionKind.tuple ||
             type.kind === ReflectionKind.objectLiteral
         ) {
             return next();
