@@ -212,8 +212,6 @@ export function hasCircularReference(type: Type) {
     return (jit.hasCircularReference = hasCircular);
 }
 
-let visitStackId: number = 0;
-
 function extendPath(path: string, member: Type): string {
     let name: string | number | symbol | undefined = '';
     if ('name' in member) {
@@ -224,22 +222,35 @@ function extendPath(path: string, member: Type): string {
     return String(name);
 }
 
+/**
+ * Walk a type breadth-first. `visitor` is called for every type reached; returning `false`
+ * stops the walk. A type met again at a GREATER depth than it was first met at is a cycle:
+ * `onCircular` is called and the walk ENDS there — the rest of the tree is not visited, so a
+ * caller that needs a complete answer must treat `onCircular` as "unknown".
+ *
+ * Which types this walk has met is kept in the walk itself. It used to be a mark on the type
+ * (`jit.visitStack = {id, depth}`) with the id taken from a module counter — and
+ * `stringifyType` wrote the SAME field from a counter of its own. When the two counters met,
+ * a mark left by one read as "seen in this walk" to the other: `visit` reported a cycle in a
+ * tree that has none and stopped early (so `assert()` took a type with validators for one
+ * without), and `stringifyType` printed `* Recursion *` for a type that does not recurse.
+ */
 export function visit(type: Type, visitor: (type: Type, path: string) => false | void, onCircular?: () => void): void {
     const stack: { type: Type; depth: number; path: string }[] = [];
     stack.push({ type, depth: 0, path: '' });
-    const stackId: number = visitStackId++;
+    const depthOf = new Map<Type, number>();
 
     while (stack.length) {
         const entry = stack.shift();
         if (!entry) break;
         const type = entry.type;
 
-        const jit = getTypeJitContainer(type);
-        if (jit.visitStack && jit.visitStack.id === stackId && jit.visitStack.depth < entry.depth) {
+        const seenAt = depthOf.get(type);
+        if (seenAt !== undefined && seenAt < entry.depth) {
             if (onCircular) onCircular();
             return;
         }
-        jit.visitStack = { id: stackId, depth: entry.depth };
+        depthOf.set(type, entry.depth);
         if (visitor(type, entry.path) === false) return;
 
         switch (type.kind) {

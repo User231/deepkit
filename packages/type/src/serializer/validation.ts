@@ -74,7 +74,11 @@ export const validationHook: TypeHook<JsonBuildContext> = (type, input, b, state
     // Check if we should add errors:
     // - Don't add if in union context (unless collectUnionMemberErrors is true)
     // This matches the behavior in handlers.ts post-hook
-    const shouldAddErrors = !state.inUnionContext || state.collectUnionMemberErrors;
+    //
+    // And not at all in a guard that collects no errors (`buildFastTypeGuard`): its options
+    // object is the literal `{}`, so there is no array to push to — and the push, emitted as
+    // the statement `{}.errors.push(…)`, does not even parse (`{}` opens a block there).
+    const shouldAddErrors = state.collectErrors && (!state.inUnionContext || state.collectUnionMemberErrors);
 
     for (const validation of annotations) {
         const { name, args } = validation;

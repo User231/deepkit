@@ -216,15 +216,25 @@ export function typeGuardWeak<T>(receiveType?: ReceiveType<T>): (data: unknown) 
 /**
  * Check if a type or any of its nested members have validation annotations.
  * Uses the visit() function to traverse the type tree.
+ *
+ * `visit()` ends at the first cycle it meets, with the rest of the tree unvisited. A walk cut
+ * short has not shown that there are no validators, so it answers `true`: the caller then
+ * takes the path that runs them, which is correct for every type.
  */
 function hasValidatorsDeep(type: Type): boolean {
     let found = false;
-    visit(type, t => {
-        if (validationAnnotation.getAnnotations(t).length > 0) {
+    visit(
+        type,
+        t => {
+            if (validationAnnotation.getAnnotations(t).length > 0) {
+                found = true;
+                return false; // Stop visiting
+            }
+        },
+        () => {
             found = true;
-            return false; // Stop visiting
-        }
-    });
+        },
+    );
     return found;
 }
 

@@ -1800,8 +1800,6 @@ interface StringifyTypeOptions {
     stringify?: (type: Type) => string | undefined;
 }
 
-let stringifyTypeId: number = 1;
-
 export function stringifyType(type: Type, stateIn: Partial<StringifyTypeOptions> = {}): string {
     const state: StringifyTypeOptions = {
         showNames: true,
@@ -1815,7 +1813,9 @@ export function stringifyType(type: Type, stateIn: Partial<StringifyTypeOptions>
     };
     const stack: { type?: Type; defaultValue?: any; before?: string; after?: string; depth?: number }[] = [];
     stack.push({ type, defaultValue: state.defaultValues, depth: 1 });
-    const stackId: number = stringifyTypeId++;
+    // The types this call has printed, with the depth each was printed at — kept in the call,
+    // never on the type: see `visit()` in reflection.ts for what a shared mark cost.
+    const depthOf = new Map<Type, number>();
     const result: string[] = [];
 
     while (stack.length) {
@@ -1846,12 +1846,8 @@ export function stringifyType(type: Type, stateIn: Partial<StringifyTypeOptions>
 
         if (type) {
             const jit = getTypeJitContainer(type);
-            if (
-                entry.depth !== undefined &&
-                jit.visitStack &&
-                jit.visitStack.id === stackId &&
-                jit.visitStack.depth < entry.depth
-            ) {
+            const seenAt = depthOf.get(type);
+            if (entry.depth !== undefined && seenAt !== undefined && seenAt < entry.depth) {
                 result.push(type.typeName ? type.typeName : '* Recursion *');
                 continue;
             }
@@ -1860,20 +1856,14 @@ export function stringifyType(type: Type, stateIn: Partial<StringifyTypeOptions>
             // thus we have to check for their member types identity to check for recursions.
             if (type.kind === ReflectionKind.objectLiteral || type.kind === ReflectionKind.class) {
                 const first = type.types[0];
-                const jit = first ? getTypeJitContainer(first) : undefined;
-                if (
-                    jit &&
-                    entry.depth !== undefined &&
-                    jit.visitStack &&
-                    jit.visitStack.id === stackId &&
-                    jit.visitStack.depth < entry.depth + 1
-                ) {
+                const firstSeenAt = first ? depthOf.get(first) : undefined;
+                if (entry.depth !== undefined && firstSeenAt !== undefined && firstSeenAt < entry.depth + 1) {
                     result.push(type.typeName ? type.typeName : '* Recursion *');
                     continue;
                 }
             }
 
-            jit.visitStack = { id: stackId, depth };
+            depthOf.set(type, depth);
 
             const manual = stateIn.stringify ? stateIn.stringify(type) : undefined;
             if ('string' === typeof manual) {
