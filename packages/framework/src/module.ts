@@ -249,8 +249,18 @@ export class FrameworkModule extends createModuleClass({
                             return request.socket.remoteAddress || '';
                         },
                     });
-                    request.body = await request.readBody();
-                    await connection.onRequest(rpcBaseUrl, request, response, { propagateErrors });
+                    // The connection lives for this one call. The kernel keeps every open
+                    // connection in its list (and the peer exchange its transport), and the
+                    // transport above closes over `request`: a connection that is not closed
+                    // keeps its request, its body and its injector scope reachable for the
+                    // life of the process. A two-hour load run held 109,069 of them, one for
+                    // every call it had made.
+                    try {
+                        request.body = await request.readBody();
+                        await connection.onRequest(rpcBaseUrl, request, response, { propagateErrors });
+                    } finally {
+                        connection.close();
+                    }
                     return response;
                 }
             }
