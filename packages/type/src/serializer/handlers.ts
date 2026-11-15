@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import type { Builder, Ref } from '@deepkit/core';
+import type { Builder, Ref, Stmt } from '@deepkit/core';
 import { isNumeric, stringifyValueWithType } from '@deepkit/core';
 import { TypeNumberBrand } from '@deepkit/type-spec';
 
@@ -50,7 +50,6 @@ import {
     resolveProperty,
     resolveTypeMembers,
     stringifyType,
-    validationAnnotation,
 } from '../reflection/type.js';
 import {
     BinaryBigIntType,
@@ -191,123 +190,24 @@ function pushTypeErrorWhen(
 }
 
 /**
- * Check if a type's guard can use pure expression-only code (no statements).
+ * Runs `build` and takes the statements it emitted out of the block being built, so that the
+ * caller can place them (`emitStatements`) once it has seen whether there are any.
  *
- * `guardObjectFast` chains the guards of a pure object's members with `&&`, behind its own
- * object check. A member guard that emits STATEMENTS has them placed above that chain, where
- * they run before the object check and read `input.<member>` off whatever was passed in.
- *
- * A type with validators is therefore not pure — at any depth, since a nested pure object is
- * part of the same chain. The validation hook keeps the validators' verdict in a variable:
- * its statements, hoisted above the chain, read `v.params.startRate` of a `v` that is `null`
- * or has no `params`, and the guard threw a `TypeError` on exactly the inputs it is there to
- * answer `false` for. (A class's `@t.validator` method has always counted, below.)
- *
- * Still taken for pure although their guards emit statements too, and throwing the same way
- * for a `null` in the object's place: a tuple member, a `Reference`, a discriminated union.
+ * `Builder.build()` hands out the list of the block it is appending to at that moment — the
+ * function's own, or the body of the `if` / loop a handler is being built in.
  */
-function isPureTypeGuard(type: Type, visited: Set<Type> = new Set()): boolean {
-    if (visited.has(type)) return true;
-    visited.add(type);
+function captureStatements<T>(b: Builder, build: () => T): { value: T; stmts: Stmt[] } {
+    const block = b.build().stmts;
+    const mark = block.length;
+    const value = build();
+    return { value, stmts: block.splice(mark) };
+}
 
-    if (validationAnnotation.getAnnotations(type).length > 0) return false;
-
-    switch (type.kind) {
-        case ReflectionKind.string:
-        case ReflectionKind.number:
-        case ReflectionKind.boolean:
-        case ReflectionKind.bigint:
-        case ReflectionKind.null:
-        case ReflectionKind.undefined:
-        case ReflectionKind.symbol:
-        case ReflectionKind.literal:
-        case ReflectionKind.any:
-        case ReflectionKind.unknown:
-        case ReflectionKind.never:
-        case ReflectionKind.void:
-        case ReflectionKind.enum:
-        case ReflectionKind.regexp:
-        case ReflectionKind.templateLiteral:
-            return true;
-
-        case ReflectionKind.union:
-            return (type as TypeUnion).types.every(t => isPureTypeGuard(t, visited));
-
-        case ReflectionKind.objectLiteral: {
-            const members = resolveTypeMembers(type as TypeObjectLiteral);
-            for (const member of members) {
-                if (member.kind === ReflectionKind.indexSignature) return false;
-                if (isPropertyMemberType(member)) {
-                    if (!isPureTypeGuard(member.type, visited)) return false;
-                }
-            }
-            return true;
-        }
-
-        case ReflectionKind.class: {
-            const classType = type as TypeClass;
-            const builtinImpure = [
-                Map,
-                Set,
-                WeakMap,
-                WeakSet,
-                Date,
-                RegExp,
-                ArrayBuffer,
-                DataView,
-                Int8Array,
-                Uint8Array,
-                Uint8ClampedArray,
-                Int16Array,
-                Uint16Array,
-                Int32Array,
-                Uint32Array,
-                Float32Array,
-                Float64Array,
-                BigInt64Array,
-                BigUint64Array,
-            ];
-            if (builtinImpure.some(c => classType.classType === c)) return false;
-
-            const reflection = ReflectionClass.from(classType.classType);
-            if (reflection.validationMethod) return false;
-
-            const members = resolveTypeMembers(classType);
-            for (const member of members) {
-                if (member.kind === ReflectionKind.indexSignature) return false;
-                if (isPropertyMemberType(member)) {
-                    if (!isPureTypeGuard(member.type, visited)) return false;
-                }
-            }
-            return true;
-        }
-
-        case ReflectionKind.tuple: {
-            const tupleType = type as TypeTuple;
-            for (const elem of tupleType.types) {
-                if (elem.type.kind === ReflectionKind.rest) return false;
-                if (!isPureTypeGuard(elem.type, visited)) return false;
-            }
-            return true;
-        }
-
-        case ReflectionKind.array:
-            return false;
-
-        case ReflectionKind.function:
-        case ReflectionKind.method:
-        case ReflectionKind.methodSignature:
-        case ReflectionKind.promise:
-            return false;
-
-        case ReflectionKind.intersection: {
-            const types = (type as any).types as Type[];
-            return types.every(t => isPureTypeGuard(t, visited));
-        }
-
-        default:
-            return false;
-    }
+/**
+ * Appends captured statements to the block being built.
+ */
+function emitStatements(b: Builder, stmts: Stmt[]): void {
+    b.build().stmts.push(...stmts);
 }
 
 /**
@@ -2018,39 +1918,51 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
         hasClassValidator = !!reflection.validationMethod;
     }
 
-    // Fast path: pure types without complex checks
-    const canUsePurePath =
-        !state.collectErrors &&
-        indexSignatures.length === 0 &&
-        !state.rejectUnknownKeys &&
-        !hasClassValidator &&
-        isPureTypeGuard(type);
+    // A guard that collects no errors: the members are a chain of `&&`, cut short at the first
+    // one that fails. Built once — and only then placed, by what building it emitted.
+    let memberChain: { value: Ref<boolean>[]; stmts: Stmt[] } | undefined;
+    if (!state.collectErrors) {
+        memberChain = captureStatements(b, () => {
+            const checks: Ref<boolean>[] = [];
 
-    if (canUsePurePath) {
-        // Collect all property checks - avoid starting with `true &&` for better perf
-        const checks: Ref<boolean>[] = [isObject];
+            for (const member of members) {
+                if (!isPropertyMemberType(member)) continue;
 
-        for (const member of members) {
-            if (!isPropertyMemberType(member)) continue;
-
-            const propName = memberNameToString(member.name);
-            const propCheck = guardMember(propName, member.type);
-            checks.push(isOptional(member) ? b.or(b.isNullish(input.get(propName)), propCheck) : propCheck);
-        }
-
-        // Handle methods for object literals
-        if (objType.kind === ReflectionKind.objectLiteral) {
-            for (const method of methods) {
-                const methodName = memberNameToString(method.name);
-                const methodCheck = guardMember(methodName, method);
-                checks.push(isOptional(method) ? b.or(b.isNullish(input.get(methodName)), methodCheck) : methodCheck);
+                const propName = memberNameToString(member.name);
+                const propCheck = guardMember(propName, member.type);
+                checks.push(isOptional(member) ? b.or(b.isNullish(input.get(propName)), propCheck) : propCheck);
             }
-        }
 
-        // Chain without leading `true &&` - reduces overhead
-        if (checks.length === 0) return b.lit(true);
-        if (checks.length === 1) return checks[0];
-        return checks.reduce((acc, check) => b.and(acc, check));
+            // Handle methods for object literals
+            if (objType.kind === ReflectionKind.objectLiteral) {
+                for (const method of methods) {
+                    const methodName = memberNameToString(method.name);
+                    const methodCheck = guardMember(methodName, method);
+                    checks.push(
+                        isOptional(method) ? b.or(b.isNullish(input.get(methodName)), methodCheck) : methodCheck,
+                    );
+                }
+            }
+
+            return checks;
+        });
+
+        // Fast path: the whole guard is ONE expression, `isObject && member && member …`, with
+        // nothing above it. That is right exactly when no member's guard emitted a statement:
+        // a statement would sit above the chain, run before the object check, and read
+        // `input.<member>` off whatever was passed in — a `TypeError` for `null`, where the
+        // guard is there to answer `false`.
+        //
+        // So this is not predicted from the member's type. It was, by a list of the kinds
+        // "known" to build as expressions, and the list was wrong: for a type with validators,
+        // then for a tuple, a `Reference` and a discriminated union. What a build emitted is
+        // looked at instead, which also holds for a guard registered by somebody else.
+        // (Nothing below may need a statement either: index signatures and the rejection of
+        // unknown keys work on a result variable.)
+        if (memberChain.stmts.length === 0 && indexSignatures.length === 0 && !state.rejectUnknownKeys) {
+            // Chain without leading `true &&` - reduces overhead
+            return memberChain.value.reduce((acc, check) => b.and(acc, check), isObject);
+        }
     }
 
     // Standard path with result variable
@@ -2112,33 +2024,14 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
             }
 
             b.setVar(result, b.getVar(allValid));
-        } else {
-            // Not collecting errors - can use short-circuit && chain
-            let propertyCheck: Ref<boolean> = b.lit(true);
-
-            for (const member of members) {
-                if (!isPropertyMemberType(member)) continue;
-
-                const propName = memberNameToString(member.name);
-                const propCheck = guardMember(propName, member.type);
-                propertyCheck = b.and(
-                    propertyCheck,
-                    isOptional(member) ? b.or(b.isNullish(input.get(propName)), propCheck) : propCheck,
-                );
-            }
-
-            if (objType.kind === ReflectionKind.objectLiteral) {
-                for (const method of methods) {
-                    const methodName = memberNameToString(method.name);
-                    const methodCheck = guardMember(methodName, method);
-                    propertyCheck = b.and(
-                        propertyCheck,
-                        isOptional(method) ? b.or(b.isNullish(input.get(methodName)), methodCheck) : methodCheck,
-                    );
-                }
-            }
-
-            b.setVar(result, propertyCheck);
+        } else if (memberChain) {
+            // Not collecting errors - the chain built above, with the statements its members
+            // emitted in front of it: behind the object check, where they may read the members.
+            emitStatements(b, memberChain.stmts);
+            b.setVar(
+                result,
+                memberChain.value.reduce((acc, check) => b.and(acc, check), b.lit(true) as Ref<boolean>),
+            );
         }
     });
 
@@ -3905,7 +3798,6 @@ export const guardBackReferenceFast: JsonTypeHandler = (type, input, b, state) =
 
 export {
     isPlainObject,
-    isPureTypeGuard,
     getTypeMismatchMessage,
     collectPrefixedPropertyNames,
     findTupleRest,
