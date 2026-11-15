@@ -1992,6 +1992,25 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
 
     const isObject = isPlainObject(b, input);
 
+    /**
+     * The guard of one member, on the value read off the object. Every path below checks a
+     * member through this and through nothing else.
+     *
+     * A KEY THAT IS ABSENT — the one rule, decided here: there is no check for the key. An
+     * absent key reads `undefined`, and whether `undefined` will do is the answer of the
+     * member's own guard for it. A `string` says no, so a missing `name: string` fails as a
+     * wrong-typed one does. `unknown` says yes — it admits every value, `undefined` among them —
+     * and so do an unpopulated `Reference` and a `BackReference`: `{ n: 5 }` IS a
+     * `{ payload: unknown; n: number }`, for is(), validate(), assert(), typeGuard(), isWeak(),
+     * isStrict() and for the entries of a Set, a Map and a tuple's rest alike.
+     *
+     * (A guard that collects no errors used to ask `'payload' in value` on top, on one of its
+     * two paths: the same value was accepted by is() and rejected by typeGuard(), and which of
+     * the two a Set's entries got depended on what else the type had in it.)
+     */
+    const guardMember = (name: string, memberType: Type): Ref<boolean> =>
+        state.forProperty(name).build(memberType, input.get(name)) as Ref<boolean>;
+
     // Check if we need class validation method
     let hasClassValidator = false;
     if (objType.kind === ReflectionKind.class) {
@@ -2015,37 +2034,16 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
             if (!isPropertyMemberType(member)) continue;
 
             const propName = memberNameToString(member.name);
-            const propType = member.type;
-            const isOpt = isOptional(member);
-            const propInput = input.get(propName);
-
-            if (!isOpt) {
-                const childState = state.forProperty(propName);
-                checks.push(childState.build(propType, propInput) as Ref<boolean>);
-            } else {
-                const propIsNullOrUndefined = b.isNullish(propInput);
-                const childState = state.forProperty(propName);
-                const propCheck = childState.build(propType, propInput) as Ref<boolean>;
-                checks.push(b.or(propIsNullOrUndefined, propCheck));
-            }
+            const propCheck = guardMember(propName, member.type);
+            checks.push(isOptional(member) ? b.or(b.isNullish(input.get(propName)), propCheck) : propCheck);
         }
 
         // Handle methods for object literals
         if (objType.kind === ReflectionKind.objectLiteral) {
             for (const method of methods) {
                 const methodName = memberNameToString(method.name);
-                const methodInput = input.get(methodName);
-                const isOpt = isOptional(method);
-
-                if (!isOpt) {
-                    const childState = state.forProperty(methodName);
-                    checks.push(childState.build(method, methodInput) as Ref<boolean>);
-                } else {
-                    const methodIsNullOrUndefined = b.isNullish(methodInput);
-                    const childState = state.forProperty(methodName);
-                    const methodCheck = childState.build(method, methodInput) as Ref<boolean>;
-                    checks.push(b.or(methodIsNullOrUndefined, methodCheck));
-                }
+                const methodCheck = guardMember(methodName, method);
+                checks.push(isOptional(method) ? b.or(b.isNullish(input.get(methodName)), methodCheck) : methodCheck);
             }
         }
 
@@ -2073,25 +2071,18 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
                 if (!isPropertyMemberType(member)) continue;
 
                 const propName = memberNameToString(member.name);
-                const propType = member.type;
-                const isOpt = isOptional(member);
-                const propInput = input.get(propName);
-                const hasProp = b.has(input, propName);
 
-                if (!isOpt) {
+                if (!isOptional(member)) {
                     // Required property - always validate (even if missing, the type validator
                     // will produce the correct error like "Not an array" for undefined)
-                    const childState = state.forProperty(propName);
-                    const propCheck = childState.build(propType, propInput) as Ref<boolean>;
+                    const propCheck = guardMember(propName, member.type);
                     b.if_(b.not(propCheck), () => {
                         b.setVar(allValid, b.lit(false));
                     });
                 } else {
                     // Optional property - only validate if present and not null/undefined
-                    const propIsNullOrUndefined = b.isNullish(propInput);
-                    b.if_(b.not(propIsNullOrUndefined), () => {
-                        const childState = state.forProperty(propName);
-                        const propCheck = childState.build(propType, propInput) as Ref<boolean>;
+                    b.if_(b.not(b.isNullish(input.get(propName))), () => {
+                        const propCheck = guardMember(propName, member.type);
                         b.if_(b.not(propCheck), () => {
                             b.setVar(allValid, b.lit(false));
                         });
@@ -2102,22 +2093,16 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
             if (objType.kind === ReflectionKind.objectLiteral) {
                 for (const method of methods) {
                     const methodName = memberNameToString(method.name);
-                    const methodInput = input.get(methodName);
-                    const isOpt = isOptional(method);
-                    const hasMethod = b.has(input, methodName);
 
-                    if (!isOpt) {
+                    if (!isOptional(method)) {
                         // Required method - always validate
-                        const childState = state.forProperty(methodName);
-                        const methodCheck = childState.build(method, methodInput) as Ref<boolean>;
+                        const methodCheck = guardMember(methodName, method);
                         b.if_(b.not(methodCheck), () => {
                             b.setVar(allValid, b.lit(false));
                         });
                     } else {
-                        const methodIsNullOrUndefined = b.isNullish(methodInput);
-                        b.if_(b.not(methodIsNullOrUndefined), () => {
-                            const childState = state.forProperty(methodName);
-                            const methodCheck = childState.build(method, methodInput) as Ref<boolean>;
+                        b.if_(b.not(b.isNullish(input.get(methodName))), () => {
+                            const methodCheck = guardMember(methodName, method);
                             b.if_(b.not(methodCheck), () => {
                                 b.setVar(allValid, b.lit(false));
                             });
@@ -2135,40 +2120,21 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
                 if (!isPropertyMemberType(member)) continue;
 
                 const propName = memberNameToString(member.name);
-                const propType = member.type;
-                const isOpt = isOptional(member);
-                const propInput = input.get(propName);
-
-                if (!isOpt) {
-                    const hasProp = b.has(input, propName);
-                    const childState = state.forProperty(propName);
-                    const propCheck = childState.build(propType, propInput) as Ref<boolean>;
-                    propertyCheck = b.and(propertyCheck, b.and(hasProp, propCheck));
-                } else {
-                    const propIsNullOrUndefined = b.isNullish(propInput);
-                    const childState = state.forProperty(propName);
-                    const propCheck = childState.build(propType, propInput) as Ref<boolean>;
-                    propertyCheck = b.and(propertyCheck, b.or(propIsNullOrUndefined, propCheck));
-                }
+                const propCheck = guardMember(propName, member.type);
+                propertyCheck = b.and(
+                    propertyCheck,
+                    isOptional(member) ? b.or(b.isNullish(input.get(propName)), propCheck) : propCheck,
+                );
             }
 
             if (objType.kind === ReflectionKind.objectLiteral) {
                 for (const method of methods) {
                     const methodName = memberNameToString(method.name);
-                    const methodInput = input.get(methodName);
-                    const isOpt = isOptional(method);
-
-                    if (!isOpt) {
-                        const hasMethod = b.has(input, methodName);
-                        const childState = state.forProperty(methodName);
-                        const methodCheck = childState.build(method, methodInput) as Ref<boolean>;
-                        propertyCheck = b.and(propertyCheck, b.and(hasMethod, methodCheck));
-                    } else {
-                        const methodIsNullOrUndefined = b.isNullish(methodInput);
-                        const childState = state.forProperty(methodName);
-                        const methodCheck = childState.build(method, methodInput) as Ref<boolean>;
-                        propertyCheck = b.and(propertyCheck, b.or(methodIsNullOrUndefined, methodCheck));
-                    }
+                    const methodCheck = guardMember(methodName, method);
+                    propertyCheck = b.and(
+                        propertyCheck,
+                        isOptional(method) ? b.or(b.isNullish(input.get(methodName)), methodCheck) : methodCheck,
+                    );
                 }
             }
 
@@ -2280,12 +2246,7 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
     // Handle unknown keys rejection
     if (state.rejectUnknownKeys && indexSignatures.length === 0) {
         b.if_(b.getVar(result), () => {
-            if (!hasOptional) {
-                const keysLength = b.call((obj: any) => Object.keys(obj).length, input);
-                b.if_(b.neq(keysLength, b.lit(propNames.length)), () => {
-                    b.setVar(result, b.lit(false));
-                });
-            } else {
+            const rejectByName = () => {
                 const allowedKeys = new Set(propNames);
                 const checkUnknownKeys = b.call(
                     (obj: any, allowed: Set<string>) => {
@@ -2300,6 +2261,29 @@ export const guardObjectFast: JsonTypeHandler = (type, input, b, state) => {
                 b.if_(b.not(checkUnknownKeys), () => {
                     b.setVar(result, b.lit(false));
                 });
+            };
+
+            if (!hasOptional) {
+                // As many keys as the type declares means "no unknown key" only when every
+                // declared key is there. A member that passed its guard without its key (see
+                // `guardMember`) leaves room for an unknown one under the same count — so the
+                // count decides only when no declared member reads `undefined`, and the names
+                // decide otherwise.
+                const everyKeyThere = propNames
+                    .map(name => b.neq(input.get(name), b.lit(undefined)))
+                    .reduce((all, there) => b.and(all, there), b.lit(true) as Ref<boolean>);
+                b.if_(
+                    everyKeyThere,
+                    () => {
+                        const keysLength = b.call((obj: any) => Object.keys(obj).length, input);
+                        b.if_(b.neq(keysLength, b.lit(propNames.length)), () => {
+                            b.setVar(result, b.lit(false));
+                        });
+                    },
+                    rejectByName,
+                );
+            } else {
+                rejectByName();
             }
         });
     }
