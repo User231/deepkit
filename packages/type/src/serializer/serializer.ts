@@ -283,7 +283,12 @@ export class Serializer {
                     ...contextOptions,
                     collectErrors: false,
                 });
-                return state.build(type, data);
+                // A guard answers true or false, whatever its type is made of. A kind with no
+                // guard of its own (`symbol`, `void`, `object`, a `Promise`) is "checked" by its
+                // value, so a chain ending in one handed that value out: `undefined` for an
+                // absent member, where the guard had answered `false` while it still asked
+                // for the member's key.
+                return b.not(b.not(state.build(type, data)));
             }) as (data: unknown) => data is T;
 
             cache.set(type, guardFn as (data: unknown) => boolean);
