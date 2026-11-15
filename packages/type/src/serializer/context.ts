@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { Builder, Ref, VarRef } from '@deepkit/core';
+import { Builder, Ref } from '@deepkit/core';
 
 import { ReflectionKind, Type } from '../reflection/type.js';
 import { NamingStrategy, defaultNamingStrategy } from './naming.js';
@@ -54,7 +54,7 @@ export interface SerializerBuildContextOptions {
     /** Naming strategy for property name transformation */
     namingStrategy?: NamingStrategy;
     /** Cache of extracted functions by type */
-    fnCache?: Map<Type, VarRef<Function>>;
+    fnCache?: Map<Type, Function>;
 }
 
 /**
@@ -99,7 +99,7 @@ export abstract class SerializerBuildContext {
     readonly namingStrategy: NamingStrategy;
 
     /** Cache of extracted functions by type */
-    readonly fnCache: Map<Type, VarRef<Function>>;
+    readonly fnCache: Map<Type, Function>;
 
     constructor(
         b: Builder,
@@ -205,20 +205,19 @@ export abstract class SerializerBuildContext {
      * 2. depth >= maxDepth && isComplex? -> Extract (size control) WITHOUT fnCache reuse
      * 3. Default -> Inline
      *
-     * The distinction between cases 1 and 2 is critical:
-     * - Case 1 (mutual recursion): We ARE on the same code path, so fnCache reuse is safe
-     * - Case 2 (depth-based): We might be in different code paths (e.g., inside vs outside
-     *   an if-block), so fnCache reuse would fail with "variable not defined" errors
+     * An extracted function is referenced by the call itself (see `buildExtractedCall` of the
+     * subclass), so a call may sit in any block of the generated code, whichever block the
+     * function was first extracted in.
      */
     build(type: Type, input: Ref): Ref {
         // 1. CIRCULAR: Already building this type in current path?
-        // Pass isMutualRecursion=true to allow fnCache reuse (same code path guaranteed)
+        // Pass isMutualRecursion=true: the function extracted for it is called again
         if (this.typeStack.has(type)) {
             return this.buildExtractedCall(type, input, true);
         }
 
         // 2. DEPTH: Too deep? Extract to keep function size manageable
-        // Pass isMutualRecursion=false - DON'T reuse fnCache (different code paths possible)
+        // Pass isMutualRecursion=false: a function of its own
         if (this.depth >= this.maxDepth && isComplexType(type)) {
             return this.buildExtractedCall(type, input, false);
         }
@@ -254,7 +253,7 @@ export abstract class SerializerBuildContext {
      *
      * This method handles both mutual recursion and depth-based extraction:
      * - For mutual recursion (isMutualRecursion=true): reuses fnCache entry
-     * - For depth-based (isMutualRecursion=false): creates new VarRef each time
+     * - For depth-based (isMutualRecursion=false): creates a new function each time
      *
      * Subclasses must implement this because the extracted function needs to create
      * a child state with subclass-specific fields (e.g., optionsRef, serializer, etc.).

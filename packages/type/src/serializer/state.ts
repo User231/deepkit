@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { Builder, Ref, VarRef, arg, fn, stringifyValueWithType } from '@deepkit/core';
+import { Builder, Ref, arg, fn, stringifyValueWithType } from '@deepkit/core';
 
 import { hasCircularReference } from '../reflection/reflection.js';
 import { Type, stringifyType } from '../reflection/type.js';
@@ -289,12 +289,10 @@ export class JsonBuildContext extends SerializerBuildContext {
     /**
      * Fork state for an array/tuple index.
      *
-     * IMPORTANT: Uses fresh fnCache AND fresh typeStack because forIndex is called
-     * inside b.map() callbacks, which create a new JavaScript scope. Variables
-     * declared inside map callbacks are not visible outside, so:
-     * - fnCache must be fresh to avoid variable scope leakage
-     * - typeStack must be fresh because types "in progress" in the outer scope
-     *   should not be considered mutual recursion inside the map callback
+     * Uses a fresh typeStack because forIndex is called inside b.map() callbacks: types "in
+     * progress" in the outer scope should not be considered mutual recursion inside the map
+     * callback. The fnCache is fresh with it — an extracted function is looked up only for a
+     * type on the typeStack.
      */
     forIndex(index: Ref<number>): JsonBuildContext {
         return new JsonBuildContext(this.actualDirection, this.serializer, this.b, this.optionsRef, this.registry, {
@@ -308,7 +306,7 @@ export class JsonBuildContext extends SerializerBuildContext {
             treeDepth: this.treeDepth + 1,
             maxDepth: this.maxDepth,
             typeStack: new Set(), // Fresh stack - map callbacks break call path
-            fnCache: new Map(), // Fresh cache - map callbacks create new JS scope
+            fnCache: new Map(), // Fresh cache - goes with the stack
             // Use DynamicPathSegment with the actual index ref
             pathSegments: [...this.pathSegments, new DynamicPathSegment(index)],
             namingStrategy: this.namingStrategy,
@@ -321,7 +319,6 @@ export class JsonBuildContext extends SerializerBuildContext {
      *
      * Unlike forIndex, this keeps the SAME typeStack and fnCache because forKey is used
      * inside b.forIn() which generates a plain for...in loop (not a new JS scope).
-     * Variables declared in the outer scope are accessible inside the loop body.
      */
     forKey(key: Ref<string>): JsonBuildContext {
         return new JsonBuildContext(this.actualDirection, this.serializer, this.b, this.optionsRef, this.registry, {
@@ -392,24 +389,22 @@ export class JsonBuildContext extends SerializerBuildContext {
      * Build an extracted function call for a type.
      * Implements the abstract method from SerializerBuildContext.
      *
-     * @param isMutualRecursion - If true, this is a recursive reference to a type
-     *   currently being built (typeStack.has(type) was true). In this case, fnCache
-     *   reuse is safe because we're guaranteed to be on the same code path.
-     *   If false, this is depth-based extraction and fnCache reuse is NOT safe
-     *   because different code paths might trigger this.
+     * The call names the extracted function itself — the generated code holds it as a constant,
+     * not in a variable. It was a variable once, assigned where the type was first extracted and
+     * read wherever the type came up again: when the first place sat in a block that did not run
+     * (the body of an absent optional member, of an object that turned out to be `null`), every
+     * later call found the variable empty and threw `TypeError: fn is not a function` — on valid
+     * data, in serialize(), deserialize() and every guard. A constant has no place it must be
+     * assigned at, and emits no statement.
+     *
+     * @param isMutualRecursion - If true, this is a recursive reference to a type currently
+     *   being built (typeStack.has(type) was true), and the function already extracted for it
+     *   is called again. If false, this is depth-based extraction: it gets a function of its own.
      */
     override buildExtractedCall(type: Type, input: Ref, isMutualRecursion: boolean): Ref {
-        // Only reuse cached fnVar for MUTUAL RECURSION.
-        // For depth-based extraction, always create new variable to avoid
-        // using a variable that was initialized in a different code path.
-        let fnVar = isMutualRecursion ? this.fnCache.get(type) : undefined;
+        let extractedFn = isMutualRecursion ? this.fnCache.get(type) : undefined;
 
-        if (!fnVar) {
-            // Create placeholder variable - will be filled after function is built
-            fnVar = this.b.var_<Function>(undefined as any);
-            this.fnCache.set(type, fnVar);
-
-            // Build the extracted function
+        if (!extractedFn) {
             const self = this;
 
             // Lazily built and cached function for this extracted type.
@@ -417,7 +412,7 @@ export class JsonBuildContext extends SerializerBuildContext {
             let cachedBuildFn: Function | undefined;
             let isBuilding = false;
 
-            const extractedFn = (data: any, opts: any, path: string): any => {
+            extractedFn = (data: any, opts: any, path: string): any => {
                 // Fast path: function already built, just call it
                 if (cachedBuildFn) return cachedBuildFn(data, opts, path);
 
@@ -448,7 +443,7 @@ export class JsonBuildContext extends SerializerBuildContext {
                                     treeDepth: self.treeDepth,
                                     maxDepth: self.maxDepth,
                                     typeStack: new Set(), // Fresh stack
-                                    fnCache: new Map(), // Fresh cache - VarRefs are Builder-scoped
+                                    fnCache: new Map(), // Fresh cache - goes with the stack
                                     pathSegments: [], // Path will come from argument
                                     namingStrategy: self.namingStrategy,
                                     buildOptions: self.buildOptions, // Preserve baked options
@@ -464,18 +459,11 @@ export class JsonBuildContext extends SerializerBuildContext {
                 }
             };
 
-            // Fill the placeholder with the built function
-            this.b.setVar(fnVar, this.b.lit(extractedFn));
+            this.fnCache.set(type, extractedFn);
         }
 
         // Emit call to the extracted function
-        return this.b.call(
-            (fn: Function, data: any, opts: any, path: string) => fn(data, opts, path),
-            this.b.getVar(fnVar),
-            input,
-            this.optionsRef,
-            this.pathRef(),
-        );
+        return this.b.call(extractedFn, input, this.optionsRef, this.pathRef());
     }
 
     /**
