@@ -29,6 +29,12 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
 - **v2 JIT** (`core/src/jit.ts`): tiered exec, `canJIT` fallback — CSP/Workers-safe. The last
   CSP gap (`fnJITTop()` compiled unconditionally → `getBSONDeserializer` threw under blocked
   codegen) was fixed 2026-07-28; regression: `packages/bson/tests/csp-fallback.spec.ts`.
+  Since 2026-11-16 the two modes are held to the SAME answer by
+  `packages/core/tests/jit-differential.spec.ts`: every expression and statement kind, every kind
+  nested in every operand position, break / continue / return / throw in every loop shape, every
+  literal in every position, and seeded random programs, each run compiled and interpreted. Its
+  tables are checked against `EXPR_KINDS` / `STMT_KINDS`, so a new kind without a row fails. The
+  rule it enforces: compiled JavaScript is what a tree means; the interpreter matches it.
 - **v2 type serializer + BSON rewrite**: suites green (bson+core 915/915, type ~2000).
 - **TypeScript 6.0.3** everywhere; **standard TC39 decorators** (dual-mode runtime).
 - **`node:test` via `@deepkit/run`** (Jest fully removed).
@@ -52,6 +58,22 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   codegen (edge runtimes). No current need.
 - **AOT tier** from the JIT/CSP design (`docs/design/jit-serializer-design.md`): never built. The
   interpreter fallback covers CSP environments; AOT would only close the perf gap there.
+- **The interpreter is slow, and nothing measures it.** Same model, same machine (2026-11-16):
+  20–75× the compiled time (BSON serialize 1.3 µs → 97 µs, type guard 0.57 µs → 24 µs). That is
+  the mode a browser under a strict CSP runs. No benchmark in `benchmarks/` runs with
+  `--disallow-code-generation-from-strings`.
+- **One known difference between the modes is pinned, not decided**
+  (`jit-differential.spec.ts`, "known differences"): compiled code is sloppy-mode source, the
+  interpreter a strict-mode module, so a write the target refuses (a frozen object, a
+  getter-only property, a primitive) is dropped silently when compiled and a TypeError when
+  interpreted. Making generated code strict would change what the compiled mode does today.
+- **The Builder accepts programs neither mode can honour** — `break_()` outside a loop, a
+  statement inside a `subFn` body. They diverge or fail at run time instead of being refused
+  when the tree is built.
+- **`type` and `bson` suites do not run interpreted as a whole.** Run by hand with
+  `NODE_OPTIONS=--disallow-code-generation-from-strings` (2026-11-16) every failure left is a
+  test whose own tooling needs `eval` (`type/tests/compiler.spec.ts`,
+  `external-type-degradation.spec.ts`, the two `bson` `perf-regression` specs).
 - **Cross-runtime CI** (Deno/Bun/Workers): not built. The no-codegen environment is covered
   in-suite by `csp-fallback.spec.ts` (subprocess with
   `--disallow-code-generation-from-strings`).

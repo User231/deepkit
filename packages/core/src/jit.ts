@@ -530,6 +530,8 @@ export type Stmt =
 export interface NestedFnDef {
     readonly block: Block;
     readonly inputNames: string[];
+    /** Default per argument, `undefined` where there is none. */
+    readonly inputDefaults?: readonly unknown[];
 }
 
 export interface Block {
@@ -538,6 +540,75 @@ export interface Block {
     /** Nested function definitions that should be emitted inside the parent's IIFE */
     nestedFunctions?: Map<number, NestedFnDef>;
 }
+
+/**
+ * Every expression kind, as a runtime list. The record it is read from must name each member of
+ * {@link Expr} exactly once — a kind added to the union without a row here does not compile — so
+ * a test can walk the list and refuse a kind that has no case in both execution modes.
+ */
+export const EXPR_KINDS = Object.keys({
+    lit: true,
+    input: true,
+    var: true,
+    get: true,
+    at: true,
+    call: true,
+    new: true,
+    obj: true,
+    arr: true,
+    eq: true,
+    neq: true,
+    lt: true,
+    gt: true,
+    lte: true,
+    gte: true,
+    not: true,
+    and: true,
+    or: true,
+    nullish: true,
+    typeof: true,
+    isType: true,
+    isNull: true,
+    isNullish: true,
+    has: true,
+    len: true,
+    ternary: true,
+    instanceof: true,
+    concat: true,
+    add: true,
+    sub: true,
+    mul: true,
+    div: true,
+    mod: true,
+    bitAnd: true,
+    bitOr: true,
+    bitXor: true,
+    shl: true,
+    shr: true,
+    ushr: true,
+    method: true,
+    map: true,
+    subFn: true,
+} satisfies Record<Expr['kind'], true>) as Expr['kind'][];
+
+/** Every statement kind, as a runtime list — held complete the same way as {@link EXPR_KINDS}. */
+export const STMT_KINDS = Object.keys({
+    let: true,
+    set: true,
+    push: true,
+    setVar: true,
+    exec: true,
+    return: true,
+    throw: true,
+    if: true,
+    loop: true,
+    forIn: true,
+    forOf: true,
+    switch: true,
+    while: true,
+    break: true,
+    continue: true,
+} satisfies Record<Stmt['kind'], true>) as Stmt['kind'][];
 
 // ============================================================================
 // Runtime Detection
@@ -649,6 +720,60 @@ function isValidIdentifier(key: string): boolean {
     return identifierRegex.test(key);
 }
 
+/**
+ * How tightly the text the generator emits for a node binds, in JavaScript's own order. Only the
+ * levels the generator leaves unparenthesized are named: everything it wraps itself — `(a+b)`,
+ * `(a||b)`, `(a?b:c)`, `(k in o)` — is primary.
+ */
+const PREC_AND = 4;
+const PREC_EQUALITY = 8;
+const PREC_RELATIONAL = 9;
+const PREC_UNARY = 14;
+const PREC_MEMBER = 17;
+const PREC_PRIMARY = 18;
+
+/** The level of the text {@link CodeGenerator} emits for `expr` — kept beside it, case by case. */
+function emittedPrecedence(expr: Expr): number {
+    switch (expr.kind) {
+        case 'lit': {
+            const value = expr.value;
+            // `-1`, `-Infinity`, `-5n` are a unary minus and a literal; `-0` is emitted as `(-0)`.
+            if (typeof value === 'number' && value < 0) return PREC_UNARY;
+            if (typeof value === 'bigint' && value < 0n) return PREC_UNARY;
+            return PREC_PRIMARY;
+        }
+        case 'and':
+            return PREC_AND;
+        case 'eq':
+        case 'neq':
+        case 'isType':
+        case 'isNull':
+        case 'isNullish':
+            return PREC_EQUALITY;
+        case 'not':
+            // `!isNull(x)` and `!isNullish(x)` are emitted as comparisons.
+            return expr.a.kind === 'isNull' || expr.a.kind === 'isNullish' ? PREC_EQUALITY : PREC_UNARY;
+        case 'lt':
+        case 'gt':
+        case 'lte':
+        case 'gte':
+            return PREC_RELATIONAL;
+        case 'typeof':
+            return PREC_UNARY;
+        case 'get':
+        case 'at':
+        case 'len':
+        case 'call':
+        case 'new':
+        case 'method':
+        case 'map':
+        case 'subFn':
+            return PREC_MEMBER;
+        default:
+            return PREC_PRIMARY;
+    }
+}
+
 class CodeGenerator {
     private externals: Map<any, string>;
     private reservedNames: Set<string>;
@@ -673,7 +798,14 @@ class CodeGenerator {
     private readonly indentStr = '    ';
 
     /** Default values for input arguments (undefined means no default) */
-    private inputDefaults: (string | undefined)[];
+    private inputDefaults: readonly unknown[];
+    /**
+     * The loops being emitted, innermost last. A `break` inside a `switch` would leave the switch,
+     * not the loop the tree means, so it is emitted with the loop's label — and only a loop that
+     * such a break names gets one.
+     */
+    private loops: { label: string; labelled: boolean; switchDepth: number }[] = [];
+    private nextLabel = 0;
 
     constructor(
         argCount: number,
@@ -684,7 +816,7 @@ class CodeGenerator {
             ownedNested?: Set<number>;
             adoptedNested?: Map<number, string>;
         },
-        inputDefaults?: (string | undefined)[],
+        inputDefaults?: readonly unknown[],
     ) {
         this.argCount = argCount;
         // Share externals/reservedNames/nested bookkeeping with parent CodeGenerator if provided
@@ -763,6 +895,43 @@ class CodeGenerator {
         return name;
     }
 
+    /** The code of `expr` as an operand that must bind at least as tightly as `min`. */
+    private operand(expr: Expr, min: number): string {
+        const code = this.exprToCode(expr);
+        return emittedPrecedence(expr) < min ? `(${code})` : code;
+    }
+
+    /** The code of `expr` as the object of `.key`, `[index]` or `.method()`. */
+    private memberObject(expr: Expr): string {
+        // `5.toFixed` does not parse: the dot is taken for a decimal point.
+        if (expr.kind === 'lit' && typeof expr.value === 'number') return `(${this.exprToCode(expr)})`;
+        return this.operand(expr, PREC_MEMBER);
+    }
+
+    /** The code of `expr` as an operand of an arithmetic, bitwise or shift operator. */
+    private arithmeticOperand(expr: Expr): string {
+        const code = this.operand(expr, PREC_UNARY);
+        // `x--1` is a decrement followed by a number; `x-(-1)` is what the tree says.
+        return code.startsWith('-') ? `(${code})` : code;
+    }
+
+    /** A statement that begins with `{` is a block, not an object literal. */
+    private atStatementStart(code: string): string {
+        return code.startsWith('{') ? `(${code})` : code;
+    }
+
+    private memberAccess(obj: string, key: string): string {
+        return isValidIdentifier(key) ? `${obj}.${key}` : `${obj}[${JSON.stringify(key)}]`;
+    }
+
+    private binary(expr: { a: Expr; b: Expr }, operator: string, min: number): string {
+        return `${this.operand(expr.a, min)}${operator}${this.operand(expr.b, min)}`;
+    }
+
+    private arithmetic(expr: { a: Expr; b: Expr }, operator: string): string {
+        return `(${this.arithmeticOperand(expr.a)}${operator}${this.arithmeticOperand(expr.b)})`;
+    }
+
     private exprToCode(expr: Expr): string {
         switch (expr.kind) {
             case 'lit':
@@ -772,14 +941,12 @@ class CodeGenerator {
             case 'var':
                 return this.varName(expr.id);
             case 'get': {
-                const obj = this.exprToCode(expr.obj);
-                if (typeof expr.key === 'string') {
-                    return isValidIdentifier(expr.key) ? `${obj}.${expr.key}` : `${obj}[${JSON.stringify(expr.key)}]`;
-                }
+                const obj = this.memberObject(expr.obj);
+                if (typeof expr.key === 'string') return this.memberAccess(obj, expr.key);
                 return `${obj}[${this.exprToCode(expr.key)}]`;
             }
             case 'at': {
-                const arr = this.exprToCode(expr.arr);
+                const arr = this.memberObject(expr.arr);
                 const idx = typeof expr.index === 'number' ? String(expr.index) : this.exprToCode(expr.index);
                 return `${arr}[${idx}]`;
             }
@@ -811,27 +978,29 @@ class CodeGenerator {
                 const elems = expr.elements.map(e => this.exprToCode(e)).join(',');
                 return `[${elems}]`;
             }
+            // An operand of `===` that is itself a comparison is wrapped: `a===b===c` compares the
+            // RESULT of the first with c, whichever side the tree nested it on.
             case 'eq':
-                return `${this.exprToCode(expr.a)}===${this.exprToCode(expr.b)}`;
+                return this.binary(expr, '===', PREC_RELATIONAL);
             case 'neq':
-                return `${this.exprToCode(expr.a)}!==${this.exprToCode(expr.b)}`;
+                return this.binary(expr, '!==', PREC_RELATIONAL);
             case 'lt':
-                return `${this.exprToCode(expr.a)}<${this.exprToCode(expr.b)}`;
+                return this.binary(expr, '<', PREC_RELATIONAL + 1);
             case 'gt':
-                return `${this.exprToCode(expr.a)}>${this.exprToCode(expr.b)}`;
+                return this.binary(expr, '>', PREC_RELATIONAL + 1);
             case 'lte':
-                return `${this.exprToCode(expr.a)}<=${this.exprToCode(expr.b)}`;
+                return this.binary(expr, '<=', PREC_RELATIONAL + 1);
             case 'gte':
-                return `${this.exprToCode(expr.a)}>=${this.exprToCode(expr.b)}`;
+                return this.binary(expr, '>=', PREC_RELATIONAL + 1);
             case 'not':
                 // Optimize common patterns
                 if (expr.a.kind === 'isNull') {
                     // !isNull(x) -> null!==x (operand-first for V8 optimization)
-                    return `null!==${this.exprToCode(expr.a.value)}`;
+                    return `null!==${this.operand(expr.a.value, PREC_RELATIONAL)}`;
                 }
                 if (expr.a.kind === 'isNullish') {
                     // !isNullish(x) -> null!=x (intentional != for nullish check)
-                    return `null!=${this.exprToCode(expr.a.value)}`;
+                    return `null!=${this.operand(expr.a.value, PREC_RELATIONAL)}`;
                 }
                 // Keep parentheses - !a===b parses as (!a)===b, not !(a===b)
                 return `!(${this.exprToCode(expr.a)})`;
@@ -848,7 +1017,7 @@ class CodeGenerator {
                     }
                 };
                 collect(expr);
-                return operands.map(e => this.exprToCode(e)).join('&&');
+                return operands.map(e => this.operand(e, PREC_AND + 1)).join('&&');
             }
             case 'or': {
                 // Flatten OR chain for optimal JS engine optimization
@@ -863,92 +1032,112 @@ class CodeGenerator {
                     }
                 };
                 collect(expr);
-                return `(${operands.map(e => this.exprToCode(e)).join('||')})`;
+                return `(${operands.map(e => this.operand(e, PREC_AND)).join('||')})`;
             }
             case 'nullish':
-                return `(${this.exprToCode(expr.a)}??${this.exprToCode(expr.b)})`;
+                // `a&&b??c` is a syntax error: `??` does not mix with `&&` unparenthesized.
+                return `(${this.operand(expr.a, PREC_AND + 1)}??${this.operand(expr.b, PREC_AND + 1)})`;
             case 'typeof':
-                return `typeof ${this.exprToCode(expr.value)}`;
+                return `typeof ${this.operand(expr.value, PREC_UNARY)}`;
             case 'isType':
                 // Operand-first comparison is faster in V8: "string"===typeof x vs typeof x==="string"
-                return `${JSON.stringify(expr.type)}===typeof ${this.exprToCode(expr.value)}`;
+                return `${JSON.stringify(expr.type)}===typeof ${this.operand(expr.value, PREC_UNARY)}`;
             case 'isNull':
                 // Operand-first for consistency with isType
-                return `null===${this.exprToCode(expr.value)}`;
+                return `null===${this.operand(expr.value, PREC_RELATIONAL)}`;
             case 'isNullish':
-                return `${this.exprToCode(expr.value)}==null`;
+                return `${this.operand(expr.value, PREC_RELATIONAL)}==null`;
             case 'has': {
-                const obj = this.exprToCode(expr.obj);
-                const key = typeof expr.key === 'string' ? JSON.stringify(expr.key) : this.exprToCode(expr.key);
+                const obj = this.operand(expr.obj, PREC_RELATIONAL + 1);
+                const key =
+                    typeof expr.key === 'string'
+                        ? JSON.stringify(expr.key)
+                        : this.operand(expr.key, PREC_RELATIONAL + 1);
                 return `(${key} in ${obj})`;
             }
             case 'len':
-                return `${this.exprToCode(expr.value)}.length`;
+                return `${this.memberObject(expr.value)}.length`;
             case 'ternary':
                 return `(${this.exprToCode(expr.cond)}?${this.exprToCode(expr.then)}:${this.exprToCode(expr.else)})`;
             case 'instanceof': {
                 const ctorName = this.addExternal(expr.ctor, expr.ctor.name || 'Ctor');
-                return `(${this.exprToCode(expr.value)} instanceof ${ctorName})`;
+                return `(${this.operand(expr.value, PREC_RELATIONAL + 1)} instanceof ${ctorName})`;
             }
             case 'concat': {
                 if (expr.parts.length === 0) return '""';
-                if (expr.parts.length === 1) return `(${this.exprToCode(expr.parts[0])}+"")`;
-                return `(${expr.parts.map(p => this.exprToCode(p)).join('+')})`;
+                // Concatenation is of strings: a leading "" keeps `1+2` from being an addition.
+                // A part that is a string literal already settles it.
+                const first = expr.parts[0];
+                const lead = first.kind === 'lit' && typeof first.value === 'string' ? '' : '""+';
+                return `(${lead}${expr.parts.map(p => this.arithmeticOperand(p)).join('+')})`;
             }
             case 'add':
-                return `(${this.exprToCode(expr.a)}+${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '+');
             case 'sub':
-                return `(${this.exprToCode(expr.a)}-${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '-');
             case 'mul':
-                return `(${this.exprToCode(expr.a)}*${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '*');
             case 'div':
-                return `(${this.exprToCode(expr.a)}/${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '/');
             case 'mod':
-                return `(${this.exprToCode(expr.a)}%${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '%');
             case 'bitAnd':
-                return `(${this.exprToCode(expr.a)}&${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '&');
             case 'bitOr':
-                return `(${this.exprToCode(expr.a)}|${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '|');
             case 'bitXor':
-                return `(${this.exprToCode(expr.a)}^${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '^');
             case 'shl':
-                return `(${this.exprToCode(expr.a)}<<${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '<<');
             case 'shr':
-                return `(${this.exprToCode(expr.a)}>>${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '>>');
             case 'ushr':
-                return `(${this.exprToCode(expr.a)}>>>${this.exprToCode(expr.b)})`;
+                return this.arithmetic(expr, '>>>');
             case 'method': {
-                const obj = this.exprToCode(expr.obj);
                 const args = expr.args.map(a => this.exprToCode(a)).join(',');
-                // Wrap in parens if obj is a literal number (e.g. 0.toString() is invalid, (0).toString() is valid)
-                const needsParens = expr.obj.kind === 'lit' && typeof expr.obj.value === 'number';
-                return needsParens ? `(${obj}).${expr.method}(${args})` : `${obj}.${expr.method}(${args})`;
+                return `${this.memberAccess(this.memberObject(expr.obj), expr.method)}(${args})`;
             }
             case 'map': {
-                const arr = this.exprToCode(expr.arr);
-                const body = this.blockToCode(expr.body);
-                // Check if body is simple (just a return expression, no statements)
-                if (expr.body.stmts.length === 0 && expr.body.returnExpr) {
-                    const returnCode = this.exprToCode(expr.body.returnExpr);
-                    const needsParens = returnCode.startsWith('{');
-                    const wrapped = needsParens ? `(${returnCode})` : returnCode;
-                    // Check if index is used
-                    const indexUsed = returnCode.includes(`v${expr.indexId}`);
-                    const params = indexUsed ? `(v${expr.elemId},v${expr.indexId})` : `v${expr.elemId}`;
-                    return `${arr}.map(${params}=>${wrapped})`;
+                const arr = this.memberObject(expr.arr);
+                // The body is a function of its own: no loop of the enclosing one reaches into it.
+                const enclosingLoops = this.loops;
+                this.loops = [];
+                try {
+                    // Check if body is simple (just a return expression, no statements)
+                    if (expr.body.stmts.length === 0 && expr.body.returnExpr) {
+                        const returnCode = this.exprToCode(expr.body.returnExpr);
+                        const needsParens = returnCode.startsWith('{');
+                        const wrapped = needsParens ? `(${returnCode})` : returnCode;
+                        // Check if index is used
+                        const indexUsed = returnCode.includes(`v${expr.indexId}`);
+                        const params = indexUsed ? `(v${expr.elemId},v${expr.indexId})` : `v${expr.elemId}`;
+                        return `${arr}.map(${params}=>${wrapped})`;
+                    }
+                    // Complex body - use function
+                    const params = `(v${expr.elemId},v${expr.indexId})`;
+                    return `${arr}.map(function${params}{${this.blockToCode(expr.body)}})`;
+                } finally {
+                    this.loops = enclosingLoops;
                 }
-                // Complex body - use function
-                const params = `(v${expr.elemId},v${expr.indexId})`;
-                return `${arr}.map(function${params}{${body}})`;
             }
             case 'subFn': {
                 // Generate a helper function for better V8 optimization
                 // This follows the Typia pattern: const _fn_N = (v0) => body;
                 const fnName = `_fn_${expr.fnId}`;
                 if (!this.helperFunctions.has(expr.fnId)) {
-                    // Generate the body code with v0 as the input
-                    // Note: body expression uses input(0) to refer to the arg
-                    const bodyCode = this.exprToCode(expr.body);
+                    // The body was built by its own Builder, with one input: it is generated by a
+                    // generator of its own, so `input(0)` is the helper's parameter — not whatever
+                    // the enclosing function calls its first argument.
+                    const bodyGen = new CodeGenerator(1, undefined, {
+                        externals: this.externals,
+                        reservedNames: this.reservedNames,
+                        ownedNested: this.ownedNested,
+                        adoptedNested: this.adoptedNested,
+                    });
+                    const bodyCode = bodyGen.exprToCode(expr.body);
+                    for (const [fnId, code] of bodyGen.helperFunctions) {
+                        this.helperFunctions.set(fnId, code);
+                    }
                     this.helperFunctions.set(expr.fnId, `function ${fnName}(v0){return ${bodyCode};}`);
                 }
                 return `${fnName}(${this.exprToCode(expr.arg)})`;
@@ -984,18 +1173,15 @@ class CodeGenerator {
                 return `${ind}var ${this.varName(stmt.id)}=${this.exprToCode(stmt.expr)};\n`;
             }
             case 'set': {
-                const obj = this.exprToCode(stmt.obj);
-                const value = this.exprToCode(stmt.value);
+                const obj = this.atStatementStart(this.memberObject(stmt.obj));
                 if (typeof stmt.key === 'string') {
-                    if (isValidIdentifier(stmt.key)) {
-                        return `${ind}${obj}.${stmt.key}=${value};\n`;
-                    }
-                    return `${ind}${obj}[${JSON.stringify(stmt.key)}]=${value};\n`;
+                    return `${ind}${this.memberAccess(obj, stmt.key)}=${this.exprToCode(stmt.value)};\n`;
                 }
-                return `${ind}${obj}[${this.exprToCode(stmt.key)}]=${value};\n`;
+                const key = this.exprToCode(stmt.key);
+                return `${ind}${obj}[${key}]=${this.exprToCode(stmt.value)};\n`;
             }
             case 'push':
-                return `${ind}${this.exprToCode(stmt.arr)}.push(${this.exprToCode(stmt.value)});\n`;
+                return `${ind}${this.atStatementStart(this.memberObject(stmt.arr))}.push(${this.exprToCode(stmt.value)});\n`;
             case 'setVar': {
                 const varName = this.varName(stmt.id);
                 const value = stmt.value;
@@ -1016,12 +1202,9 @@ class CodeGenerator {
                     const binOp = value as { a: Expr; b: Expr };
                     // Check if left side is the same variable
                     if (binOp.a.kind === 'var' && binOp.a.id === stmt.id) {
-                        // Check for increment/decrement: x = x + 1 → x++ or x = x - 1 → x--
-                        if (binOp.b.kind === 'lit' && binOp.b.value === 1) {
-                            if (value.kind === 'add') return `${ind}${varName}++;\n`;
-                            if (value.kind === 'sub') return `${ind}${varName}--;\n`;
-                        }
-                        // Compound assignment: x = x + y → x += y
+                        // Compound assignment: x = x + y → x += y. Not `x++` for `x + 1`: that
+                        // converts to a number first, so "a" + 1 would become NaN and a bigint,
+                        // which refuses `+ 1`, would count up.
                         const opMap: Record<string, string> = {
                             add: '+=',
                             sub: '-=',
@@ -1044,7 +1227,7 @@ class CodeGenerator {
                 return `${ind}${varName}=${this.exprToCode(value)};\n`;
             }
             case 'exec':
-                return `${ind}${this.exprToCode(stmt.expr)};\n`;
+                return `${ind}${this.atStatementStart(this.exprToCode(stmt.expr))};\n`;
             case 'return':
                 return stmt.value ? `${ind}return ${this.exprToCode(stmt.value)};\n` : `${ind}return;\n`;
             case 'throw':
@@ -1068,58 +1251,70 @@ class CodeGenerator {
                 if (stmt.elemName) this.varNames.set(stmt.elemId, stmt.elemName);
                 if (stmt.indexName) this.varNames.set(stmt.indexId, stmt.indexName);
                 const indexName = this.varName(stmt.indexId);
-                this.indentLevel++;
-                const bodyCode = this.blockToCode(stmt.body);
-                this.indentLevel--;
+                const { bodyCode, label } = this.loopBody(stmt.body);
+
+                // The array is read ONCE, before the bounds: a source such as `f()` or `o.items`
+                // written into both the bound and the element read would be evaluated per
+                // iteration. An input needs no copy — nothing can reassign it.
+                const readsElem = !!stmt.arr && !stmt.skipElem;
+                const needsArr = !!stmt.arr && (readsElem || !stmt.end);
+                let arrName = '';
+                let arrDecl = '';
+                if (needsArr) {
+                    if (stmt.arr!.kind === 'input') {
+                        arrName = this.exprToCode(stmt.arr!);
+                    } else {
+                        arrName = `${indexName}_arr`;
+                        arrDecl = `${arrName}=${this.exprToCode(stmt.arr!)},`;
+                    }
+                }
 
                 // Determine start expression (default: 0)
                 const startCode = stmt.start ? this.exprToCode(stmt.start) : '0';
                 // Determine end expression (default: arr.length)
-                const endCode = stmt.end ? this.exprToCode(stmt.end) : `${this.exprToCode(stmt.arr!)}.length`;
+                const endCode = stmt.end ? this.exprToCode(stmt.end) : `${arrName}.length`;
                 const endName = `${indexName}_end`;
 
                 // Generate element access if arr provided and not skipped
-                let elemDecl = '';
-                if (stmt.arr && !stmt.skipElem) {
-                    const arrCode = this.exprToCode(stmt.arr);
-                    elemDecl = `${ind}${this.indentStr}var ${this.varName(stmt.elemId)}=${arrCode}[${indexName}];\n`;
-                }
+                const elemDecl = readsElem
+                    ? `${ind}${this.indentStr}var ${this.varName(stmt.elemId)}=${arrName}[${indexName}];\n`
+                    : '';
 
-                return `${ind}for(var ${indexName}=${startCode},${endName}=${endCode};${indexName}<${endName};${indexName}++){\n${elemDecl}${bodyCode}${ind}}\n`;
+                return `${ind}${label}for(var ${arrDecl}${indexName}=${startCode},${endName}=${endCode};${indexName}<${endName};${indexName}++){\n${elemDecl}${bodyCode}${ind}}\n`;
             }
             case 'forIn': {
                 // Register variable name if provided
                 if (stmt.keyName) this.varNames.set(stmt.keyId, stmt.keyName);
                 const obj = this.exprToCode(stmt.obj);
                 const keyName = this.varName(stmt.keyId);
-                this.indentLevel++;
-                const bodyCode = this.blockToCode(stmt.body);
-                this.indentLevel--;
-                return `${ind}for(var ${keyName} in ${obj}){\n${bodyCode}${ind}}\n`;
+                const { bodyCode, label } = this.loopBody(stmt.body);
+                return `${ind}${label}for(var ${keyName} in ${obj}){\n${bodyCode}${ind}}\n`;
             }
             case 'forOf': {
                 // Register variable names if provided
                 if (stmt.valueName) this.varNames.set(stmt.valueId, stmt.valueName);
                 if (stmt.keyId !== undefined && stmt.keyName) this.varNames.set(stmt.keyId, stmt.keyName);
                 const iterable = this.exprToCode(stmt.iterable);
-                this.indentLevel++;
-                const bodyCode = this.blockToCode(stmt.body);
-                this.indentLevel--;
+                const { bodyCode, label } = this.loopBody(stmt.body);
                 // For Map entries with keyId, destructure [key, value]
                 if (stmt.keyId !== undefined) {
                     const keyName = this.varName(stmt.keyId);
                     const valueName = this.varName(stmt.valueId);
-                    return `${ind}for(var [${keyName},${valueName}] of ${iterable}){\n${bodyCode}${ind}}\n`;
+                    return `${ind}${label}for(var [${keyName},${valueName}] of ${iterable}){\n${bodyCode}${ind}}\n`;
                 }
                 // For Set or simple iteration
                 const valueName = this.varName(stmt.valueId);
-                return `${ind}for(var ${valueName} of ${iterable}){\n${bodyCode}${ind}}\n`;
+                return `${ind}${label}for(var ${valueName} of ${iterable}){\n${bodyCode}${ind}}\n`;
             }
             case 'switch': {
                 let code = `${ind}switch(${this.exprToCode(stmt.value)}){\n`;
+                const enclosingLoop = this.loops[this.loops.length - 1];
+                if (enclosingLoop) enclosingLoop.switchDepth++;
                 this.indentLevel++;
                 for (const [literal, block] of stmt.cases) {
-                    const litCode = typeof literal === 'string' ? JSON.stringify(literal) : String(literal);
+                    // A case is compared with `===` to the VALUE given: `1n` is not `1`, an object
+                    // is itself. litToCode writes each as what it is.
+                    const litCode = this.litToCode(literal);
                     this.indentLevel++;
                     const blockCode = this.blockToCode(block);
                     this.indentLevel--;
@@ -1132,19 +1327,40 @@ class CodeGenerator {
                     code += `${this.indent}default:{\n${defaultCode}${this.indent}break;}\n`;
                 }
                 this.indentLevel--;
+                if (enclosingLoop) enclosingLoop.switchDepth--;
                 return code + `${ind}}\n`;
             }
             case 'while': {
-                this.indentLevel++;
-                const bodyCode = this.blockToCode(stmt.body);
-                this.indentLevel--;
-                return `${ind}while(${this.exprToCode(stmt.cond)}){\n${bodyCode}${ind}}\n`;
+                const { bodyCode, label } = this.loopBody(stmt.body);
+                return `${ind}${label}while(${this.exprToCode(stmt.cond)}){\n${bodyCode}${ind}}\n`;
             }
-            case 'break':
+            case 'break': {
+                // `break` means the enclosing LOOP. Written bare inside a switch it would leave
+                // the switch and the loop would carry on.
+                const loop = this.loops[this.loops.length - 1];
+                if (loop && loop.switchDepth > 0) {
+                    loop.labelled = true;
+                    return `${ind}break ${loop.label};\n`;
+                }
                 return `${ind}break;\n`;
+            }
             case 'continue':
                 return `${ind}continue;\n`;
         }
+    }
+
+    /**
+     * The body of a loop, and the label the loop statement needs in front of it — empty unless a
+     * `break` inside one of the body's switches named it.
+     */
+    private loopBody(body: Block): { bodyCode: string; label: string } {
+        const loop = { label: `_l${this.nextLabel++}`, labelled: false, switchDepth: 0 };
+        this.loops.push(loop);
+        this.indentLevel++;
+        const bodyCode = this.blockToCode(body);
+        this.indentLevel--;
+        this.loops.pop();
+        return { bodyCode, label: loop.labelled ? `${loop.label}:` : '' };
     }
 
     private blockToCode(block: Block): string {
@@ -1188,8 +1404,18 @@ class CodeGenerator {
             this.helperFunctions.set(fnId, code);
         }
 
-        const argNames = def.inputNames.join(',');
+        const argNames = this.parameterList(def.inputNames, def.inputDefaults || []);
         return `${childNestedDefs}function _nfn_${id}(${argNames}){\n${innerBody}}\n`;
+    }
+
+    /** The parameter list of a generated function, defaults included (e.g. `buffer,offset=0`). */
+    private parameterList(names: readonly string[], defaults: readonly unknown[]): string {
+        return names
+            .map((name, i) => {
+                const value = defaults[i];
+                return value !== undefined ? `${name}=${this.litToCode(value)}` : name;
+            })
+            .join(',');
     }
 
     compile<T>(block: Block): T {
@@ -1208,13 +1434,9 @@ class CodeGenerator {
         // Definitions adopted from other units are discovered while generating the code above.
         const adoptedDefs = [...this.adoptedNested.values()].join('');
 
-        // Build argument list with defaults (e.g., "buffer,offset=0")
-        const argNames = this.inputNames
-            .map((name, i) => {
-                const def = this.inputDefaults[i];
-                return def !== undefined ? `${name}=${def}` : name;
-            })
-            .join(',');
+        // A default that is no primitive is passed in as an external, so the list is written
+        // before the externals are collected below.
+        const argNames = this.parameterList(this.inputNames, this.inputDefaults);
 
         // Collect externals AFTER generating all code (nested fns may have added externals)
         const externNames = [...this.externals.values()];
@@ -1248,8 +1470,8 @@ class CodeGenerator {
  * Uses closure-based compilation for best performance.
  * Returns a function that accepts rest parameters and executes the block.
  */
-function createExecutor<T>(block: Block): (...args: any[]) => T {
-    return createClosureExecutor<T>(block);
+function createExecutor<T>(block: Block, inputDefaults?: readonly unknown[]): (...args: any[]) => T {
+    return createClosureExecutor<T>(block, inputDefaults);
 }
 
 // ============================================================================
@@ -1902,17 +2124,18 @@ export class Builder {
      * they're being called inside this Builder's body callback.
      * Returns a marker function that the CodeGenerator will recognize.
      */
-    registerNestedFn(block: Block, inputNames: string[]): any {
+    registerNestedFn(block: Block, inputNames: string[], inputDefaults?: readonly unknown[]): any {
         const id = _globalFnId++;
-        this.nestedFnDefs.set(id, { block, inputNames });
+        const def: NestedFnDef = { block, inputNames, inputDefaults };
+        this.nestedFnDefs.set(id, def);
         // Return a callable marker:
         // - In JIT mode, CodeGenerator detects __nestedFnId and emits a call to _nfn_N
         // - In Exec mode, the executor calls this function directly (closure-based fallback)
-        const marker = createExecutor(block) as any;
+        const marker = createExecutor(block, inputDefaults) as any;
         marker.__nestedFnId = id;
         // The definition travels with the marker so a compilation unit that did not register it
         // (a cached sub-function reused across compiles) can still emit it — CodeGenerator.addExternal.
-        marker.__nestedFnDef = { block, inputNames } satisfies NestedFnDef;
+        marker.__nestedFnDef = def;
         return marker;
     }
 
@@ -1968,61 +2191,93 @@ export class Builder {
 // ============================================================================
 
 /** Marker type for function arguments */
-export type Arg<T> = { __brand: 'arg'; __type?: T; name?: string; defaultValue?: string };
+export type Arg<T> = { __brand: 'arg'; __type?: T; name?: string; defaultValue?: T };
 
-/** Declare a function argument with its type and optional name */
+/**
+ * Declare a function argument with its type and optional name. A `defaultValue` is what the
+ * argument is when the caller leaves it out or passes `undefined` — in every execution mode.
+ * It is the value itself, not an expression evaluated per call: a default that is an object is
+ * the same object in every call.
+ */
 export function arg<T>(name?: string, defaultValue?: T): Arg<T> {
-    // Convert default value to code string for JIT generation
-    const defaultStr = defaultValue !== undefined ? JSON.stringify(defaultValue) : undefined;
-    return { __brand: 'arg', name, defaultValue: defaultStr } as Arg<T>;
+    return { __brand: 'arg', name, defaultValue } as Arg<T>;
+}
+
+/** A function as its declaration built it: the tree, and what its arguments are called and default to. */
+interface FnDefinition {
+    block: Block;
+    inputNames: string[];
+    inputDefaults: unknown[];
+    /** The Builder whose body callback this declaration ran in, if any. */
+    parent: Builder | null;
+}
+
+/**
+ * Run a declaration's body callback and return the tree it built. Every entry point starts here,
+ * so they cannot disagree on what a declaration means.
+ *
+ * While the callback runs this declaration is the active one: an `fn()` / `fnJIT()` called inside
+ * it becomes its nested function. The previous one is restored however the callback ends — a
+ * callback that throws must not leave a dead Builder active, or every function declared afterwards
+ * would be taken for its nested function and run interpreted.
+ */
+function declare(args: any[]): FnDefinition {
+    const body = args.pop() as (b: Builder, ...inputs: Ref[]) => Ref | void;
+    const argCount = args.length;
+    const inputNames = args.map((a: Arg<any>, i: number) => a.name || `v${i}`);
+    const inputDefaults = args.map((a: Arg<any>) => a.defaultValue);
+
+    const builder = new Builder(argCount);
+    const parent = _activeBuilder;
+    _activeBuilder = builder;
+    let result: Ref | void;
+    try {
+        result = body(builder, ...Array.from({ length: argCount }, (_, i) => builder.input(i)));
+    } finally {
+        _activeBuilder = parent;
+    }
+    return { block: builder.build(result || undefined), inputNames, inputDefaults, parent };
+}
+
+function compileDefinition<R>(def: FnDefinition): (...args: any[]) => R {
+    const gen = new CodeGenerator(def.inputNames.length, def.inputNames, undefined, def.inputDefaults);
+    return gen.compile<(...args: any[]) => R>(def.block);
+}
+
+function interpretDefinition<R>(def: FnDefinition): (...args: any[]) => R {
+    return createExecutor<R>(def.block, def.inputDefaults);
 }
 
 /**
  * Build a function using the unified expression tree.
  *
- * Uses tiered execution for optimal performance:
- * - First N calls (default 10): Exec mode (fast startup, no compilation)
- * - After N calls: JIT compile and use optimized code
- *
- * In CSP environments where `new Function` is blocked, always uses Exec mode.
+ * Where code generation is allowed the function is compiled — at once by default, or, when a
+ * threshold is set ({@link setJitThreshold}, `DEEPKIT_JIT_THRESHOLD`), interpreted for its first
+ * calls and compiled when it reaches the threshold. Where `new Function` is blocked (a strict
+ * CSP) it is always interpreted.
  */
 export function fn<R>(...args: any[]): (...args: any[]) => R {
-    const body = args.pop() as (b: Builder, ...inputs: Ref[]) => Ref<R> | void;
-    const argCount = args.length;
-
-    // Extract input names and defaults from arg() declarations
-    const inputNames = args.map((a: Arg<any>, i: number) => a.name || `v${i}`);
-    const inputDefaults = args.map((a: Arg<any>) => a.defaultValue);
-
-    // Build the expression tree once
-    const builder = new Builder(argCount);
-    const prevActive = _activeBuilder;
-    _activeBuilder = builder;
-    const inputs = Array.from({ length: argCount }, (_, i) => builder.input(i));
-    const result = body(builder, ...inputs);
-    _activeBuilder = prevActive;
-    const block = builder.build(result as Ref<R> | undefined);
+    const def = declare(args);
 
     // If called inside another fn()/fnJIT(), register as nested function definition
-    if (prevActive) {
-        return prevActive.registerNestedFn(block, inputNames) as any;
+    if (def.parent) {
+        return def.parent.registerNestedFn(def.block, def.inputNames, def.inputDefaults) as any;
     }
 
-    // CSP environment - always use bytecode VM (or tree-walking fallback)
+    // Code generation is blocked: interpret.
     if (!canJIT) {
-        return createExecutor<R>(block) as any;
+        return interpretDefinition<R>(def);
     }
 
     // Immediate JIT if threshold is 0
     if (jitThreshold === 0) {
-        const gen = new CodeGenerator(argCount, inputNames, undefined, inputDefaults);
-        return gen.compile<(...args: any[]) => R>(block);
+        return compileDefinition<R>(def);
     }
 
-    // Tiered execution: bytecode VM first, then JIT compile after threshold
+    // Tiered execution: interpret first, compile once the threshold is reached
     let callCount = 0;
     let compiledFn: ((...args: any[]) => R) | null = null;
-    const executor = createExecutor<R>(block);
+    const executor = interpretDefinition<R>(def);
 
     return ((...runtimeArgs: any[]) => {
         if (compiledFn) {
@@ -2032,8 +2287,7 @@ export function fn<R>(...args: any[]): (...args: any[]) => R {
         callCount++;
 
         if (callCount >= jitThreshold) {
-            const gen = new CodeGenerator(argCount, inputNames, undefined, inputDefaults);
-            compiledFn = gen.compile<(...args: any[]) => R>(block);
+            compiledFn = compileDefinition<R>(def);
             return compiledFn(...runtimeArgs);
         }
 
@@ -2047,60 +2301,32 @@ export function fn<R>(...args: any[]): (...args: any[]) => R {
  * WARNING: This will throw in CSP environments where `new Function()` is blocked.
  */
 export function fnJIT<R>(...args: any[]): (...args: any[]) => R {
-    const body = args.pop() as (b: Builder, ...inputs: Ref[]) => Ref<R> | void;
-    const argCount = args.length;
-
-    // Extract input names and defaults from arg() declarations
-    const inputNames = args.map((a: Arg<any>, i: number) => a.name || `v${i}`);
-    const inputDefaults = args.map((a: Arg<any>) => a.defaultValue);
-
-    const builder = new Builder(argCount);
-    const prevActive = _activeBuilder;
-    _activeBuilder = builder;
-    const inputs = Array.from({ length: argCount }, (_, i) => builder.input(i));
-    const result = body(builder, ...inputs);
-    _activeBuilder = prevActive;
-    const block = builder.build(result as Ref<R> | undefined);
+    const def = declare(args);
 
     // If called inside another fn()/fnJIT(), register as nested function definition
-    if (prevActive) {
-        return prevActive.registerNestedFn(block, inputNames) as any;
+    if (def.parent) {
+        return def.parent.registerNestedFn(def.block, def.inputNames, def.inputDefaults) as any;
     }
 
-    const gen = new CodeGenerator(argCount, inputNames, undefined, inputDefaults);
-    return gen.compile<(...args: any[]) => R>(block);
+    return compileDefinition<R>(def);
 }
 
 /**
  * Force a separate JIT compilation unit, even when called inside another fn()/fnJIT().
  * Use this when a large function would poison V8 optimization of sibling functions
- * in the same IIFE scope.
+ * in the same compilation unit.
  */
 export function fnJITTop<R>(...args: any[]): (...args: any[]) => R {
-    const body = args.pop() as (b: Builder, ...inputs: Ref[]) => Ref<R> | void;
-    const argCount = args.length;
-    const inputNames = args.map((a: Arg<any>, i: number) => a.name || `v${i}`);
-    const inputDefaults = args.map((a: Arg<any>) => a.defaultValue);
-
-    const builder = new Builder(argCount);
-    // Suppress nesting: set _activeBuilder to this builder (not the parent)
-    // but don't check prevActive for registration
-    const prevActive = _activeBuilder;
-    _activeBuilder = builder;
-    const inputs = Array.from({ length: argCount }, (_, i) => builder.input(i));
-    const result = body(builder, ...inputs);
-    _activeBuilder = prevActive;
-    const block = builder.build(result as Ref<R> | undefined);
+    // Never registered as nested: the enclosing declaration, if any, is ignored.
+    const def = declare(args);
 
     // CSP environment: compilation units don't exist in exec mode, so the
     // isolation this function provides is moot — fall back like fn() does.
     if (!canJIT) {
-        return createExecutor<R>(block) as any;
+        return interpretDefinition<R>(def);
     }
 
-    // Always create a separate compilation unit (never register as nested)
-    const gen = new CodeGenerator(argCount, inputNames, undefined, inputDefaults);
-    return gen.compile<(...args: any[]) => R>(block);
+    return compileDefinition<R>(def);
 }
 
 // ============================================================================
@@ -2188,6 +2414,19 @@ function exprNeedsVars(expr: Expr): boolean {
 }
 
 /**
+ * What `{[key]: value}` does: the key becomes an OWN property, whatever it is called. A plain
+ * assignment would run the `__proto__` setter for that one key and replace the object's prototype
+ * with the value — with a key that comes from data, that is the data choosing the prototype.
+ */
+function setComputedKey(target: any, key: any, value: unknown): void {
+    if ((typeof key === 'string' && key !== '__proto__') || typeof key === 'number') {
+        target[key] = value;
+    } else {
+        Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });
+    }
+}
+
+/**
  * Flatten AND expressions into an array of operands for fast short-circuit evaluation.
  */
 function flattenAnd(expr: Expr): Expr[] {
@@ -2211,35 +2450,24 @@ function compilePureExpr(expr: Expr): PureEvalFn {
             return args => args[index];
         }
         case 'get': {
+            // A read from null or undefined throws, as the compiled `obj.key` does.
             const objFn = compilePureExpr(expr.obj);
             if (typeof expr.key === 'string') {
                 const key = expr.key;
-                return args => {
-                    const obj = objFn(args);
-                    return obj == null ? undefined : obj[key];
-                };
+                return args => objFn(args)[key];
             } else {
                 const keyFn = compilePureExpr(expr.key);
-                return args => {
-                    const obj = objFn(args);
-                    return obj == null ? undefined : obj[keyFn(args)];
-                };
+                return args => objFn(args)[keyFn(args)];
             }
         }
         case 'at': {
             const arrFn = compilePureExpr(expr.arr);
             if (typeof expr.index === 'number') {
                 const idx = expr.index;
-                return args => {
-                    const arr = arrFn(args);
-                    return arr == null ? undefined : arr[idx];
-                };
+                return args => arrFn(args)[idx];
             } else {
                 const idxFn = compilePureExpr(expr.index);
-                return args => {
-                    const arr = arrFn(args);
-                    return arr == null ? undefined : arr[idxFn(args)];
-                };
+                return args => arrFn(args)[idxFn(args)];
             }
         }
         case 'call': {
@@ -2276,8 +2504,8 @@ function compilePureExpr(expr: Expr): PureEvalFn {
             return args => {
                 const result: any = {};
                 for (const [k, vFn] of entries) {
-                    const key = typeof k === 'string' ? k : k(args);
-                    result[key] = vFn(args);
+                    if (typeof k === 'string') result[k] = vFn(args);
+                    else setComputedKey(result, k(args), vFn(args));
                 }
                 return result;
             };
@@ -2427,12 +2655,15 @@ function compilePureExpr(expr: Expr): PureEvalFn {
                     f8(args) &&
                     f9(args);
             }
-            // General case for >10 operands
+            // General case for >10 operands. `&&` answers with the operand that decided it —
+            // the first falsy one, else the last — not with a boolean.
             return args => {
+                let value: any;
                 for (const fn of fns) {
-                    if (!fn(args)) return false;
+                    value = fn(args);
+                    if (!value) return value;
                 }
-                return true;
+                return value;
             };
         }
         case 'or': {
@@ -2474,10 +2705,7 @@ function compilePureExpr(expr: Expr): PureEvalFn {
         }
         case 'len': {
             const valueFn = compilePureExpr(expr.value);
-            return args => {
-                const v = valueFn(args);
-                return v == null ? 0 : v.length;
-            };
+            return args => valueFn(args).length;
         }
         case 'ternary': {
             const condFn = compilePureExpr(expr.cond);
@@ -2602,32 +2830,20 @@ function compileExprToClosure(expr: Expr): EvalFn {
             const objFn = compileExprToClosure(expr.obj);
             if (typeof expr.key === 'string') {
                 const key = expr.key;
-                return (args, vars) => {
-                    const obj = objFn(args, vars);
-                    return obj == null ? undefined : obj[key];
-                };
+                return (args, vars) => objFn(args, vars)[key];
             } else {
                 const keyFn = compileExprToClosure(expr.key);
-                return (args, vars) => {
-                    const obj = objFn(args, vars);
-                    return obj == null ? undefined : obj[keyFn(args, vars)];
-                };
+                return (args, vars) => objFn(args, vars)[keyFn(args, vars)];
             }
         }
         case 'at': {
             const arrFn = compileExprToClosure(expr.arr);
             if (typeof expr.index === 'number') {
                 const idx = expr.index;
-                return (args, vars) => {
-                    const arr = arrFn(args, vars);
-                    return arr == null ? undefined : arr[idx];
-                };
+                return (args, vars) => arrFn(args, vars)[idx];
             } else {
                 const idxFn = compileExprToClosure(expr.index);
-                return (args, vars) => {
-                    const arr = arrFn(args, vars);
-                    return arr == null ? undefined : arr[idxFn(args, vars)];
-                };
+                return (args, vars) => arrFn(args, vars)[idxFn(args, vars)];
             }
         }
         case 'call': {
@@ -2664,8 +2880,8 @@ function compileExprToClosure(expr: Expr): EvalFn {
             return (args, vars) => {
                 const result: any = {};
                 for (const [k, vFn] of entries) {
-                    const key = typeof k === 'string' ? k : k(args, vars);
-                    result[key] = vFn(args, vars);
+                    if (typeof k === 'string') result[k] = vFn(args, vars);
+                    else setComputedKey(result, k(args, vars), vFn(args, vars));
                 }
                 return result;
             };
@@ -2752,10 +2968,7 @@ function compileExprToClosure(expr: Expr): EvalFn {
         }
         case 'len': {
             const valueFn = compileExprToClosure(expr.value);
-            return (args, vars) => {
-                const v = valueFn(args, vars);
-                return v == null ? 0 : v.length;
-            };
+            return (args, vars) => valueFn(args, vars).length;
         }
         case 'ternary': {
             const condFn = compileExprToClosure(expr.cond);
@@ -2846,34 +3059,41 @@ function compileExprToClosure(expr: Expr): EvalFn {
             const elemId = expr.elemId;
             const indexId = expr.indexId;
             const bodyFn = compileBlockToClosure(expr.body);
-            return (args, vars) => {
-                const arr = arrFn(args, vars);
-                const result = new Array(arr.length);
-                for (let i = 0; i < arr.length; i++) {
-                    vars[elemId] = arr[i];
+            // The array's own `map`, as compiled code calls it: a hole stays a hole, and a value
+            // that has no `map` is a TypeError rather than something to index.
+            return (args, vars) =>
+                arrFn(args, vars).map((elem: any, i: number) => {
+                    vars[elemId] = elem;
                     vars[indexId] = i;
                     // bodyFn returns { earlyReturn, value } - extract value
-                    result[i] = bodyFn(args, vars)?.value;
-                }
-                return result;
-            };
+                    return bodyFn(args, vars)?.value;
+                });
         }
         case 'subFn': {
             // SubFn evaluates the body with the arg as input(0)
+            // The body was built by its own Builder: its variable ids are its own and would
+            // overwrite the enclosing function's if the two shared one array.
             const argFn = compileExprToClosure(expr.arg);
             const bodyFn = compileExprToClosure(expr.body);
             return (args, vars) => {
                 const argValue = argFn(args, vars);
-                return bodyFn([argValue], vars);
+                return bodyFn([argValue], []);
             };
         }
     }
 }
 
-type StmtFn = (
-    args: any[],
-    vars: any[],
-) => { earlyReturn?: boolean; earlyBreak?: boolean; earlyContinue?: boolean; value?: any } | void;
+/**
+ * How a statement ended, when it did not simply run to its end: the function returns, or the
+ * enclosing loop is left or goes to its next turn. A block, an `if` and a `switch` hand the first
+ * one they meet upward; a LOOP — every kind of loop — is where `earlyBreak` and `earlyContinue` stop.
+ */
+type Completion = { earlyReturn?: boolean; earlyBreak?: boolean; earlyContinue?: boolean; value?: any };
+
+const BREAK: Completion = Object.freeze({ earlyBreak: true });
+const CONTINUE: Completion = Object.freeze({ earlyContinue: true });
+
+type StmtFn = (args: any[], vars: any[]) => Completion | void;
 
 function compileStmtToClosure(stmt: Stmt): StmtFn {
     switch (stmt.kind) {
@@ -2953,18 +3173,21 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
             const elemId = stmt.elemId;
             const indexId = stmt.indexId;
             const bodyFn = compileBlockToClosure(stmt.body);
-            const skipElem = stmt.skipElem;
+            const readsElem = !!arrFn && !stmt.skipElem;
             return (args, vars) => {
                 const arr = arrFn ? arrFn(args, vars) : undefined;
                 const start = startFn ? startFn(args, vars) : 0;
-                const end = endFn ? endFn(args, vars) : arr!.length;
+                const end = endFn ? endFn(args, vars) : arr.length;
                 for (let i = start; i < end; i++) {
                     vars[indexId] = i;
-                    if (arr && !skipElem) {
+                    if (readsElem) {
                         vars[elemId] = arr[i];
                     }
                     const r = bodyFn(args, vars);
-                    if (r) return r;
+                    if (r) {
+                        if (r.earlyReturn) return r;
+                        if (r.earlyBreak) break;
+                    }
                 }
             };
         }
@@ -2977,7 +3200,10 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
                 for (const key in obj) {
                     vars[keyId] = key;
                     const r = bodyFn(args, vars);
-                    if (r) return r;
+                    if (r) {
+                        if (r.earlyReturn) return r;
+                        if (r.earlyBreak) break;
+                    }
                 }
             };
         }
@@ -2990,11 +3216,14 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
             if (keyId !== undefined) {
                 return (args, vars) => {
                     const iterable = iterableFn(args, vars);
-                    for (const item of iterable) {
-                        vars[keyId] = item[0];
-                        vars[valueId] = item[1];
+                    for (const [key, value] of iterable) {
+                        vars[keyId] = key;
+                        vars[valueId] = value;
                         const r = bodyFn(args, vars);
-                        if (r) return r;
+                        if (r) {
+                            if (r.earlyReturn) return r;
+                            if (r.earlyBreak) break;
+                        }
                     }
                 };
             }
@@ -3004,7 +3233,10 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
                 for (const item of iterable) {
                     vars[valueId] = item;
                     const r = bodyFn(args, vars);
-                    if (r) return r;
+                    if (r) {
+                        if (r.earlyReturn) return r;
+                        if (r.earlyBreak) break;
+                    }
                 }
             };
         }
@@ -3016,14 +3248,12 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
                 const value = valueFn(args, vars);
                 for (const [lit, blockFn] of cases) {
                     if (value === lit) {
-                        const r = blockFn(args, vars);
-                        if (r) return r;
-                        return;
+                        // A break or continue in a case belongs to the enclosing loop: handed up.
+                        return blockFn(args, vars);
                     }
                 }
                 if (defaultFn) {
-                    const r = defaultFn(args, vars);
-                    if (r) return r;
+                    return defaultFn(args, vars);
                 }
             };
         }
@@ -3035,23 +3265,19 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
                     const r = bodyFn(args, vars);
                     if (r) {
                         if (r.earlyReturn) return r;
-                        if (r.earlyBreak) return;
-                        // earlyContinue: just continue the while loop
+                        if (r.earlyBreak) break;
                     }
                 }
             };
         }
         case 'break':
-            return () => ({ earlyBreak: true });
+            return () => BREAK;
         case 'continue':
-            return () => ({ earlyContinue: true });
+            return () => CONTINUE;
     }
 }
 
-type BlockFn = (
-    args: any[],
-    vars: any[],
-) => { earlyReturn?: boolean; earlyBreak?: boolean; earlyContinue?: boolean; value?: any } | void;
+type BlockFn = (args: any[], vars: any[]) => Completion | void;
 
 function compileBlockToClosure(block: Block): BlockFn {
     const stmtFns = block.stmts.map(compileStmtToClosure);
@@ -3084,22 +3310,40 @@ function isPureBlock(block: Block): boolean {
  * For pure blocks (no statements, return expr doesn't need vars),
  * uses a simplified executor that avoids vars array allocation.
  */
-function createClosureExecutor<T>(block: Block): (...args: any[]) => T {
+function createClosureExecutor<T>(block: Block, inputDefaults?: readonly unknown[]): (...args: any[]) => T {
+    // An argument that is left out, or passed as undefined, takes its default — as the parameter
+    // list of the compiled function says it does.
+    const defaults = inputDefaults && inputDefaults.some(value => value !== undefined) ? inputDefaults : undefined;
+
     // Fast path for pure blocks (common case for type guards)
     if (isPureBlock(block)) {
         if (!block.returnExpr) {
             return () => undefined as T;
         }
         const pureFn = compilePureExpr(block.returnExpr);
+        if (defaults) return (...args: any[]): T => pureFn(withDefaults(args, defaults)) as T;
         return (...args: any[]): T => pureFn(args) as T;
     }
 
     // General case with vars support
     const blockFn = compileBlockToClosure(block);
+    if (defaults) {
+        return (...args: any[]): T => {
+            const result = blockFn(withDefaults(args, defaults), []);
+            return result?.value;
+        };
+    }
     return (...args: any[]): T => {
         const result = blockFn(args, []);
         return result?.value;
     };
+}
+
+function withDefaults(args: any[], defaults: readonly unknown[]): any[] {
+    for (let i = 0; i < defaults.length; i++) {
+        if (args[i] === undefined && defaults[i] !== undefined) args[i] = defaults[i];
+    }
+    return args;
 }
 
 /**
@@ -3109,15 +3353,9 @@ function createClosureExecutor<T>(block: Block): (...args: any[]) => T {
  * @internal
  */
 export function fnExec<R>(...args: any[]): (...args: any[]) => R {
-    const body = args.pop() as (b: Builder, ...inputs: Ref[]) => Ref<R> | void;
-    const argCount = args.length;
-
-    const builder = new Builder(argCount);
-    const inputs = Array.from({ length: argCount }, (_, i) => builder.input(i));
-    const result = body(builder, ...inputs);
-    const block = builder.build(result as Ref<R> | undefined);
-
-    return createClosureExecutor<R>(block) as any;
+    // Never registered as nested, like fnJITTop: the point is that THIS function is interpreted.
+    // The functions declared inside its body are its nested functions, and so interpreted too.
+    return interpretDefinition<R>(declare(args));
 }
 
 // ============================================================================

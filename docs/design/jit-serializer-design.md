@@ -1120,7 +1120,7 @@ fn<R>(...args: any[]): (...args: any[]) => R {
 - Memory for keeping body reference until compiled
 
 **Resolved:**
-- Default threshold: 10 (configurable via `setJitThreshold()`)
+- Default threshold: **0** — where code generation is allowed a function is compiled at once. Tiering (interpret first, compile at the threshold) happens only when a threshold is set, with `setJitThreshold()` or `DEEPKIT_JIT_THRESHOLD`. The sketch above shows the tiered branch; `10` in it was the first draft's number, never the shipped default
 - `jit.fnJIT()` bypasses tiering (for testing only - throws in CSP environments)
 - `jit.fnExec()` always uses Exec mode (for testing/debugging)
 

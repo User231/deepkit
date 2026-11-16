@@ -5,6 +5,49 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## Unreleased
 
+### JIT: the compiled and the interpreted mode give the same answer
+
+`@deepkit/core`'s JIT runs one expression tree two ways: compiled to source (`new Function`) and
+interpreted as closures (the only mode where code generation is blocked, e.g. a strict CSP).
+Nothing held the two to the same result. `packages/core/tests/jit-differential.spec.ts` now does,
+and the differences it found are fixed. The rule: compiled JavaScript is what a tree means, and
+the interpreter matches it.
+
+Interpreted mode, fixed:
+
+- An argument default (`arg('offset', 0)`) was ignored. `deserializeBSON<T[]>()` of a top-level
+  array returned `[]` wherever code generation is blocked.
+- `break_()` and `continue_()` inside `loop` / `loopIdx` / `forRange` / `forIn` / `forOf` ended the
+  whole function with `undefined`. Only `while_` handled them.
+- `get`, `at` and `len` on `null` or `undefined` answered `undefined` / `0`. **They now throw a
+  TypeError, as the compiled `obj.key` always has.**
+- `and` with more than ten operands answered `true` / `false` instead of the deciding operand.
+- `map` indexed its source instead of calling the array's `map` (holes, strings, non-arrays).
+- `obj` with a computed key `__proto__` replaced the new object's prototype with the value. It is
+  an own property now, as in `{[key]: value}`.
+- A `subFn` body shared variable slots with the function around it.
+
+Compiled mode, fixed:
+
+- Operands are parenthesized by precedence. Before: `eq(a, eq(b, c))` compared left to right,
+  `sub(x, lit(-1))` emitted `x--1`, `get(lit(5), 'k')` emitted `5.k`, `nullish(and(a, b), c)` and
+  `typeof` / `in` / `instanceof` over a comparison did not parse or parsed as something else, and a
+  statement starting with an object literal was read as a block.
+- `concat` of two numbers added them.
+- `switch_` wrote a `1n` case as `1` and could not take an object as a case; `break_()` inside a
+  case left the switch instead of the enclosing loop.
+- The array of `loop` was evaluated once per iteration plus once for the length.
+- `v = v + 1` was emitted as `v++`, which turns a string into `NaN` and accepts a bigint.
+- A `subFn` under a named first argument read the wrong variable; a method name that is no
+  identifier did not parse; a nested function lost its argument defaults.
+
+Both modes: a declaration whose body callback threw left its Builder active, and every function
+declared afterwards in the process was returned as a nested marker of it — interpreted where
+compiled was asked for. `fn`, `fnJIT`, `fnJITTop` and `fnExec` now share one declaration path.
+
+`EXPR_KINDS` and `STMT_KINDS` are exported: the runtime lists of the tree's kinds, complete by
+construction. `Arg.defaultValue` holds the value itself (it held a JSON string).
+
 ### Standard (TC39) decorators supported — `experimentalDecorators` remains supported
 
 All deepkit decorators (`@entity`, `@http.*`, `@rpc.*`, `@cli`, `@eventDispatcher.listen`, `@t`,
