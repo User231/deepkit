@@ -42,6 +42,16 @@ function deferred<C, E, R>(run: (context: C, event: E) => R, context: C, event: 
     return () => run(context, event);
 }
 
+/** One listener of a place as `WorkflowDefinition.planListeners` prepared it. */
+type PlannedListener =
+    | { callback: Function }
+    | {
+          resolved: { instance: any };
+          resolveArgs: unknown[];
+          methodName: string;
+          withDependencies?: Function;
+      };
+
 export class WorkflowEvent extends BaseEvent {
     public nextState?: any;
     public nextStateEvent?: any;
@@ -175,6 +185,15 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
         event: WorkflowEvent,
         stopwatch: Stopwatch,
     ) => Promise<void> {
+        // Worked out before the declaration: asking the injector for a listener's function must
+        // not happen while a function of ours is being declared.
+        const places = Object.entries(this.places).map(([place, eventType]) => ({
+            place,
+            eventType,
+            allowedFrom: this.transitions.filter(v => v.to === place),
+            listeners: this.planListeners(place, eventDispatcher),
+        }));
+
         return fnAsync<void>(
             arg('scopedContext'),
             arg('state'),
@@ -189,9 +208,8 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
                 b.while_(b.lit(true), () => {
                     const currentState = b.let(b.method(state, 'get'), 'currentState');
 
-                    const places = Object.entries(this.places).map(([place, eventType]): [string, () => void] => {
-                        const allowedFrom = this.transitions.filter(v => v.to === place);
-                        const listeners = this.buildListeners(place, eventDispatcher);
+                    const cases = places.map(({ place, eventType, allowedFrom, listeners }): [string, () => void] => {
+                        const runListeners = this.writeListeners(listeners);
 
                         return [
                             place,
@@ -241,12 +259,12 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
                                 b.try_(
                                     () => {
                                         // The frame runs the listeners as a function of its own:
-                                        // theirs, with the context and the event of this call bound.
+                                        // theirs, with the context and the event of this call.
                                         b.await_(
                                             b.method(
                                                 frame,
                                                 'run',
-                                                b.call(deferred, b.lit(listeners), scopedContext, b.getVar(event)),
+                                                b.call(deferred, b.lit(runListeners), scopedContext, b.getVar(event)),
                                             ),
                                         );
                                         b.exec(b.method(state, 'set', b.lit(place)));
@@ -256,7 +274,7 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
                             },
                         ];
                     });
-                    b.switch_(b.getVar(nextState), places);
+                    b.switch_(b.getVar(nextState), cases);
 
                     b.if_(b.get(b.getVar(event), 'nextState'), () => {
                         b.setVar(nextState, b.get(b.getVar(event), 'nextState'));
@@ -270,13 +288,10 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
     }
 
     /**
-     * The listeners of one place as an async function `(scopedContext, event)`: each is awaited in
-     * its order, and none runs once one has stopped the event's propagation.
-     *
-     * Called while {@link buildApplier} declares its function, it is that function's nested
-     * function.
+     * The listeners of one place, in their order, each as what its call needs: the function to
+     * call, or the service to resolve and its method.
      */
-    protected buildListeners(place: string, eventDispatcher: EventDispatcher): Function {
+    protected planListeners(place: string, eventDispatcher: EventDispatcher): PlannedListener[] {
         const listeners = eventDispatcher.getListeners(this.tokens[place]!);
         listeners.sort((a, b) => {
             if (a.order > b.order) return +1;
@@ -284,30 +299,23 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
             return 0;
         });
 
-        return fnAsync<void>(arg('scopedContext'), arg('event'), (b: Builder, scopedContext: Ref, event: Ref) => {
-            const unlessStopped = (call: () => void) => {
-                b.if_(b.not(b.get(event, 'immediatePropagationStopped')), call);
-            };
+        const planned: PlannedListener[] = [];
+        for (const listener of listeners) {
+            const injector = listener.module
+                ? eventDispatcher.injector.getInjector(listener.module)
+                : eventDispatcher.injector.getRootInjector();
 
-            for (const listener of listeners) {
-                const injector = listener.module
-                    ? eventDispatcher.injector.getInjector(listener.module)
-                    : eventDispatcher.injector.getRootInjector();
-
-                if (isEventListenerContainerEntryCallback(listener)) {
-                    const callback = injectedFunction(listener.fn, injector, 1);
-                    unlessStopped(() => {
-                        b.await_(b.call(callback, b.get(scopedContext, 'scope'), event));
-                    });
-                } else if (isEventListenerContainerEntryService(listener)) {
+            if (isEventListenerContainerEntryCallback(listener)) {
+                planned.push({ callback: injectedFunction(listener.fn, injector, 1) });
+            } else if (isEventListenerContainerEntryService(listener)) {
+                const method = ReflectionClass.from(listener.classType).getMethod(listener.methodName);
+                planned.push({
                     // The listener's instance is resolved by the first event that reaches it and
                     // kept for every call after — it outlives the call, so it is not a variable.
-                    const resolved = b.lit<{ instance?: any }>({ instance: undefined });
-                    const resolveArgs = [b.lit(listener.classType)];
-                    if (listener.module) resolveArgs.push(b.lit(listener.module));
-
-                    const method = ReflectionClass.from(listener.classType).getMethod(listener.methodName);
-                    const withDependencies =
+                    resolved: { instance: undefined },
+                    resolveArgs: listener.module ? [listener.classType, listener.module] : [listener.classType],
+                    methodName: listener.methodName,
+                    withDependencies:
                         method.getParameters().length > 1
                             ? injectedFunction(
                                   (event, classInstance, ...args: any[]) => {
@@ -318,20 +326,50 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
                                   method.type,
                                   1,
                               )
-                            : undefined;
+                            : undefined,
+                });
+            }
+        }
+        return planned;
+    }
 
+    /**
+     * The listeners of one place as an async function `(scopedContext, event)`: each is awaited in
+     * its order, and none runs once one has stopped the event's propagation.
+     *
+     * Called while {@link buildApplier} declares its function, it is that function's nested
+     * function.
+     */
+    protected writeListeners(listeners: PlannedListener[]): Function {
+        return fnAsync<void>(arg('scopedContext'), arg('event'), (b: Builder, scopedContext: Ref, event: Ref) => {
+            const unlessStopped = (call: () => void) => {
+                b.if_(b.not(b.get(event, 'immediatePropagationStopped')), call);
+            };
+
+            for (const listener of listeners) {
+                if ('callback' in listener) {
                     unlessStopped(() => {
-                        b.if_(b.not(b.get(resolved, 'instance')), () => {
-                            b.set(resolved, 'instance', b.method(scopedContext, 'get', ...resolveArgs));
-                        });
-                        const instance = b.get(resolved, 'instance');
-                        b.await_(
-                            withDependencies
-                                ? b.call(withDependencies, b.get(scopedContext, 'scope'), event, instance)
-                                : b.method(instance, listener.methodName, event),
+                        b.await_(b.call(listener.callback, b.get(scopedContext, 'scope'), event));
+                    });
+                    continue;
+                }
+
+                const resolved = b.lit(listener.resolved);
+                unlessStopped(() => {
+                    b.if_(b.not(b.get(resolved, 'instance')), () => {
+                        b.set(
+                            resolved,
+                            'instance',
+                            b.method(scopedContext, 'get', ...listener.resolveArgs.map(value => b.lit(value))),
                         );
                     });
-                }
+                    const instance = b.get(resolved, 'instance');
+                    b.await_(
+                        listener.withDependencies
+                            ? b.call(listener.withDependencies, b.get(scopedContext, 'scope'), event, instance)
+                            : b.method(instance, listener.methodName, event),
+                    );
+                });
             }
         });
     }
