@@ -52,12 +52,13 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
 
 ## Known Remaining Work (optional, not scheduled)
 
-- **`CompilerContext` (v1 string-JIT) still lives in** `http` (router, request-parser) and
-  `injector` — server-side packages where `new Function` is always available. `workflow` moved
-  to the JIT on 2026-11-17 (the pilot: `fnAsync`, `await_`, `try_` were added for it; measured
-  with `packages/workflow/benchmarks/apply.ts`, 128 → 133 ns per `apply()` on the machine it was
-  written on). Next by size: the request parser and the router, which share one generator; the
-  injector generates a module of functions over shared state and needs a design of its own.
+- **`CompilerContext` (v1 string-JIT) still lives in** `injector`, and nowhere else. `workflow`
+  moved to the JIT on 2026-11-17 (the pilot: `fnAsync`, `await_`, `try_` were added for it;
+  `packages/workflow/benchmarks/apply.ts`), `http` — the router, its URL resolver and the
+  parameter loaders of `request-parser.ts` — the same day (`packages/http/benchmarks/router.ts`).
+  The injector is the one left and is not a port: it generates a MODULE — some sixty functions
+  over shared state (`instances`, the lookup tables), returned as seven — where the JIT builds
+  one function and the functions nested in it. It needs a design of its own first.
   Migrating them to `jit.ts` only matters if those packages ever need to run under blocked
   codegen (edge runtimes). No current need.
 - **AOT tier** from the JIT/CSP design (`docs/design/jit-serializer-design.md`): never built. The

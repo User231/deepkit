@@ -7,11 +7,8 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-//@ts-ignore
-import qs from 'qs';
-
 import { MiddlewareRegistry, MiddlewareRegistryEntry } from '@deepkit/app';
-import { ClassType, CompilerContext, DeepkitError, getClassName, isArray, isClass, urlJoin } from '@deepkit/core';
+import { Builder, ClassType, DeepkitError, Ref, arg, fn, getClassName, isArray, isClass, urlJoin } from '@deepkit/core';
 import { InjectorContext, InjectorModule, getScope } from '@deepkit/injector';
 import { Logger, LoggerInterface } from '@deepkit/logger';
 import {
@@ -22,7 +19,6 @@ import {
     SerializationOptions,
     Serializer,
     Type,
-    ValidationError,
     entity,
     pushTypeErrorWhen,
     serializer,
@@ -31,18 +27,22 @@ import {
 import { HttpControllers } from './controllers.js';
 import { HttpAction, HttpController, HttpDecorator, getActions, httpClass } from './decorator.js';
 import { HtmlResponse, JSONResponse, Redirect, Response } from './http.js';
-import { HttpMiddlewareConfig, HttpMiddlewareFn } from './middleware.js';
+import { HttpMiddleware, HttpMiddlewareConfig, HttpMiddlewareFn } from './middleware.js';
 import {
     HttpRequest,
     HttpRequestPositionedParameters,
     HttpRequestQuery,
     HttpRequestResolvedParameters,
+    HttpResponse,
 } from './model.js';
 import { CorsOptions, HttpConfig } from './module.config.js';
 import {
     ParameterForRequestParser,
-    getRequestParserCodeForParameters,
+    ParameterLoaderPlan,
     parseRoutePathToRegex,
+    planParameterLoader,
+    writeParameterLoader,
+    writeRequestValues,
 } from './request-parser.js';
 
 export type RouteParameterResolverForInjector = (
@@ -54,6 +54,16 @@ interface ResolvedController {
     routeConfig: RouteConfig;
     uploadedFiles: { [name: string]: UploadedFile };
     middlewares?: (injector: InjectorContext) => HttpMiddlewareFn[];
+}
+
+/** One route as the router's function is built from it: see `HttpRouter.planRoute`. */
+interface RoutePlan {
+    routeConfig: RouteConfig;
+    /** The methods the route answers, upper-cased; none means every method. */
+    methods: string[];
+    matcher: { path: string } | { prefix: string; regex: RegExp };
+    middlewares: ResolvedController['middlewares'];
+    parameters: ParameterLoaderPlan | undefined;
 }
 
 export const UploadedFileSymbol = Symbol('UploadedFile');
@@ -705,6 +715,28 @@ function isRequestScopedMiddleware(middlewareClass: ClassType, module: InjectorM
     return false;
 }
 
+/**
+ * A middleware whose instance belongs to the request: for each request's injector, the function
+ * that resolves the instance and runs it.
+ *
+ * The function carries the middleware's NAME — the kernel names it in what it logs — and gets it
+ * the way JavaScript gives one to a function written as a property's value. That needs the
+ * function to BE the value, so nothing here is given runtime types: the type compiler would wrap
+ * it in a call, and what a call returns has no name.
+ *
+ * @reflection never
+ */
+function perRequestMiddleware(
+    name: string,
+    instanceOf: (injector: InjectorContext) => HttpMiddleware,
+): (injector: InjectorContext) => HttpMiddlewareFn {
+    return injector =>
+        ({
+            [name]: (req: HttpRequest, res: HttpResponse, next: (err?: any) => void) =>
+                instanceOf(injector).execute(req, res, next),
+        })[name];
+}
+
 export class HttpRouter {
     protected fn?: (request: HttpRequest) => ResolvedController | undefined;
     protected buildId: number = 0;
@@ -745,213 +777,117 @@ export class HttpRouter {
         );
     }
 
-    protected getRouteCode(compiler: CompilerContext, routeConfig: RouteConfig): string {
+    /**
+     * Everything about one route that is worked out once, before the router's function is
+     * declared: how its path is recognised, its middlewares, and how its parameters are loaded.
+     */
+    protected planRoute(routeConfig: RouteConfig): RoutePlan {
         const parsedRoute = parseRouteControllerAction(routeConfig);
         const path = routeConfig.getFullPath();
         const pathParamStarter = path.indexOf(':');
-        const prefix = path.substr(0, pathParamStarter);
-
-        const regexVar = compiler.reserveVariable('regex', new RegExp('^' + parsedRoute.regex + '$'));
-
         const hasParameters = pathParamStarter !== -1 || parsedRoute.getParameters().length > 0;
 
-        const fullPath = routeConfig.getFullPath();
-        const middlewareConfigs = filterMiddlewaresForRoute(this.middlewareRegistry.configs, routeConfig, fullPath);
-
-        const parameters = [...parsedRoute.getParameters()];
-
-        //look through all http listeners and check if they need any http parameters.
-        //the router then parses
-
-        let matcher = `_path.startsWith(${JSON.stringify(prefix)}) && (_match = _path.match(${regexVar}))`;
-        if (!hasParameters) {
-            matcher = `_path === ${JSON.stringify(path)}`;
-        }
-
-        let middlewares = 'undefined';
-        if (middlewareConfigs.length) {
-            const middlewareItems: string[] = [];
-            // Track if all middlewares can be pre-resolved (all singletons)
-            let allStatic = true;
-            // Pre-resolved middleware functions for static array optimization
-            const staticMiddlewareFns: ((...args: any[]) => any)[] = [];
-
-            for (const middlewareConfig of middlewareConfigs) {
-                for (const middleware of middlewareConfig.config.middlewares) {
-                    if (isClass(middleware)) {
-                        const middlewareName = middleware.name || 'Middleware';
-                        const isRequestScoped = isRequestScopedMiddleware(middleware, middlewareConfig.module);
-
-                        if (isRequestScoped) {
-                            // Request-scoped middleware: resolve per-request
-                            allStatic = false;
-
-                            // Try to use pre-compiled resolver if module's injector is available
-                            if (middlewareConfig.module?.injector) {
-                                const resolverVar = compiler.reserveVariable(
-                                    'mwResolver',
-                                    middlewareConfig.module.injector.getResolver(middleware),
-                                );
-                                middlewareItems.push(
-                                    `function ${middlewareName}(req, res, next) { return ${resolverVar}(_injector.scope).execute(req, res, next); }`,
-                                );
-                            } else {
-                                // Fallback to dynamic lookup
-                                const classVar = compiler.reserveVariable('middlewareClassType', middleware);
-                                const moduleVar = middlewareConfig.module
-                                    ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
-                                    : '';
-                                middlewareItems.push(
-                                    `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
-                                );
-                            }
-                        } else if (this.injectorContext) {
-                            // Singleton middleware with injector available: pre-resolve at build time
-                            try {
-                                const instance = this.injectorContext.get(middleware, middlewareConfig.module);
-                                const boundExecute = instance.execute.bind(instance);
-                                // Set function name for debugging
-                                Object.defineProperty(boundExecute, 'name', { value: middlewareName });
-                                const boundVar = compiler.reserveVariable('mwBound', boundExecute);
-                                middlewareItems.push(boundVar);
-                                staticMiddlewareFns.push(boundExecute);
-                            } catch {
-                                // Fallback if pre-resolution fails (e.g., dependencies not available)
-                                allStatic = false;
-                                if (middlewareConfig.module?.injector) {
-                                    const resolverVar = compiler.reserveVariable(
-                                        'mwResolver',
-                                        middlewareConfig.module.injector.getResolver(middleware),
-                                    );
-                                    middlewareItems.push(
-                                        `function ${middlewareName}(req, res, next) { return ${resolverVar}(_injector.scope).execute(req, res, next); }`,
-                                    );
-                                } else {
-                                    const classVar = compiler.reserveVariable('middlewareClassType', middleware);
-                                    const moduleVar = middlewareConfig.module
-                                        ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
-                                        : '';
-                                    middlewareItems.push(
-                                        `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
-                                    );
-                                }
-                            }
-                        } else {
-                            // No injector context available
-                            allStatic = false;
-                            if (middlewareConfig.module?.injector) {
-                                const resolverVar = compiler.reserveVariable(
-                                    'mwResolver',
-                                    middlewareConfig.module.injector.getResolver(middleware),
-                                );
-                                middlewareItems.push(
-                                    `function ${middlewareName}(req, res, next) { return ${resolverVar}(_injector.scope).execute(req, res, next); }`,
-                                );
-                            } else {
-                                const classVar = compiler.reserveVariable('middlewareClassType', middleware);
-                                const moduleVar = middlewareConfig.module
-                                    ? ', ' + compiler.reserveVariable('module', middlewareConfig.module)
-                                    : '';
-                                middlewareItems.push(
-                                    `function ${middlewareName}(req, res, next) { return _injector.get(${classVar}${moduleVar}).execute(req, res, next); }`,
-                                );
-                            }
-                        }
-                    } else {
-                        // Function middleware: always static
-                        const fnVar = compiler.reserveVariable('middlewareFn', middleware);
-                        middlewareItems.push(fnVar);
-                        staticMiddlewareFns.push(middleware);
-                    }
-                }
-            }
-
-            if (allStatic && staticMiddlewareFns.length > 0) {
-                // All middlewares are singletons - use pre-built static array
-                const staticArrayVar = compiler.reserveVariable('staticMiddlewares', staticMiddlewareFns);
-                middlewares = `function() { return ${staticArrayVar}; }`;
-            } else {
-                // Mixed or all request-scoped: build array per request
-                middlewares = `
-                    function(_injector) {
-                        return [${middlewareItems.join(', ')}];
-                    }
-                `;
-            }
-        }
-
-        const parametersLoader = getRequestParserCodeForParameters(compiler, this.config.parser, parameters, {
-            module: routeConfig.module,
-            resolverForToken: routeConfig.resolverForToken,
-            resolverForParameterName: routeConfig.resolverForParameterName,
-            pathParameterNames: parsedRoute.pathParameterNames,
+        return {
             routeConfig,
-        });
-
-        let methodCheck = '';
-        if (routeConfig.httpMethods.length) {
-            methodCheck =
-                '(' +
-                routeConfig.httpMethods
-                    .map(v => {
-                        return `_method === '${v.toUpperCase()}'`;
-                    })
-                    .join(' || ') +
-                ') && ';
-        }
-
-        const routeConfigVar = compiler.reserveVariable('routeConfigVar', routeConfig);
-        return `
-            //=> ${routeConfig.httpMethods.join(',')} ${path}
-            if (${methodCheck}${matcher}) {
-                return {routeConfig: ${routeConfigVar}, parameters: ${parametersLoader}, uploadedFiles: uploadedFiles, middlewares: ${middlewares}};
-            }
-        `;
+            methods: routeConfig.httpMethods.map(v => v.toUpperCase()),
+            // A route with parameters is recognised by its pattern, tried only where the path
+            // starts like it; one with none is its path.
+            matcher: hasParameters
+                ? { prefix: path.substr(0, pathParamStarter), regex: new RegExp('^' + parsedRoute.regex + '$') }
+                : { path },
+            middlewares: this.planMiddlewares(routeConfig),
+            parameters: planParameterLoader(this.config.parser, [...parsedRoute.getParameters()], {
+                module: routeConfig.module,
+                resolverForToken: routeConfig.resolverForToken,
+                resolverForParameterName: routeConfig.resolverForParameterName,
+                pathParameterNames: parsedRoute.pathParameterNames,
+                routeConfig,
+            }),
+        };
     }
 
-    protected getRouteUrlResolveCode(compiler: CompilerContext, routeConfig: RouteConfig): string {
-        const parsedRoute = parseRouteControllerAction(routeConfig);
+    /**
+     * The middlewares of a route as the function the kernel calls with the request's injector.
+     * `undefined` for a route that has none.
+     */
+    protected planMiddlewares(routeConfig: RouteConfig): ResolvedController['middlewares'] {
+        const middlewareConfigs = filterMiddlewaresForRoute(
+            this.middlewareRegistry.configs,
+            routeConfig,
+            routeConfig.getFullPath(),
+        );
+        if (!middlewareConfigs.length) return undefined;
 
-        let url = routeConfig.getFullPath();
-        url = url.replace(/:(\w+)/g, (a, name) => {
-            return `\${parameters.${name}}`;
-        });
+        /** One per middleware: the function of it for the request whose injector this is. */
+        const forRequest: ((injector: InjectorContext) => HttpMiddlewareFn)[] = [];
+        // Track if all middlewares can be pre-resolved (all singletons)
+        let allStatic = true;
+        // Pre-resolved middleware functions for static array optimization
+        const staticMiddlewareFns: HttpMiddlewareFn[] = [];
 
-        const modify: string[] = [];
-        for (const parameter of parsedRoute.getParameters()) {
-            if (parameter.query || parameter.queries) {
-                const queryPath =
-                    parameter.typePath === undefined && parameter.query
-                        ? parameter.parameter.name
-                        : parameter.typePath || '';
+        const addStatic = (middleware: HttpMiddlewareFn) => {
+            forRequest.push(() => middleware);
+            staticMiddlewareFns.push(middleware);
+        };
 
-                if (
-                    parameter.parameter.type.kind === ReflectionKind.class ||
-                    parameter.parameter.type.kind === ReflectionKind.objectLiteral
-                ) {
-                    for (const property of ReflectionClass.from(parameter.parameter.type).getProperties()) {
-                        const accessor = `parameters.${parameter.getName()}?.${property.name}`;
-                        const thisPath = queryPath ? queryPath + '.' + property.name : property.name;
-                        modify.push(
-                            `${accessor} !== undefined && query.push(${JSON.stringify(dotToUrlPath(thisPath))} + '=' + encodeURIComponent(${accessor}))`,
-                        );
+        /** A middleware whose instance is the request's own: resolved per request. */
+        const addPerRequest = (
+            middleware: ClassType<HttpMiddleware>,
+            name: string,
+            module: InjectorModule<any> | undefined,
+        ) => {
+            allStatic = false;
+            // Try to use pre-compiled resolver if module's injector is available
+            const resolver = module?.injector ? module.injector.getResolver(middleware) : undefined;
+            const instanceOf: (injector: InjectorContext) => HttpMiddleware = resolver
+                ? injector => resolver(injector.scope)
+                : // Fallback to dynamic lookup
+                  module
+                  ? injector => injector.get(middleware, module)
+                  : injector => injector.get(middleware);
+            forRequest.push(perRequestMiddleware(name, instanceOf));
+        };
+
+        for (const middlewareConfig of middlewareConfigs) {
+            for (const middleware of middlewareConfig.config.middlewares) {
+                if (!isClass(middleware)) {
+                    // Function middleware: always static
+                    addStatic(middleware);
+                    continue;
+                }
+                const middlewareName = middleware.name || 'Middleware';
+
+                if (isRequestScopedMiddleware(middleware, middlewareConfig.module)) {
+                    // Request-scoped middleware: resolve per-request
+                    addPerRequest(middleware, middlewareName, middlewareConfig.module);
+                } else if (this.injectorContext) {
+                    // Singleton middleware with injector available: pre-resolve at build time
+                    try {
+                        const instance = this.injectorContext.get(middleware, middlewareConfig.module);
+                        const boundExecute = instance.execute.bind(instance);
+                        // Set function name for debugging
+                        Object.defineProperty(boundExecute, 'name', { value: middlewareName });
+                        addStatic(boundExecute);
+                    } catch {
+                        // Fallback if pre-resolution fails (e.g., dependencies not available)
+                        addPerRequest(middleware, middlewareName, middlewareConfig.module);
                     }
                 } else {
-                    modify.push(
-                        `parameters.${parameter.getName()} !== undefined && query.push(${JSON.stringify(dotToUrlPath(queryPath))} + '=' + encodeURIComponent(parameters.${parameter.getName()}))`,
-                    );
+                    // No injector context available
+                    addPerRequest(middleware, middlewareName, middlewareConfig.module);
                 }
             }
         }
 
-        return `
-            case ${JSON.stringify(routeConfig.name)}: {
-                let url = \`${url}\`;
-                let query = [];
-                ${modify.join('\n')}
-                return url + (query.length ? '?'+query.join('&') : '');
-            }
-        `;
+        // All middlewares are singletons - use pre-built static array
+        if (allStatic && staticMiddlewareFns.length > 0) return () => staticMiddlewareFns;
+
+        // Mixed or all request-scoped: build array per request
+        return injector => {
+            const middlewares = new Array<HttpMiddlewareFn>(forRequest.length);
+            for (let i = 0; i < forRequest.length; i++) middlewares[i] = forRequest[i](injector);
+            return middlewares;
+        };
     }
 
     public addRoute(routeConfig: RouteConfig) {
@@ -962,52 +898,143 @@ export class HttpRouter {
         this.registry.addRouteForController(controller, module);
     }
 
+    /**
+     * The function `resolveRequest()` runs: which route a request is for. Built with the JIT of
+     * `@deepkit/core` from the routes registered at that moment, it reads
+     *
+     *     const method = request.method || 'GET'; … path, query, headers, uploadedFiles …
+     *     if (method === 'GET' && path.startsWith('/users/')) {
+     *         match = path.match(<the route's pattern>);
+     *         if (match) return { routeConfig, parameters: <its loader, for this request>, uploadedFiles, middlewares };
+     *     }
+     *     … the next route …
+     *
+     * and each route's parameter loader is a nested function of it (`planParameterLoader`).
+     */
     protected build(): (request: HttpRequest) => ResolvedController | undefined {
         this.buildId = this.registry.getBuildId();
-        const compiler = new CompilerContext();
-        compiler.context.set('ValidationError', ValidationError);
-        compiler.context.set('qs', qs);
+        // Planned before the declaration: a plan asks `@deepkit/type` and the injector for
+        // functions, and those are not to be built as functions of this one.
+        const plans = this.getRoutes().map(route => this.planRoute(route));
 
-        const code: string[] = [];
+        return fn<ResolvedController | undefined>(arg('request'), (b: Builder, request: Ref) => {
+            const method = b.let(b.or(b.get(request, 'method'), b.lit('GET')), 'method');
+            const values = writeRequestValues(b, request, true);
+            const match = b.var_<RegExpMatchArray | null | undefined>(undefined, 'match');
 
-        for (const route of this.getRoutes()) {
-            code.push(this.getRouteCode(compiler, route));
-        }
+            for (const plan of plans) {
+                //=> GET,POST /path
+                const conditions: Ref[] = [];
+                if (plan.methods.length) {
+                    conditions.push(
+                        plan.methods.map(v => b.eq(method, b.lit(v))).reduce((either, next) => b.or(either, next)),
+                    );
+                }
+                conditions.push(
+                    'path' in plan.matcher
+                        ? b.eq(values.path, b.lit(plan.matcher.path))
+                        : b.method(values.path, 'startsWith', b.lit(plan.matcher.prefix)),
+                );
 
-        return compiler.build(
-            `
-            let _match;
-            const _method = request.method || 'GET';
-            const _url = request.url || '/';
-            const _headers = request.headers || {};
-            const _qPosition = _url.indexOf('?');
-            let uploadedFiles = {};
-            const _path = _qPosition === -1 ? _url : _url.substr(0, _qPosition);
-            const _query = _qPosition === -1 ? {} : qs.parse(_url.substr(_qPosition + 1));
-            ${code.join('\n')}
-        `,
-            'request',
-        ) as any;
+                const resolved = () =>
+                    b.obj({
+                        routeConfig: b.lit(plan.routeConfig),
+                        parameters: writeParameterLoader(b, plan.parameters, {
+                            request,
+                            match: b.getVar(match),
+                            ...values,
+                        }),
+                        uploadedFiles: values.uploadedFiles,
+                        middlewares: b.lit(plan.middlewares),
+                    });
+
+                const regex = 'path' in plan.matcher ? undefined : plan.matcher.regex;
+                b.if_(
+                    conditions.reduce((all, next) => b.and(all, next)),
+                    regex
+                        ? () => {
+                              b.setVar(match, b.method(values.path, 'match', b.lit(regex)));
+                              b.if_(b.getVar(match), resolved);
+                          }
+                        : resolved,
+                );
+            }
+        });
     }
 
-    protected buildUrlResolver(): any {
-        const compiler = new CompilerContext();
-        const code: string[] = [];
+    /**
+     * The function `resolveUrl()` runs: the URL of a route, by its name, for the parameters given.
+     */
+    protected buildUrlResolver(): (name: string, parameters: { [name: string]: any }) => string {
+        const routes = this.getRoutes().map(route => ({ route, parsed: parseRouteControllerAction(route) }));
 
-        for (const route of this.getRoutes()) {
-            code.push(this.getRouteUrlResolveCode(compiler, route));
-        }
+        return fn<string>(arg('name'), arg('parameters'), (b: Builder, name: Ref, parameters: Ref) => {
+            b.switch_(
+                name,
+                routes.map(({ route, parsed }): [unknown, () => Ref] => [
+                    route.name,
+                    () => {
+                        // `/users/:id/posts` is '/users/', the parameter `id` as a string, '/posts'.
+                        const parts: Ref[] = [];
+                        const path = route.getFullPath();
+                        let position = 0;
+                        for (const found of path.matchAll(/:(\w+)/g)) {
+                            parts.push(b.lit(path.slice(position, found.index)));
+                            parts.push(b.call(String, b.get(parameters, found[1])));
+                            position = found.index + found[0].length;
+                        }
+                        parts.push(b.lit(path.slice(position)));
+                        const url = b.let(b.concat(...parts), 'url');
+                        const query = b.let(b.emptyArr(), 'query');
 
-        return compiler.build(
-            `
-        switch (name) {
-            ${code.join('\n')}
-        }
-        throw new DeepkitError('DK-H007', 'No route for name ' + name + ' found');
-        `,
-            'name',
-            'parameters',
-        ) as any;
+                        const add = (value: Ref, queryPath: string) => {
+                            b.if_(b.neq(value, b.lit(undefined)), () => {
+                                b.push(
+                                    query,
+                                    b.concat(b.lit(dotToUrlPath(queryPath) + '='), b.call(encodeURIComponent, value)),
+                                );
+                            });
+                        };
+
+                        for (const parameter of parsed.getParameters()) {
+                            if (!parameter.query && !parameter.queries) continue;
+                            const queryPath =
+                                parameter.typePath === undefined && parameter.query
+                                    ? parameter.parameter.name
+                                    : parameter.typePath || '';
+                            const value = b.get(parameters, parameter.getName());
+
+                            if (
+                                parameter.parameter.type.kind === ReflectionKind.class ||
+                                parameter.parameter.type.kind === ReflectionKind.objectLiteral
+                            ) {
+                                for (const property of ReflectionClass.from(parameter.parameter.type).getProperties()) {
+                                    // Each property of the object, where there is an object.
+                                    const propertyValue = b.let(
+                                        b.ternary(b.isNullish(value), b.lit(undefined), b.get(value, property.name)),
+                                    );
+                                    add(propertyValue, queryPath ? queryPath + '.' + property.name : property.name);
+                                }
+                            } else {
+                                add(value, queryPath);
+                            }
+                        }
+
+                        return b.concat(
+                            url,
+                            b.ternary(
+                                b.len(query),
+                                b.concat(b.lit('?'), b.method(query, 'join', b.lit('&'))),
+                                b.lit(''),
+                            ),
+                        );
+                    },
+                ]),
+            );
+            b.throw_(
+                b.new_(DeepkitError, b.lit('DK-H007'), b.concat(b.lit('No route for name '), name, b.lit(' found'))),
+            );
+        });
     }
 
     public resolveUrl(routeName: string, parameters: { [name: string]: any } = {}): string {

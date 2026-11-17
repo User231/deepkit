@@ -180,8 +180,8 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 
 - `ReceiveType<T>` + `resolveReceiveType()` for runtime type access
 - Type annotations via intersection: `string & MinLength<3>`
-- JIT compilation for performance: `fn()` / `fnAsync()` of `@deepkit/core` (`src/jit/`) in `type`, `bson`
-  and `workflow`; the older string-built `CompilerContext` only where it still lives (`http`, `injector`)
+- JIT compilation for performance: `fn()` / `fnAsync()` of `@deepkit/core` (`src/jit/`) in `type`, `bson`,
+  `workflow` and `http`; the older string-built `CompilerContext` only where it still lives (`injector`)
 
 ## Decorators: standard (TC39) mode is the default; the runtime is dual-mode — keep it that way
 
@@ -464,7 +464,18 @@ would be a closure is a nested function (`fn()` / `fnAsync()` inside the declara
 JavaScript helper that closes over the values of the call: `b.call(deferred, b.lit(nested), a, b)`
 with `const deferred = (run, a, b) => () => run(a, b)` (`packages/workflow/src/workflow.ts`).
 `nested.bind(undefined, a, b)` means the same and costs about 65 ns more per call. State that
-outlives one call is not a variable either: it is a property of an object passed in with `b.lit()`.
+outlives one call is not a variable either: it is a property of an object passed in with `b.lit()`,
+or lives in a plain helper (`providerOf` in `packages/http/src/request-parser.ts`).
+
+**Plan first, declare afterwards.** A builder that needs OTHER generated functions — a converter
+or a validator of `@deepkit/type`, a function of the injector — gets them before it calls `fn()`:
+asked for during a declaration, they are built as nested functions of that declaration, and every
+other holder of the cached function then holds a marker. `HttpRouter.build()` plans every route
+(`planRoute`, `planParameterLoader`) and only then declares; `planParameterLoader` refuses to run
+inside a declaration (`isDeclaring()`, `DK-H012`). A function that must carry a NAME given at run
+time is written in a function marked `@reflection never` (`perRequestMiddleware` in
+`packages/http/src/router.ts`): the type compiler wraps a function expression in a call, and what
+a call returns is not named after the property it is assigned to.
 
 **`fn()` inside another function's declaration is that function's NESTED function**, and what
 comes back is a marker with three kinds of caller: generated code calls the nested function of

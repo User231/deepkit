@@ -198,3 +198,13 @@ class BodyValidation<T> {
 - Check for circular dependencies between modules
 - Verify the file does not have `/** @reflection never */` annotation
 - Run `npm run postinstall` to rebuild type metadata
+
+## DK-H012: Parameter Loader Planned Inside a Declaration
+
+**Message:** planParameterLoader() was called while a function is being declared. Plan first, declare afterwards: the converters and validators it asks for would be built as functions of that declaration.
+
+**Causes:**
+- `planParameterLoader()` was called from inside the body callback of `fn()` / `fnAsync()` (`@deepkit/core`)
+
+**Solution:**
+- Call `planParameterLoader()` before declaring the function that holds the loader, and pass the plan to `writeParameterLoader()` inside the declaration — as `HttpRouter.build()` and `buildRequestParser()` do
