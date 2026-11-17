@@ -180,7 +180,8 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 
 - `ReceiveType<T>` + `resolveReceiveType()` for runtime type access
 - Type annotations via intersection: `string & MinLength<3>`
-- JIT compilation via `CompilerContext` for performance
+- JIT compilation for performance: `fn()` / `fnAsync()` of `@deepkit/core` (`src/jit/`) in `type`, `bson`
+  and `workflow`; the older string-built `CompilerContext` only where it still lives (`http`, `injector`)
 
 ## Decorators: standard (TC39) mode is the default; the runtime is dual-mode — keep it that way
 
@@ -447,6 +448,23 @@ the same row). A `Builder` method takes every operand through `this.own(ref)`, n
 that is where an operand of another declaration is refused (`InvalidProgramError`), and the spec
 passes a foreign operand into every position its tables know. A new place that
 builds code from a string is listed in `core/tests/generated-code-strict.spec.ts`.
+
+**An async function is declared with `fnAsync()`** (and its twins `fnAsyncJIT` / `fnAsyncJITTop` /
+`fnAsyncExec`, same policies as the plain four). It answers a promise, and its statements may wait:
+`b.await_(promise)` is a STATEMENT that binds what the promise resolves to — never an expression,
+so the expressions of both modes stay synchronous. The Builder refuses it in a function that is
+not async and in the body of `map()`. The interpreter has an async twin of each statement that
+holds a block (`compileAsyncStmt` in `exec.ts`: `if`, `switch`, the loops, `try`) — a new
+statement kind that holds a block needs its case there too, and its row in the spec's
+`PLACEMENTS` / `LOOPS`, which the async matrix runs with an `await` inside. `b.try_(body,
+{ catch, finally })` is `try`/`catch`/`finally` in both kinds of function.
+
+**There is no closure kind.** A function sees its own arguments and variables only, so what
+would be a closure is a nested function (`fn()` / `fnAsync()` inside the declaration) and a plain
+JavaScript helper that closes over the values of the call: `b.call(deferred, b.lit(nested), a, b)`
+with `const deferred = (run, a, b) => () => run(a, b)` (`packages/workflow/src/workflow.ts`).
+`nested.bind(undefined, a, b)` means the same and costs about 65 ns more per call. State that
+outlives one call is not a variable either: it is a property of an object passed in with `b.lit()`.
 
 **`fn()` inside another function's declaration is that function's NESTED function**, and what
 comes back is a marker with three kinds of caller: generated code calls the nested function of

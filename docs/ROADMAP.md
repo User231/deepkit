@@ -14,8 +14,8 @@ Tracked in [`docs/todo.md`](todo.md):
   host, which TS7 as shipped does not have; the workspace stays pinned to TS 6.0.3 until a
   TS7 path provably emits `__type`.
 - **Optional / unscheduled:** migrate the remaining `CompilerContext` users
-  (`http`/`injector`/`workflow`) to `jit.ts`; cross-runtime CI; BSON deserialize perf
-  ceiling.
+  (`http`/`injector`; `workflow` moved 2026-11-17) to the JIT; cross-runtime CI; BSON
+  deserialize perf ceiling.
 - Otherwise: fix what consumers surface, with tests, per the quality gates in
   `docs/todo.md` and the conventions in `CLAUDE.md` (both this repo's own).
 

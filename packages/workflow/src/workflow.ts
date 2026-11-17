@@ -8,11 +8,14 @@
  * You should have received a copy of the MIT License along with this program.
  */
 import {
+    Builder,
     ClassType,
-    CompilerContext,
     DeepkitError,
     ExtractClassType,
+    Ref,
+    arg,
     capitalize,
+    fnAsync,
     getClassName,
     isArray,
     toFastProperties,
@@ -32,6 +35,11 @@ interface WorkflowTransition<T> {
     from: keyof T & string;
     to: keyof T & string;
     label?: string;
+}
+
+/** `run(context, event)`, to be called later by somebody who has neither. */
+function deferred<C, E, R>(run: (context: C, event: E) => R, context: C, event: E): () => R {
+    return () => run(context, event);
 }
 
 export class WorkflowEvent extends BaseEvent {
@@ -133,125 +141,199 @@ export class WorkflowDefinition<T extends WorkflowPlaces> {
         return this.next[state]! || [];
     }
 
-    public buildApplier(eventDispatcher: EventDispatcher) {
-        const compiler = new CompilerContext();
-        compiler.context.set('WorkflowError', WorkflowError);
-        compiler.context.set('WorkflowEvent', WorkflowEvent);
-        compiler.context.set('getClassName', getClassName);
+    /**
+     * The function `Workflow.apply()` runs: one async function for the whole definition, built
+     * once per event dispatcher from the listeners registered at that moment.
+     *
+     * It is built with the JIT of `@deepkit/core` — compiled where code generation is allowed,
+     * interpreted where it is not — and reads:
+     *
+     *     while (true) {
+     *         const currentState = state.get();
+     *         switch (nextState) {
+     *             case <place>: {
+     *                 <the transition must be declared, and the event of the place's type>
+     *                 const frame = stopwatch.start(<name.place>, FrameCategory.workflow);
+     *                 try {
+     *                     await frame.run(<the place's listeners, in order>);
+     *                     state.set(<place>);
+     *                 } finally {
+     *                     frame.end();
+     *                 }
+     *             }
+     *         }
+     *         if (event.nextState) { nextState = event.nextState; event = <its event>; continue; }
+     *         return;
+     *     }
+     */
+    public buildApplier(
+        eventDispatcher: EventDispatcher,
+    ): (
+        scopedContext: InjectorContext,
+        state: WorkflowState<T>,
+        nextState: keyof T & string,
+        event: WorkflowEvent,
+        stopwatch: Stopwatch,
+    ) => Promise<void> {
+        return fnAsync<void>(
+            arg('scopedContext'),
+            arg('state'),
+            arg('nextState'),
+            arg('event'),
+            arg('stopwatch'),
+            (b: Builder, scopedContext: Ref, state: Ref, firstState: Ref, firstEvent: Ref, stopwatch: Ref) => {
+                // What a listener may replace: the place to go to next, and its event.
+                const nextState = b.var_(firstState, 'nextState');
+                const event = b.var_(firstEvent, 'event');
 
-        const lines: string[] = [];
+                b.while_(b.lit(true), () => {
+                    const currentState = b.let(b.method(state, 'get'), 'currentState');
 
-        for (const [place, eventType] of Object.entries(this.places)) {
-            const stateString = JSON.stringify(place);
-            const eventTypeVar = compiler.reserveVariable('eventType', eventType);
-            const allowedFrom = this.transitions.filter(v => v.to === place);
-            const allowedFromCondition = allowedFrom
-                .map(v => `currentState === ${JSON.stringify(v.from)}`)
-                .join(' || ');
-            const checkFrom = `if (!(${allowedFromCondition})) throw new WorkflowError(\`Can not apply state change from \${currentState}->\${nextState}. There's no transition between them or it was blocked.\`);`;
+                    const places = Object.entries(this.places).map(([place, eventType]): [string, () => void] => {
+                        const allowedFrom = this.transitions.filter(v => v.to === place);
+                        const listeners = this.buildListeners(place, eventDispatcher);
 
-            const eventToken = this.tokens[place]!;
-            const listeners = eventDispatcher.getListeners(eventToken);
-            listeners.sort((a, b) => {
-                if (a.order > b.order) return +1;
-                if (a.order < b.order) return -1;
-                return 0;
-            });
+                        return [
+                            place,
+                            () => {
+                                if (allowedFrom.length) {
+                                    const allowed = allowedFrom
+                                        .map(v => b.eq(currentState, b.lit(v.from)))
+                                        .reduce((either, next) => b.or(either, next));
+                                    b.if_(b.not(allowed), () => {
+                                        b.throw_(
+                                            b.new_(
+                                                WorkflowError,
+                                                b.concat(
+                                                    b.lit('Can not apply state change from '),
+                                                    currentState,
+                                                    b.lit('->'),
+                                                    b.getVar(nextState),
+                                                    b.lit(`. There's no transition between them or it was blocked.`),
+                                                ),
+                                            ),
+                                        );
+                                    });
+                                }
+                                b.if_(b.not(b.isInstance(b.getVar(event), eventType)), () => {
+                                    b.throw_(
+                                        b.new_(
+                                            WorkflowError,
+                                            b.concat(
+                                                b.lit(
+                                                    `State ${place} got the wrong event. Expected ${getClassName(eventType)}, got `,
+                                                ),
+                                                b.call(getClassName, b.getVar(event)),
+                                            ),
+                                        ),
+                                    );
+                                });
 
-            const listenerCode: string[] = [];
+                                const frame = b.let(
+                                    b.method(
+                                        stopwatch,
+                                        'start',
+                                        b.lit(this.name + '.' + place),
+                                        b.lit(FrameCategory.workflow),
+                                    ),
+                                    'frame',
+                                );
+                                b.try_(
+                                    () => {
+                                        // The frame runs the listeners as a function of its own:
+                                        // theirs, with the context and the event of this call bound.
+                                        b.await_(
+                                            b.method(
+                                                frame,
+                                                'run',
+                                                b.call(deferred, b.lit(listeners), scopedContext, b.getVar(event)),
+                                            ),
+                                        );
+                                        b.exec(b.method(state, 'set', b.lit(place)));
+                                    },
+                                    { finally: () => b.exec(b.method(frame, 'end')) },
+                                );
+                            },
+                        ];
+                    });
+                    b.switch_(b.getVar(nextState), places);
+
+                    b.if_(b.get(b.getVar(event), 'nextState'), () => {
+                        b.setVar(nextState, b.get(b.getVar(event), 'nextState'));
+                        b.setVar(event, b.or(b.get(b.getVar(event), 'nextStateEvent'), b.new_(WorkflowEvent)));
+                        b.continue_();
+                    });
+                    b.return_();
+                });
+            },
+        );
+    }
+
+    /**
+     * The listeners of one place as an async function `(scopedContext, event)`: each is awaited in
+     * its order, and none runs once one has stopped the event's propagation.
+     *
+     * Called while {@link buildApplier} declares its function, it is that function's nested
+     * function.
+     */
+    protected buildListeners(place: string, eventDispatcher: EventDispatcher): Function {
+        const listeners = eventDispatcher.getListeners(this.tokens[place]!);
+        listeners.sort((a, b) => {
+            if (a.order > b.order) return +1;
+            if (a.order < b.order) return -1;
+            return 0;
+        });
+
+        return fnAsync<void>(arg('scopedContext'), arg('event'), (b: Builder, scopedContext: Ref, event: Ref) => {
+            const unlessStopped = (call: () => void) => {
+                b.if_(b.not(b.get(event, 'immediatePropagationStopped')), call);
+            };
+
             for (const listener of listeners) {
+                const injector = listener.module
+                    ? eventDispatcher.injector.getInjector(listener.module)
+                    : eventDispatcher.injector.getRootInjector();
+
                 if (isEventListenerContainerEntryCallback(listener)) {
-                    const injector = listener.module
-                        ? eventDispatcher.injector.getInjector(listener.module)
-                        : eventDispatcher.injector.getRootInjector();
-                    const fn = injectedFunction(listener.fn, injector, 1);
-                    const fnVar = compiler.reserveVariable('fn', fn);
-                    listenerCode.push(`
-                        if (!event.immediatePropagationStopped) {
-                            await ${fnVar}(scopedContext.scope, event);
-                        }
-                    `);
+                    const callback = injectedFunction(listener.fn, injector, 1);
+                    unlessStopped(() => {
+                        b.await_(b.call(callback, b.get(scopedContext, 'scope'), event));
+                    });
                 } else if (isEventListenerContainerEntryService(listener)) {
-                    const injector = listener.module
-                        ? eventDispatcher.injector.getInjector(listener.module)
-                        : eventDispatcher.injector.getRootInjector();
-                    const classTypeVar = compiler.reserveVariable('classType', listener.classType);
-                    const moduleVar = listener.module ? ', ' + compiler.reserveVariable('module', listener.module) : '';
+                    // The listener's instance is resolved by the first event that reaches it and
+                    // kept for every call after — it outlives the call, so it is not a variable.
+                    const resolved = b.lit<{ instance?: any }>({ instance: undefined });
+                    const resolveArgs = [b.lit(listener.classType)];
+                    if (listener.module) resolveArgs.push(b.lit(listener.module));
 
                     const method = ReflectionClass.from(listener.classType).getMethod(listener.methodName);
-                    const resolvedVar = compiler.reserveVariable('resolved');
-                    let call = `${resolvedVar}.${listener.methodName}(event)`;
+                    const withDependencies =
+                        method.getParameters().length > 1
+                            ? injectedFunction(
+                                  (event, classInstance, ...args: any[]) => {
+                                      return classInstance[listener.methodName](event, ...args);
+                                  },
+                                  injector,
+                                  2,
+                                  method.type,
+                                  1,
+                              )
+                            : undefined;
 
-                    if (method.getParameters().length > 1) {
-                        const fn = injectedFunction(
-                            (event, classInstance, ...args: any[]) => {
-                                return classInstance[listener.methodName](event, ...args);
-                            },
-                            injector,
-                            2,
-                            method.type,
-                            1,
+                    unlessStopped(() => {
+                        b.if_(b.not(b.get(resolved, 'instance')), () => {
+                            b.set(resolved, 'instance', b.method(scopedContext, 'get', ...resolveArgs));
+                        });
+                        const instance = b.get(resolved, 'instance');
+                        b.await_(
+                            withDependencies
+                                ? b.call(withDependencies, b.get(scopedContext, 'scope'), event, instance)
+                                : b.method(instance, listener.methodName, event),
                         );
-                        call = `${compiler.reserveVariable('fn', fn)}(scopedContext.scope, event, ${resolvedVar})`;
-                    }
-
-                    listenerCode.push(`
-                        //${getClassName(listener.classType)}.${listener.methodName}
-                        if (!event.immediatePropagationStopped) {
-                            if (!${resolvedVar}) ${resolvedVar} = scopedContext.get(${classTypeVar}${moduleVar});
-                            await ${call};
-                        }
-                    `);
-                }
-            }
-
-            const stopWatchId = this.name + '.' + place;
-
-            lines.push(`
-            case ${stateString}: {
-                ${allowedFrom.length ? checkFrom : ''}
-                if (!(event instanceof ${eventTypeVar})) {
-                    throw new WorkflowError(\`State ${place} got the wrong event. Expected ${getClassName(eventType)}, got \${getClassName(event)}\`);
-                }
-                const frame = stopwatch.start(${JSON.stringify(stopWatchId)}, ${FrameCategory.workflow});
-
-                try {
-                    await frame.run(async () => {
-                    
-                    ${listenerCode.join('\n')}
-                    
                     });
-                    state.set(${stateString});
-                } finally {
-                    frame.end();
                 }
-                break;
             }
-        `);
-        }
-
-        return compiler.buildAsync(
-            `
-            while (true) {
-                const currentState = state.get();
-                switch (nextState) {
-                    ${lines.join('\n')}
-                }
-
-                if (event.nextState) {
-                    nextState = event.nextState;
-                    event = event.nextStateEvent || new WorkflowEvent();
-                    continue;
-                }
-                return;
-            }
-        `,
-            'scopedContext',
-            'state',
-            'nextState',
-            'event',
-            'stopwatch',
-        );
+        });
     }
 }
 
