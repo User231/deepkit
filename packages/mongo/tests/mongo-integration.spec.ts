@@ -9,11 +9,11 @@
 import assert from 'node:assert';
 import { after, test } from 'node:test';
 
+import { ObjectId } from '@deepkit/bson';
 import { Database } from '@deepkit/orm';
 import { AutoIncrement, MongoId, PrimaryKey, Reference, UUID, uuid } from '@deepkit/type';
 
 import { MongoDatabaseAdapter } from '../src/adapter.js';
-import { ObjectId } from '@deepkit/bson';
 
 class Group {
     _id: MongoId & PrimaryKey = '';
@@ -107,4 +107,73 @@ test('reference (& Reference) stored as foreign key and joined back', async () =
     assert.ok(back.group, 'group joined');
     assert.strictEqual(back.group._id, g._id, 'FK resolves to the group ObjectId');
     assert.strictEqual(back.group.name, 'admins');
+});
+
+// A count is of what the caller can READ. The server answers the `count` command from the
+// collection's metadata whenever it can reduce the predicate to nothing, and that number
+// includes what an open transaction has inserted and not committed. An exact count used to
+// keep away from that path with a predicate added to an empty query (`{<pk>: {$nin: []}}`);
+// MongoDB 8 reduces that one to nothing as well, so `various:transactionSimple` of the shared
+// ORM suite read 3 where nothing was committed. An exact count is an aggregation now.
+test('a count beside an open transaction does not count what it has not committed', async () => {
+    class Entry {
+        id: number & PrimaryKey & AutoIncrement = 0;
+        constructor(public label: string) {}
+    }
+
+    const database = new Database(new MongoDatabaseAdapter(`mongodb://127.0.0.1:${process.env.MONGO_PORT || 27117}/deepkit_mig_test`), [Entry]);
+    databases.push(database);
+    await database.query(Entry).deleteMany();
+    await database.persist(new Entry('committed'));
+
+    const session = database.createSession();
+    session.useTransaction();
+    session.add(new Entry('open 1'), new Entry('open 2'), new Entry('open 3'));
+    await session.flush();
+
+    // inside the transaction: its own writes
+    assert.strictEqual(await session.query(Entry).count(), 4);
+
+    // outside it: only what is committed — with no predicate, and with predicates the server
+    // reduces to none (an empty exclusion list is what a caller's own filter often is)
+    assert.strictEqual(await database.query(Entry).count(), 1);
+    assert.strictEqual(
+        await database
+            .query(Entry)
+            .filter({ id: { $nin: [] } })
+            .count(),
+        1,
+    );
+    assert.strictEqual(
+        await database
+            .query(Entry)
+            .filter({ label: { $nin: [] } })
+            .count(),
+        1,
+    );
+    assert.strictEqual(await database.query(Entry).has(), true);
+
+    // a page and an order are not part of a count
+    assert.strictEqual(await database.query(Entry).sort({ label: 'desc' }).limit(1).skip(5).count(), 1);
+    assert.strictEqual(await database.query(Entry).filter({ label: 'committed' }).count(), 1);
+    assert.strictEqual(await database.query(Entry).filter({ label: 'open 1' }).count(), 0);
+
+    await session.rollback();
+    assert.strictEqual(await database.query(Entry).count(), 1);
+
+    await database.transaction(async session => {
+        session.add(new Entry('second'), new Entry('third'));
+    });
+    assert.strictEqual(await database.query(Entry).count(), 3);
+    assert.strictEqual(
+        await database
+            .query(Entry)
+            .filter({ label: { $in: ['second', 'third'] } })
+            .count(),
+        2,
+    );
+
+    // An estimate is still the `count` command: the number in the collection's metadata.
+    assert.strictEqual(await database.query(Entry).withOptions({ estimateCount: true }).count(), 3);
+    assert.strictEqual(await database.query(Entry).withOptions({ estimateCount: true }).filter({ label: 'second' }).count(), 1);
 });

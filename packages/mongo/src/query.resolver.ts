@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { empty, formatError } from '@deepkit/core';
+import { formatError } from '@deepkit/core';
 import {
     DatabaseAdapter,
     DatabaseDeleteError,
@@ -296,29 +296,44 @@ export class MongoQueryResolver<T extends OrmEntity> extends GenericQueryResolve
         }
     }
 
+    /**
+     * An EXACT count is an aggregation; the `count` command answers only where an estimate
+     * was asked for (`estimateCount`).
+     *
+     * The server answers `count` from the collection's metadata whenever it can reduce the
+     * predicate to nothing, and that number is no count of what the caller can read: it
+     * includes the documents an open transaction has inserted and not committed. A predicate
+     * was added to an empty query to keep it away from that path (`{<pk>: {$nin: []}}`), and
+     * MongoDB 8 reduces that one to nothing too — so a count taken beside an open transaction
+     * saw its inserts. No predicate holds that line for good, and one written by the caller
+     * can be reduced the same way; an aggregation is never answered from the metadata. It is
+     * also the only form a transaction allows (`count` is refused inside one), and it counts
+     * through an index where the predicate is covered by one, as `count` does.
+     */
     protected getCountCommand(queryModel: MongoQueryModel<T>) {
-        // COUNT should ignore pagination (limit/skip) to return total matching rows
-        if (queryModel.hasJoins() || this.session.assignedTransaction) {
-            const countModel = queryModel.clone();
-            countModel.limit = undefined;
-            countModel.skip = undefined;
-            const pipeline = this.buildAggregationPipeline(countModel);
-            pipeline.push({ $count: 'count' });
-            const command = new AggregateCommand<any, CountSchema>(this.classSchema, pipeline, this.countSchema);
-            command.options = queryModel.getCommandOptions();
+        const options = queryModel.getCommandOptions();
+
+        if (options.estimateCount && !queryModel.hasJoins() && !this.session.assignedTransaction) {
+            const command = new CountCommand(
+                this.classSchema,
+                getMongoFilter(this.classSchema, queryModel),
+                undefined,
+                undefined,
+            );
+            command.options = options;
             return command;
         }
 
-        const query = getMongoFilter(this.classSchema, queryModel);
-        if (!queryModel.getCommandOptions().estimateCount && empty(query)) {
-            //when a query is empty, mongo returns an estimated count from meta-data.
-            //we don't want estimates, we want deterministic results, so we add a query
-            const primaryKey = this.classSchema.getPrimary().name;
-            query[primaryKey] = { $nin: [] };
-        }
-        // COUNT should not use limit/skip - always count all matching documents
-        const command = new CountCommand(this.classSchema, query, undefined, undefined);
-        command.options = queryModel.getCommandOptions();
+        // A count is of every matching document: no page (limit/skip), and no order —
+        // sorting what is only counted is work, and memory, for nothing.
+        const countModel = queryModel.clone();
+        countModel.limit = undefined;
+        countModel.skip = undefined;
+        countModel.sort = undefined;
+        const pipeline = this.buildAggregationPipeline(countModel);
+        pipeline.push({ $count: 'count' });
+        const command = new AggregateCommand<any, CountSchema>(this.classSchema, pipeline, this.countSchema);
+        command.options = options;
         return command;
     }
 
@@ -329,7 +344,6 @@ export class MongoQueryResolver<T extends OrmEntity> extends GenericQueryResolve
             this.session.assignedTransaction,
         );
         try {
-            //count command is not supported for transactions
             if (command instanceof AggregateCommand) {
                 const items = await connection.execute(command);
                 return items.length ? items[0].count : 0;
