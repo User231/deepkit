@@ -31,17 +31,14 @@ export function interpretedValue<T>(value: T): T {
     return value;
 }
 
-/**
- * Compile an expression to a closure function.
- * The closure captures the structure and returns a function that evaluates it.
- *
- * Optimizations:
- * 1. Pure expressions (no vars) use simplified single-arg signature
- * 2. AND chains are flattened into arrays for fast short-circuit evaluation
- * 3. Common patterns like isType(get(x, key), type) are specialized
- */
+/** An expression, a statement or a block as a closure over the call's arguments and its variables. */
 type EvalFn = (args: any[], vars: any[]) => any;
-type PureEvalFn = (args: any[]) => any;
+
+/**
+ * The variable array of a call that binds no variable. Frozen: a closure that wrote to it would
+ * be writing to every such call at once, and throws instead.
+ */
+const NO_VARS: any[] = Object.freeze([]) as any;
 
 /**
  * Whether an expression reads a variable — whether evaluating it needs the variable array. A `map`
@@ -77,382 +74,14 @@ function flattenAnd(expr: Expr): Expr[] {
 }
 
 /**
- * Compile a pure expression (no vars) to a single-arg closure.
+ * An expression as a closure: built once from the tree, called with the call's arguments and its
+ * variables. ONE compiler for every expression — until 2026-11-17 there were two, one for
+ * expressions that read no variable and one for the rest, the same cases written twice.
+ *
+ * What it does for speed: an `&&` chain is flattened and unrolled up to ten operands, and a call
+ * with up to three arguments does not build an argument array.
  */
-function compilePureExpr(expr: Expr): PureEvalFn {
-    switch (expr.kind) {
-        case 'lit': {
-            const value = interpretedValue(expr.value);
-            return () => value;
-        }
-        case 'input': {
-            const index = expr.index;
-            return args => args[index];
-        }
-        case 'get': {
-            // A read from null or undefined throws, as the compiled `obj.key` does.
-            const objFn = compilePureExpr(expr.obj);
-            if (typeof expr.key === 'string') {
-                const key = expr.key;
-                return args => objFn(args)[key];
-            } else {
-                const keyFn = compilePureExpr(expr.key);
-                return args => objFn(args)[keyFn(args)];
-            }
-        }
-        case 'at': {
-            const arrFn = compilePureExpr(expr.arr);
-            if (typeof expr.index === 'number') {
-                const idx = expr.index;
-                return args => arrFn(args)[idx];
-            } else {
-                const idxFn = compilePureExpr(expr.index);
-                return args => arrFn(args)[idxFn(args)];
-            }
-        }
-        case 'call': {
-            const fn = interpretedValue(expr.fn);
-            const argFns = expr.args.map(compilePureExpr);
-            const len = argFns.length;
-            if (len === 0) return () => fn();
-            if (len === 1) {
-                const a0 = argFns[0];
-                return args => fn(a0(args));
-            }
-            if (len === 2) {
-                const a0 = argFns[0],
-                    a1 = argFns[1];
-                return args => fn(a0(args), a1(args));
-            }
-            if (len === 3) {
-                const a0 = argFns[0],
-                    a1 = argFns[1],
-                    a2 = argFns[2];
-                return args => fn(a0(args), a1(args), a2(args));
-            }
-            return args => fn(...argFns.map(f => f(args)));
-        }
-        case 'new': {
-            const ctor = expr.ctor;
-            const argFns = expr.args.map(compilePureExpr);
-            return args => new ctor(...argFns.map(f => f(args)));
-        }
-        case 'obj': {
-            const entries = expr.entries.map(
-                ([k, v]) => [typeof k === 'string' ? k : compilePureExpr(k), compilePureExpr(v)] as const,
-            );
-            return args => {
-                const result: any = {};
-                for (const [k, vFn] of entries) {
-                    if (typeof k === 'string') result[k] = vFn(args);
-                    else setComputedKey(result, k(args), vFn(args));
-                }
-                return result;
-            };
-        }
-        case 'arr': {
-            const elemFns = expr.elements.map(compilePureExpr);
-            return args => elemFns.map(f => f(args));
-        }
-        case 'eq': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) === bFn(args);
-        }
-        case 'neq': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) !== bFn(args);
-        }
-        case 'lt': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) < bFn(args);
-        }
-        case 'gt': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) > bFn(args);
-        }
-        case 'lte': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) <= bFn(args);
-        }
-        case 'gte': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) >= bFn(args);
-        }
-        case 'not': {
-            const aFn = compilePureExpr(expr.a);
-            return args => !aFn(args);
-        }
-        case 'and': {
-            // Flatten AND chain for optimal short-circuit evaluation
-            const operands = flattenAnd(expr);
-            const fns = operands.map(compilePureExpr);
-            const len = fns.length;
-            // Unroll common cases for speed
-            if (len === 2) {
-                const f0 = fns[0],
-                    f1 = fns[1];
-                return args => f0(args) && f1(args);
-            }
-            if (len === 3) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2];
-                return args => f0(args) && f1(args) && f2(args);
-            }
-            if (len === 4) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2],
-                    f3 = fns[3];
-                return args => f0(args) && f1(args) && f2(args) && f3(args);
-            }
-            if (len === 5) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2],
-                    f3 = fns[3],
-                    f4 = fns[4];
-                return args => f0(args) && f1(args) && f2(args) && f3(args) && f4(args);
-            }
-            if (len === 6) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2],
-                    f3 = fns[3],
-                    f4 = fns[4],
-                    f5 = fns[5];
-                return args => f0(args) && f1(args) && f2(args) && f3(args) && f4(args) && f5(args);
-            }
-            if (len === 7) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2],
-                    f3 = fns[3],
-                    f4 = fns[4],
-                    f5 = fns[5],
-                    f6 = fns[6];
-                return args => f0(args) && f1(args) && f2(args) && f3(args) && f4(args) && f5(args) && f6(args);
-            }
-            if (len === 8) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2],
-                    f3 = fns[3],
-                    f4 = fns[4],
-                    f5 = fns[5],
-                    f6 = fns[6],
-                    f7 = fns[7];
-                return args =>
-                    f0(args) && f1(args) && f2(args) && f3(args) && f4(args) && f5(args) && f6(args) && f7(args);
-            }
-            if (len === 9) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2],
-                    f3 = fns[3],
-                    f4 = fns[4],
-                    f5 = fns[5],
-                    f6 = fns[6],
-                    f7 = fns[7],
-                    f8 = fns[8];
-                return args =>
-                    f0(args) &&
-                    f1(args) &&
-                    f2(args) &&
-                    f3(args) &&
-                    f4(args) &&
-                    f5(args) &&
-                    f6(args) &&
-                    f7(args) &&
-                    f8(args);
-            }
-            if (len === 10) {
-                const f0 = fns[0],
-                    f1 = fns[1],
-                    f2 = fns[2],
-                    f3 = fns[3],
-                    f4 = fns[4],
-                    f5 = fns[5],
-                    f6 = fns[6],
-                    f7 = fns[7],
-                    f8 = fns[8],
-                    f9 = fns[9];
-                return args =>
-                    f0(args) &&
-                    f1(args) &&
-                    f2(args) &&
-                    f3(args) &&
-                    f4(args) &&
-                    f5(args) &&
-                    f6(args) &&
-                    f7(args) &&
-                    f8(args) &&
-                    f9(args);
-            }
-            // General case for >10 operands. `&&` answers with the operand that decided it —
-            // the first falsy one, else the last — not with a boolean.
-            return args => {
-                let value: any;
-                for (const fn of fns) {
-                    value = fn(args);
-                    if (!value) return value;
-                }
-                return value;
-            };
-        }
-        case 'or': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) || bFn(args);
-        }
-        case 'nullish': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) ?? bFn(args);
-        }
-        case 'typeof': {
-            const valueFn = compilePureExpr(expr.value);
-            return args => typeof valueFn(args);
-        }
-        case 'isType': {
-            const valueFn = compilePureExpr(expr.value);
-            const type = expr.type;
-            return args => typeof valueFn(args) === type;
-        }
-        case 'isNull': {
-            const valueFn = compilePureExpr(expr.value);
-            return args => valueFn(args) === null;
-        }
-        case 'isNullish': {
-            const valueFn = compilePureExpr(expr.value);
-            return args => valueFn(args) == null;
-        }
-        case 'has': {
-            const objFn = compilePureExpr(expr.obj);
-            if (typeof expr.key === 'string') {
-                const key = expr.key;
-                return args => key in objFn(args);
-            } else {
-                const keyFn = compilePureExpr(expr.key);
-                return args => keyFn(args) in objFn(args);
-            }
-        }
-        case 'len': {
-            const valueFn = compilePureExpr(expr.value);
-            return args => valueFn(args).length;
-        }
-        case 'ternary': {
-            const condFn = compilePureExpr(expr.cond);
-            const thenFn = compilePureExpr(expr.then);
-            const elseFn = compilePureExpr(expr.else);
-            return args => (condFn(args) ? thenFn(args) : elseFn(args));
-        }
-        case 'instanceof': {
-            const valueFn = compilePureExpr(expr.value);
-            const ctor = expr.ctor;
-            return args => valueFn(args) instanceof ctor;
-        }
-        case 'concat': {
-            const partFns = expr.parts.map(compilePureExpr);
-            return args => {
-                let result = '';
-                for (const fn of partFns) result += fn(args);
-                return result;
-            };
-        }
-        case 'add': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) + bFn(args);
-        }
-        case 'sub': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) - bFn(args);
-        }
-        case 'mul': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) * bFn(args);
-        }
-        case 'div': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) / bFn(args);
-        }
-        case 'mod': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) % bFn(args);
-        }
-        case 'bitAnd': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) & bFn(args);
-        }
-        case 'bitOr': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) | bFn(args);
-        }
-        case 'bitXor': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) ^ bFn(args);
-        }
-        case 'shl': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) << bFn(args);
-        }
-        case 'shr': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) >> bFn(args);
-        }
-        case 'ushr': {
-            const aFn = compilePureExpr(expr.a);
-            const bFn = compilePureExpr(expr.b);
-            return args => aFn(args) >>> bFn(args);
-        }
-        case 'method': {
-            const objFn = compilePureExpr(expr.obj);
-            const argFns = expr.args.map(compilePureExpr);
-            const method = expr.method;
-            return args => {
-                const obj = objFn(args);
-                const methodArgs = argFns.map(fn => fn(args));
-                return obj[method](...methodArgs);
-            };
-        }
-        case 'subFn': {
-            // SubFn evaluates the body with the arg as input(0)
-            const argFn = compilePureExpr(expr.arg);
-            const bodyFn = compilePureExpr(expr.body);
-            return args => {
-                const argValue = argFn(args);
-                return bodyFn([argValue]);
-            };
-        }
-        case 'var':
-        case 'map':
-            throw new Error(`Expression ${expr.kind} requires vars but compiled as pure`);
-    }
-}
-
-function compileExprToClosure(expr: Expr): EvalFn {
-    // For pure expressions, use optimized single-arg version
-    if (!exprNeedsVars(expr)) {
-        const pureFn = compilePureExpr(expr);
-        return (args, _vars) => pureFn(args);
-    }
-
+function compileExpr(expr: Expr): EvalFn {
     switch (expr.kind) {
         case 'lit': {
             const value = interpretedValue(expr.value);
@@ -464,31 +93,32 @@ function compileExprToClosure(expr: Expr): EvalFn {
         }
         case 'var': {
             const id = expr.id;
-            return (args, vars) => vars[id];
+            return (_args, vars) => vars[id];
         }
         case 'get': {
-            const objFn = compileExprToClosure(expr.obj);
+            // A read from null or undefined throws, as the compiled `obj.key` does.
+            const objFn = compileExpr(expr.obj);
             if (typeof expr.key === 'string') {
                 const key = expr.key;
                 return (args, vars) => objFn(args, vars)[key];
             } else {
-                const keyFn = compileExprToClosure(expr.key);
+                const keyFn = compileExpr(expr.key);
                 return (args, vars) => objFn(args, vars)[keyFn(args, vars)];
             }
         }
         case 'at': {
-            const arrFn = compileExprToClosure(expr.arr);
+            const arrFn = compileExpr(expr.arr);
             if (typeof expr.index === 'number') {
                 const idx = expr.index;
                 return (args, vars) => arrFn(args, vars)[idx];
             } else {
-                const idxFn = compileExprToClosure(expr.index);
+                const idxFn = compileExpr(expr.index);
                 return (args, vars) => arrFn(args, vars)[idxFn(args, vars)];
             }
         }
         case 'call': {
             const fn = interpretedValue(expr.fn);
-            const argFns = expr.args.map(compileExprToClosure);
+            const argFns = expr.args.map(compileExpr);
             const len = argFns.length;
             if (len === 0) return () => fn();
             if (len === 1) {
@@ -510,12 +140,12 @@ function compileExprToClosure(expr: Expr): EvalFn {
         }
         case 'new': {
             const ctor = expr.ctor;
-            const argFns = expr.args.map(compileExprToClosure);
+            const argFns = expr.args.map(compileExpr);
             return (args, vars) => new ctor(...argFns.map(f => f(args, vars)));
         }
         case 'obj': {
             const entries = expr.entries.map(
-                ([k, v]) => [typeof k === 'string' ? k : compileExprToClosure(k), compileExprToClosure(v)] as const,
+                ([k, v]) => [typeof k === 'string' ? k : compileExpr(k), compileExpr(v)] as const,
             );
             return (args, vars) => {
                 const result: any = {};
@@ -527,102 +157,236 @@ function compileExprToClosure(expr: Expr): EvalFn {
             };
         }
         case 'arr': {
-            const elemFns = expr.elements.map(compileExprToClosure);
+            const elemFns = expr.elements.map(compileExpr);
             return (args, vars) => elemFns.map(f => f(args, vars));
         }
         case 'eq': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) === bFn(args, vars);
         }
         case 'neq': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) !== bFn(args, vars);
         }
         case 'lt': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) < bFn(args, vars);
         }
         case 'gt': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) > bFn(args, vars);
         }
         case 'lte': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) <= bFn(args, vars);
         }
         case 'gte': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) >= bFn(args, vars);
         }
         case 'not': {
-            const aFn = compileExprToClosure(expr.a);
+            const aFn = compileExpr(expr.a);
             return (args, vars) => !aFn(args, vars);
         }
         case 'and': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
-            return (args, vars) => aFn(args, vars) && bFn(args, vars);
+            // Flatten AND chain for optimal short-circuit evaluation
+            const operands = flattenAnd(expr);
+            const fns = operands.map(compileExpr);
+            const len = fns.length;
+            // Unroll common cases for speed
+            if (len === 2) {
+                const f0 = fns[0],
+                    f1 = fns[1];
+                return (args, vars) => f0(args, vars) && f1(args, vars);
+            }
+            if (len === 3) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2];
+                return (args, vars) => f0(args, vars) && f1(args, vars) && f2(args, vars);
+            }
+            if (len === 4) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2],
+                    f3 = fns[3];
+                return (args, vars) => f0(args, vars) && f1(args, vars) && f2(args, vars) && f3(args, vars);
+            }
+            if (len === 5) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2],
+                    f3 = fns[3],
+                    f4 = fns[4];
+                return (args, vars) =>
+                    f0(args, vars) && f1(args, vars) && f2(args, vars) && f3(args, vars) && f4(args, vars);
+            }
+            if (len === 6) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2],
+                    f3 = fns[3],
+                    f4 = fns[4],
+                    f5 = fns[5];
+                return (args, vars) =>
+                    f0(args, vars) &&
+                    f1(args, vars) &&
+                    f2(args, vars) &&
+                    f3(args, vars) &&
+                    f4(args, vars) &&
+                    f5(args, vars);
+            }
+            if (len === 7) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2],
+                    f3 = fns[3],
+                    f4 = fns[4],
+                    f5 = fns[5],
+                    f6 = fns[6];
+                return (args, vars) =>
+                    f0(args, vars) &&
+                    f1(args, vars) &&
+                    f2(args, vars) &&
+                    f3(args, vars) &&
+                    f4(args, vars) &&
+                    f5(args, vars) &&
+                    f6(args, vars);
+            }
+            if (len === 8) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2],
+                    f3 = fns[3],
+                    f4 = fns[4],
+                    f5 = fns[5],
+                    f6 = fns[6],
+                    f7 = fns[7];
+                return (args, vars) =>
+                    f0(args, vars) &&
+                    f1(args, vars) &&
+                    f2(args, vars) &&
+                    f3(args, vars) &&
+                    f4(args, vars) &&
+                    f5(args, vars) &&
+                    f6(args, vars) &&
+                    f7(args, vars);
+            }
+            if (len === 9) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2],
+                    f3 = fns[3],
+                    f4 = fns[4],
+                    f5 = fns[5],
+                    f6 = fns[6],
+                    f7 = fns[7],
+                    f8 = fns[8];
+                return (args, vars) =>
+                    f0(args, vars) &&
+                    f1(args, vars) &&
+                    f2(args, vars) &&
+                    f3(args, vars) &&
+                    f4(args, vars) &&
+                    f5(args, vars) &&
+                    f6(args, vars) &&
+                    f7(args, vars) &&
+                    f8(args, vars);
+            }
+            if (len === 10) {
+                const f0 = fns[0],
+                    f1 = fns[1],
+                    f2 = fns[2],
+                    f3 = fns[3],
+                    f4 = fns[4],
+                    f5 = fns[5],
+                    f6 = fns[6],
+                    f7 = fns[7],
+                    f8 = fns[8],
+                    f9 = fns[9];
+                return (args, vars) =>
+                    f0(args, vars) &&
+                    f1(args, vars) &&
+                    f2(args, vars) &&
+                    f3(args, vars) &&
+                    f4(args, vars) &&
+                    f5(args, vars) &&
+                    f6(args, vars) &&
+                    f7(args, vars) &&
+                    f8(args, vars) &&
+                    f9(args, vars);
+            }
+            // General case for >10 operands. `&&` answers with the operand that decided it —
+            // the first falsy one, else the last — not with a boolean.
+            return (args, vars) => {
+                let value: any;
+                for (const fn of fns) {
+                    value = fn(args, vars);
+                    if (!value) return value;
+                }
+                return value;
+            };
         }
         case 'or': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) || bFn(args, vars);
         }
         case 'nullish': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) ?? bFn(args, vars);
         }
         case 'typeof': {
-            const valueFn = compileExprToClosure(expr.value);
+            const valueFn = compileExpr(expr.value);
             return (args, vars) => typeof valueFn(args, vars);
         }
         case 'isType': {
-            const valueFn = compileExprToClosure(expr.value);
+            const valueFn = compileExpr(expr.value);
             const type = expr.type;
             return (args, vars) => typeof valueFn(args, vars) === type;
         }
         case 'isNull': {
-            const valueFn = compileExprToClosure(expr.value);
+            const valueFn = compileExpr(expr.value);
             return (args, vars) => valueFn(args, vars) === null;
         }
         case 'isNullish': {
-            const valueFn = compileExprToClosure(expr.value);
+            const valueFn = compileExpr(expr.value);
             return (args, vars) => valueFn(args, vars) == null;
         }
         case 'has': {
-            const objFn = compileExprToClosure(expr.obj);
+            const objFn = compileExpr(expr.obj);
             if (typeof expr.key === 'string') {
                 const key = expr.key;
                 return (args, vars) => key in objFn(args, vars);
             } else {
-                const keyFn = compileExprToClosure(expr.key);
+                const keyFn = compileExpr(expr.key);
                 return (args, vars) => keyFn(args, vars) in objFn(args, vars);
             }
         }
         case 'len': {
-            const valueFn = compileExprToClosure(expr.value);
+            const valueFn = compileExpr(expr.value);
             return (args, vars) => valueFn(args, vars).length;
         }
         case 'ternary': {
-            const condFn = compileExprToClosure(expr.cond);
-            const thenFn = compileExprToClosure(expr.then);
-            const elseFn = compileExprToClosure(expr.else);
+            const condFn = compileExpr(expr.cond);
+            const thenFn = compileExpr(expr.then);
+            const elseFn = compileExpr(expr.else);
             return (args, vars) => (condFn(args, vars) ? thenFn(args, vars) : elseFn(args, vars));
         }
         case 'instanceof': {
-            const valueFn = compileExprToClosure(expr.value);
+            const valueFn = compileExpr(expr.value);
             const ctor = expr.ctor;
             return (args, vars) => valueFn(args, vars) instanceof ctor;
         }
         case 'concat': {
-            const partFns = expr.parts.map(compileExprToClosure);
+            const partFns = expr.parts.map(compileExpr);
             return (args, vars) => {
                 let result = '';
                 for (const fn of partFns) result += fn(args, vars);
@@ -630,63 +394,63 @@ function compileExprToClosure(expr: Expr): EvalFn {
             };
         }
         case 'add': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) + bFn(args, vars);
         }
         case 'sub': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) - bFn(args, vars);
         }
         case 'mul': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) * bFn(args, vars);
         }
         case 'div': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) / bFn(args, vars);
         }
         case 'mod': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) % bFn(args, vars);
         }
         case 'bitAnd': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) & bFn(args, vars);
         }
         case 'bitOr': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) | bFn(args, vars);
         }
         case 'bitXor': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) ^ bFn(args, vars);
         }
         case 'shl': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) << bFn(args, vars);
         }
         case 'shr': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) >> bFn(args, vars);
         }
         case 'ushr': {
-            const aFn = compileExprToClosure(expr.a);
-            const bFn = compileExprToClosure(expr.b);
+            const aFn = compileExpr(expr.a);
+            const bFn = compileExpr(expr.b);
             return (args, vars) => aFn(args, vars) >>> bFn(args, vars);
         }
         case 'method': {
-            const objFn = compileExprToClosure(expr.obj);
-            const argFns = expr.args.map(compileExprToClosure);
+            const objFn = compileExpr(expr.obj);
+            const argFns = expr.args.map(compileExpr);
             const method = expr.method;
             return (args, vars) => {
                 const obj = objFn(args, vars);
@@ -695,124 +459,160 @@ function compileExprToClosure(expr: Expr): EvalFn {
             };
         }
         case 'map': {
-            const arrFn = compileExprToClosure(expr.arr);
+            const arrFn = compileExpr(expr.arr);
             const elemId = expr.elemId;
             const indexId = expr.indexId;
-            const bodyFn = compileBlockToClosure(expr.body);
+            const bodyFn = compileBlock(expr.body);
             // The array's own `map`, as compiled code calls it: a hole stays a hole, and a value
             // that has no `map` is a TypeError rather than something to index.
+            // The body is a function of its own: its `return` ends here.
             return (args, vars) =>
                 arrFn(args, vars).map((elem: any, i: number) => {
                     vars[elemId] = elem;
                     vars[indexId] = i;
-                    // bodyFn returns { earlyReturn, value } - extract value
-                    return bodyFn(args, vars)?.value;
+                    return bodyFn(args, vars) === RETURN ? takeReturned() : undefined;
                 });
         }
         case 'subFn': {
             // SubFn evaluates the body with the arg as input(0)
             // The body was built by its own Builder: its variable ids are its own and would
             // overwrite the enclosing function's if the two shared one array.
-            const argFn = compileExprToClosure(expr.arg);
-            const bodyFn = compileExprToClosure(expr.body);
-            return (args, vars) => {
-                const argValue = argFn(args, vars);
-                return bodyFn([argValue], []);
-            };
+            const argFn = compileExpr(expr.arg);
+            const bodyFn = compileExpr(expr.body);
+            if (!exprNeedsVars(expr.body)) return (args, vars) => bodyFn([argFn(args, vars)], NO_VARS);
+            return (args, vars) => bodyFn([argFn(args, vars)], []);
         }
     }
 }
 
+// ============================================================================
+// Completion: how a statement ended
+// ============================================================================
+
 /**
- * How a statement ended, when it did not simply run to its end: the function returns, or the
- * enclosing loop is left or goes to its next turn. A block, an `if` and a `switch` hand the first
- * one they meet upward; a LOOP — every kind of loop — is where `earlyBreak` and `earlyContinue` stop.
+ * A statement, or a block, answers with how it ended:
+ *
+ *  - `NORMAL`    it ran to its end;
+ *  - `RETURN`    the function returns — the value is in {@link returned};
+ *  - `BREAK`     the enclosing loop is left;
+ *  - `CONTINUE`  the enclosing loop goes to its next turn.
+ *
+ * Who hands it on and who stops it is the whole protocol:
+ *
+ *  - a block, an `if` and a `switch` hand the first one that is not `NORMAL` upward;
+ *  - a LOOP — every kind of loop — is where `BREAK` and `CONTINUE` stop, and hands `RETURN` upward;
+ *  - a FUNCTION — the executor, and the body of a `map` — is where `RETURN` stops.
+ *
+ * A `break` or `continue` with no loop around it never gets here: the Builder refuses the program.
  */
-type Completion = { earlyReturn?: boolean; earlyBreak?: boolean; earlyContinue?: boolean; value?: any };
+type Signal = 0 | 1 | 2 | 3;
+const NORMAL = 0;
+const RETURN = 1;
+const BREAK = 2;
+const CONTINUE = 3;
 
-const BREAK: Completion = Object.freeze({ earlyBreak: true });
-const CONTINUE: Completion = Object.freeze({ earlyContinue: true });
+type StmtFn = (args: any[], vars: any[]) => Signal;
 
-type StmtFn = (args: any[], vars: any[]) => Completion | void;
+/**
+ * The value of the `RETURN` on its way up. One slot is enough, and no allocation per call: between
+ * the statement that writes it and the function boundary that takes it, nothing runs but the
+ * closures handing the signal upward — with one exception, a `for…of` that is left early, which
+ * closes its iterator and so may run anything ({@link leaveForOf}).
+ */
+let returned: any;
 
-function compileStmtToClosure(stmt: Stmt): StmtFn {
+function takeReturned(): any {
+    const value = returned;
+    returned = undefined;
+    return value;
+}
+
+/** Statements whose closure is the same whatever the statement says. */
+const breakStmt: StmtFn = () => BREAK;
+const continueStmt: StmtFn = () => CONTINUE;
+const returnNothing: StmtFn = () => {
+    returned = undefined;
+    return RETURN;
+};
+
+function compileStmt(stmt: Stmt): StmtFn {
     switch (stmt.kind) {
         case 'let': {
             const id = stmt.id;
-            const exprFn = compileExprToClosure(stmt.expr);
+            const exprFn = compileExpr(stmt.expr);
             return (args, vars) => {
                 vars[id] = exprFn(args, vars);
+                return NORMAL;
             };
         }
         case 'set': {
-            const objFn = compileExprToClosure(stmt.obj);
-            const valueFn = compileExprToClosure(stmt.value);
+            const objFn = compileExpr(stmt.obj);
+            const valueFn = compileExpr(stmt.value);
             if (typeof stmt.key === 'string') {
                 const key = stmt.key;
                 return (args, vars) => {
                     objFn(args, vars)[key] = valueFn(args, vars);
+                    return NORMAL;
                 };
             } else {
-                const keyFn = compileExprToClosure(stmt.key);
+                const keyFn = compileExpr(stmt.key);
                 return (args, vars) => {
                     objFn(args, vars)[keyFn(args, vars)] = valueFn(args, vars);
+                    return NORMAL;
                 };
             }
         }
         case 'push': {
-            const arrFn = compileExprToClosure(stmt.arr);
-            const valueFn = compileExprToClosure(stmt.value);
+            const arrFn = compileExpr(stmt.arr);
+            const valueFn = compileExpr(stmt.value);
             return (args, vars) => {
                 arrFn(args, vars).push(valueFn(args, vars));
+                return NORMAL;
             };
         }
         case 'setVar': {
             const id = stmt.id;
-            const valueFn = compileExprToClosure(stmt.value);
+            const valueFn = compileExpr(stmt.value);
             return (args, vars) => {
                 vars[id] = valueFn(args, vars);
+                return NORMAL;
             };
         }
         case 'exec': {
-            const exprFn = compileExprToClosure(stmt.expr);
+            const exprFn = compileExpr(stmt.expr);
             return (args, vars) => {
                 exprFn(args, vars);
+                return NORMAL;
             };
         }
         case 'return': {
-            if (stmt.value) {
-                const valueFn = compileExprToClosure(stmt.value);
-                return (args, vars) => ({ earlyReturn: true, value: valueFn(args, vars) });
-            }
-            return () => ({ earlyReturn: true, value: undefined });
+            if (!stmt.value) return returnNothing;
+            const valueFn = compileExpr(stmt.value);
+            return (args, vars) => {
+                returned = valueFn(args, vars);
+                return RETURN;
+            };
         }
         case 'throw': {
-            const errorFn = compileExprToClosure(stmt.error);
+            const errorFn = compileExpr(stmt.error);
             return (args, vars) => {
                 throw errorFn(args, vars);
             };
         }
         case 'if': {
-            const condFn = compileExprToClosure(stmt.cond);
-            const thenFn = compileBlockToClosure(stmt.then);
-            const elseFn = stmt.else ? compileBlockToClosure(stmt.else) : undefined;
-            return (args, vars) => {
-                if (condFn(args, vars)) {
-                    const r = thenFn(args, vars);
-                    if (r) return r;
-                } else if (elseFn) {
-                    const r = elseFn(args, vars);
-                    if (r) return r;
-                }
-            };
+            const condFn = compileExpr(stmt.cond);
+            const thenFn = compileBlock(stmt.then);
+            const elseFn = stmt.else ? compileBlock(stmt.else) : undefined;
+            if (!elseFn) return (args, vars) => (condFn(args, vars) ? thenFn(args, vars) : NORMAL);
+            return (args, vars) => (condFn(args, vars) ? thenFn(args, vars) : elseFn(args, vars));
         }
         case 'loop': {
-            const arrFn = stmt.arr ? compileExprToClosure(stmt.arr) : undefined;
-            const startFn = stmt.start ? compileExprToClosure(stmt.start) : undefined;
-            const endFn = stmt.end ? compileExprToClosure(stmt.end) : undefined;
+            const arrFn = stmt.arr ? compileExpr(stmt.arr) : undefined;
+            const startFn = stmt.start ? compileExpr(stmt.start) : undefined;
+            const endFn = stmt.end ? compileExpr(stmt.end) : undefined;
             const elemId = stmt.elemId;
             const indexId = stmt.indexId;
-            const bodyFn = compileBlockToClosure(stmt.body);
+            const bodyFn = compileBlock(stmt.body);
             const readsElem = !!arrFn && !stmt.skipElem;
             return (args, vars) => {
                 const arr = arrFn ? arrFn(args, vars) : undefined;
@@ -823,67 +623,71 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
                     if (readsElem) {
                         vars[elemId] = arr[i];
                     }
-                    const r = bodyFn(args, vars);
-                    if (r) {
-                        if (r.earlyReturn) return r;
-                        if (r.earlyBreak) break;
-                    }
+                    const signal = bodyFn(args, vars);
+                    if (signal === RETURN) return RETURN;
+                    if (signal === BREAK) break;
                 }
+                return NORMAL;
             };
         }
         case 'forIn': {
-            const objFn = compileExprToClosure(stmt.obj);
+            const objFn = compileExpr(stmt.obj);
             const keyId = stmt.keyId;
-            const bodyFn = compileBlockToClosure(stmt.body);
+            const bodyFn = compileBlock(stmt.body);
             return (args, vars) => {
                 const obj = objFn(args, vars);
                 for (const key in obj) {
                     vars[keyId] = key;
-                    const r = bodyFn(args, vars);
-                    if (r) {
-                        if (r.earlyReturn) return r;
-                        if (r.earlyBreak) break;
-                    }
+                    const signal = bodyFn(args, vars);
+                    if (signal === RETURN) return RETURN;
+                    if (signal === BREAK) break;
                 }
+                return NORMAL;
             };
         }
         case 'forOf': {
-            const iterableFn = compileExprToClosure(stmt.iterable);
+            const iterableFn = compileExpr(stmt.iterable);
             const valueId = stmt.valueId;
             const keyId = stmt.keyId;
-            const bodyFn = compileBlockToClosure(stmt.body);
+            const bodyFn = compileBlock(stmt.body);
             // For Map entries with keyId, destructure [key, value]
             if (keyId !== undefined) {
                 return (args, vars) => {
-                    const iterable = iterableFn(args, vars);
-                    for (const [key, value] of iterable) {
+                    let signal: Signal = NORMAL;
+                    let held: any;
+                    for (const [key, value] of iterableFn(args, vars)) {
                         vars[keyId] = key;
                         vars[valueId] = value;
-                        const r = bodyFn(args, vars);
-                        if (r) {
-                            if (r.earlyReturn) return r;
-                            if (r.earlyBreak) break;
+                        signal = bodyFn(args, vars);
+                        if (signal === RETURN) {
+                            held = returned;
+                            break;
                         }
+                        if (signal === BREAK) break;
                     }
+                    return leaveForOf(signal, held);
                 };
             }
             // For Set or simple iteration
             return (args, vars) => {
-                const iterable = iterableFn(args, vars);
-                for (const item of iterable) {
+                let signal: Signal = NORMAL;
+                let held: any;
+                for (const item of iterableFn(args, vars)) {
                     vars[valueId] = item;
-                    const r = bodyFn(args, vars);
-                    if (r) {
-                        if (r.earlyReturn) return r;
-                        if (r.earlyBreak) break;
+                    signal = bodyFn(args, vars);
+                    if (signal === RETURN) {
+                        held = returned;
+                        break;
                     }
+                    if (signal === BREAK) break;
                 }
+                return leaveForOf(signal, held);
             };
         }
         case 'switch': {
-            const valueFn = compileExprToClosure(stmt.value);
-            const cases = stmt.cases.map(([lit, block]) => [lit, compileBlockToClosure(block)] as const);
-            const defaultFn = stmt.default ? compileBlockToClosure(stmt.default) : undefined;
+            const valueFn = compileExpr(stmt.value);
+            const cases = stmt.cases.map(([lit, block]) => [lit, compileBlock(block)] as const);
+            const defaultFn = stmt.default ? compileBlock(stmt.default) : undefined;
             return (args, vars) => {
                 const value = valueFn(args, vars);
                 for (const [lit, blockFn] of cases) {
@@ -892,51 +696,73 @@ function compileStmtToClosure(stmt: Stmt): StmtFn {
                         return blockFn(args, vars);
                     }
                 }
-                if (defaultFn) {
-                    return defaultFn(args, vars);
-                }
+                return defaultFn ? defaultFn(args, vars) : NORMAL;
             };
         }
         case 'while': {
-            const condFn = compileExprToClosure(stmt.cond);
-            const bodyFn = compileBlockToClosure(stmt.body);
+            const condFn = compileExpr(stmt.cond);
+            const bodyFn = compileBlock(stmt.body);
             return (args, vars) => {
                 while (condFn(args, vars)) {
-                    const r = bodyFn(args, vars);
-                    if (r) {
-                        if (r.earlyReturn) return r;
-                        if (r.earlyBreak) break;
-                    }
+                    const signal = bodyFn(args, vars);
+                    if (signal === RETURN) return RETURN;
+                    if (signal === BREAK) break;
                 }
+                return NORMAL;
             };
         }
         case 'break':
-            return () => BREAK;
+            return breakStmt;
         case 'continue':
-            return () => CONTINUE;
+            return continueStmt;
     }
 }
 
-type BlockFn = (args: any[], vars: any[]) => Completion | void;
+/**
+ * How a `for…of` ends once its loop statement is behind it. Leaving the loop early CLOSES the
+ * iterator — its `return()` runs, and that is somebody's code: a generator's `finally`, which may
+ * call an interpreted function and leave its own value in {@link returned}. The value of this
+ * function's `RETURN` was taken aside before the loop was left and is put back here.
+ */
+function leaveForOf(signal: Signal, held: any): Signal {
+    if (signal !== RETURN) return NORMAL;
+    returned = held;
+    return RETURN;
+}
 
-function compileBlockToClosure(block: Block): BlockFn {
-    const stmtFns = block.stmts.map(compileStmtToClosure);
-    const returnFn = block.returnExpr ? compileExprToClosure(block.returnExpr) : undefined;
+function compileBlock(block: Block): StmtFn {
+    const stmtFns = block.stmts.map(compileStmt);
+    const returnFn = block.returnExpr ? compileExpr(block.returnExpr) : undefined;
+    const count = stmtFns.length;
+
+    // The expression a block ends with is what the function returns.
+    if (count === 0) {
+        if (!returnFn) return () => NORMAL;
+        return (args, vars) => {
+            returned = returnFn(args, vars);
+            return RETURN;
+        };
+    }
+    if (count === 1 && !returnFn) return stmtFns[0];
 
     return (args, vars) => {
-        for (const fn of stmtFns) {
-            const result = fn(args, vars);
-            if (result && (result.earlyReturn || result.earlyBreak || result.earlyContinue)) return result;
+        for (let i = 0; i < count; i++) {
+            const signal = stmtFns[i](args, vars);
+            if (signal !== NORMAL) return signal;
         }
         if (returnFn) {
-            return { earlyReturn: true, value: returnFn(args, vars) };
+            returned = returnFn(args, vars);
+            return RETURN;
         }
+        return NORMAL;
     };
 }
 
-/**
- * Check if a block is pure (no statements, return expr doesn't need vars).
- */
+// ============================================================================
+// The executor: a block as a function
+// ============================================================================
+
+/** Whether a block binds no variable: no statements, and an expression that reads none. */
 function isPureBlock(block: Block): boolean {
     if (block.stmts.length > 0) return false;
     if (!block.returnExpr) return true;
@@ -944,39 +770,32 @@ function isPureBlock(block: Block): boolean {
 }
 
 /**
- * Create an optimized closure-based executor for a block.
- * Pre-compiles to closures for efficient repeated execution.
+ * A block as a function: closures built once, here, and called per call.
  *
- * For pure blocks (no statements, return expr doesn't need vars),
- * uses a simplified executor that avoids vars array allocation.
+ * A block that binds no variable (the common case for type guards) is its one expression, called
+ * without a variable array of its own.
  */
 function createClosureExecutor<T>(block: Block, inputDefaults?: readonly unknown[]): (...args: any[]) => T {
     // An argument that is left out, or passed as undefined, takes its default — as the parameter
     // list of the compiled function says it does.
     const defaults = inputDefaults && inputDefaults.some(value => value !== undefined) ? inputDefaults : undefined;
 
-    // Fast path for pure blocks (common case for type guards)
     if (isPureBlock(block)) {
         if (!block.returnExpr) {
             return () => undefined as T;
         }
-        const pureFn = compilePureExpr(block.returnExpr);
-        if (defaults) return (...args: any[]): T => pureFn(withDefaults(args, defaults)) as T;
-        return (...args: any[]): T => pureFn(args) as T;
+        const exprFn = compileExpr(block.returnExpr);
+        if (defaults) return (...args: any[]): T => exprFn(withDefaults(args, defaults), NO_VARS) as T;
+        return (...args: any[]): T => exprFn(args, NO_VARS) as T;
     }
 
-    // General case with vars support
-    const blockFn = compileBlockToClosure(block);
+    // A function is where RETURN stops; a block that ends without one answers undefined.
+    const blockFn = compileBlock(block);
     if (defaults) {
-        return (...args: any[]): T => {
-            const result = blockFn(withDefaults(args, defaults), []);
-            return result?.value;
-        };
+        return (...args: any[]): T =>
+            blockFn(withDefaults(args, defaults), []) === RETURN ? takeReturned() : (undefined as T);
     }
-    return (...args: any[]): T => {
-        const result = blockFn(args, []);
-        return result?.value;
-    };
+    return (...args: any[]): T => (blockFn(args, []) === RETURN ? takeReturned() : (undefined as T));
 }
 
 function withDefaults(args: any[], defaults: readonly unknown[]): any[] {

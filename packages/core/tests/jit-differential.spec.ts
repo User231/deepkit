@@ -1303,6 +1303,147 @@ describe('jit differential: control flow', () => {
 });
 
 // ============================================================================
+// A return value on its way up (the interpreter)
+// ============================================================================
+
+describe('jit differential: a return value on its way up', () => {
+    // The interpreter hands "the function returns" upward as a signal and keeps the value in ONE
+    // slot, for every call in the process. That is sound only while nothing else runs between
+    // the statement that writes the slot and the function boundary that takes it. These are the
+    // places where something else could.
+
+    /** An interpreted function with a statement, so its `return` goes through the slot. */
+    const theirs = fnExec(arg(), (b: Builder, x: Ref) => {
+        b.let(x);
+        b.return_(b.lit('theirs'));
+    });
+
+    /** An iterable whose iterator, closed early, runs another interpreted function. */
+    const closing = <T>(items: T[]) => ({
+        closed: 0,
+        [Symbol.iterator]() {
+            let i = 0;
+            // eslint-disable-next-line @typescript-eslint/no-this-alias
+            const self = this;
+            return {
+                next: () => (i < items.length ? { value: items[i++], done: false } : { value: undefined, done: true }),
+                return: () => {
+                    self.closed++;
+                    theirs(1);
+                    return { value: undefined, done: true };
+                },
+            };
+        },
+    });
+
+    test('a for…of left by return: closing the iterator runs another interpreted function', () => {
+        const program: Program = (b, x) => {
+            b.forOf(x, item => {
+                b.if_(b.eq(item, b.lit(2)), () => b.return_(b.concat(b.lit('mine:'), item)));
+            });
+            return b.lit('ran to the end');
+        };
+        for (const define of [fnExec, ...(canJIT ? [fnJIT] : [])]) {
+            const f = compile(define, program);
+            const source = closing([1, 2, 3]);
+            expect(f(source)).toBe('mine:2');
+            expect(source.closed).toBe(1);
+            expect(f(closing([5, 6]))).toBe('ran to the end');
+        }
+    });
+
+    test('a for…of over entries left by return, the same', () => {
+        const program: Program = (b, x) => {
+            b.forOf(x, (key: Ref, value: Ref) => {
+                b.if_(b.eq(key, b.lit('b')), () => b.return_(value));
+            });
+            return b.lit('ran to the end');
+        };
+        for (const define of [fnExec, ...(canJIT ? [fnJIT] : [])]) {
+            const f = compile(define, program);
+            const source = closing<[string, number]>([
+                ['a', 1],
+                ['b', 2],
+                ['c', 3],
+            ]);
+            expect(f(source)).toBe(2);
+            expect(source.closed).toBe(1);
+        }
+    });
+
+    test('a for…of left by break closes the iterator and the function still returns its own value', () => {
+        const program: Program = (b, x) => {
+            const seen = b.let(b.emptyArr());
+            b.forOf(x, item => {
+                b.push(seen, item);
+                b.if_(b.eq(item, b.lit(2)), () => b.break_());
+            });
+            return seen;
+        };
+        for (const define of [fnExec, ...(canJIT ? [fnJIT] : [])]) {
+            expect(compile(define, program)(closing([1, 2, 3]))).toEqual([1, 2]);
+        }
+    });
+
+    test('a return whose value calls an interpreted function, a map inside a return, and recursion', () => {
+        const found: string[] = [];
+        // The value is computed BEFORE the slot is written: a call inside it has come and gone.
+        found.push(
+            ...differences(
+                'return of a call',
+                (b, x) => {
+                    b.if_(b.isType(x, 'number'), () => b.return_(b.concat(b.call(theirs, x), b.lit('+mine'))));
+                    return b.lit('not a number');
+                },
+                [() => [1, 0, 0, 0], () => ['s', 0, 0, 0]],
+            ),
+        );
+        // A map body is a function of its own: each element's return is taken before the next.
+        found.push(
+            ...differences(
+                'return of a map whose body returns',
+                (b, x) => {
+                    b.return_(
+                        b.map(x, item => {
+                            b.if_(b.isType(item, 'string'), () => b.return_(b.call(theirs, item)));
+                            return b.map(item, inner => b.add(inner, b.lit(1)));
+                        }),
+                    );
+                },
+                [() => [[[1, 2], 's', [3]], 0, 0, 0], () => [[], 0, 0, 0]],
+            ),
+        );
+        expectNoDifferences(found);
+
+        const holder: { f?: (n: number) => number } = {};
+        const call = (n: number) => holder.f!(n);
+        holder.f = fnExec(arg(), (b: Builder, n: Ref) => {
+            b.if_(b.lte(n, b.lit(1)), () => b.return_(b.lit(1)));
+            b.return_(b.mul(n, b.call(call, b.sub(n, b.lit(1)))));
+        });
+        expect(holder.f(10)).toBe(3628800);
+    });
+
+    test('a function that returns nothing after one that returned something answers undefined', () => {
+        const something = fnExec(arg(), (b: Builder, x: Ref) => {
+            b.let(x);
+            b.return_(b.lit('something'));
+        });
+        const nothing = fnExec(arg(), (b: Builder, x: Ref) => {
+            b.let(x);
+            b.return_();
+        });
+        const fallsOff = fnExec(arg(), (b: Builder, x: Ref) => {
+            b.let(x);
+        });
+        expect(something(1)).toBe('something');
+        expect(nothing(1)).toBe(undefined);
+        expect(something(1)).toBe('something');
+        expect(fallsOff(1)).toBe(undefined);
+    });
+});
+
+// ============================================================================
 // Literals
 // ============================================================================
 
