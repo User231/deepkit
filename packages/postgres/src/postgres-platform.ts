@@ -34,6 +34,7 @@ import {
     Serializer,
     Type,
     TypeNumberBrand,
+    isAutoIncrementType,
     isReferenceType,
     isUUIDType,
 } from '@deepkit/type';
@@ -97,6 +98,14 @@ export class PostgresPlatform extends DefaultPlatform {
         this.addType(() => true, 'jsonb'); //default everything is jsonb
 
         this.addType(typeResolvesToNumber, 'double precision');
+        // An auto-increment key is a SERIAL — an integer — whatever number the entity
+        // declares it as, and a reference to it takes its type from the key. Without
+        // this the model said `double precision` for both, while the DDL below wrote
+        // SERIAL and INTEGER: the reference read back as a changed column on every
+        // diff, and a filter on the key was cast `::double precision`, which no index
+        // on an integer column serves. A later entry still wins (`bigint`, an
+        // explicit database type), as in the MySQL platform.
+        this.addType(isAutoIncrementType, 'integer');
         this.addType(typeResolvesToInteger, 'integer');
         this.addType(typeResolvesToBigInt, 'bigint');
         this.addType(typeResolvesToBoolean, 'boolean');
@@ -161,25 +170,33 @@ export class PostgresPlatform extends DefaultPlatform {
         return escapeLiteral(value);
     }
 
+    /**
+     * The integer type behind an auto-increment key: what its SERIAL is made of, and
+     * what a column that references it must be. The key's own type decides the width
+     * (`bigint & AutoIncrement` is a BIGSERIAL — until 2026-11-17 every key was a
+     * 32-bit SERIAL and every reference an INTEGER, whatever the entity declared).
+     */
+    protected getAutoIncrementBaseType(column: Column): 'smallint' | 'integer' | 'bigint' {
+        const type = (column.type || '').toLowerCase();
+        if (type === 'bigint' || type === 'int8') return 'bigint';
+        if (type === 'smallint' || type === 'int2') return 'smallint';
+        return 'integer';
+    }
+
     protected getColumnType(column: Column): string {
-        const ddl: string[] = [];
         if (column.isAutoIncrement) {
-            ddl.push(`SERIAL`);
-        } else {
-            const foreignKey = column.table.getForeignKeyOfLocalColumn(column);
-            if (foreignKey) {
-                const [foreignPk] = foreignKey.foreignColumns;
-                if (foreignPk.isAutoIncrement) {
-                    //the foreignPK has `SERIAL` type, which is basically an INTEGER.
-                    ddl.push('INTEGER');
-                } else {
-                    ddl.push((foreignPk.type || 'INTEGER') + column.getSizeDefinition());
-                }
-            } else {
-                ddl.push((column.type || 'INTEGER') + column.getSizeDefinition());
-            }
+            const base = this.getAutoIncrementBaseType(column);
+            return base === 'bigint' ? 'BIGSERIAL' : base === 'smallint' ? 'SMALLSERIAL' : 'SERIAL';
         }
-        return ddl.filter(isSet).join(' ');
+
+        const foreignKey = column.table.getForeignKeyOfLocalColumn(column);
+        if (foreignKey) {
+            const [foreignPk] = foreignKey.foreignColumns;
+            // A SERIAL is no type a referencing column can have: it is the integer behind it.
+            if (foreignPk.isAutoIncrement) return this.getAutoIncrementBaseType(foreignPk);
+            return (foreignPk.type || 'INTEGER') + column.getSizeDefinition();
+        }
+        return (column.type || 'INTEGER') + column.getSizeDefinition();
     }
 
     override getColumnDDL(column: Column) {

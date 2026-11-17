@@ -133,3 +133,71 @@ test('postgres', async () => {
         }),
     );
 });
+
+// A reference to an auto-increment key. The key is a SERIAL — an integer — and the DDL always
+// wrote the reference as one, but the model called both `double precision` (the type of a plain
+// `number`): once the comparator judged a column's type (2026-11-06), the reference read back as
+// a modified column on every diff — the 'postgres' round trip above failed on exactly that.
+interface Account extends Entity<{ name: 'migration_account' }> {
+    id: number & AutoIncrement & PrimaryKey;
+    name: string;
+}
+
+interface Invoice extends Entity<{ name: 'migration_invoice' }> {
+    id: number & AutoIncrement & PrimaryKey;
+    account: Account & Reference;
+}
+
+interface Ledger extends Entity<{ name: 'migration_ledger' }> {
+    id: bigint & AutoIncrement & PrimaryKey;
+    name: string;
+}
+
+interface Entry extends Entity<{ name: 'migration_entry' }> {
+    id: number & AutoIncrement & PrimaryKey;
+    ledger: Ledger & Reference;
+}
+
+function scratchAdapter() {
+    return new PostgresDatabaseAdapter({
+        host: process.env.POSTGRES_HOST || 'localhost',
+        port: parseInt(process.env.POSTGRES_PORT || '15432', 10),
+        database: process.env.POSTGRES_DB || 'postgres',
+        user: process.env.POSTGRES_USER || 'postgres',
+        password: process.env.POSTGRES_PASSWORD || undefined,
+    });
+}
+
+test('an auto-increment key and a reference to it are modelled as the integer they are', async () => {
+    const adapter = scratchAdapter();
+    const [account, invoice] = adapter.platform.createTables(DatabaseEntityRegistry.from([typeOf<Account>(), typeOf<Invoice>()]));
+
+    expect(account.getColumn('id').type).toBe('integer');
+    expect(invoice.getColumn('account').type).toBe('integer');
+    expect(invoice.getColumn('account').isAutoIncrement).toBe(false);
+
+    // A filter on the key is cast to the column's type — `::double precision` made Postgres
+    // compare an integer column as a double, which no index on it serves.
+    const keyType = ReflectionClass.from(typeOf<Account>()).getProperty('id').type;
+    const referenceType = ReflectionClass.from(typeOf<Invoice>()).getProperty('account').type;
+    expect(adapter.platform.getSqlTypeCaster(keyType)('$1')).toBe('$1::integer');
+    expect(adapter.platform.getSqlTypeCaster(referenceType)('$1')).toBe('$1::integer');
+
+    const DDL = await schemaMigrationRoundTrip([typeOf<Account>(), typeOf<Invoice>()], adapter);
+    expect(DDL).toContain(`"id" SERIAL,`);
+    expect(DDL).toContain(`"account" integer NOT NULL`);
+});
+
+test('a bigint auto-increment key is a BIGSERIAL and a reference to it a bigint', async () => {
+    const adapter = scratchAdapter();
+    const [ledger, entry] = adapter.platform.createTables(DatabaseEntityRegistry.from([typeOf<Ledger>(), typeOf<Entry>()]));
+
+    expect(ledger.getColumn('id').type).toBe('bigint');
+    expect(entry.getColumn('ledger').type).toBe('bigint');
+
+    // Until 2026-11-17 the key was a 32-bit SERIAL and the reference an INTEGER whatever the
+    // entity declared, so the reference read back as `bigint => integer` on every diff.
+    const DDL = await schemaMigrationRoundTrip([typeOf<Ledger>(), typeOf<Entry>()], adapter);
+    expect(DDL).toContain(`"id" BIGSERIAL,`);
+    expect(DDL).toContain(`"ledger" bigint NOT NULL`);
+});
