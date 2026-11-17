@@ -10,13 +10,9 @@
 
 /*
  * How a tree is written: `Builder` and the references (`Ref`, `VarRef`) its methods hand out.
- * A function declared inside another one's declaration is registered here, with the marker that
- * stands for it.
+ * It imports the tree and nothing else: how a tree is run is not its business.
  */
-import { CodeGenerator } from './codegen.js';
-import { createExecutor } from './exec.js';
 import { Block, Expr, NestedFnDef, Stmt } from './nodes.js';
-import { compilesFunctions, jitThreshold } from './runtime.js';
 
 // ============================================================================
 // Builder - Constructs Expression Trees
@@ -670,26 +666,15 @@ export class Builder {
     private nestedFnDefs = new Map<number, NestedFnDef>();
 
     /**
-     * Register a nested function definition. Called by fn()/fnJIT() when they detect
-     * they're being called inside this Builder's body callback.
-     * Returns a marker function that the CodeGenerator will recognize.
+     * Register a function declared inside this Builder's body callback as its nested function,
+     * and answer the id the generator names it by (`_nfn_<id>`). What stands for the function in
+     * the tree — the marker — is made by the entry points (`entry.ts`), which know how it will be
+     * run: the Builder writes trees and knows nothing of the modes.
      */
-    registerNestedFn(block: Block, inputNames: string[], inputDefaults?: readonly unknown[]): any {
+    registerNestedFn(def: NestedFnDef): number {
         const id = _globalFnId++;
-        const def: NestedFnDef = { block, inputNames, inputDefaults };
         this.nestedFnDefs.set(id, def);
-        // Return a callable marker. Who calls it decides how it runs:
-        // - generated code: CodeGenerator detects __nestedFnId and emits a call to _nfn_N;
-        // - the interpreter: it calls __nestedFnExecutor, the interpreted body (interpretedValue);
-        // - plain JavaScript: the marker itself — see nestedFnMarker.
-        const executor = createExecutor<any>(block, inputDefaults);
-        const marker = nestedFnMarker(def, executor) as any;
-        marker.__nestedFnId = id;
-        // The definition travels with the marker so a compilation unit that did not register it
-        // (a cached sub-function reused across compiles) can still emit it — CodeGenerator.addExternal.
-        marker.__nestedFnDef = def;
-        marker.__nestedFnExecutor = executor;
-        return marker;
+        return id;
     }
 
     // ========== Helper Functions ==========
@@ -737,37 +722,4 @@ export class Builder {
             nestedFunctions: this.nestedFnDefs.size > 0 ? new Map(this.nestedFnDefs) : undefined,
         };
     }
-}
-
-/**
- * What `fn()` / `fnJIT()` hand back inside another function's declaration, as a function that
- * PLAIN JAVASCRIPT can call — a closure, a cache, a handle that holds it.
- *
- * Generated code never calls this: a reference to a marker is emitted as a call to the nested
- * function `_nfn_N`, compiled in the same unit. The interpreter does not either: it calls the
- * interpreted body. Until 2026-11-16 that body WAS the marker, so a marker that some plain
- * JavaScript called ran interpreted in a process that compiles, with nothing to say so — a BSON
- * decode 50x slower than the same rows on a compiled path.
- *
- * Where functions are compiled, the first call from plain JavaScript compiles the definition as a
- * unit of its own — after the threshold's interpreted calls when one is set, as `fn()` does for a
- * function declared at the top. Where they are not (a strict CSP, the `'interpreted'` mode), the
- * marker is the interpreted body, as it has to be. The mode is read when the function is built.
- *
- * A function that is MEANT to be called from plain JavaScript is better built with
- * {@link fnJITTop}: this one leaves its definition in the enclosing unit as well, where nothing
- * calls it, and reaches the compiled function through a call that spreads its arguments.
- */
-function nestedFnMarker(def: NestedFnDef, executor: (...args: any[]) => any): (...args: any[]) => any {
-    if (!compilesFunctions()) return executor;
-
-    let compiled: ((...args: any[]) => any) | undefined;
-    let calls = 0;
-    return (...args: any[]) => {
-        if (compiled) return compiled(...args);
-        if (++calls < jitThreshold) return executor(...args);
-        const generator = new CodeGenerator(def.inputNames.length, def.inputNames, undefined, def.inputDefaults);
-        compiled = generator.compile<(...args: any[]) => any>(def.block);
-        return compiled(...args);
-    };
 }

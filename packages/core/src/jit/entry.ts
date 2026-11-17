@@ -15,7 +15,7 @@
 import { Builder, Ref } from './builder.js';
 import { CodeGenerator } from './codegen.js';
 import { createExecutor } from './exec.js';
-import { Block } from './nodes.js';
+import { NestedFnDef } from './nodes.js';
 import { compilesFunctions, jitThreshold } from './runtime.js';
 
 // ============================================================================
@@ -43,12 +43,9 @@ export function arg<T>(name?: string, defaultValue?: T): Arg<T> {
 }
 
 /** A function as its declaration built it: the tree, and what its arguments are called and default to. */
-interface FnDefinition {
-    block: Block;
-    inputNames: string[];
-    inputDefaults: unknown[];
+interface FnDefinition extends NestedFnDef {
     /** The Builder whose body callback this declaration ran in, if any. */
-    parent: Builder | null;
+    readonly parent: Builder | null;
 }
 
 /**
@@ -78,13 +75,98 @@ function declare(args: any[]): FnDefinition {
     return { block: builder.build(result || undefined), inputNames, inputDefaults, parent };
 }
 
-function compileDefinition<R>(def: FnDefinition): (...args: any[]) => R {
+type Compiled<R> = (...args: any[]) => R;
+
+function compileDefinition<R>(def: NestedFnDef): Compiled<R> {
     const gen = new CodeGenerator(def.inputNames.length, def.inputNames, undefined, def.inputDefaults);
-    return gen.compile<(...args: any[]) => R>(def.block);
+    return gen.compile<Compiled<R>>(def.block);
 }
 
-function interpretDefinition<R>(def: FnDefinition): (...args: any[]) => R {
+function interpretDefinition<R>(def: NestedFnDef): Compiled<R> {
     return createExecutor<R>(def.block, def.inputDefaults);
+}
+
+/**
+ * Tiered execution: `interpreted` for the first calls, the compiled function from the call that
+ * reaches the threshold on ({@link setJitThreshold}, `DEEPKIT_JIT_THRESHOLD`). With a threshold of
+ * 0 or 1 the first call compiles; with `Infinity` none does. The threshold is read per call.
+ */
+function tiered<R>(def: NestedFnDef, interpreted: Compiled<R>): Compiled<R> {
+    let compiled: Compiled<R> | undefined;
+    let calls = 0;
+    return (...args: any[]) => {
+        if (compiled) return compiled(...args);
+        if (++calls < jitThreshold) return interpreted(...args);
+        compiled = compileDefinition<R>(def);
+        return compiled(...args);
+    };
+}
+
+/**
+ * What stands, in the enclosing function's tree, for a function declared inside its declaration:
+ * the marker. Who calls it decides how it runs:
+ *
+ *  - generated code never calls it: the generator sees `__nestedFnId` and emits a call to
+ *    `_nfn_<id>`, compiled in the same unit (`__nestedFnDef` travels with the marker so that a
+ *    unit which did not register it — a sub-function cached per type and reused — can still
+ *    emit it);
+ *  - the interpreter calls `__nestedFnExecutor`, the interpreted body (`interpretedValue`);
+ *  - PLAIN JAVASCRIPT — a closure, a cache, a handle that holds it — calls the marker itself.
+ *
+ * Until 2026-11-16 the marker WAS the interpreted body, so a marker that some plain JavaScript
+ * called ran interpreted in a process that compiles, with nothing to say so — a BSON decode 50x
+ * slower than the same rows on a compiled path. Where functions are compiled, the first call from
+ * plain JavaScript now compiles the definition as a unit of its own, after the threshold's
+ * interpreted calls when one is set ({@link tiered}). Where they are not (a strict CSP, the
+ * `'interpreted'` mode), the marker is the interpreted body, as it has to be. The mode is read
+ * when the function is built.
+ *
+ * A function that is MEANT to be called from plain JavaScript is better built with
+ * {@link fnJITTop}: it is compiled at once, and called without the argument spread this pays.
+ */
+function nestedFunction<R>(parent: Builder, def: NestedFnDef): Compiled<R> {
+    const id = parent.registerNestedFn(def);
+    const executor = interpretDefinition<R>(def);
+    const marker: any = compilesFunctions() ? tiered<R>(def, executor) : executor;
+    marker.__nestedFnId = id;
+    marker.__nestedFnDef = def;
+    marker.__nestedFnExecutor = executor;
+    return marker;
+}
+
+/**
+ * What the entry points differ in — the whole of it. Everything else they do is {@link define}.
+ */
+interface Policy {
+    /** Inside another function's declaration, the function becomes that one's nested function. */
+    readonly nests: boolean;
+    /**
+     * `'chosen'`: compiled where functions are compiled ({@link compilesFunctions}: the environment
+     * allows it and the mode does not forbid it), interpreted where they are not.
+     * `'compiled'`: compiled, whatever the mode says — it throws where code generation is blocked.
+     * `'interpreted'`: interpreted, always.
+     */
+    readonly runs: 'chosen' | 'compiled' | 'interpreted';
+    /** A compiled function is interpreted for its first calls when a threshold is set. */
+    readonly tiers: boolean;
+}
+
+const POLICIES = {
+    fn: { nests: true, runs: 'chosen', tiers: true },
+    fnJIT: { nests: true, runs: 'compiled', tiers: false },
+    fnJITTop: { nests: false, runs: 'chosen', tiers: false },
+    fnExec: { nests: false, runs: 'interpreted', tiers: false },
+} satisfies Record<string, Policy>;
+
+/** Every entry point: run the declaration, then let the policy say what the tree becomes. */
+function define<R>(policy: Policy, args: any[]): Compiled<R> {
+    const def = declare(args);
+    if (policy.nests && def.parent) return nestedFunction<R>(def.parent, def);
+    if (policy.runs === 'interpreted' || (policy.runs === 'chosen' && !compilesFunctions())) {
+        return interpretDefinition<R>(def);
+    }
+    if (policy.tiers && jitThreshold !== 0) return tiered<R>(def, interpretDefinition<R>(def));
+    return compileDefinition<R>(def);
 }
 
 /**
@@ -94,90 +176,50 @@ function interpretDefinition<R>(def: FnDefinition): (...args: any[]) => R {
  * threshold is set ({@link setJitThreshold}, `DEEPKIT_JIT_THRESHOLD`), interpreted for its first
  * calls and compiled when it reaches the threshold. Where `new Function` is blocked (a strict
  * CSP), or the mode is `'interpreted'` ({@link JitMode}), it is always interpreted.
+ *
+ * Called inside another function's declaration, it is that function's nested function.
  */
 export function fn<R>(...args: any[]): (...args: any[]) => R {
-    const def = declare(args);
-
-    // If called inside another fn()/fnJIT(), register as nested function definition
-    if (def.parent) {
-        return def.parent.registerNestedFn(def.block, def.inputNames, def.inputDefaults) as any;
-    }
-
-    // Code generation is blocked, or the mode says interpret.
-    if (!compilesFunctions()) {
-        return interpretDefinition<R>(def);
-    }
-
-    // Immediate JIT if threshold is 0
-    if (jitThreshold === 0) {
-        return compileDefinition<R>(def);
-    }
-
-    // Tiered execution: interpret first, compile once the threshold is reached
-    let callCount = 0;
-    let compiledFn: ((...args: any[]) => R) | null = null;
-    const executor = interpretDefinition<R>(def);
-
-    return ((...runtimeArgs: any[]) => {
-        if (compiledFn) {
-            return compiledFn(...runtimeArgs);
-        }
-
-        callCount++;
-
-        if (callCount >= jitThreshold) {
-            compiledFn = compileDefinition<R>(def);
-            return compiledFn(...runtimeArgs);
-        }
-
-        return executor(...runtimeArgs);
-    }) as any;
+    return define<R>(POLICIES.fn, args);
 }
 
 /**
- * Force immediate JIT compilation, bypassing tiered execution.
+ * Force immediate JIT compilation, bypassing tiered execution and the mode.
  *
  * WARNING: This will throw in CSP environments where `new Function()` is blocked.
+ *
+ * Called inside another function's declaration, it is that function's nested function, as with
+ * {@link fn} — and runs as the enclosing function does.
  */
 export function fnJIT<R>(...args: any[]): (...args: any[]) => R {
-    const def = declare(args);
-
-    // If called inside another fn()/fnJIT(), register as nested function definition
-    if (def.parent) {
-        return def.parent.registerNestedFn(def.block, def.inputNames, def.inputDefaults) as any;
-    }
-
-    return compileDefinition<R>(def);
+    return define<R>(POLICIES.fnJIT, args);
 }
 
 /**
- * Force a separate JIT compilation unit, even when called inside another fn()/fnJIT().
- * Use this when a large function would poison V8 optimization of sibling functions
- * in the same compilation unit.
+ * Force a separate JIT compilation unit, even when called inside another fn()/fnJIT(): the
+ * enclosing declaration, if any, is ignored. Use this when a large function would poison V8
+ * optimization of sibling functions in the same compilation unit, or for a function that plain
+ * JavaScript will call.
+ *
+ * Where functions are not compiled (a strict CSP, the `'interpreted'` mode) there are no
+ * compilation units to keep apart, and the function is interpreted like any other.
  */
 export function fnJITTop<R>(...args: any[]): (...args: any[]) => R {
-    // Never registered as nested: the enclosing declaration, if any, is ignored.
-    const def = declare(args);
-
-    // CSP environment: compilation units don't exist in exec mode, so the
-    // isolation this function provides is moot — fall back like fn() does.
-    if (!compilesFunctions()) {
-        return interpretDefinition<R>(def);
-    }
-
-    return compileDefinition<R>(def);
+    return define<R>(POLICIES.fnJITTop, args);
 }
 
 /**
  * Force Exec mode using closure-based compilation.
  * This compiles the expression tree to nested closures at build time,
  * eliminating switch statements and object lookups at runtime.
+ *
+ * Never a nested function, like {@link fnJITTop}: the point is that THIS function is
+ * interpreted. The functions declared inside its body are its nested functions, and so
+ * interpreted too.
  * @internal
  */
 export function fnExec<R>(...args: any[]): (...args: any[]) => R {
-    // Never registered as nested, like fnJITTop: the point is that THIS function is interpreted.
-    // The functions declared inside its body are its nested functions, and so interpreted too.
-    return interpretDefinition<R>(declare(args));
+    return define<R>(POLICIES.fnExec, args);
 }
 
 // ============================================================================

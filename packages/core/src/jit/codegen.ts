@@ -790,7 +790,7 @@ export class CodeGenerator {
      * A nested function that NOTHING in the unit calls is left out. There is one whenever `fn()`
      * is called inside a declaration and the result is kept for plain JavaScript to call (a
      * cache, a handle) instead of being referenced by the tree: the marker compiles its own unit
-     * on its first call ({@link nestedFnMarker}), and a second copy here would be text that is
+     * on its first call (`nestedFunction` in `entry.ts`), and a second copy here would be text that is
      * parsed, compiled and held for nothing.
      *
      * What is called is only known once the text is written — the generator is what turns a
