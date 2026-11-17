@@ -49,46 +49,72 @@ const PREC_UNARY = 14;
 const PREC_MEMBER = 17;
 const PREC_PRIMARY = 18;
 
-/** The level of the text {@link CodeGenerator} emits for `expr` — kept beside it, case by case. */
+/** `!isNull(x)` and `!isNullish(x)` are emitted as comparisons. */
+const notPrecedence = (expr: Extract<Expr, { kind: 'not' }>): number =>
+    expr.a.kind === 'isNull' || expr.a.kind === 'isNullish' ? PREC_EQUALITY : PREC_UNARY;
+
+/** `-1`, `-Infinity`, `-5n` are a unary minus and a literal; `-0` is emitted as `(-0)`. */
+const litPrecedence = (expr: Extract<Expr, { kind: 'lit' }>): number => {
+    const value = expr.value;
+    if (typeof value === 'number' && value < 0) return PREC_UNARY;
+    if (typeof value === 'bigint' && value < 0n) return PREC_UNARY;
+    return PREC_PRIMARY;
+};
+
+/**
+ * The level of the text {@link CodeGenerator} emits for each kind — kept beside it, row by case.
+ * Every kind has a row: one that is left out does not compile, where a `default` would have
+ * called its text primary and left it without the parentheses it needs.
+ */
+const EMITTED_PRECEDENCE: { [K in Expr['kind']]: number | ((expr: Extract<Expr, { kind: K }>) => number) } = {
+    lit: litPrecedence,
+    input: PREC_PRIMARY,
+    var: PREC_PRIMARY,
+    get: PREC_MEMBER,
+    at: PREC_MEMBER,
+    call: PREC_MEMBER,
+    new: PREC_MEMBER,
+    obj: PREC_PRIMARY,
+    arr: PREC_PRIMARY,
+    eq: PREC_EQUALITY,
+    neq: PREC_EQUALITY,
+    lt: PREC_RELATIONAL,
+    gt: PREC_RELATIONAL,
+    lte: PREC_RELATIONAL,
+    gte: PREC_RELATIONAL,
+    not: notPrecedence,
+    and: PREC_AND,
+    // Everything below that is primary is text the generator wraps itself.
+    or: PREC_PRIMARY,
+    nullish: PREC_PRIMARY,
+    typeof: PREC_UNARY,
+    isType: PREC_EQUALITY,
+    isNull: PREC_EQUALITY,
+    isNullish: PREC_EQUALITY,
+    has: PREC_PRIMARY,
+    len: PREC_MEMBER,
+    ternary: PREC_PRIMARY,
+    instanceof: PREC_PRIMARY,
+    concat: PREC_PRIMARY,
+    add: PREC_PRIMARY,
+    sub: PREC_PRIMARY,
+    mul: PREC_PRIMARY,
+    div: PREC_PRIMARY,
+    mod: PREC_PRIMARY,
+    bitAnd: PREC_PRIMARY,
+    bitOr: PREC_PRIMARY,
+    bitXor: PREC_PRIMARY,
+    shl: PREC_PRIMARY,
+    shr: PREC_PRIMARY,
+    ushr: PREC_PRIMARY,
+    method: PREC_MEMBER,
+    map: PREC_MEMBER,
+    subFn: PREC_MEMBER,
+};
+
 function emittedPrecedence(expr: Expr): number {
-    switch (expr.kind) {
-        case 'lit': {
-            const value = expr.value;
-            // `-1`, `-Infinity`, `-5n` are a unary minus and a literal; `-0` is emitted as `(-0)`.
-            if (typeof value === 'number' && value < 0) return PREC_UNARY;
-            if (typeof value === 'bigint' && value < 0n) return PREC_UNARY;
-            return PREC_PRIMARY;
-        }
-        case 'and':
-            return PREC_AND;
-        case 'eq':
-        case 'neq':
-        case 'isType':
-        case 'isNull':
-        case 'isNullish':
-            return PREC_EQUALITY;
-        case 'not':
-            // `!isNull(x)` and `!isNullish(x)` are emitted as comparisons.
-            return expr.a.kind === 'isNull' || expr.a.kind === 'isNullish' ? PREC_EQUALITY : PREC_UNARY;
-        case 'lt':
-        case 'gt':
-        case 'lte':
-        case 'gte':
-            return PREC_RELATIONAL;
-        case 'typeof':
-            return PREC_UNARY;
-        case 'get':
-        case 'at':
-        case 'len':
-        case 'call':
-        case 'new':
-        case 'method':
-        case 'map':
-        case 'subFn':
-            return PREC_MEMBER;
-        default:
-            return PREC_PRIMARY;
-    }
+    const level = EMITTED_PRECEDENCE[expr.kind] as number | ((expr: Expr) => number);
+    return typeof level === 'number' ? level : level(expr);
 }
 
 export class CodeGenerator {

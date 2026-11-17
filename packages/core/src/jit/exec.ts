@@ -12,7 +12,7 @@
  * The interpreted mode: a block turned into nested closures once, then called. What runs where
  * `new Function` is refused (a strict CSP) or the mode says `'interpreted'`.
  */
-import { Block, Expr, Stmt } from './nodes.js';
+import { Block, Expr, Stmt, shapeOfExpr } from './nodes.js';
 
 // ============================================================================
 // Closure-Based Executor (Optimized Exec Mode)
@@ -44,71 +44,13 @@ type EvalFn = (args: any[], vars: any[]) => any;
 type PureEvalFn = (args: any[]) => any;
 
 /**
- * Check if an expression uses variables (needs vars array)
+ * Whether an expression reads a variable — whether evaluating it needs the variable array. A `map`
+ * always does: it binds its element and its index. The rest is what the kind is made of.
  */
 function exprNeedsVars(expr: Expr): boolean {
-    switch (expr.kind) {
-        case 'var':
-            return true;
-        case 'lit':
-        case 'input':
-            return false;
-        case 'get':
-            return exprNeedsVars(expr.obj) || (typeof expr.key !== 'string' && exprNeedsVars(expr.key));
-        case 'at':
-            return exprNeedsVars(expr.arr) || (typeof expr.index !== 'number' && exprNeedsVars(expr.index));
-        case 'call':
-            return expr.args.some(exprNeedsVars);
-        case 'new':
-            return expr.args.some(exprNeedsVars);
-        case 'obj':
-            return expr.entries.some(([k, v]) => (typeof k !== 'string' && exprNeedsVars(k)) || exprNeedsVars(v));
-        case 'arr':
-            return expr.elements.some(exprNeedsVars);
-        case 'eq':
-        case 'neq':
-        case 'lt':
-        case 'gt':
-        case 'lte':
-        case 'gte':
-        case 'and':
-        case 'or':
-        case 'nullish':
-            return exprNeedsVars(expr.a) || exprNeedsVars(expr.b);
-        case 'not':
-            return exprNeedsVars(expr.a);
-        case 'typeof':
-        case 'isType':
-        case 'isNull':
-        case 'isNullish':
-        case 'len':
-        case 'instanceof':
-            return exprNeedsVars(expr.value);
-        case 'has':
-            return exprNeedsVars(expr.obj) || (typeof expr.key !== 'string' && exprNeedsVars(expr.key));
-        case 'ternary':
-            return exprNeedsVars(expr.cond) || exprNeedsVars(expr.then) || exprNeedsVars(expr.else);
-        case 'concat':
-            return expr.parts.some(exprNeedsVars);
-        case 'add':
-        case 'sub':
-        case 'mul':
-        case 'div':
-        case 'mod':
-        case 'bitAnd':
-        case 'bitOr':
-        case 'bitXor':
-        case 'shl':
-        case 'shr':
-        case 'ushr':
-            return exprNeedsVars(expr.a) || exprNeedsVars(expr.b);
-        case 'method':
-            return exprNeedsVars(expr.obj) || expr.args.some(exprNeedsVars);
-        case 'map':
-            return true; // Map always uses vars
-        case 'subFn':
-            return exprNeedsVars(expr.arg) || exprNeedsVars(expr.body);
-    }
+    if (expr.kind === 'var' || expr.kind === 'map') return true;
+    const shape = shapeOfExpr(expr);
+    return shape.exprs(expr, exprNeedsVars) || (shape.inner !== undefined && shape.inner(expr, exprNeedsVars));
 }
 
 /**

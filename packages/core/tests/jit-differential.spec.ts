@@ -19,7 +19,7 @@ import { inspect } from 'node:util';
 
 import { expect } from '@deepkit/run/expect';
 
-import { type Block, Builder, EXPR_KINDS, type Expr, Ref, STMT_KINDS, type Stmt, arg, canJIT, compilesFunctions, fn, fnExec, fnJIT, fnJITTop, getJitMode, getJitThreshold, setJitMode, setJitThreshold } from '../src/jit.js';
+import { type Block, Builder, EXPR_KINDS, type Expr, Ref, STMT_KINDS, type Stmt, arg, canJIT, compilesFunctions, fn, fnExec, fnJIT, fnJITTop, getJitMode, getJitThreshold, setJitMode, setJitThreshold, shapeOfExpr, shapeOfStmt } from '../src/jit.js';
 import { compilationsOf, expectGolden, generatedSource } from './support/generated-source.js';
 
 // ============================================================================
@@ -963,6 +963,86 @@ describe('jit differential: the tables are complete', () => {
         }
         const takesAnExpression = STMT_KINDS.filter(kind => kind !== 'break' && kind !== 'continue');
         expect(takesAnExpression.filter(kind => !covered.has(kind))).toEqual([]);
+    });
+
+    // The shape table (`EXPR_SHAPE` / `STMT_SHAPE`) says what each kind is made of, and everything
+    // that walks a tree believes it. Here every node of every tree these tables build is LOOKED at
+    // instead: the expressions and blocks found in its fields must be the ones its shape visits.
+    test('the shape table names exactly the children every node has', () => {
+        const isPlain = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype;
+        const isExpr = (v: unknown): v is Expr => isPlain(v) && (EXPR_KINDS as string[]).includes(v.kind as string);
+        const isStmt = (v: unknown): v is Stmt => isPlain(v) && (STMT_KINDS as string[]).includes(v.kind as string);
+        const isBlock = (v: unknown): v is Block => isPlain(v) && Array.isArray(v.stmts);
+
+        const inspect = (node: Expr | Stmt) => {
+            const exprs = new Set<Expr>();
+            const blocks = new Set<Block>();
+            const look = (v: unknown): void => {
+                if (isExpr(v)) exprs.add(v);
+                else if (isBlock(v)) blocks.add(v);
+                else if (Array.isArray(v)) v.forEach(look);
+            };
+            for (const [key, v] of Object.entries(node)) {
+                // A literal's value and a case's label are data, whatever they look like.
+                if (node.kind === 'lit' && key === 'value') continue;
+                if (node.kind === 'switch' && key === 'cases') (v as [unknown, Block][]).forEach(([, block]) => look(block));
+                else look(v);
+            }
+            return { exprs, blocks };
+        };
+        const visited = (node: Expr | Stmt) => {
+            const shape = isExpr(node) ? shapeOfExpr(node) : shapeOfStmt(node);
+            const exprs = new Set<Expr>();
+            const blocks = new Set<Block>();
+            const collect = (e: Expr) => (exprs.add(e), false);
+            (shape.exprs as (n: Expr | Stmt, visit: (e: Expr) => boolean) => boolean)(node, collect);
+            (shape.inner as undefined | ((n: Expr | Stmt, visit: (e: Expr) => boolean) => boolean))?.(node, collect);
+            (shape.blocks as undefined | ((n: Expr | Stmt, visit: (b: Block) => boolean) => boolean))?.(node, b => (blocks.add(b), false));
+            return { exprs, blocks };
+        };
+
+        const wrong: string[] = [];
+        const seenKinds = new Set<string>();
+        const walk = (node: Expr | Stmt, where: string): void => {
+            seenKinds.add(node.kind);
+            const found = inspect(node);
+            const named = visited(node);
+            const sameSet = <T>(a: Set<T>, b: Set<T>) => a.size === b.size && [...a].every(v => b.has(v));
+            if (!sameSet(found.exprs, named.exprs)) wrong.push(`${where}: ${node.kind} has ${found.exprs.size} child expression(s), its shape visits ${named.exprs.size}`);
+            if (!sameSet(found.blocks, named.blocks)) wrong.push(`${where}: ${node.kind} has ${found.blocks.size} block(s), its shape visits ${named.blocks.size}`);
+            for (const e of found.exprs) walk(e, where);
+            for (const b of found.blocks) walkBlock(b, where);
+        };
+        const walkBlock = (block: Block, where: string): void => {
+            for (const s of block.stmts) walk(s, where);
+            if (block.returnExpr) walk(block.returnExpr, where);
+        };
+
+        for (const kind of EXPR_KINDS) {
+            const row = EXPR[kind];
+            for (const [name, mk] of Object.entries({ leaf: row.leaf, ...row.more }))
+                walkBlock(
+                    treeOf((b, ...x) => mk(b, x)),
+                    `${kind} / ${name}`,
+                );
+            for (const slot of row.slots)
+                walkBlock(
+                    treeOf((b, ...x) => slot.put(b, EXPR.arr.leaf, x)),
+                    `${kind} / slot ${slot.name}`,
+                );
+        }
+        for (const kind of STMT_KINDS) {
+            for (const [name, program] of Object.entries(STMT[kind])) walkBlock(treeOf(program), `${kind} / ${name}`);
+        }
+        for (const slot of STMT_SLOTS)
+            walkBlock(
+                treeOf((b, ...x) => slot.put(b, EXPR.arr.leaf, x)),
+                `statement slot ${slot.name}`,
+            );
+
+        expect(wrong).toEqual([]);
+        // …and the walk reached every kind there is, so no row went unchecked.
+        expect([...EXPR_KINDS, ...STMT_KINDS].filter(kind => !seenKinds.has(kind))).toEqual([]);
     });
 });
 

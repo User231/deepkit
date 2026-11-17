@@ -521,71 +521,142 @@ export interface Block {
     nestedFunctions?: Map<number, NestedFnDef>;
 }
 
-/**
- * Every expression kind, as a runtime list. The record it is read from must name each member of
- * {@link Expr} exactly once — a kind added to the union without a row here does not compile — so
- * a test can walk the list and refuse a kind that has no case in both execution modes.
- */
-export const EXPR_KINDS = Object.keys({
-    lit: true,
-    input: true,
-    var: true,
-    get: true,
-    at: true,
-    call: true,
-    new: true,
-    obj: true,
-    arr: true,
-    eq: true,
-    neq: true,
-    lt: true,
-    gt: true,
-    lte: true,
-    gte: true,
-    not: true,
-    and: true,
-    or: true,
-    nullish: true,
-    typeof: true,
-    isType: true,
-    isNull: true,
-    isNullish: true,
-    has: true,
-    len: true,
-    ternary: true,
-    instanceof: true,
-    concat: true,
-    add: true,
-    sub: true,
-    mul: true,
-    div: true,
-    mod: true,
-    bitAnd: true,
-    bitOr: true,
-    bitXor: true,
-    shl: true,
-    shr: true,
-    ushr: true,
-    method: true,
-    map: true,
-    subFn: true,
-} satisfies Record<Expr['kind'], true>) as Expr['kind'][];
+// ============================================================================
+// The shape of each kind
+// ============================================================================
 
-/** Every statement kind, as a runtime list — held complete the same way as {@link EXPR_KINDS}. */
-export const STMT_KINDS = Object.keys({
-    let: true,
-    set: true,
-    push: true,
-    setVar: true,
-    exec: true,
-    return: true,
-    throw: true,
-    if: true,
-    loop: true,
-    forIn: true,
-    forOf: true,
-    switch: true,
-    while: true,
-    break: true,
-    continue: true,
-} satisfies Record<Stmt['kind'], true>) as Stmt['kind'][];
+/** Called on a child; answering `true` stops the walk. */
+export type VisitExpr = (expr: Expr) => boolean;
+export type VisitBlock = (block: Block) => boolean;
+
+/**
+ * What a kind is MADE OF — the one statement of it, for everything that walks a tree without
+ * caring what the kind does (whether an expression reads a variable, whether a program can be run
+ * at all). What a kind DOES is the two modes' business: one case each in `codegen.ts` and `exec.ts`.
+ *
+ * Each visitor calls `visit` on the children it names, in the order they are evaluated, until one
+ * answers `true`, and answers whether one did — so a search stops early and a walk that wants
+ * every child answers `false`.
+ */
+export interface Shape<N> {
+    /** The node's operands: the expressions evaluated where the node itself is. */
+    exprs(node: N, visit: VisitExpr): boolean;
+    /** The blocks the node runs. */
+    blocks?(node: N, visit: VisitBlock): boolean;
+    /**
+     * What the node's blocks are to control flow. A `'loop'` is where `break` and `continue`
+     * stop. A `'function'` is a function of its own: `return` stops there, and no `break` or
+     * `continue` crosses it. Left out, the blocks belong to whatever encloses the node (`if`,
+     * `switch`).
+     */
+    body?: 'loop' | 'function';
+    /**
+     * Expressions that are the body of ANOTHER declaration (`subFn`): built by a Builder of their
+     * own, with their own inputs and their own variables.
+     */
+    inner?(node: N, visit: VisitExpr): boolean;
+}
+
+const none = (): boolean => false;
+const binary = (node: { a: Expr; b: Expr }, visit: VisitExpr): boolean => visit(node.a) || visit(node.b);
+const value = (node: { value: Expr }, visit: VisitExpr): boolean => visit(node.value);
+/** A key or an index is an operand only when it is not written into the node as a constant. */
+const operand = (part: string | number | Expr, visit: VisitExpr): boolean => typeof part === 'object' && visit(part);
+
+/**
+ * The shape of every expression kind. The record must name each member of {@link Expr} exactly
+ * once — a kind added to the union without a row here does not compile.
+ */
+export const EXPR_SHAPE: { [K in Expr['kind']]: Shape<Extract<Expr, { kind: K }>> } = {
+    lit: { exprs: none },
+    input: { exprs: none },
+    var: { exprs: none },
+    get: { exprs: (node, visit) => visit(node.obj) || operand(node.key, visit) },
+    at: { exprs: (node, visit) => visit(node.arr) || operand(node.index, visit) },
+    call: { exprs: (node, visit) => node.args.some(visit) },
+    new: { exprs: (node, visit) => node.args.some(visit) },
+    obj: { exprs: (node, visit) => node.entries.some(([key, entry]) => operand(key, visit) || visit(entry)) },
+    arr: { exprs: (node, visit) => node.elements.some(visit) },
+    eq: { exprs: binary },
+    neq: { exprs: binary },
+    lt: { exprs: binary },
+    gt: { exprs: binary },
+    lte: { exprs: binary },
+    gte: { exprs: binary },
+    not: { exprs: (node, visit) => visit(node.a) },
+    and: { exprs: binary },
+    or: { exprs: binary },
+    nullish: { exprs: binary },
+    typeof: { exprs: value },
+    isType: { exprs: value },
+    isNull: { exprs: value },
+    isNullish: { exprs: value },
+    has: { exprs: (node, visit) => visit(node.obj) || operand(node.key, visit) },
+    len: { exprs: value },
+    ternary: { exprs: (node, visit) => visit(node.cond) || visit(node.then) || visit(node.else) },
+    instanceof: { exprs: value },
+    concat: { exprs: (node, visit) => node.parts.some(visit) },
+    add: { exprs: binary },
+    sub: { exprs: binary },
+    mul: { exprs: binary },
+    div: { exprs: binary },
+    mod: { exprs: binary },
+    bitAnd: { exprs: binary },
+    bitOr: { exprs: binary },
+    bitXor: { exprs: binary },
+    shl: { exprs: binary },
+    shr: { exprs: binary },
+    ushr: { exprs: binary },
+    method: { exprs: (node, visit) => visit(node.obj) || node.args.some(visit) },
+    map: { exprs: (node, visit) => visit(node.arr), blocks: (node, visit) => visit(node.body), body: 'function' },
+    subFn: { exprs: (node, visit) => visit(node.arg), inner: (node, visit) => visit(node.body) },
+};
+
+/** The shape of every statement kind — held complete the same way as {@link EXPR_SHAPE}. */
+export const STMT_SHAPE: { [K in Stmt['kind']]: Shape<Extract<Stmt, { kind: K }>> } = {
+    let: { exprs: (node, visit) => visit(node.expr) },
+    set: { exprs: (node, visit) => visit(node.obj) || operand(node.key, visit) || visit(node.value) },
+    push: { exprs: (node, visit) => visit(node.arr) || visit(node.value) },
+    setVar: { exprs: value },
+    exec: { exprs: (node, visit) => visit(node.expr) },
+    return: { exprs: (node, visit) => node.value !== undefined && visit(node.value) },
+    throw: { exprs: (node, visit) => visit(node.error) },
+    if: {
+        exprs: (node, visit) => visit(node.cond),
+        blocks: (node, visit) => visit(node.then) || (node.else !== undefined && visit(node.else)),
+    },
+    loop: {
+        exprs: (node, visit) =>
+            (node.arr !== undefined && visit(node.arr)) ||
+            (node.start !== undefined && visit(node.start)) ||
+            (node.end !== undefined && visit(node.end)),
+        blocks: (node, visit) => visit(node.body),
+        body: 'loop',
+    },
+    forIn: { exprs: (node, visit) => visit(node.obj), blocks: (node, visit) => visit(node.body), body: 'loop' },
+    forOf: { exprs: (node, visit) => visit(node.iterable), blocks: (node, visit) => visit(node.body), body: 'loop' },
+    switch: {
+        exprs: value,
+        blocks: (node, visit) =>
+            node.cases.some(([, block]) => visit(block)) || (node.default !== undefined && visit(node.default)),
+    },
+    while: { exprs: (node, visit) => visit(node.cond), blocks: (node, visit) => visit(node.body), body: 'loop' },
+    break: { exprs: none },
+    continue: { exprs: none },
+};
+
+/** The shape of `expr`, read from the table. */
+export function shapeOfExpr(expr: Expr): Shape<Expr> {
+    return EXPR_SHAPE[expr.kind] as Shape<Expr>;
+}
+
+/** The shape of `stmt`, read from the table. */
+export function shapeOfStmt(stmt: Stmt): Shape<Stmt> {
+    return STMT_SHAPE[stmt.kind] as Shape<Stmt>;
+}
+
+/** Every expression kind, as a runtime list: the rows of {@link EXPR_SHAPE}, in their order. */
+export const EXPR_KINDS = Object.keys(EXPR_SHAPE) as Expr['kind'][];
+
+/** Every statement kind, as a runtime list: the rows of {@link STMT_SHAPE}, in their order. */
+export const STMT_KINDS = Object.keys(STMT_SHAPE) as Stmt['kind'][];
