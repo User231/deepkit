@@ -182,7 +182,8 @@ describe('jit mode: what it does not cover', () => {
                 if (statSync(path).isDirectory()) walk(path);
                 else if (name.endsWith('.ts') && !name.endsWith('.d.ts') && !name.endsWith('.spec.ts')) {
                     const file = relative(packages, path).split('\\').join('/');
-                    if (file === 'core/src/jit.ts') continue;
+                    // Where it is declared.
+                    if (file === 'core/src/jit/entry.ts') continue;
                     readFileSync(path, 'utf8')
                         .split('\n')
                         .forEach((line, index) => {

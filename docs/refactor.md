@@ -11,7 +11,7 @@ deliberately dropped the rest. Summary so nobody re-derives intent from the old 
 
 ## What landed (on this fork's `master`)
 
-- **JIT/CSP prerequisite — DONE.** v2 `core/src/jit.ts`: expression-tree Builder, tiered
+- **JIT/CSP prerequisite — DONE.** v2 `core/src/jit/`: expression-tree Builder, tiered
   execution (interpret first, compile hot paths), `canJIT` runtime detection with a
   transparent closure-executor fallback where `new Function` is blocked (strict CSP,
   Cloudflare Workers, `--disallow-code-generation-from-strings`). 2026-07-28: `fnJITTop()`

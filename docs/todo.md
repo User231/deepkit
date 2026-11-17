@@ -26,7 +26,7 @@ let each consumer describe how it uses the framework.
 
 Landed and verified (see `CHANGELOG.md` for the full v2 record):
 
-- **v2 JIT** (`core/src/jit.ts`): tiered exec, `canJIT` fallback — CSP/Workers-safe. The last
+- **v2 JIT** (`core/src/jit/`, six modules since 2026-11-17 — `src/jit.ts` re-exports them): tiered exec, `canJIT` fallback — CSP/Workers-safe. The last
   CSP gap (`fnJITTop()` compiled unconditionally → `getBSONDeserializer` threw under blocked
   codegen) was fixed 2026-07-28; regression: `packages/bson/tests/csp-fallback.spec.ts`.
   Since 2026-11-16 the two modes are held to the SAME answer by

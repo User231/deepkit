@@ -5,6 +5,18 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## Unreleased
 
+### JIT: `core/src/jit.ts` is six modules
+
+No behaviour change. The 3,567-line file is `packages/core/src/jit/` now — `nodes.ts` (the tree),
+`runtime.ts` (what the environment allows, the configuration), `codegen.ts` (the compiled mode),
+`exec.ts` (the interpreted mode), `builder.ts` (`Builder`, `Ref`, `VarRef`), `entry.ts` (`fn`,
+`fnJIT`, `fnJITTop`, `fnExec`) and `index.ts` (the public surface) — and `src/jit.ts` re-exports
+it, so every import reads what it read. The code was moved, not edited: five declarations gained
+`export` for their neighbours (`CodeGenerator`, `createExecutor`, `interpretedValue`, and the
+`jitThreshold` / `jitDebug` bindings), none of them part of the package. What `@deepkit/core`
+exports, the declaration of every public name, the reflection data and the generated source (the
+golden files) are the same as before.
+
 ### JIT: the compiled and the interpreted mode give the same answer
 
 `@deepkit/core`'s JIT runs one expression tree two ways: compiled to source (`new Function`) and

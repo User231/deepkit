@@ -420,8 +420,11 @@ node --import @deepkit/run --test --test-name-pattern='onLoad' packages/type/tes
 
 `@deepkit/type` and `@deepkit/bson` build each function one of two ways: COMPILED (`new Function`)
 where the environment allows it, INTERPRETED where it does not (a browser under a strict CSP). A
-plain test run only ever compiles. After a change to `packages/core/src/jit.ts`, or to a
-serializer template in `type` / `bson`:
+plain test run only ever compiles. The JIT is `packages/core/src/jit/` (`src/jit.ts` re-exports
+it): `nodes.ts` the tree, `runtime.ts` the environment and the configuration, `codegen.ts` the
+compiled mode, `exec.ts` the interpreted mode, `builder.ts` how a tree is written, `entry.ts`
+`fn` / `fnJIT` / `fnJITTop` / `fnExec`, `index.ts` the public surface — each imports only the ones
+before it. After a change there, or to a serializer template in `type` / `bson`:
 
 ```bash
 npm run test:interpreted                                   # every suite with DEEPKIT_JIT_MODE=interpreted

@@ -38,10 +38,8 @@ type How =
 const SITES: Record<string, { count: number; how: How }[]> = {
     'core/src/compiler.ts': [{ count: 3, how: 'directive' }],
     'core/src/core.ts': [{ count: 2, how: 'class body' }],
-    'core/src/jit.ts': [
-        { count: 1, how: 'capability probe' },
-        { count: 1, how: 'directive' },
-    ],
+    'core/src/jit/codegen.ts': [{ count: 1, how: 'directive' }],
+    'core/src/jit/runtime.ts': [{ count: 1, how: 'capability probe' }],
     'sql/src/sql-builder.ts': [{ count: 1, how: 'directive' }],
     'bench/index.ts': [{ count: 2, how: 'directive' }],
     'postgres/src/postgres-schema-parser.ts': [{ count: 1, how: 'direct eval in a module' }],
