@@ -138,3 +138,53 @@ test('tuple single element', () => {
     expect(deserializeBSON<T>(serialize({ v: [34] }))).toEqual({ v: [34] });
     expect(deserializeBSON<T>(serialize({ v: ['44'] }))).toEqual({ v: [44] });
 });
+
+// The rows of a top-level array were decoded by a document body emitted INTO the array's
+// function, with the fast path that expects the declared field order. That path leaves by
+// `return` when a row does not match — which, inlined, left the ARRAY's function: the decoded
+// "array" was the first such row's `[value, offset]`. Our own serializer writes the declared
+// order, so it took another writer (or a newer one, with one more field) to show.
+test('a top-level array of rows whose fields are out of order, or unknown to the type', () => {
+    interface Row {
+        id: number;
+        name: string;
+    }
+    const rows: Row[] = [
+        { id: 1, name: 'a' },
+        { id: 2, name: 'b' },
+        { id: 3, name: 'c' },
+    ];
+    const deserializer = getBSONDeserializer<Row[]>();
+    // bson-js frames a root array like any document: keys "0", "1", …
+    const inOrder = serialize({ 0: rows[0], 1: rows[1], 2: rows[2] });
+    const reordered = serialize({ 0: rows[0], 1: { name: 'b', id: 2 }, 2: rows[2] });
+    const unknownField = serialize({ 0: { _id: 9, id: 1, name: 'a' }, 1: rows[1], 2: { id: 3, name: 'c', added: true } });
+    expect(deserializer(inOrder)).toEqual(rows);
+    expect(deserializer(reordered)).toEqual(rows);
+    expect(deserializer(unknownField)).toEqual(rows);
+    // And again, once the decoder has seen all three.
+    expect(deserializer(reordered)).toEqual(rows);
+    expect(deserializer(inOrder)).toEqual(rows);
+});
+
+test('a top-level array of arrays of such rows', () => {
+    interface Row {
+        id: number;
+        name: string;
+    }
+    const deserializer = getBSONDeserializer<Row[][]>();
+    const bytes = serialize({
+        0: [{ name: 'a', id: 1 }],
+        1: [
+            { id: 2, name: 'b', added: true },
+            { id: 3, name: 'c' },
+        ],
+    });
+    expect(deserializer(bytes)).toEqual([
+        [{ id: 1, name: 'a' }],
+        [
+            { id: 2, name: 'b' },
+            { id: 3, name: 'c' },
+        ],
+    ]);
+});

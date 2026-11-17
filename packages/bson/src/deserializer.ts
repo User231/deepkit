@@ -3376,14 +3376,14 @@ function deserializeReferenceInto(
         b.eq(bsonType, b.lit(BSONType.OBJECT)),
         () => {
             // Full object — deserialize as class
-            if (ctx.shouldExtract(type)) {
+            if (cannotInlineDocumentBody(type, ctx)) {
                 const extractedFn = getExtractedDeserializer(type);
                 const result = b.let(b.call(extractedFn, buffer, b.getVar(o)), 'refObjResult');
                 b.setVar(target, b.at(result, 0));
                 b.setVar(o, b.at(result, 1));
             } else {
                 ctx.pushType(type);
-                const result = buildDocumentBody(b, buffer, b.getVar(o), type, ctx);
+                const result = buildDocumentBody(b, buffer, b.getVar(o), type, ctx, false, true);
                 const resultLet = b.let(result, 'refObjResult');
                 b.setVar(target, b.at(resultLet, 0));
                 b.setVar(o, b.at(resultLet, 1));
@@ -3403,6 +3403,25 @@ function deserializeReferenceInto(
 }
 
 /**
+ * Whether an object's document body must be a function of its own (getExtractedDeserializer)
+ * and cannot be emitted INTO the function being built.
+ *
+ * Beyond a recursive type and the depth limit (`shouldExtract`): at depth 0 the body is built
+ * with the unrolled fast path, and that path leaves — when a document's fields are out of order
+ * or one of them is unknown — by `return slowPath(...)`. That is only right where the body IS
+ * the function. Depth 0 is reached inline by the ROWS of a top-level array (`forIndex` keeps the
+ * depth), and there the `return` left the array's function with the first such row's
+ * `[value, offset]` as the decoded array. As a function of its own the row keeps the fast path
+ * and its `return` is its own.
+ *
+ * The inline body is built with `forceWhileLoop` for the same reason: it must never hold that
+ * `return`, whatever the depth rule becomes.
+ */
+function cannotInlineDocumentBody(type: TypeObjectLiteral | TypeClass, ctx: BSONBuildState): boolean {
+    return ctx.shouldExtract(type) || ctx.depth === 0;
+}
+
+/**
  * Deserialize an object/class type inline or via extracted function.
  */
 function deserializeObjectInto(
@@ -3417,16 +3436,16 @@ function deserializeObjectInto(
     b.if_(
         b.eq(bsonType, b.lit(BSONType.OBJECT)),
         () => {
-            if (ctx.shouldExtract(type)) {
+            if (cannotInlineDocumentBody(type, ctx)) {
                 // Use extracted deserializer
                 const extractedFn = getExtractedDeserializer(type);
                 const result = b.let(b.call(extractedFn, buffer, b.getVar(o)), 'extractedResult');
                 b.setVar(target, b.at(result, 0));
                 b.setVar(o, b.at(result, 1));
             } else {
-                // Inline
+                // Inline — as the while loop (see cannotInlineDocumentBody)
                 ctx.pushType(type);
-                const result = buildDocumentBody(b, buffer, b.getVar(o), type, ctx);
+                const result = buildDocumentBody(b, buffer, b.getVar(o), type, ctx, false, true);
                 const resultLet = b.let(result, 'objResult');
                 b.setVar(target, b.at(resultLet, 0));
                 b.setVar(o, b.at(resultLet, 1));
