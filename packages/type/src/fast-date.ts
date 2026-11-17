@@ -9,18 +9,6 @@
  */
 
 /** @reflection never */
-// Use the global Web Performance API rather than importing Node's `perf_hooks`:
-// `@deepkit/type` also runs in the browser, where bundlers externalize `perf_hooks`
-// and accessing it throws. `globalThis.performance` exists in browsers and Node >= 16.
-const performance = globalThis.performance;
-
-/**
- * Cached performance.timeOrigin — constant for the lifetime of the process.
- * Used by no-arg constructor: Math.floor(performanceTimeOrigin + performance.now())
- * gives epoch milliseconds ~2x faster than Date.now().
- */
-const performanceTimeOrigin: number = performance.timeOrigin;
-
 /**
  * A high-performance replacement for Date that defers real Date object creation
  * until a method requiring it is called (e.g., toISOString, getFullYear).
@@ -42,7 +30,10 @@ export class FastDate {
     constructor();
     constructor(ms: number);
     constructor(ms?: number) {
-        this._ms = ms !== undefined ? ms : Math.floor(performanceTimeOrigin + performance.now());
+        // The present is the wall clock, the one `new Date()` and `Date.now()` read. Until 2026-11-16
+        // this read `performance.timeOrigin + performance.now()`, a different clock: one reading in
+        // about 60,000 was a millisecond behind `Date.now()`, and it was not faster either.
+        this._ms = ms !== undefined ? ms : Date.now();
     }
 
     private _get(): Date {

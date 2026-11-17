@@ -15,9 +15,18 @@ test('no-arg constructor gives current time', () => {
     const before = Date.now();
     const fd = new FastDate();
     const after = Date.now();
-    // FastDate() should be within the Date.now() window
+    // The same clock as Date.now(), so the reading sits inside the window with no tolerance.
     expect(fd.getTime()).toBeGreaterThanOrEqual(before);
-    expect(fd.getTime()).toBeLessThanOrEqual(after + 1); // +1ms tolerance
+    expect(fd.getTime()).toBeLessThanOrEqual(after);
+});
+
+test('no-arg constructor never reads behind Date.now()', () => {
+    // 200,000 readings: the performance clock this used to read fell 1 ms behind in a handful of them.
+    for (let i = 0; i < 200_000; i++) {
+        const before = Date.now();
+        const ms = new FastDate().getTime();
+        if (ms < before || ms > Date.now()) expect({ at: i, before, ms }).toBe('inside the window');
+    }
 });
 
 test('instanceof Date', () => {

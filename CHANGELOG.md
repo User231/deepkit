@@ -65,6 +65,15 @@ The other two places that built sloppy functions carry the directive too — the
 did. `packages/core/tests/generated-code-strict.spec.ts` lists every place in the shipped source
 that builds code from a string, with how it is strict, and fails on one that is not listed.
 
+### `new FastDate()` reads the wall clock
+
+The no-argument constructor read `performance.timeOrigin + performance.now()`, a different clock
+from the one `new Date()` and `Date.now()` read: about one reading in 60,000 was a millisecond
+BEHIND `Date.now()` (a flaky `fast-date.spec.ts`), and after a clock step the two drift apart for
+the life of the process. It reads `Date.now()` now. The comment's "~2x faster than Date.now()"
+did not hold: 26.6 ns against 24.4 ns for `Date.now()` on Node 26. `new FastDate(ms)`, the path
+the BSON decoder uses, is unchanged.
+
 ### Standard (TC39) decorators supported — `experimentalDecorators` remains supported
 
 All deepkit decorators (`@entity`, `@http.*`, `@rpc.*`, `@cli`, `@eventDispatcher.listen`, `@t`,
