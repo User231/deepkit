@@ -686,6 +686,57 @@ let jitThreshold = (() => {
 
 let jitDebug = false;
 
+/**
+ * Which way a function is run when the entry point has a choice ({@link fn}, {@link fnJITTop}).
+ *
+ * - `'auto'` (the default): compiled where the environment allows code generation
+ *   ({@link canJIT}), interpreted where it does not (a strict CSP).
+ * - `'interpreted'`: interpreted, as in such an environment, although this one could compile.
+ *
+ * `'interpreted'` exists for TESTS: the interpreter is what a browser under a strict CSP runs, and
+ * a suite that only ever compiles never executes it. Blocking code generation for a whole process
+ * (`--disallow-code-generation-from-strings`) does the same and more — it also stops everything
+ * else that builds code from a string (`CompilerContext`, a benchmark harness, a test's own
+ * tooling) — so a suite that needs those beside it uses this switch instead.
+ *
+ * It decides when a function is BUILT; functions are cached per type, so set it before the first
+ * one: `DEEPKIT_JIT_MODE=interpreted` in the environment, or {@link setJitMode} at the top of a
+ * test setup. {@link fnJIT} is an explicit request to compile and ignores it — no shipped
+ * package calls it. There is no `'compiled'` mode to force: where code generation is blocked
+ * nothing can.
+ */
+export type JitMode = 'auto' | 'interpreted';
+
+const JIT_MODES: readonly JitMode[] = ['auto', 'interpreted'];
+
+function jitModeOf(value: string, source: string): JitMode {
+    const mode = JIT_MODES.find(candidate => candidate === value);
+    // A misspelt mode must not quietly run the suite compiled and report the interpreter tested.
+    if (!mode)
+        throw new TypeError(
+            `${source}: unknown JIT mode ${JSON.stringify(value)} (expected ${JIT_MODES.map(m => `'${m}'`).join(' or ')})`,
+        );
+    return mode;
+}
+
+let jitMode: JitMode = (() => {
+    const fromEnv = typeof process !== 'undefined' ? process.env?.DEEPKIT_JIT_MODE : undefined;
+    return fromEnv ? jitModeOf(fromEnv, 'DEEPKIT_JIT_MODE') : 'auto';
+})();
+
+export function setJitMode(mode: JitMode): void {
+    jitMode = jitModeOf(mode, 'setJitMode');
+}
+
+export function getJitMode(): JitMode {
+    return jitMode;
+}
+
+/** Whether a function built NOW is compiled: the environment allows it and the mode does not forbid it. */
+export function compilesFunctions(): boolean {
+    return canJIT && jitMode !== 'interpreted';
+}
+
 export function setJitThreshold(threshold: number): void {
     jitThreshold = threshold;
 }
@@ -2260,7 +2311,7 @@ function interpretDefinition<R>(def: FnDefinition): (...args: any[]) => R {
  * Where code generation is allowed the function is compiled — at once by default, or, when a
  * threshold is set ({@link setJitThreshold}, `DEEPKIT_JIT_THRESHOLD`), interpreted for its first
  * calls and compiled when it reaches the threshold. Where `new Function` is blocked (a strict
- * CSP) it is always interpreted.
+ * CSP), or the mode is `'interpreted'` ({@link JitMode}), it is always interpreted.
  */
 export function fn<R>(...args: any[]): (...args: any[]) => R {
     const def = declare(args);
@@ -2270,8 +2321,8 @@ export function fn<R>(...args: any[]): (...args: any[]) => R {
         return def.parent.registerNestedFn(def.block, def.inputNames, def.inputDefaults) as any;
     }
 
-    // Code generation is blocked: interpret.
-    if (!canJIT) {
+    // Code generation is blocked, or the mode says interpret.
+    if (!compilesFunctions()) {
         return interpretDefinition<R>(def);
     }
 
@@ -2328,7 +2379,7 @@ export function fnJITTop<R>(...args: any[]): (...args: any[]) => R {
 
     // CSP environment: compilation units don't exist in exec mode, so the
     // isolation this function provides is moot — fall back like fn() does.
-    if (!canJIT) {
+    if (!compilesFunctions()) {
         return interpretDefinition<R>(def);
     }
 

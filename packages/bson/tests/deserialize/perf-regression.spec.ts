@@ -24,6 +24,7 @@ import * as bson from 'bson';
 import { describe, test } from 'node:test';
 
 import { BenchSuite } from '@deepkit/bench';
+import { compilesFunctions } from '@deepkit/core';
 import { expect } from '@deepkit/run/expect';
 import { MongoId, UUID, float64, int32 } from '@deepkit/type';
 
@@ -60,7 +61,15 @@ function bsonBuffer<T>(serialize: (data: T) => [Uint8Array, number], data: T): U
     return buf.slice(0, size);
 }
 
-describe('Deserialization Performance Regression', () => {
+/**
+ * These tests compare the COMPILED functions with bson-js. Where functions are interpreted
+ * (`DEEPKIT_JIT_MODE=interpreted`, or an environment that blocks code generation, where the
+ * benchmark harness cannot run either) there is nothing here to compare: the interpreter is slower
+ * than bson-js by design and is measured by `benchmarks/modes.ts`.
+ */
+const SKIP_UNLESS_COMPILED = compilesFunctions() ? false : 'compares the compiled functions with bson-js; this run interprets';
+
+describe('Deserialization Performance Regression', { skip: SKIP_UNLESS_COMPILED }, () => {
     describe('Primitive types (single field)', () => {
         test('int32', () => {
             interface Doc {
