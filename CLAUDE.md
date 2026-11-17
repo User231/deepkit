@@ -440,6 +440,14 @@ A new expression or statement kind lands with its row in `core/tests/jit-differe
 (both modes must agree) — the golden text for it follows from the same row. A new place that
 builds code from a string is listed in `core/tests/generated-code-strict.spec.ts`.
 
+**A function built on the side and called from plain JavaScript is `fnJITTop`, never `fn`.**
+Called while another function is being declared, `fn()` registers a NESTED function and returns
+a marker; only generated code that references the marker gets a compiled call, and a marker
+called from a closure, a cache or a handle runs in the interpreter, in a process that compiles
+(2026-11-16: `bson`'s extracted deserializer and serializer — a decode 50× slower, with no
+error). `bson/tests/extracted-functions.spec.ts` holds the symptom in the text: no unit declares
+a nested function it does not call.
+
 See `docs/TESTING.md` for test strategy and edge cases.
 
 ## Performance

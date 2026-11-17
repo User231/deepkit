@@ -592,4 +592,53 @@ describe('Performance Regression', { skip: SKIP_UNLESS_COMPILED }, () => {
             assertRatio('number[] 100', results['deepkit'].hz, results['bson-js'].hz, 3);
         });
     });
+
+    /**
+     * A type that names itself is serialized by a function of its own (the extracted serializer),
+     * reached through a plain JavaScript wrapper. It was built with `fn()` inside the declaration
+     * of the function that references it, which made it a nested-function marker — and a marker
+     * called from plain JavaScript runs in the INTERPRETER: this tree took 52 µs against 0.65 µs
+     * for the same data typed flat, slower than bson-js.
+     */
+    describe('Recursive types', () => {
+        test('a tree (50 nodes)', () => {
+            interface TreeNode {
+                id: number;
+                name: string;
+                children: TreeNode[];
+            }
+            interface Flat {
+                id: number;
+                name: string;
+                children: { id: number; name: string; children: { id: number; name: string; children: never[] }[] }[];
+            }
+            const tree: TreeNode = {
+                id: 0,
+                name: 'root',
+                children: Array.from({ length: 7 }, (_, i) => ({
+                    id: i,
+                    name: 'mid',
+                    children: Array.from({ length: 6 }, (_, j) => ({ id: j, name: 'leaf', children: [] })),
+                })),
+            };
+            const recursive = getBSONSerializer<TreeNode>();
+            const flat = getBSONSerializer<Flat>();
+
+            const suite = new BenchSuite('recursive tree');
+            suite.add('deepkit', () => recursive(tree));
+            suite.add('deepkit flat', () => flat(tree as Flat));
+            suite.add('bson-js', () => bson.serialize(tree));
+            const results = suite.run({ verbose: false });
+
+            assertRatio('recursive tree 50', results['deepkit'].hz, results['bson-js'].hz, 2);
+
+            // Against the same data typed without the recursion — two of our own functions, so
+            // always asserted. A call per node costs 3–4x; interpreted it was 80x.
+            const factor = results['deepkit flat'].hz / results['deepkit'].hz;
+            console.log(`${''.padEnd(30)} ${factor.toFixed(2).padStart(6)}x the time of the same data typed flat`);
+            if (factor > 12) {
+                throw new Error(`recursive tree: ${factor.toFixed(1)}x the time of the same data typed flat (limit 12x) — the recursive type's serializer is not compiled.`);
+            }
+        });
+    });
 });

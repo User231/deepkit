@@ -560,4 +560,152 @@ describe('Deserialization Performance Regression', { skip: SKIP_UNLESS_COMPILED 
             assertRatio('number[] 100', results['deepkit'].hz, results['bson-js'].hz, 1.5);
         });
     });
+
+    /**
+     * 50 rows as an array PROPERTY, against bson-js and against the same rows as a top-level
+     * array. The two are different code: a property's rows are decoded by the row type's
+     * shape-learning handle, and where no shape can be compiled for them (a literal union, a
+     * Record) by its slow path — the extracted deserializer. That function was built with `fn()`
+     * inside another function's declaration and called from plain JavaScript, where it ran in the
+     * INTERPRETER: `{ rows: Full[] }` took 580 µs against 11 µs for `Full[]`, slower than bson-js.
+     *
+     * The comparison with `T[]` is always asserted: it is two of our own functions over the same
+     * rows on the same machine, and the defect was a factor of 5 to 55, not a margin.
+     */
+    describe('Rows in an array property', () => {
+        interface Tag {
+            id: number;
+            label: string;
+        }
+        interface Full {
+            id: number;
+            name: string;
+            active: boolean;
+            score?: number;
+            created: Date;
+            tags: Tag[];
+            meta: Record<string, string | number>;
+            kind: 'a' | 'b' | 'c';
+        }
+        type WithoutKind = Omit<Full, 'kind'>;
+        type WithoutMeta = Omit<Full, 'meta'>;
+        type WithoutBoth = Omit<Full, 'meta' | 'kind'>;
+        interface KindUnion {
+            id: number;
+            kind: 'a' | 'b' | 'c';
+        }
+        interface KindString {
+            id: number;
+            kind: string;
+        }
+        interface MetaRecord {
+            id: number;
+            meta: Record<string, string>;
+        }
+        interface Plain {
+            id: number;
+            name: string;
+            active: boolean;
+        }
+
+        const FULL: Full[] = Array.from({ length: 50 }, (_, i) => ({
+            id: i,
+            name: 'hello world',
+            active: true,
+            score: 1.5,
+            created: new Date(1705314600000 + i),
+            tags: [
+                { id: 1, label: 'x' },
+                { id: 2, label: 'y' },
+                { id: 3, label: 'z' },
+            ],
+            meta: { a: 'b', c: 2, d: 'e' },
+            kind: 'b',
+        }));
+
+        /** `{ rows: T[] }` may cost this many times `T[]`, measured at 1.0–1.3. */
+        const MAX_FACTOR = 3;
+
+        /**
+         * The functions are passed in built: a generic function has no runtime type to build them with.
+         * `minRatio` is the strict (BENCH_STRICT=1) floor against bson-js.
+         */
+        function rows<T>(
+            name: string,
+            data: T[],
+            top: { serialize: (value: T[]) => [Uint8Array, number]; deserialize: (bytes: Uint8Array) => unknown },
+            property: { serialize: (value: { rows: T[] }) => [Uint8Array, number]; deserialize: (bytes: Uint8Array) => unknown },
+            minRatio: number,
+        ): void {
+            test(name, () => {
+                const topBytes = bsonBuffer(top.serialize, data);
+                const propertyBytes = bsonBuffer(property.serialize, { rows: data });
+
+                const suite = new BenchSuite(name);
+                suite.add('deepkit', () => property.deserialize(propertyBytes), { maxTime: 0.3 });
+                suite.add('deepkit top-level', () => top.deserialize(topBytes), { maxTime: 0.3 });
+                suite.add('bson-js', () => bson.deserialize(propertyBytes), { maxTime: 0.3 });
+                const results = suite.run({ verbose: false });
+
+                assertRatio(name, results['deepkit'].hz, results['bson-js'].hz, minRatio);
+
+                const factor = results['deepkit top-level'].hz / results['deepkit'].hz;
+                console.log(`${''.padEnd(30)} ${factor.toFixed(2).padStart(6)}x the time of the same rows as a top-level array`);
+                if (factor > MAX_FACTOR) {
+                    throw new Error(`${name}: ${factor.toFixed(1)}x the time of the same rows as a top-level array (limit ${MAX_FACTOR}x) — the rows of an array property are not on a compiled path.`);
+                }
+            });
+        }
+
+        rows<Full>('{ rows: Full[] }', FULL, { serialize: getBSONSerializer<Full[]>(), deserialize: getBSONDeserializer<Full[]>() }, { serialize: getBSONSerializer<{ rows: Full[] }>(), deserialize: getBSONDeserializer<{ rows: Full[] }>() }, 2);
+        rows<WithoutKind>(
+            "{ rows: Omit<Full, 'kind'>[] }",
+            FULL.map(({ kind, ...row }) => row),
+            { serialize: getBSONSerializer<WithoutKind[]>(), deserialize: getBSONDeserializer<WithoutKind[]>() },
+            { serialize: getBSONSerializer<{ rows: WithoutKind[] }>(), deserialize: getBSONDeserializer<{ rows: WithoutKind[] }>() },
+            2,
+        );
+        rows<WithoutMeta>(
+            "{ rows: Omit<Full, 'meta'>[] }",
+            FULL.map(({ meta, ...row }) => row),
+            { serialize: getBSONSerializer<WithoutMeta[]>(), deserialize: getBSONDeserializer<WithoutMeta[]>() },
+            { serialize: getBSONSerializer<{ rows: WithoutMeta[] }>(), deserialize: getBSONDeserializer<{ rows: WithoutMeta[] }>() },
+            2,
+        );
+        rows<WithoutBoth>(
+            "{ rows: Omit<Full, 'meta' | 'kind'>[] }",
+            FULL.map(({ meta, kind, ...row }) => row),
+            { serialize: getBSONSerializer<WithoutBoth[]>(), deserialize: getBSONDeserializer<WithoutBoth[]>() },
+            { serialize: getBSONSerializer<{ rows: WithoutBoth[] }>(), deserialize: getBSONDeserializer<{ rows: WithoutBoth[] }>() },
+            2,
+        );
+        rows<KindUnion>(
+            "{ rows: { id; kind: 'a' | 'b' | 'c' }[] }",
+            FULL.map(row => ({ id: row.id, kind: row.kind })),
+            { serialize: getBSONSerializer<KindUnion[]>(), deserialize: getBSONDeserializer<KindUnion[]>() },
+            { serialize: getBSONSerializer<{ rows: KindUnion[] }>(), deserialize: getBSONDeserializer<{ rows: KindUnion[] }>() },
+            2,
+        );
+        rows<KindString>(
+            '{ rows: { id; kind: string }[] }',
+            FULL.map(row => ({ id: row.id, kind: row.kind })),
+            { serialize: getBSONSerializer<KindString[]>(), deserialize: getBSONDeserializer<KindString[]>() },
+            { serialize: getBSONSerializer<{ rows: KindString[] }>(), deserialize: getBSONDeserializer<{ rows: KindString[] }>() },
+            2,
+        );
+        rows<MetaRecord>(
+            '{ rows: { id; meta: Record<string, string> }[] }',
+            FULL.map(row => ({ id: row.id, meta: { a: 'b', d: 'e' } })),
+            { serialize: getBSONSerializer<MetaRecord[]>(), deserialize: getBSONDeserializer<MetaRecord[]>() },
+            { serialize: getBSONSerializer<{ rows: MetaRecord[] }>(), deserialize: getBSONDeserializer<{ rows: MetaRecord[] }>() },
+            1.5,
+        );
+        rows<Plain>(
+            '{ rows: { id; name; active }[] }',
+            FULL.map(row => ({ id: row.id, name: row.name, active: row.active })),
+            { serialize: getBSONSerializer<Plain[]>(), deserialize: getBSONDeserializer<Plain[]>() },
+            { serialize: getBSONSerializer<{ rows: Plain[] }>(), deserialize: getBSONDeserializer<{ rows: Plain[] }>() },
+            2,
+        );
+    });
 });

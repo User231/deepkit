@@ -7,7 +7,7 @@
  *
  * You should have received a copy of the MIT License along with this program.
  */
-import { Builder, Ref, VarRef, arg, fn, stringifyValueWithType } from '@deepkit/core';
+import { Builder, Ref, VarRef, arg, fn, fnJITTop, stringifyValueWithType } from '@deepkit/core';
 import {
     BinaryBigIntType,
     NamingStrategy,
@@ -1993,8 +1993,13 @@ function getExtractedSerializer(type: TypeObjectLiteral | TypeClass): SerializeF
     const wrapper: SerializeFn = (buffer, view, offset, data) => holder.fn!(buffer, view, offset, data);
     extractedSerializerCache.set(type, wrapper);
 
-    // Build the real serializer function
-    holder.fn = fn(
+    // Build the real serializer function — as a compilation unit of its OWN (fnJITTop), never fn().
+    // This runs while the function that references the recursive type is being declared, where
+    // fn() registers a NESTED function and hands back a marker. Generated code reaches this one
+    // through `wrapper`, plain JavaScript, and a marker called from plain JavaScript runs in the
+    // INTERPRETER: a recursive type serialized 80x slower than the same data typed flat.
+    // (The decoder's twin: getExtractedDeserializer.)
+    holder.fn = fnJITTop(
         arg<Uint8Array>('buffer'),
         arg<DataView>('view'),
         arg<number>('offset'),

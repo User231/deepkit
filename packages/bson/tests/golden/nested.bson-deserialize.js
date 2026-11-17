@@ -45,6 +45,88 @@ result_10.r=r_6;
 return [result_10,(end_3+1)];
 }
 
+// externals: skipValue_0, const_0, readDouble_0, nanToZero_0, readNumberValue_0, fn_0
+'use strict';
+function _nfn_0(buffer,o,ft){
+var ho_3=o;
+var val_4="circle";
+val_4="circle";
+ho_3=skipValue_0(buffer,ho_3,ft);
+const_0[0]=val_4;
+const_0[1]=ho_3;
+return;
+}
+function _nfn_1(buffer,o,end){
+if(o<end){
+    var ft_3=buffer[o];
+    if(ft_3!==0&&buffer[(o+1)]===107&&buffer[(o+2)]===105&&buffer[(o+3)]===110&&buffer[(o+4)]===100&&buffer[(o+5)]===0){
+        var do_4=(o+6);
+        _nfn_0(buffer,do_4,ft_3);
+        return;
+    }
+}
+const_0[0]="circle";
+const_0[1]=o;
+}
+function _nfn_2(buffer,o,ft){
+var ho_3=o;
+var val_4=0;
+if(ft===16){
+    val_4=((buffer[ho_3]|(buffer[(ho_3+1)]<<8))|((buffer[(ho_3+2)]<<16)|(buffer[(ho_3+3)]<<24)));
+    ho_3+=4;
+}else{
+    if(ft===1){
+        var dblVal_5=readDouble_0(buffer,ho_3);
+        val_4=nanToZero_0(dblVal_5);
+        ho_3+=8;
+    }else{
+        var numFallback_6=readNumberValue_0(buffer,ho_3,ft);
+        val_4=numFallback_6[0];
+        ho_3+=numFallback_6[1];
+    }
+}
+const_0[0]=val_4;
+const_0[1]=ho_3;
+return;
+}
+function _nfn_3(buffer,o,end){
+if(o<end){
+    var ft_3=buffer[o];
+    if(ft_3!==0&&buffer[(o+1)]===114&&buffer[(o+2)]===0){
+        var do_4=(o+3);
+        if(ft_3===16){
+            const_0[0]=((buffer[do_4]|(buffer[(do_4+1)]<<8))|((buffer[(do_4+2)]<<16)|(buffer[(do_4+3)]<<24)));
+            const_0[1]=(do_4+4);
+            return;
+        }
+        _nfn_2(buffer,do_4,ft_3);
+        return;
+    }
+}
+const_0[0]=0;
+const_0[1]=o;
+}
+return function(buffer,offset){
+var docSize_2=((buffer[offset]|(buffer[(offset+1)]<<8))|((buffer[(offset+2)]<<16)|(buffer[(offset+3)]<<24)));
+var end_3=(offset+(docSize_2-1));
+var o_4=(offset+4);
+var kind_5="circle";
+var r_6=0;
+_nfn_1(buffer,o_4,end_3);
+kind_5=const_0[0];
+o_4=const_0[1];
+_nfn_3(buffer,o_4,end_3);
+r_6=const_0[0];
+o_4=const_0[1];
+if(buffer[o_4]!==0){
+    return fn_0(buffer,offset);
+}
+var result_7={};
+result_7.kind=kind_5;
+result_7.r=r_6;
+return [result_7,(end_3+1)];
+}
+
 // externals: skipValue_0, readDouble_0, nanToZero_0, readNumberValue_0, skipCString_0
 'use strict';
 return function(buffer,offset){
@@ -110,6 +192,131 @@ result_13.kind=kind_5;
 result_13.w=w_6;
 result_13.h=h_7;
 return [result_13,(end_3+1)];
+}
+
+// externals: skipValue_0, const_0, readDouble_0, nanToZero_0, readNumberValue_0, fn_0
+'use strict';
+function _nfn_4(buffer,o,ft){
+var ho_3=o;
+var val_4="rect";
+val_4="rect";
+ho_3=skipValue_0(buffer,ho_3,ft);
+const_0[0]=val_4;
+const_0[1]=ho_3;
+return;
+}
+function _nfn_5(buffer,o,end){
+if(o<end){
+    var ft_3=buffer[o];
+    if(ft_3!==0&&buffer[(o+1)]===107&&buffer[(o+2)]===105&&buffer[(o+3)]===110&&buffer[(o+4)]===100&&buffer[(o+5)]===0){
+        var do_4=(o+6);
+        _nfn_4(buffer,do_4,ft_3);
+        return;
+    }
+}
+const_0[0]="rect";
+const_0[1]=o;
+}
+function _nfn_6(buffer,o,ft){
+var ho_3=o;
+var val_4=0;
+if(ft===16){
+    val_4=((buffer[ho_3]|(buffer[(ho_3+1)]<<8))|((buffer[(ho_3+2)]<<16)|(buffer[(ho_3+3)]<<24)));
+    ho_3+=4;
+}else{
+    if(ft===1){
+        var dblVal_5=readDouble_0(buffer,ho_3);
+        val_4=nanToZero_0(dblVal_5);
+        ho_3+=8;
+    }else{
+        var numFallback_6=readNumberValue_0(buffer,ho_3,ft);
+        val_4=numFallback_6[0];
+        ho_3+=numFallback_6[1];
+    }
+}
+const_0[0]=val_4;
+const_0[1]=ho_3;
+return;
+}
+function _nfn_7(buffer,o,end){
+if(o<end){
+    var ft_3=buffer[o];
+    if(ft_3!==0&&buffer[(o+1)]===119&&buffer[(o+2)]===0){
+        var do_4=(o+3);
+        if(ft_3===16){
+            const_0[0]=((buffer[do_4]|(buffer[(do_4+1)]<<8))|((buffer[(do_4+2)]<<16)|(buffer[(do_4+3)]<<24)));
+            const_0[1]=(do_4+4);
+            return;
+        }
+        _nfn_6(buffer,do_4,ft_3);
+        return;
+    }
+}
+const_0[0]=0;
+const_0[1]=o;
+}
+function _nfn_8(buffer,o,ft){
+var ho_3=o;
+var val_4=0;
+if(ft===16){
+    val_4=((buffer[ho_3]|(buffer[(ho_3+1)]<<8))|((buffer[(ho_3+2)]<<16)|(buffer[(ho_3+3)]<<24)));
+    ho_3+=4;
+}else{
+    if(ft===1){
+        var dblVal_5=readDouble_0(buffer,ho_3);
+        val_4=nanToZero_0(dblVal_5);
+        ho_3+=8;
+    }else{
+        var numFallback_6=readNumberValue_0(buffer,ho_3,ft);
+        val_4=numFallback_6[0];
+        ho_3+=numFallback_6[1];
+    }
+}
+const_0[0]=val_4;
+const_0[1]=ho_3;
+return;
+}
+function _nfn_9(buffer,o,end){
+if(o<end){
+    var ft_3=buffer[o];
+    if(ft_3!==0&&buffer[(o+1)]===104&&buffer[(o+2)]===0){
+        var do_4=(o+3);
+        if(ft_3===16){
+            const_0[0]=((buffer[do_4]|(buffer[(do_4+1)]<<8))|((buffer[(do_4+2)]<<16)|(buffer[(do_4+3)]<<24)));
+            const_0[1]=(do_4+4);
+            return;
+        }
+        _nfn_8(buffer,do_4,ft_3);
+        return;
+    }
+}
+const_0[0]=0;
+const_0[1]=o;
+}
+return function(buffer,offset){
+var docSize_2=((buffer[offset]|(buffer[(offset+1)]<<8))|((buffer[(offset+2)]<<16)|(buffer[(offset+3)]<<24)));
+var end_3=(offset+(docSize_2-1));
+var o_4=(offset+4);
+var kind_5="rect";
+var w_6=0;
+var h_7=0;
+_nfn_5(buffer,o_4,end_3);
+kind_5=const_0[0];
+o_4=const_0[1];
+_nfn_7(buffer,o_4,end_3);
+w_6=const_0[0];
+o_4=const_0[1];
+_nfn_9(buffer,o_4,end_3);
+h_7=const_0[0];
+o_4=const_0[1];
+if(buffer[o_4]!==0){
+    return fn_0(buffer,offset);
+}
+var result_8={};
+result_8.kind=kind_5;
+result_8.w=w_6;
+result_8.h=h_7;
+return [result_8,(end_3+1)];
 }
 
 // externals: const_0, readDouble_0, nanToZero_0, readNumberValue_0, readInt32LE_0, skipCString_0, readBSONStringDirect_0, readStringValue_0, skipValue_0, makeBsonConversionError_0, create_0, readCStringHelper_0, makeUnionNoMatchError_0, fn_0, makeUndefinedConversionError_0
@@ -458,9 +665,9 @@ if(owner_10!==const_0){
 return result_65;
 }
 
-// externals: readDouble_0, nanToZero_0, readNumberValue_0, const_0, const_1, readInt32LE_0, skipCString_0, readBSONStringDirect_0, readStringValue_0, skipValue_0, makeBsonConversionError_0, create_0, readCStringHelper_0, makeUnionNoMatchError_0, const_2, fn_0, const_3, fn_1, fn_2, fn_3, makeUndefinedConversionError_0
+// externals: readDouble_0, nanToZero_0, readNumberValue_0, const_0, const_1, readInt32LE_0, skipCString_0, readBSONStringDirect_0, readStringValue_0, skipValue_0, makeBsonConversionError_0, create_0, readCStringHelper_0, makeUnionNoMatchError_0, fn_0, fn_1, makeUndefinedConversionError_0
 'use strict';
-function _nfn_0(buffer,o,ft){
+function _nfn_10(buffer,o,ft){
 var ho_3=o;
 var val_4=0;
 if(ft===16){
@@ -481,7 +688,7 @@ const_0[0]=val_4;
 const_0[1]=ho_3;
 return;
 }
-function _nfn_1(buffer,o,end){
+function _nfn_11(buffer,o,end){
 if(o<end){
     var ft_3=buffer[o];
     if(ft_3!==0&&buffer[(o+1)]===105&&buffer[(o+2)]===100&&buffer[(o+3)]===0){
@@ -491,14 +698,14 @@ if(o<end){
             const_0[1]=(do_4+4);
             return;
         }
-        _nfn_0(buffer,do_4,ft_3);
+        _nfn_10(buffer,do_4,ft_3);
         return;
     }
 }
 const_0[0]=0;
 const_0[1]=o;
 }
-function _nfn_2(buffer,o,ft){
+function _nfn_12(buffer,o,ft){
 var ho_3=o;
 var val_4=const_1;
 if(ft===4){
@@ -585,19 +792,19 @@ const_0[0]=val_4;
 const_0[1]=ho_3;
 return;
 }
-function _nfn_3(buffer,o,end){
+function _nfn_13(buffer,o,end){
 if(o<end){
     var ft_3=buffer[o];
     if(ft_3!==0&&buffer[(o+1)]===116&&buffer[(o+2)]===97&&buffer[(o+3)]===103&&buffer[(o+4)]===115&&buffer[(o+5)]===0){
         var do_4=(o+6);
-        _nfn_2(buffer,do_4,ft_3);
+        _nfn_12(buffer,do_4,ft_3);
         return;
     }
 }
 const_0[0]=const_1;
 const_0[1]=o;
 }
-function _nfn_4(buffer,o,ft){
+function _nfn_14(buffer,o,ft){
 var ho_3=o;
 var val_4=const_1;
 if((ft===10||ft===6)){
@@ -683,19 +890,19 @@ const_0[0]=val_4;
 const_0[1]=ho_3;
 return;
 }
-function _nfn_5(buffer,o,end){
+function _nfn_15(buffer,o,end){
 if(o<end){
     var ft_3=buffer[o];
     if(ft_3!==0&&buffer[(o+1)]===109&&buffer[(o+2)]===101&&buffer[(o+3)]===116&&buffer[(o+4)]===97&&buffer[(o+5)]===0){
         var do_4=(o+6);
-        _nfn_4(buffer,do_4,ft_3);
+        _nfn_14(buffer,do_4,ft_3);
         return;
     }
 }
 const_0[0]=const_1;
 const_0[1]=o;
 }
-function _nfn_6(buffer,o,ft){
+function _nfn_16(buffer,o,ft){
 var ho_3=o;
 var val_4=const_1;
 if(ft===2){
@@ -709,224 +916,23 @@ const_0[0]=val_4;
 const_0[1]=ho_3;
 return;
 }
-function _nfn_7(buffer,o,end){
+function _nfn_17(buffer,o,end){
 if(o<end){
     var ft_3=buffer[o];
     if(ft_3!==0&&buffer[(o+1)]===115&&buffer[(o+2)]===116&&buffer[(o+3)]===97&&buffer[(o+4)]===116&&buffer[(o+5)]===101&&buffer[(o+6)]===0){
         var do_4=(o+7);
-        _nfn_6(buffer,do_4,ft_3);
+        _nfn_16(buffer,do_4,ft_3);
         return;
     }
 }
 const_0[0]=const_1;
 const_0[1]=o;
 }
-function _nfn_8(buffer,o,ft){
-var ho_3=o;
-var val_4="circle";
-val_4="circle";
-ho_3=skipValue_0(buffer,ho_3,ft);
-const_2[0]=val_4;
-const_2[1]=ho_3;
-return;
-}
-function _nfn_9(buffer,o,end){
-if(o<end){
-    var ft_3=buffer[o];
-    if(ft_3!==0&&buffer[(o+1)]===107&&buffer[(o+2)]===105&&buffer[(o+3)]===110&&buffer[(o+4)]===100&&buffer[(o+5)]===0){
-        var do_4=(o+6);
-        _nfn_8(buffer,do_4,ft_3);
-        return;
-    }
-}
-const_2[0]="circle";
-const_2[1]=o;
-}
-function _nfn_10(buffer,o,ft){
-var ho_3=o;
-var val_4=0;
-if(ft===16){
-    val_4=((buffer[ho_3]|(buffer[(ho_3+1)]<<8))|((buffer[(ho_3+2)]<<16)|(buffer[(ho_3+3)]<<24)));
-    ho_3+=4;
-}else{
-    if(ft===1){
-        var dblVal_5=readDouble_0(buffer,ho_3);
-        val_4=nanToZero_0(dblVal_5);
-        ho_3+=8;
-    }else{
-        var numFallback_6=readNumberValue_0(buffer,ho_3,ft);
-        val_4=numFallback_6[0];
-        ho_3+=numFallback_6[1];
-    }
-}
-const_2[0]=val_4;
-const_2[1]=ho_3;
-return;
-}
-function _nfn_11(buffer,o,end){
-if(o<end){
-    var ft_3=buffer[o];
-    if(ft_3!==0&&buffer[(o+1)]===114&&buffer[(o+2)]===0){
-        var do_4=(o+3);
-        if(ft_3===16){
-            const_2[0]=((buffer[do_4]|(buffer[(do_4+1)]<<8))|((buffer[(do_4+2)]<<16)|(buffer[(do_4+3)]<<24)));
-            const_2[1]=(do_4+4);
-            return;
-        }
-        _nfn_10(buffer,do_4,ft_3);
-        return;
-    }
-}
-const_2[0]=0;
-const_2[1]=o;
-}
-function _nfn_12(buffer,offset){
-var docSize_2=((buffer[offset]|(buffer[(offset+1)]<<8))|((buffer[(offset+2)]<<16)|(buffer[(offset+3)]<<24)));
-var end_3=(offset+(docSize_2-1));
-var o_4=(offset+4);
-var kind_5="circle";
-var r_6=0;
-_nfn_9(buffer,o_4,end_3);
-kind_5=const_2[0];
-o_4=const_2[1];
-_nfn_11(buffer,o_4,end_3);
-r_6=const_2[0];
-o_4=const_2[1];
-if(buffer[o_4]!==0){
-    return fn_0(buffer,offset);
-}
-var result_7={};
-result_7.kind=kind_5;
-result_7.r=r_6;
-return [result_7,(end_3+1)];
-}
-function _nfn_13(buffer,o,ft){
-var ho_3=o;
-var val_4="rect";
-val_4="rect";
-ho_3=skipValue_0(buffer,ho_3,ft);
-const_3[0]=val_4;
-const_3[1]=ho_3;
-return;
-}
-function _nfn_14(buffer,o,end){
-if(o<end){
-    var ft_3=buffer[o];
-    if(ft_3!==0&&buffer[(o+1)]===107&&buffer[(o+2)]===105&&buffer[(o+3)]===110&&buffer[(o+4)]===100&&buffer[(o+5)]===0){
-        var do_4=(o+6);
-        _nfn_13(buffer,do_4,ft_3);
-        return;
-    }
-}
-const_3[0]="rect";
-const_3[1]=o;
-}
-function _nfn_15(buffer,o,ft){
-var ho_3=o;
-var val_4=0;
-if(ft===16){
-    val_4=((buffer[ho_3]|(buffer[(ho_3+1)]<<8))|((buffer[(ho_3+2)]<<16)|(buffer[(ho_3+3)]<<24)));
-    ho_3+=4;
-}else{
-    if(ft===1){
-        var dblVal_5=readDouble_0(buffer,ho_3);
-        val_4=nanToZero_0(dblVal_5);
-        ho_3+=8;
-    }else{
-        var numFallback_6=readNumberValue_0(buffer,ho_3,ft);
-        val_4=numFallback_6[0];
-        ho_3+=numFallback_6[1];
-    }
-}
-const_3[0]=val_4;
-const_3[1]=ho_3;
-return;
-}
-function _nfn_16(buffer,o,end){
-if(o<end){
-    var ft_3=buffer[o];
-    if(ft_3!==0&&buffer[(o+1)]===119&&buffer[(o+2)]===0){
-        var do_4=(o+3);
-        if(ft_3===16){
-            const_3[0]=((buffer[do_4]|(buffer[(do_4+1)]<<8))|((buffer[(do_4+2)]<<16)|(buffer[(do_4+3)]<<24)));
-            const_3[1]=(do_4+4);
-            return;
-        }
-        _nfn_15(buffer,do_4,ft_3);
-        return;
-    }
-}
-const_3[0]=0;
-const_3[1]=o;
-}
-function _nfn_17(buffer,o,ft){
-var ho_3=o;
-var val_4=0;
-if(ft===16){
-    val_4=((buffer[ho_3]|(buffer[(ho_3+1)]<<8))|((buffer[(ho_3+2)]<<16)|(buffer[(ho_3+3)]<<24)));
-    ho_3+=4;
-}else{
-    if(ft===1){
-        var dblVal_5=readDouble_0(buffer,ho_3);
-        val_4=nanToZero_0(dblVal_5);
-        ho_3+=8;
-    }else{
-        var numFallback_6=readNumberValue_0(buffer,ho_3,ft);
-        val_4=numFallback_6[0];
-        ho_3+=numFallback_6[1];
-    }
-}
-const_3[0]=val_4;
-const_3[1]=ho_3;
-return;
-}
-function _nfn_18(buffer,o,end){
-if(o<end){
-    var ft_3=buffer[o];
-    if(ft_3!==0&&buffer[(o+1)]===104&&buffer[(o+2)]===0){
-        var do_4=(o+3);
-        if(ft_3===16){
-            const_3[0]=((buffer[do_4]|(buffer[(do_4+1)]<<8))|((buffer[(do_4+2)]<<16)|(buffer[(do_4+3)]<<24)));
-            const_3[1]=(do_4+4);
-            return;
-        }
-        _nfn_17(buffer,do_4,ft_3);
-        return;
-    }
-}
-const_3[0]=0;
-const_3[1]=o;
-}
-function _nfn_19(buffer,offset){
-var docSize_2=((buffer[offset]|(buffer[(offset+1)]<<8))|((buffer[(offset+2)]<<16)|(buffer[(offset+3)]<<24)));
-var end_3=(offset+(docSize_2-1));
-var o_4=(offset+4);
-var kind_5="rect";
-var w_6=0;
-var h_7=0;
-_nfn_14(buffer,o_4,end_3);
-kind_5=const_3[0];
-o_4=const_3[1];
-_nfn_16(buffer,o_4,end_3);
-w_6=const_3[0];
-o_4=const_3[1];
-_nfn_18(buffer,o_4,end_3);
-h_7=const_3[0];
-o_4=const_3[1];
-if(buffer[o_4]!==0){
-    return fn_1(buffer,offset);
-}
-var result_8={};
-result_8.kind=kind_5;
-result_8.w=w_6;
-result_8.h=h_7;
-return [result_8,(end_3+1)];
-}
-function _nfn_20(buffer,o,ft){
+function _nfn_18(buffer,o,ft){
 var ho_3=o;
 var val_4=const_1;
 if(ft===3){
-    var multiObjResult_5=fn_2(buffer,ho_3);
+    var multiObjResult_5=fn_0(buffer,ho_3);
     val_4=multiObjResult_5[0];
     ho_3=multiObjResult_5[1];
 }else{
@@ -936,19 +942,19 @@ const_0[0]=val_4;
 const_0[1]=ho_3;
 return;
 }
-function _nfn_21(buffer,o,end){
+function _nfn_19(buffer,o,end){
 if(o<end){
     var ft_3=buffer[o];
     if(ft_3!==0&&buffer[(o+1)]===115&&buffer[(o+2)]===104&&buffer[(o+3)]===97&&buffer[(o+4)]===112&&buffer[(o+5)]===101&&buffer[(o+6)]===0){
         var do_4=(o+7);
-        _nfn_20(buffer,do_4,ft_3);
+        _nfn_18(buffer,do_4,ft_3);
         return;
     }
 }
 const_0[0]=const_1;
 const_0[1]=o;
 }
-function _nfn_22(buffer,o,ft){
+function _nfn_20(buffer,o,ft){
 var ho_3=o;
 var val_4=const_1;
 if((ft===10||ft===6)){
@@ -1041,12 +1047,12 @@ const_0[0]=val_4;
 const_0[1]=ho_3;
 return;
 }
-function _nfn_23(buffer,o,end){
+function _nfn_21(buffer,o,end){
 if(o<end){
     var ft_3=buffer[o];
     if(ft_3!==0&&buffer[(o+1)]===111&&buffer[(o+2)]===119&&buffer[(o+3)]===110&&buffer[(o+4)]===101&&buffer[(o+5)]===114&&buffer[(o+6)]===0){
         var do_4=(o+7);
-        _nfn_22(buffer,do_4,ft_3);
+        _nfn_20(buffer,do_4,ft_3);
         return;
     }
 }
@@ -1063,26 +1069,26 @@ var meta_7=const_1;
 var state_8=const_1;
 var shape_9=const_1;
 var owner_10=const_1;
-_nfn_1(buffer,o_4,end_3);
+_nfn_11(buffer,o_4,end_3);
 id_5=const_0[0];
 o_4=const_0[1];
-_nfn_3(buffer,o_4,end_3);
+_nfn_13(buffer,o_4,end_3);
 tags_6=const_0[0];
 o_4=const_0[1];
-_nfn_5(buffer,o_4,end_3);
+_nfn_15(buffer,o_4,end_3);
 meta_7=const_0[0];
 o_4=const_0[1];
-_nfn_7(buffer,o_4,end_3);
+_nfn_17(buffer,o_4,end_3);
 state_8=const_0[0];
 o_4=const_0[1];
-_nfn_21(buffer,o_4,end_3);
+_nfn_19(buffer,o_4,end_3);
 shape_9=const_0[0];
 o_4=const_0[1];
-_nfn_23(buffer,o_4,end_3);
+_nfn_21(buffer,o_4,end_3);
 owner_10=const_0[0];
 o_4=const_0[1];
 if(buffer[o_4]!==0){
-    return fn_3(buffer,offset);
+    return fn_1(buffer,offset);
 }
 var result_11={};
 result_11.id=id_5;
