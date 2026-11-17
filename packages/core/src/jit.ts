@@ -2185,14 +2185,17 @@ export class Builder {
         const id = _globalFnId++;
         const def: NestedFnDef = { block, inputNames, inputDefaults };
         this.nestedFnDefs.set(id, def);
-        // Return a callable marker:
-        // - In JIT mode, CodeGenerator detects __nestedFnId and emits a call to _nfn_N
-        // - In Exec mode, the executor calls this function directly (closure-based fallback)
-        const marker = createExecutor(block, inputDefaults) as any;
+        // Return a callable marker. Who calls it decides how it runs:
+        // - generated code: CodeGenerator detects __nestedFnId and emits a call to _nfn_N;
+        // - the interpreter: it calls __nestedFnExecutor, the interpreted body (interpretedValue);
+        // - plain JavaScript: the marker itself — see nestedFnMarker.
+        const executor = createExecutor<any>(block, inputDefaults);
+        const marker = nestedFnMarker(def, executor) as any;
         marker.__nestedFnId = id;
         // The definition travels with the marker so a compilation unit that did not register it
         // (a cached sub-function reused across compiles) can still emit it — CodeGenerator.addExternal.
         marker.__nestedFnDef = def;
+        marker.__nestedFnExecutor = executor;
         return marker;
     }
 
@@ -2303,6 +2306,52 @@ function compileDefinition<R>(def: FnDefinition): (...args: any[]) => R {
 
 function interpretDefinition<R>(def: FnDefinition): (...args: any[]) => R {
     return createExecutor<R>(def.block, def.inputDefaults);
+}
+
+/**
+ * What `fn()` / `fnJIT()` hand back inside another function's declaration, as a function that
+ * PLAIN JAVASCRIPT can call — a closure, a cache, a handle that holds it.
+ *
+ * Generated code never calls this: a reference to a marker is emitted as a call to the nested
+ * function `_nfn_N`, compiled in the same unit. The interpreter does not either: it calls the
+ * interpreted body. Until 2026-11-16 that body WAS the marker, so a marker that some plain
+ * JavaScript called ran interpreted in a process that compiles, with nothing to say so — a BSON
+ * decode 50x slower than the same rows on a compiled path.
+ *
+ * Where functions are compiled, the first call from plain JavaScript compiles the definition as a
+ * unit of its own — after the threshold's interpreted calls when one is set, as `fn()` does for a
+ * function declared at the top. Where they are not (a strict CSP, the `'interpreted'` mode), the
+ * marker is the interpreted body, as it has to be. The mode is read when the function is built.
+ *
+ * A function that is MEANT to be called from plain JavaScript is better built with
+ * {@link fnJITTop}: this one leaves its definition in the enclosing unit as well, where nothing
+ * calls it, and reaches the compiled function through a call that spreads its arguments.
+ */
+function nestedFnMarker(def: NestedFnDef, executor: (...args: any[]) => any): (...args: any[]) => any {
+    if (!compilesFunctions()) return executor;
+
+    let compiled: ((...args: any[]) => any) | undefined;
+    let calls = 0;
+    return (...args: any[]) => {
+        if (compiled) return compiled(...args);
+        if (++calls < jitThreshold) return executor(...args);
+        const generator = new CodeGenerator(def.inputNames.length, def.inputNames, undefined, def.inputDefaults);
+        compiled = generator.compile<(...args: any[]) => any>(def.block);
+        return compiled(...args);
+    };
+}
+
+/**
+ * A value of the tree as the INTERPRETER uses it: a nested-function marker stands for its
+ * interpreted body. The functions declared inside an interpreted function are interpreted too
+ * ({@link fnExec}), and the marker itself would compile where the process compiles.
+ */
+function interpretedValue<T>(value: T): T {
+    if (typeof value === 'function') {
+        const executor = (value as { __nestedFnExecutor?: T }).__nestedFnExecutor;
+        if (executor) return executor;
+    }
+    return value;
 }
 
 /**
@@ -2499,7 +2548,7 @@ function flattenAnd(expr: Expr): Expr[] {
 function compilePureExpr(expr: Expr): PureEvalFn {
     switch (expr.kind) {
         case 'lit': {
-            const value = expr.value;
+            const value = interpretedValue(expr.value);
             return () => value;
         }
         case 'input': {
@@ -2528,7 +2577,7 @@ function compilePureExpr(expr: Expr): PureEvalFn {
             }
         }
         case 'call': {
-            const fn = expr.fn;
+            const fn = interpretedValue(expr.fn);
             const argFns = expr.args.map(compilePureExpr);
             const len = argFns.length;
             if (len === 0) return () => fn();
@@ -2872,7 +2921,7 @@ function compileExprToClosure(expr: Expr): EvalFn {
 
     switch (expr.kind) {
         case 'lit': {
-            const value = expr.value;
+            const value = interpretedValue(expr.value);
             return () => value;
         }
         case 'input': {
@@ -2904,7 +2953,7 @@ function compileExprToClosure(expr: Expr): EvalFn {
             }
         }
         case 'call': {
-            const fn = expr.fn;
+            const fn = interpretedValue(expr.fn);
             const argFns = expr.args.map(compileExprToClosure);
             const len = argFns.length;
             if (len === 0) return () => fn();

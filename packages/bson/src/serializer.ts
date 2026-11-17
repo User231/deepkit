@@ -1996,9 +1996,10 @@ function getExtractedSerializer(type: TypeObjectLiteral | TypeClass): SerializeF
     // Build the real serializer function — as a compilation unit of its OWN (fnJITTop), never fn().
     // This runs while the function that references the recursive type is being declared, where
     // fn() registers a NESTED function and hands back a marker. Generated code reaches this one
-    // through `wrapper`, plain JavaScript, and a marker called from plain JavaScript runs in the
-    // INTERPRETER: a recursive type serialized 80x slower than the same data typed flat.
-    // (The decoder's twin: getExtractedDeserializer.)
+    // through `wrapper`, plain JavaScript, and until 2026-11-16 a marker called from plain
+    // JavaScript ran in the INTERPRETER: a recursive type serialized 80x slower than the same
+    // data typed flat. (The decoder's twin: getExtractedDeserializer, which says what fn() would
+    // still cost here.)
     holder.fn = fnJITTop(
         arg<Uint8Array>('buffer'),
         arg<DataView>('view'),

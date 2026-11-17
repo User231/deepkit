@@ -64,15 +64,6 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   guard 0.15 µs → 2.7 µs, BSON serialize 0.19 µs → 9.2 µs, a BSON page of 50 rows serialized
   7 µs → 484 µs. That is the mode a browser under a strict CSP runs. Nothing has been done to
   make it faster; the AOT tier above is the designed answer.
-- **`fn()` inside another function's declaration returns a marker, and a marker called from plain
-  JavaScript is interpreted — silently.** That is what made a compiled BSON decode ~50× slower for
-  rows in an array property and a recursive type's BSON serialize 80× slower (both fixed
-  2026-11-16: `getExtractedDeserializer` / `getExtractedSerializer` are `fnJITTop` units;
-  `bson/tests/extracted-functions.spec.ts` holds the text — no unit declares a nested function it
-  does not call). Nothing in `core` warns when a marker is CALLED from outside generated code, so
-  the trap is still open for the next cached function built on the side. A probe of `type`
-  (recursive types and unions through serialize, deserialize, guard, validate) found no unit with
-  the symptom.
 - **The Builder accepts programs neither mode can honour** — `break_()` outside a loop, a
   statement inside a `subFn` body. They diverge or fail at run time instead of being refused
   when the tree is built.

@@ -19,8 +19,8 @@ import { inspect } from 'node:util';
 
 import { expect } from '@deepkit/run/expect';
 
-import { type Block, Builder, EXPR_KINDS, type Expr, Ref, STMT_KINDS, type Stmt, arg, canJIT, fn, fnExec, fnJIT, fnJITTop, setJitThreshold } from '../src/jit.js';
-import { expectGolden, generatedSource } from './support/generated-source.js';
+import { type Block, Builder, EXPR_KINDS, type Expr, Ref, STMT_KINDS, type Stmt, arg, canJIT, compilesFunctions, fn, fnExec, fnJIT, fnJITTop, getJitMode, getJitThreshold, setJitMode, setJitThreshold } from '../src/jit.js';
+import { compilationsOf, expectGolden, generatedSource } from './support/generated-source.js';
 
 // ============================================================================
 // Harness
@@ -1547,6 +1547,123 @@ describe('jit differential: nested functions', () => {
                 return b.arr(b.call(separate, n), b.call(separate, n, b.lit(1)));
             });
             expect(outer(1)).toEqual([6, 2]);
+        });
+    }
+});
+
+describe('jit differential: a nested function called from plain JavaScript', () => {
+    // A function declared inside another one's declaration is that function's NESTED function:
+    // `fn()` hands back a marker, generated code that references it calls the nested function of
+    // its own unit, and the interpreter calls its interpreted body. Plain JavaScript that holds
+    // the marker — a closure, a cache, a handle — calls the marker itself. Until 2026-11-16 that
+    // was the interpreted body, in a process that compiles and with nothing to say so: bson's
+    // extracted deserializer was called that way, and decoded 50x slower than a compiled path.
+    // Now the first such call compiles the definition as a unit of its own.
+    type Fn = (...args: any[]) => any;
+    const NO_FN: Fn = () => undefined;
+
+    /** `outer(n)` calls `inner(n)`; `inner(v, step = 5)` is `v * 2 + step`. */
+    function build(define: Define): { outer: Fn; inner: Fn } {
+        let inner = NO_FN;
+        const outer = define(arg('n'), (b: Builder, n: Ref) => {
+            inner = fn(arg('v'), arg('step', 5), (b2: Builder, v: Ref, step: Ref) => b2.add(b2.mul(v, b2.lit(2)), step));
+            return b.call(inner, n);
+        });
+        return { outer, inner };
+    }
+
+    const whereCompiled = { skip: compilesFunctions() ? false : 'this run interprets: there is nothing to compile' };
+
+    test('it is compiled by its first call, once', whereCompiled, () => {
+        const { outer, inner } = build(fnJIT);
+        expect(typeof (inner as { __nestedFnId?: number }).__nestedFnId).toBe('number');
+
+        const first = compilationsOf(() => expect(inner(3)).toBe(11));
+        expect(first.length).toBe(1);
+        expect(first[0].source).toContain('return function(v,step=');
+
+        const later = compilationsOf(() => {
+            expect(inner(4)).toBe(13);
+            expect(inner(4, 1)).toBe(9);
+            // The enclosing function calls the nested function of its own unit, as before.
+            expect(outer(1)).toBe(7);
+        });
+        expect(later.length).toBe(0);
+    });
+
+    test('a call that never comes compiles nothing', whereCompiled, () => {
+        const built = compilationsOf(() => {
+            const { outer } = build(fnJIT);
+            expect(outer(1)).toBe(7);
+            expect(outer(2)).toBe(9);
+        });
+        // One unit: the enclosing function, its nested function inside it.
+        expect(built.length).toBe(1);
+        expect(built[0].source).toContain('function _nfn_');
+    });
+
+    test('with a threshold it is interpreted until the threshold is reached', whereCompiled, () => {
+        const before = getJitThreshold();
+        setJitThreshold(3);
+        try {
+            const { inner } = build(fnJIT);
+            expect(compilationsOf(() => expect(inner(1)).toBe(7)).length).toBe(0);
+            expect(compilationsOf(() => expect(inner(2)).toBe(9)).length).toBe(0);
+            expect(compilationsOf(() => expect(inner(3)).toBe(11)).length).toBe(1);
+            expect(compilationsOf(() => expect(inner(4)).toBe(13)).length).toBe(0);
+        } finally {
+            setJitThreshold(before);
+        }
+    });
+
+    test('the interpreter calls the interpreted body, as a callee and as a value', whereCompiled, () => {
+        let double = NO_FN;
+        const viaCall = build(fnExec);
+        const viaValue = fnExec(arg('list'), (b: Builder, list: Ref) => {
+            double = fn(arg('v'), (b2: Builder, v: Ref) => b2.mul(v, b2.lit(2)));
+            // The marker as a VALUE: Array.prototype.map is what calls it.
+            return b.method(list, 'map', b.lit(double));
+        });
+        const interpreted = compilationsOf(() => {
+            expect(viaCall.outer(1)).toBe(7);
+            expect(viaValue([1, 2, 3])).toEqual([2, 4, 6]);
+        });
+        // The functions declared inside an interpreted function are interpreted too.
+        expect(interpreted.length).toBe(0);
+
+        // Plain JavaScript that calls the same markers gets functions like any other.
+        expect(compilationsOf(() => expect(viaCall.inner(3)).toBe(11)).length).toBe(1);
+        expect(compilationsOf(() => expect(double(4)).toBe(8)).length).toBe(1);
+    });
+
+    test('built where functions are interpreted, it stays interpreted', () => {
+        const before = getJitMode();
+        setJitMode('interpreted');
+        let built: { outer: Fn; inner: Fn };
+        try {
+            built = build(fn);
+        } finally {
+            setJitMode(before);
+        }
+        // The mode is read when a function is built, not when it is called.
+        const calls = () => {
+            expect(built.inner(3)).toBe(11);
+            expect(built.inner(3, 1)).toBe(7);
+            expect(built.outer(1)).toBe(7);
+        };
+        if (canJIT) expect(compilationsOf(calls).length).toBe(0);
+        else calls();
+    });
+
+    for (const [mode, define] of [
+        ['compiled', fnJIT],
+        ['interpreted', fnExec],
+    ] as [string, Define][]) {
+        test(`it answers as the enclosing function's own call does (${mode})`, () => {
+            const { outer, inner } = build(define);
+            for (const n of [0, 1, -2.5, 7]) expect(inner(n)).toBe(outer(n));
+            expect(inner(1, undefined)).toBe(7);
+            expect(Number.isNaN(inner(undefined))).toBe(true);
         });
     }
 });

@@ -5,10 +5,12 @@
  *
  * They are built while ANOTHER function is being declared. There `fn()` builds no function: it
  * registers a nested function of the one being declared and returns a marker, and a marker called
- * from plain JavaScript runs in the interpreter. So in a process that compiles, every row that
+ * from plain JavaScript ran in the interpreter. So in a process that compiles, every row that
  * took the slow path decoded interpreted: 50 rows with a literal-union property in 580 µs as
  * `{ rows: T[] }` against 11 µs as `T[]`, and a recursive type serialized 80x slower than the
- * same data typed flat. Both are compilation units of their own now (`fnJITTop`).
+ * same data typed flat. Both are compilation units of their own now (`fnJITTop`) — and `core`
+ * compiles a marker that plain JavaScript calls, so the same construction elsewhere is waste
+ * (a definition its unit never calls, an argument spread per call), no longer a cliff.
  *
  * What this file holds:
  *
@@ -253,7 +255,8 @@ describe('the generated source of those functions', { skip: compilesFunctions() 
         });
         expect(declared).toBeGreaterThan(0);
         // A nested function its unit never calls is a function built with fn() inside another
-        // function's declaration and then called from plain JavaScript — where it is interpreted.
+        // function's declaration and then called from plain JavaScript: the unit carries code
+        // for nothing, and the function is compiled a second time when it is first called.
         // Build such a function with fnJITTop.
         expect(dead).toEqual([]);
     });

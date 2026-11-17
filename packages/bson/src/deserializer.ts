@@ -1303,11 +1303,12 @@ function getExtractedDeserializer(type: TypeObjectLiteral | TypeClass): Deserial
     // (getNestedShapeHandle, for the slow path of a nested object or of an array's rows) and from
     // buildDocumentBody (a recursive type). Inside a declaration fn() does not build a function:
     // it registers a NESTED function of the one being declared and hands back a marker, which
-    // only generated code that references it turns into a compiled call. This one is referenced
-    // by no generated code — it is called from plain JavaScript, through `wrapper` — and a marker
-    // called from plain JavaScript runs in the INTERPRETER. So every row that reached this slow
-    // path decoded interpreted in a process that compiles (50 rows in 580 µs against 11 µs), and
-    // the enclosing unit carried the definition as code nothing called.
+    // only generated code that references it turns into a call inside that unit. This one is
+    // referenced by no generated code — it is called from plain JavaScript, through `wrapper`.
+    // Until 2026-11-16 a marker called that way ran in the INTERPRETER: every row that reached
+    // this slow path decoded interpreted in a process that compiles (50 rows in 580 µs against
+    // 11 µs). Core compiles such a call now, but the enclosing unit would still carry the
+    // definition as code nothing calls, and each call would spread its arguments.
     holder.fn = fnJITTop(
         arg<Uint8Array>('buffer'),
         arg<number>('offset'),
