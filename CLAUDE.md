@@ -440,18 +440,15 @@ A new expression or statement kind lands with its row in `core/tests/jit-differe
 (both modes must agree) — the golden text for it follows from the same row. A new place that
 builds code from a string is listed in `core/tests/generated-code-strict.spec.ts`.
 
-**A function built on the side and called from plain JavaScript is `fnJITTop`, not `fn`.**
-Called while another function is being declared, `fn()` registers a NESTED function and returns
-a marker. Generated code that references the marker calls the nested function of its own unit;
-the interpreter calls its interpreted body; plain JavaScript that holds it (a closure, a cache,
-a handle) calls the marker itself. Until 2026-11-16 that last call ran INTERPRETED in a process
-that compiles, with no error (`bson`'s extracted deserializer and serializer — a decode 50×
-slower). `core` now compiles the definition on the first such call
-(`nestedFnMarker`, held by "a nested function called from plain JavaScript" in
-`core/tests/jit-differential.spec.ts`), so `fn` there is no longer a cliff — but it leaves the
-definition in the enclosing unit as code nothing calls, and calls through an argument spread.
-`bson/tests/extracted-functions.spec.ts` holds the text: no unit declares a nested function it
-does not call.
+**`fn()` inside another function's declaration is that function's NESTED function**, and what
+comes back is a marker with three kinds of caller: generated code calls the nested function of
+its own unit; the interpreter calls its interpreted body; plain JavaScript that holds it (a
+closure, a cache, a handle) gets a unit of its own, compiled on the first call. A nested
+function nothing in its unit calls is not emitted. Until 2026-11-16 the third caller ran
+INTERPRETED in a process that compiles, with no error — `bson`'s extracted deserializer, a
+decode 50× slower. Held by the two "a nested function …" sections of
+`core/tests/jit-differential.spec.ts`. Where a function is MEANT for plain JavaScript, say so
+with `fnJITTop`: built at once, called without an argument spread.
 
 See `docs/TESTING.md` for test strategy and edge cases.
 

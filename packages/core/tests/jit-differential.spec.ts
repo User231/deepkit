@@ -1668,6 +1668,162 @@ describe('jit differential: a nested function called from plain JavaScript', () 
     }
 });
 
+describe('jit differential: a nested function nothing in its unit calls', () => {
+    // `fn()` inside a declaration registers a nested function whether or not the tree ever
+    // refers to it. One that is only kept for plain JavaScript to call — a cache, a handle —
+    // compiles a unit of its own on its first call; the enclosing unit used to carry a second
+    // copy of it, text that was parsed, compiled and held for nothing (12 such functions in the
+    // BSON decoder of one model). The generator leaves it out, with whatever only it needed.
+    type Fn = (...args: any[]) => any;
+    const NO_FN: Fn = () => undefined;
+    const whereCompiled = { skip: compilesFunctions() ? false : 'this run interprets: there is no text' };
+
+    const nestedIn = (source: string) => source.match(/^function _nfn_\d+\(/gm)?.length ?? 0;
+    // Declarations, for their names: an external is named after the function it is.
+    function plusHundred(value: number): number {
+        return value + 100;
+    }
+    function minusOne(value: number): number {
+        return value - 1;
+    }
+
+    test('it is not in the text, nor is what only it refers to', whereCompiled, () => {
+        let side = NO_FN;
+        let outer = NO_FN;
+        const units = compilationsOf(() => {
+            outer = fnJIT(arg('n'), (b: Builder, n: Ref) => {
+                side = fn(arg('v'), (b2: Builder, v: Ref) => b2.call(plusHundred, v));
+                const used = fn(arg('v'), (b2: Builder, v: Ref) => b2.call(minusOne, b2.mul(v, b2.lit(2))));
+                return b.call(used, n);
+            });
+        });
+        expect(units.length).toBe(1);
+        expect(nestedIn(units[0].source)).toBe(1);
+        expect(units[0].externals).toEqual(['minusOne_0']);
+        expect(outer(2)).toBe(3);
+
+        // It is a function all the same: its own unit, on its first call.
+        const first = compilationsOf(() => expect(side(1)).toBe(101));
+        expect(first.length).toBe(1);
+        expect(first[0].externals).toEqual(['plusHundred_0']);
+        expect(nestedIn(first[0].source)).toBe(0);
+    });
+
+    test('what a called function calls stays; what only an uncalled one calls goes with it', whereCompiled, () => {
+        let side = NO_FN;
+        let outer = NO_FN;
+        const units = compilationsOf(() => {
+            outer = fnJIT(arg('n'), (b: Builder, n: Ref) => {
+                const leaf = fn(arg('v'), (b2: Builder, v: Ref) => b2.add(v, b2.lit(1)));
+                const used = fn(arg('v'), (b2: Builder, v: Ref) => b2.mul(b2.call(leaf, v), b2.lit(2)));
+                const onlyForSide = fn(arg('v'), (b2: Builder, v: Ref) => b2.call(plusHundred, v));
+                // Refers to a function the unit keeps and to one nothing else refers to.
+                side = fn(arg('v'), (b2: Builder, v: Ref) => b2.add(b2.call(onlyForSide, v), b2.call(leaf, v)));
+                return b.call(used, n);
+            });
+        });
+        expect(units.length).toBe(1);
+        expect(nestedIn(units[0].source)).toBe(2);
+        expect(units[0].externals).toEqual([]);
+        expect(outer(2)).toBe(6);
+
+        // Its own unit holds the two it calls.
+        const first = compilationsOf(() => expect(side(1)).toBe(103));
+        expect(first.length).toBe(1);
+        expect(nestedIn(first[0].source)).toBe(2);
+    });
+
+    test('a function that only calls itself is not called', whereCompiled, () => {
+        let outer = NO_FN;
+        let countdown: Fn = NO_FN;
+        const units = compilationsOf(() => {
+            outer = fnJIT(arg('n'), (b: Builder, n: Ref) => {
+                // The reference is to the marker itself, inside its own body.
+                const self: { fn: Fn } = { fn: NO_FN };
+                const body = (b2: Builder, v: Ref) => {
+                    b2.if_(b2.lte(v, b2.lit(0)), () => b2.lit('done'));
+                    return b2.call((value: number) => self.fn(value), b2.sub(v, b2.lit(1)));
+                };
+                countdown = self.fn = fn(arg('v'), body);
+                return b.add(n, b.lit(1));
+            });
+        });
+        expect(units.length).toBe(1);
+        expect(nestedIn(units[0].source)).toBe(0);
+        expect(outer(1)).toBe(2);
+        expect(countdown(3)).toBe('done');
+    });
+
+    test('at any depth: an uncalled function inside a called one', whereCompiled, () => {
+        let deepSide = NO_FN;
+        let outer = NO_FN;
+        const units = compilationsOf(() => {
+            outer = fnJIT(arg('n'), (b: Builder, n: Ref) => {
+                const used = fn(arg('v'), (b2: Builder, v: Ref) => {
+                    deepSide = fn(arg('w'), (b3: Builder, w: Ref) => b3.call(plusHundred, w));
+                    const deepUsed = fn(arg('w'), (b3: Builder, w: Ref) => b3.mul(w, b3.lit(3)));
+                    return b2.call(deepUsed, v);
+                });
+                return b.call(used, n);
+            });
+        });
+        expect(units.length).toBe(1);
+        expect(nestedIn(units[0].source)).toBe(2);
+        expect(units[0].externals).toEqual([]);
+        expect(outer(2)).toBe(6);
+        expect(deepSide(1)).toBe(101);
+    });
+
+    test('a marker used as a value is a call', whereCompiled, () => {
+        let outer = NO_FN;
+        const units = compilationsOf(() => {
+            outer = fnJIT(arg('list'), (b: Builder, list: Ref) => {
+                const double = fn(arg('v'), (b2: Builder, v: Ref) => b2.mul(v, b2.lit(2)));
+                return b.method(list, 'map', b.lit(double));
+            });
+        });
+        expect(nestedIn(units[0].source)).toBe(1);
+        expect(outer([1, 2])).toEqual([2, 4]);
+    });
+
+    test('what only an uncalled function needed goes in as many passes as it takes', whereCompiled, () => {
+        let outer = NO_FN;
+        let side = NO_FN;
+        const units = compilationsOf(() => {
+            outer = fnJIT(arg('n'), (b: Builder, n: Ref) => {
+                const viaHelper = fn(arg('v'), (b2: Builder, v: Ref) => b2.call(plusHundred, v));
+                // A helper is emitted whoever asked for it, so what it calls counts as called by
+                // the unit — until the function that asked for it is gone, and the helper with it.
+                side = fn(arg('v'), (b2: Builder, v: Ref) => b2.subFn(v, (b3, input) => b3.call(viaHelper, input)));
+                return b.add(n, b.lit(1));
+            });
+        });
+        expect(units.length).toBe(1);
+        expect(units[0].source).toBe("'use strict';\nreturn function(n){\nreturn (n+1);\n}");
+        expect(units[0].externals).toEqual([]);
+        expect(outer(1)).toBe(2);
+        expect(side(1)).toBe(101);
+    });
+
+    for (const [mode, define] of [
+        ['compiled', fnJIT],
+        ['interpreted', fnExec],
+    ] as [string, Define][]) {
+        test(`the functions answer the same, called or not (${mode})`, () => {
+            let side = NO_FN;
+            const outer = define(arg('n'), (b: Builder, n: Ref) => {
+                const leaf = fn(arg('v'), (b2: Builder, v: Ref) => b2.add(v, b2.lit(1)));
+                const used = fn(arg('v'), (b2: Builder, v: Ref) => b2.mul(b2.call(leaf, v), b2.lit(2)));
+                side = fn(arg('v'), arg('step', 10), (b2: Builder, v: Ref, step: Ref) => b2.add(b2.call(leaf, v), step));
+                return b.call(used, n);
+            });
+            expect(outer(2)).toBe(6);
+            expect(side(1)).toBe(12);
+            expect(side(1, 0)).toBe(2);
+        });
+    }
+});
+
 describe('jit differential: a declaration that fails', () => {
     // While a body callback runs, its declaration is "the active one" and a function declared
     // inside becomes its nested function. A callback that throws used to leave it active for good:

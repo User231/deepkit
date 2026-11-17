@@ -8,33 +8,25 @@
  * from plain JavaScript ran in the interpreter. So in a process that compiles, every row that
  * took the slow path decoded interpreted: 50 rows with a literal-union property in 580 µs as
  * `{ rows: T[] }` against 11 µs as `T[]`, and a recursive type serialized 80x slower than the
- * same data typed flat. Both are compilation units of their own now (`fnJITTop`) — and `core`
- * compiles a marker that plain JavaScript calls, so the same construction elsewhere is waste
- * (a definition its unit never calls, an argument spread per call), no longer a cliff.
+ * same data typed flat. Both are compilation units of their own now (`fnJITTop`), and `core`
+ * has closed the construction for everyone: a marker that plain JavaScript calls is compiled,
+ * and a nested function nothing in its unit calls is not emitted (`core/tests/jit-differential.spec.ts`).
  *
- * What this file holds:
- *
- *   1. VALUES, in whichever mode the run is in (the suite runs compiled and with
- *      `DEEPKIT_JIT_MODE=interpreted`): every shape that showed the defect decodes to the rows
- *      that were encoded — as a top-level array and as an array property, from the bytes our
- *      serializer writes (the fast path where there is one) and from bytes whose rows have their
- *      fields in another order plus one the type does not know (the slow path, every row). The
- *      FIRST decode, which learns the shape, and a repeat, which runs what was learned.
- *
- *   2. THE TEXT, where the run compiles: no compilation unit declares a nested function that
- *      nothing in it calls. That is what the defect looks like in the generated source — the
- *      definition sits in the enclosing unit as dead code while its marker is called from
- *      outside — and unlike a timing it does not depend on the machine.
+ * What this file holds is the VALUES, in whichever mode the run is in (the suite runs compiled
+ * and with `DEEPKIT_JIT_MODE=interpreted`): every shape that showed the defect decodes to the
+ * rows that were encoded — as a top-level array and as an array property, from the bytes our
+ * serializer writes (the fast path where there is one) and from bytes whose rows have their
+ * fields in another order plus one the type does not know (the slow path, every row). The FIRST
+ * decode, which learns the shape, and a repeat, which runs what was learned. The second kind of
+ * bytes is what found that a top-level array returned `[row, offset]` for such rows.
  *
  * The timings are held by the two `perf-regression` specs.
  */
 import * as bson from 'bson';
 import { describe, test } from 'node:test';
 
-import { compilesFunctions } from '@deepkit/core';
 import { expect } from '@deepkit/run/expect';
 
-import { type Compilation, compilationsOf } from '../../core/tests/support/generated-source.js';
 import { getBSONDeserializer, getBSONSerializer } from '../index.js';
 
 // ── The rows ─────────────────────────────────────────────────────────────────
@@ -214,17 +206,9 @@ function buildCases(): Case[] {
 }
 
 // Everything is built, and decoded once, at load: a function is built once per process, and the
-// first decode is the one that learns a shape and compiles for it. Where the run compiles, the
-// source of every unit that takes is kept for the last test.
-let cases: Case[] = [];
-let first: unknown[] = [];
-const buildAndDecodeOnce = () => {
-    cases = buildCases();
-    first = cases.map(c => c.decode());
-};
-let compilations: Compilation[] = [];
-if (compilesFunctions()) compilations = compilationsOf(buildAndDecodeOnce);
-else buildAndDecodeOnce();
+// first decode is the one that learns a shape and compiles for it.
+const cases: Case[] = buildCases();
+const first: unknown[] = cases.map(c => c.decode());
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
@@ -236,28 +220,5 @@ describe('rows that take the extracted functions decode to what was encoded', ()
             expect(c.decode()).toEqual(c.expected);
             expect(c.decode()).toEqual(c.expected);
         });
-    });
-});
-
-describe('the generated source of those functions', { skip: compilesFunctions() ? false : 'nothing is compiled in this run' }, () => {
-    test('no unit declares a nested function that nothing in it calls', () => {
-        // The premise: the cases above did compile, and did declare nested functions.
-        expect(compilations.length).toBeGreaterThan(20);
-        let declared = 0;
-        const dead: string[] = [];
-        compilations.forEach((unit, index) => {
-            for (const match of unit.source.matchAll(/^function (_nfn_\d+)\(/gm)) {
-                declared++;
-                const uses = unit.source.match(new RegExp(`(?<![\\w$])${match[1]}\\b`, 'g'))?.length ?? 0;
-                // One use is the declaration itself.
-                if (uses < 2) dead.push(`unit ${index} (externals: ${unit.externals.join(', ')}): ${match[1]}`);
-            }
-        });
-        expect(declared).toBeGreaterThan(0);
-        // A nested function its unit never calls is a function built with fn() inside another
-        // function's declaration and then called from plain JavaScript: the unit carries code
-        // for nothing, and the function is compiled a second time when it is first called.
-        // Build such a function with fnJITTop.
-        expect(dead).toEqual([]);
     });
 });

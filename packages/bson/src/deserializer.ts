@@ -1307,8 +1307,8 @@ function getExtractedDeserializer(type: TypeObjectLiteral | TypeClass): Deserial
     // referenced by no generated code — it is called from plain JavaScript, through `wrapper`.
     // Until 2026-11-16 a marker called that way ran in the INTERPRETER: every row that reached
     // this slow path decoded interpreted in a process that compiles (50 rows in 580 µs against
-    // 11 µs). Core compiles such a call now, but the enclosing unit would still carry the
-    // definition as code nothing calls, and each call would spread its arguments.
+    // 11 µs). Core compiles such a call now, on its first call and through an argument spread;
+    // fnJITTop says what this is — a function of its own, built here and called directly.
     holder.fn = fnJITTop(
         arg<Uint8Array>('buffer'),
         arg<number>('offset'),
