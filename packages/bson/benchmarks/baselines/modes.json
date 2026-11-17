@@ -1,0 +1,30 @@
+{
+  "savedAt": "2026-11-17T02:16:49.299Z",
+  "node": "v26.10.0",
+  "cpu": "Apple M4",
+  "rounds": 3,
+  "times": {
+    "compiled": {
+      "type serialize, one object": 470.87414550781375,
+      "type deserialize, one object": 273.6994476318366,
+      "type guard, one object": 153.0496292114266,
+      "type validate, one object": 208.03721618652386,
+      "bson serialize, one object": 186.9808845520026,
+      "bson deserialize, one object": 1697.5834960937518,
+      "type deserialize, page of 50": 12115.803955078163,
+      "bson serialize, page of 50": 7260.726928710937,
+      "bson deserialize, page of 50": 567561.2031250026
+    },
+    "interpreted": {
+      "type serialize, one object": 2204.80096435547,
+      "type deserialize, one object": 3280.6243896484343,
+      "type guard, one object": 2690.0177001953075,
+      "type validate, one object": 3407.5012207031295,
+      "bson serialize, one object": 9232.543945312476,
+      "bson deserialize, one object": 14389.566894531192,
+      "type deserialize, page of 50": 180165.69140625017,
+      "bson serialize, page of 50": 483697.92187499884,
+      "bson deserialize, page of 50": 640321.6093750003
+    }
+  }
+}

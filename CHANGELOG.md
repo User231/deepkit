@@ -65,6 +65,37 @@ The other two places that built sloppy functions carry the directive too — the
 did. `packages/core/tests/generated-code-strict.spec.ts` lists every place in the shipped source
 that builds code from a string, with how it is strict, and fails on one that is not listed.
 
+### The interpreted mode can be run on purpose, and is
+
+Where code generation is allowed a function is compiled, where it is blocked (a strict CSP) it is
+interpreted — so on a machine that can compile, the interpreter a browser runs was never
+executed by a test suite.
+
+- **`DEEPKIT_JIT_MODE=interpreted`** (environment) / **`setJitMode('interpreted')`**
+  (`@deepkit/core`): `fn` and `fnJITTop` take the interpreted branch, the one a blocked
+  environment takes, while code generation stays available to everything else in the process
+  (`CompilerContext`, a benchmark harness, a test's own tooling). `getJitMode()` and
+  `compilesFunctions()` report it. A misspelt mode throws: it must not quietly run compiled. The
+  mode is read when a function is BUILT; `fnJIT` is an explicit request to compile and ignores
+  it — a test holds that no shipped source calls `fnJIT`.
+- **`npm run test:interpreted`** runs every suite that way. All of `core`, `type`, `bson`,
+  `rpc`, `orm`, `sql`, `sqlite`, `http`, `injector`, `app`, `framework`, `event` and `workflow`
+  pass; the two `bson` `perf-regression` specs, which compare the COMPILED functions with
+  bson-js, skip themselves.
+- **`packages/type/tests/csp-fallback.spec.ts`**: serialize, deserialize, cast, validate and the
+  guard in a subprocess with `--disallow-code-generation-from-strings` — the real blocked
+  environment, where anything else in the package that built code from a string would throw
+  (`bson` already had one).
+- **Golden files for the generated source** (`UPDATE_GOLDEN=1` rewrites them):
+  `packages/core/tests/golden/` holds the text generated for every expression and statement kind
+  (from the differential spec's tables, so a new kind lands with its text),
+  `packages/bson/tests/golden/` the serializer, deserializer, guard, validator, BSON serializer
+  and BSON decoder of three models. A refactor of the generator that is meant to change nothing
+  leaves them byte-identical.
+- **`packages/bson/benchmarks/modes.ts`** measures both modes side by side in alternating
+  processes, and stores / compares a baseline (`--save`, `--compare`). On the machine it was
+  written on the interpreter is 5–67× the compiled time.
+
 ### `FastDate` removed — a BSON DATE decodes to a real `Date`
 
 **Breaking.** `FastDate` (`@deepkit/type`) and `setBSONDateClass` / `getBSONDateClass`

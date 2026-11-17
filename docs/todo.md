@@ -58,17 +58,28 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   codegen (edge runtimes). No current need.
 - **AOT tier** from the JIT/CSP design (`docs/design/jit-serializer-design.md`): never built. The
   interpreter fallback covers CSP environments; AOT would only close the perf gap there.
-- **The interpreter is slow, and nothing measures it.** Same model, same machine (2026-11-16):
-  20–75× the compiled time (BSON serialize 1.3 µs → 97 µs, type guard 0.57 µs → 24 µs). That is
-  the mode a browser under a strict CSP runs. No benchmark in `benchmarks/` runs with
-  `--disallow-code-generation-from-strings`.
+- **The interpreter is slow.** `packages/bson/benchmarks/modes.ts` measures both modes side by
+  side and keeps this machine's baseline (`benchmarks/baselines/modes.json`, 2026-11-16, Node 26,
+  Apple arm64): interpreted is 5–67× the compiled time — type serialize 0.47 µs → 2.2 µs, type
+  guard 0.15 µs → 2.7 µs, BSON serialize 0.19 µs → 9.2 µs, a BSON page of 50 rows serialized
+  7 µs → 484 µs. That is the mode a browser under a strict CSP runs. Nothing has been done to
+  make it faster; the AOT tier above is the designed answer.
+- **A compiled BSON decode is ~50× slower when rows with a literal-union property sit in an
+  array PROPERTY** (found by `modes.ts`, 2026-11-16). 50 rows of an 8-field model: 11 µs as a
+  top-level array (`T[]`), 586 µs as `{ rows: T[] }` — the interpreter's time (640 µs). Without
+  the row's `kind: 'a' | 'b' | 'c'` it is 61 µs, without that and its `Record<string, string |
+  number>` 7.5 µs; `{ rows: { id: number; kind: 'a' | 'b' | 'c' }[] }` alone is 48 µs against
+  1.1 µs with `kind: string`. No interpreted function is handed to the compiled code (checked),
+  so it is a slow compiled path, not a missing compilation. Not investigated further. The
+  `perf-regression` specs have no such shape.
 - **The Builder accepts programs neither mode can honour** — `break_()` outside a loop, a
   statement inside a `subFn` body. They diverge or fail at run time instead of being refused
   when the tree is built.
-- **`type` and `bson` suites do not run interpreted as a whole.** Run by hand with
-  `NODE_OPTIONS=--disallow-code-generation-from-strings` (2026-11-16) every failure left is a
-  test whose own tooling needs `eval` (`type/tests/compiler.spec.ts`,
-  `external-type-degradation.spec.ts`, the two `bson` `perf-regression` specs).
+- **`npm run test:interpreted` is run by hand.** It runs every suite with
+  `DEEPKIT_JIT_MODE=interpreted` (all of `core`, `type`, `bson`, `rpc`, `orm`, `http`, `injector`
+  … pass, 2026-11-16) and no CI job runs it. The switch covers the JIT; the truly blocked
+  environment is covered by one subprocess test per package (`type/tests/csp-fallback.spec.ts`,
+  `bson/tests/csp-fallback.spec.ts`), not by whole suites.
 - **Cross-runtime CI** (Deno/Bun/Workers): not built. The no-codegen environment is covered
   in-suite by `csp-fallback.spec.ts` (subprocess with
   `--disallow-code-generation-from-strings`).

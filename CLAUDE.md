@@ -416,6 +416,30 @@ node --import @deepkit/run --test packages/type/tests/serializer.spec.ts      # 
 node --import @deepkit/run --test --test-name-pattern='onLoad' packages/type/tests/serializer.spec.ts
 ```
 
+### The JIT's two modes
+
+`@deepkit/type` and `@deepkit/bson` build each function one of two ways: COMPILED (`new Function`)
+where the environment allows it, INTERPRETED where it does not (a browser under a strict CSP). A
+plain test run only ever compiles. After a change to `packages/core/src/jit.ts`, or to a
+serializer template in `type` / `bson`:
+
+```bash
+npm run test:interpreted                                   # every suite with DEEPKIT_JIT_MODE=interpreted
+cd packages/core && DEEPKIT_JIT_MODE=interpreted node --import @deepkit/run --test 'tests/**/*.spec.ts'   # one package
+
+# The generated source is held in golden files (packages/{core,bson}/tests/golden/).
+# An intended change to the text: regenerate, then READ the diff.
+cd packages/core && UPDATE_GOLDEN=1 node --import @deepkit/run --test tests/jit-differential.spec.ts
+cd packages/bson && UPDATE_GOLDEN=1 node --import @deepkit/run --test tests/generated-source.spec.ts
+
+# Both modes, measured side by side against this machine's baseline
+cd packages/bson && node --import @deepkit/run benchmarks/modes.ts --compare
+```
+
+A new expression or statement kind lands with its row in `core/tests/jit-differential.spec.ts`
+(both modes must agree) — the golden text for it follows from the same row. A new place that
+builds code from a string is listed in `core/tests/generated-code-strict.spec.ts`.
+
 See `docs/TESTING.md` for test strategy and edge cases.
 
 ## Performance
