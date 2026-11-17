@@ -1650,6 +1650,11 @@ function findDiscriminant(
  * Weights aligned with packages/type/src/serializer/union.ts:
  *   property present +100, BSON type match +5, literal match +1000,
  *   literal mismatch -500, missing required -100, extra property -10
+ *
+ * "BSON type match" is the BSON type alone, except for a property that more than one member
+ * declares and whose type holds an array or an object: there the value is looked into
+ * (`compileBsonMatch`), which is what tells `{ items: string[] }` from `{ items: number[] }`
+ * and `{ data: Model }` from `{ data: Tag }` — the BSON type is ARRAY, or OBJECT, for both.
  */
 function createUnionMemberScorer(members: (TypeObjectLiteral | TypeClass)[]): {
     score: (buffer: Uint8Array, offset: number) => void;
@@ -1665,8 +1670,11 @@ function createUnionMemberScorer(members: (TypeObjectLiteral | TypeClass)[]): {
         const props: {
             slot: number;
             required: boolean;
+            type: Type;
             /** Indexed by BSON type: 1 where the type is what the property reads without coercion. */
             matches: Uint8Array;
+            /** Set for a contested property with a container type: the match is decided inside the value. */
+            deep: BsonMatch | undefined;
             hasLiteral: boolean;
             literal: unknown;
         }[] = [];
@@ -1689,7 +1697,9 @@ function createUnionMemberScorer(members: (TypeObjectLiteral | TypeClass)[]): {
             props.push({
                 slot,
                 required: !isOptional(prop),
+                type: prop.type,
                 matches,
+                deep: undefined,
                 hasLiteral,
                 literal: hasLiteral ? (prop.type as TypeLiteral).literal : undefined,
             });
@@ -1698,8 +1708,23 @@ function createUnionMemberScorer(members: (TypeObjectLiteral | TypeClass)[]): {
     });
 
     const slotCount = slotNames.length;
+
+    // A slot that several members declare with a type that holds a container
+    const declaredBy = new Uint8Array(slotCount);
+    for (const props of memberProps) for (const prop of props) declaredBy[prop.slot]++;
+    const matchState = new BSONBuildState();
+    for (const props of memberProps) {
+        for (const prop of props) {
+            if (declaredBy[prop.slot] > 1 && holdsContainer(prop.type)) {
+                prop.deep = compileBsonMatch(prop.type, MATCH_DEPTH - 1, matchState);
+            }
+        }
+    }
+
     /** The BSON type of the field in each slot; 0 = the document has no such field. */
     const seen = new Uint8Array(slotCount);
+    /** Where the value of the field in each slot starts. */
+    const seenAt = new Int32Array(slotCount);
     const literalValues: unknown[] = new Array(slotCount).fill(undefined);
     const scores: number[] = new Array(members.length).fill(0);
 
@@ -1727,6 +1752,7 @@ function createUnionMemberScorer(members: (TypeObjectLiteral | TypeClass)[]): {
                     while (i < nameLength && buffer[nameStart + i] === name[i]) i++;
                     if (i !== nameLength) continue;
                     seen[slot] = bsonType;
+                    seenAt[slot] = pos;
                     if (slotHoldsLiteral[slot]) literalValues[slot] = readPrimitiveValue(buffer, pos, bsonType);
                     break;
                 }
@@ -1748,7 +1774,13 @@ function createUnionMemberScorer(members: (TypeObjectLiteral | TypeClass)[]): {
                 }
                 present++;
                 memberScore += 100;
-                if (prop.matches[bsonType] === 1) memberScore += 5;
+                if (
+                    prop.deep !== undefined
+                        ? prop.deep(buffer, seenAt[prop.slot], bsonType) !== NO_MATCH
+                        : prop.matches[bsonType] === 1
+                ) {
+                    memberScore += 5;
+                }
                 if (prop.hasLiteral) {
                     const actual = literalValues[prop.slot];
                     if (actual !== undefined) memberScore += actual === prop.literal ? 1000 : -500;
@@ -1846,120 +1878,387 @@ function createObjectUnionDispatch<R>(
 }
 
 /**
- * Runtime dispatcher for unions with multiple array types.
- * Reads all elements, then tries to coerce into each array type.
- * Returns [result, endOffset].
+ * What a BSON matcher answers for a value that is not of its type.
  */
-function deserializeMultiArrayUnion(
-    buffer: Uint8Array,
-    offset: number,
-    arrayTypes: Type[],
+const NO_MATCH = -Infinity;
+
+/**
+ * How many levels of containers the choice of a union member looks into, below the value
+ * itself — as the serializer's choice does (`MATCH_DEPTH` in serializer.ts): `Model[] | Tag[]`
+ * needs two (the elements, their fields), `{ rows: Model[] } | { rows: Tag[] }` three.
+ */
+const MATCH_DEPTH = 3;
+
+/**
+ * Whether the BSON value of type `bsonType` at `offset` is one a type is read from, and how
+ * specifically: `NO_MATCH`, or a score.
+ */
+type BsonMatch = (buffer: Uint8Array, offset: number, bsonType: number) => number;
+
+/**
+ * The BSON types a type is read from, indexed by BSON type: 2 for the ones our serializer
+ * writes for it, 1 for the ones that are read into it with a conversion, 0 for the rest.
+ */
+function bsonKindsOf(type: Type): Uint8Array {
+    const kinds = new Uint8Array(256);
+    addBsonKinds(type, kinds);
+    return kinds;
+}
+
+function addBsonKinds(type: Type, kinds: Uint8Array): void {
+    const written = (...bsonTypes: number[]) => {
+        for (const bsonType of bsonTypes) kinds[bsonType] = 2;
+    };
+    const converted = (...bsonTypes: number[]) => {
+        for (const bsonType of bsonTypes) if (kinds[bsonType] === 0) kinds[bsonType] = 1;
+    };
+    const ofJsValue = (value: unknown) => {
+        if (typeof value === 'string') written(BSONType.STRING);
+        else if (typeof value === 'number') written(BSONType.INT, BSONType.DOUBLE);
+        else if (typeof value === 'boolean') written(BSONType.BOOLEAN);
+        else if (typeof value === 'bigint') written(BSONType.LONG);
+        else if (value === null || value === undefined) written(BSONType.NULL, BSONType.UNDEFINED);
+    };
+
+    if (isUUIDType(type)) {
+        written(BSONType.BINARY);
+        converted(BSONType.STRING);
+        return;
+    }
+    if (isMongoIdType(type)) {
+        written(BSONType.OID);
+        converted(BSONType.STRING);
+        return;
+    }
+
+    switch (type.kind) {
+        case ReflectionKind.string:
+        case ReflectionKind.templateLiteral:
+            written(BSONType.STRING);
+            return;
+        case ReflectionKind.number:
+            written(BSONType.INT, BSONType.DOUBLE);
+            converted(BSONType.LONG);
+            return;
+        case ReflectionKind.bigint:
+            if (binaryBigIntAnnotation.getFirst(type) !== undefined) {
+                written(BSONType.BINARY);
+                converted(BSONType.LONG, BSONType.INT);
+            } else {
+                written(BSONType.LONG);
+                converted(BSONType.INT, BSONType.BINARY);
+            }
+            return;
+        case ReflectionKind.boolean:
+            written(BSONType.BOOLEAN);
+            return;
+        case ReflectionKind.null:
+        case ReflectionKind.undefined:
+            written(BSONType.NULL, BSONType.UNDEFINED);
+            return;
+        case ReflectionKind.literal:
+            ofJsValue((type as TypeLiteral).literal);
+            return;
+        case ReflectionKind.enum:
+            for (const value of (type as TypeEnum).values) ofJsValue(value);
+            return;
+        case ReflectionKind.regexp:
+            written(BSONType.REGEX);
+            return;
+        case ReflectionKind.array:
+        case ReflectionKind.tuple:
+            written(BSONType.ARRAY);
+            return;
+        case ReflectionKind.objectLiteral:
+            written(BSONType.OBJECT);
+            return;
+        case ReflectionKind.class: {
+            const classType = (type as TypeClass).classType;
+            if (isReferenceType(type)) {
+                // Written as its primary key, whatever type that has
+                for (let bsonType = 1; bsonType < 256; bsonType++) converted(bsonType);
+            } else if (classType === Date) written(BSONType.DATE);
+            else if (classType === RegExp) written(BSONType.REGEX);
+            else if (binaryTypes.includes(classType as any)) written(BSONType.BINARY);
+            else if (classType === Map) written(BSONType.OBJECT, BSONType.ARRAY);
+            else if (classType === Set) written(BSONType.ARRAY);
+            else written(BSONType.OBJECT);
+            return;
+        }
+        case ReflectionKind.union:
+            for (const member of (type as TypeUnion).types) addBsonKinds(member, kinds);
+            return;
+        case ReflectionKind.promise:
+            addBsonKinds((type as TypePromise).type, kinds);
+            return;
+        default:
+            // any, unknown and whatever else: nothing is known, nothing counts against it
+            for (let bsonType = 1; bsonType < 256; bsonType++) converted(bsonType);
+    }
+}
+
+/** Whether a type is, or as a union may be, an array, a tuple or a document of properties. */
+function holdsContainer(type: Type): boolean {
+    if (type.kind === ReflectionKind.array || type.kind === ReflectionKind.tuple) return true;
+    if (type.kind === ReflectionKind.union) return (type as TypeUnion).types.some(holdsContainer);
+    if (type.kind === ReflectionKind.promise) return holdsContainer((type as TypePromise).type);
+    return isDocumentType(type);
+}
+
+/** An object literal or a class whose BSON form is a document of its properties. */
+function isDocumentType(type: Type): type is TypeObjectLiteral | TypeClass {
+    if (type.kind === ReflectionKind.objectLiteral) return true;
+    if (type.kind !== ReflectionKind.class || isReferenceType(type)) return false;
+    const classType = (type as TypeClass).classType;
+    return (
+        classType !== Date &&
+        classType !== RegExp &&
+        classType !== Map &&
+        classType !== Set &&
+        !binaryTypes.includes(classType as any)
+    );
+}
+
+/**
+ * Build the matcher of a type: is a BSON value one this type is read from. `depth` is how many
+ * levels of containers are looked into — at 0 only the BSON type counts (`bsonKindsOf`: 1 for
+ * a type our serializer writes, 0 for one that is converted); above it an array is one whose
+ * every element matches, a tuple one of the right length whose positions match, and a
+ * document one that IS the object type (`compileBsonObjectMatch`).
+ */
+function compileBsonMatch(type: Type, depth: number, ctx: BSONBuildState): BsonMatch {
+    if (depth > 0) {
+        if (type.kind === ReflectionKind.array) return compileBsonArrayMatch(type as TypeArray, depth, ctx);
+        if (type.kind === ReflectionKind.tuple) return compileBsonTupleMatch(type as TypeTuple, depth, ctx);
+        if (isDocumentType(type)) return compileBsonObjectMatch(type, depth, ctx);
+        if (type.kind === ReflectionKind.promise) return compileBsonMatch((type as TypePromise).type, depth, ctx);
+        if (type.kind === ReflectionKind.union) {
+            const members = (type as TypeUnion).types.map(member => compileBsonMatch(member, depth, ctx));
+            return (buffer, offset, bsonType) => {
+                let best = NO_MATCH;
+                for (let i = 0; i < members.length; i++) {
+                    const score = members[i](buffer, offset, bsonType);
+                    if (score > best) best = score;
+                }
+                return best;
+            };
+        }
+    }
+
+    const kinds = bsonKindsOf(type);
+    return (_buffer, _offset, bsonType) => (kinds[bsonType] === 0 ? NO_MATCH : kinds[bsonType] - 1);
+}
+
+function compileBsonArrayMatch(type: TypeArray, depth: number, ctx: BSONBuildState): BsonMatch {
+    const element = compileBsonMatch(type.type, depth - 1, ctx);
+
+    return (buffer, offset, bsonType) => {
+        if (bsonType !== BSONType.ARRAY) return NO_MATCH;
+        const size = readInt32LE(buffer, offset);
+        if (size < 5 || offset + size > buffer.length) return NO_MATCH;
+        const end = offset + size - 1;
+        let pos = offset + 4;
+        let score = 1;
+        while (pos < end) {
+            const elementType = buffer[pos++];
+            if (elementType === 0) break;
+            while (pos < end && buffer[pos] !== 0) pos++; // index cstring
+            pos++;
+            const elementScore = element(buffer, pos, elementType);
+            if (elementScore === NO_MATCH) return NO_MATCH;
+            score += elementScore;
+            pos = skipValue(buffer, pos, elementType);
+        }
+        return score;
+    };
+}
+
+function compileBsonTupleMatch(type: TypeTuple, depth: number, ctx: BSONBuildState): BsonMatch {
+    const rest = findTupleRest(type);
+    const hasRest = rest.index !== -1;
+    const compileMember = (member: TypeTupleMember) => ({
+        match: compileBsonMatch(member.type, depth - 1, ctx),
+        optional: isOptional(member),
+    });
+    const leading = (hasRest ? type.types.slice(0, rest.index) : type.types).map(compileMember);
+    const trailing = hasRest ? type.types.slice(rest.index + 1).map(compileMember) : [];
+    const restMatch: BsonMatch = hasRest && rest.type ? compileBsonMatch(rest.type, depth - 1, ctx) : () => 0;
+    let required = 0;
+    while (required < leading.length && !leading[required].optional) required++;
+
+    return (buffer, offset, bsonType) => {
+        if (bsonType !== BSONType.ARRAY) return NO_MATCH;
+        const size = readInt32LE(buffer, offset);
+        if (size < 5 || offset + size > buffer.length) return NO_MATCH;
+        const end = offset + size - 1;
+
+        // The length first: which type a position has depends on it where there is a rest
+        let length = 0;
+        let pos = offset + 4;
+        while (pos < end) {
+            const elementType = buffer[pos++];
+            if (elementType === 0) break;
+            while (pos < end && buffer[pos] !== 0) pos++;
+            pos = skipValue(buffer, pos + 1, elementType);
+            length++;
+        }
+        if (length < required + trailing.length) return NO_MATCH;
+        if (!hasRest && length > leading.length) return NO_MATCH;
+
+        const trailingStart = length - trailing.length;
+        const leadingEnd = Math.min(leading.length, trailingStart);
+        let score = 1;
+        pos = offset + 4;
+        for (let i = 0; i < length; i++) {
+            const elementType = buffer[pos++];
+            while (pos < end && buffer[pos] !== 0) pos++;
+            pos++;
+            let elementScore: number;
+            if (i < leadingEnd) {
+                const isMissing = elementType === BSONType.NULL || elementType === BSONType.UNDEFINED;
+                elementScore = isMissing && leading[i].optional ? 0 : leading[i].match(buffer, pos, elementType);
+            } else if (i < trailingStart) {
+                elementScore = restMatch(buffer, pos, elementType);
+            } else {
+                elementScore = trailing[i - trailingStart].match(buffer, pos, elementType);
+            }
+            if (elementScore === NO_MATCH) return NO_MATCH;
+            score += elementScore;
+            pos = skipValue(buffer, pos, elementType);
+        }
+        return score;
+    };
+}
+
+/**
+ * The matcher of an object literal or a class, fields looked at: `NO_MATCH` unless the
+ * document IS the type — every required property is a field, and every field that is a
+ * property matches its type (`depth - 1` levels down), a literal property by its value. Else
+ * a score with the weights of the union dispatch (`createUnionMemberScorer`): a property that
+ * is there +100, a literal that matches +1000, a field the type does not declare -10.
+ */
+function compileBsonObjectMatch(type: TypeObjectLiteral | TypeClass, depth: number, ctx: BSONBuildState): BsonMatch {
+    const nameEncoder = new TextEncoder();
+    const properties: {
+        nameBytes: Uint8Array;
+        /** A document without it is not this type: not optional, no default, written by the serializer. */
+        required: boolean;
+        match: BsonMatch;
+        hasLiteral: boolean;
+        literal: unknown;
+    }[] = [];
+    for (const prop of type.types) {
+        if (prop.kind !== ReflectionKind.propertySignature && prop.kind !== ReflectionKind.property) continue;
+        if (prop.kind === ReflectionKind.property && prop.static) continue;
+        // Not a field of the document: left out, or its sub-properties are the fields
+        const notAField = excludedAnnotation.isExcluded(prop.type, 'bson') || !!embeddedAnnotation.getFirst(prop.type);
+        const hasLiteral = prop.type.kind === ReflectionKind.literal;
+        properties.push({
+            nameBytes: nameEncoder.encode(ctx.getPropertyName(prop)),
+            required: !notAField && !isOptional(prop) && !hasDefaultValue(prop),
+            match: compileBsonMatch(prop.type, depth - 1, ctx),
+            hasLiteral,
+            literal: hasLiteral ? (prop.type as TypeLiteral).literal : undefined,
+        });
+    }
+    const propertyCount = properties.length;
+    const requiredCount = properties.filter(prop => prop.required).length;
+    // An index signature declares every field: nothing in the document is extra.
+    const open = type.types.some(t => t.kind === ReflectionKind.indexSignature);
+
+    return (buffer, offset, bsonType) => {
+        if (bsonType !== BSONType.OBJECT) return NO_MATCH;
+        const size = readInt32LE(buffer, offset);
+        if (size < 5 || offset + size > buffer.length) return NO_MATCH;
+        const end = offset + size - 1;
+        let pos = offset + 4;
+        let score = 1;
+        let requiredSeen = 0;
+
+        while (pos < end) {
+            const fieldType = buffer[pos++];
+            if (fieldType === 0) break;
+            const nameStart = pos;
+            while (pos < end && buffer[pos] !== 0) pos++;
+            const nameLength = pos - nameStart;
+            pos++;
+
+            let found = -1;
+            for (let p = 0; p < propertyCount; p++) {
+                const name = properties[p].nameBytes;
+                if (name.length !== nameLength) continue;
+                let i = 0;
+                while (i < nameLength && buffer[nameStart + i] === name[i]) i++;
+                if (i === nameLength) {
+                    found = p;
+                    break;
+                }
+            }
+
+            if (found === -1) {
+                if (!open) score -= 10;
+            } else {
+                const prop = properties[found];
+                const isMissing = fieldType === BSONType.NULL || fieldType === BSONType.UNDEFINED;
+                if (!(isMissing && !prop.required)) {
+                    const fieldScore = prop.match(buffer, pos, fieldType);
+                    if (fieldScore === NO_MATCH) return NO_MATCH;
+                    if (prop.hasLiteral) {
+                        if (readPrimitiveValue(buffer, pos, fieldType) !== prop.literal) return NO_MATCH;
+                        score += 1000;
+                    }
+                    score += fieldScore;
+                    if (prop.required) requiredSeen++;
+                }
+                score += 100;
+            }
+
+            pos = skipValue(buffer, pos, fieldType);
+        }
+
+        return requiredSeen >= requiredCount ? score : NO_MATCH;
+    };
+}
+
+/**
+ * Choose the member of a union that a BSON array belongs to, among several array and tuple
+ * members. Built once per union; the returned function gives the index into `members`, and
+ * the caller reads the array with that member's own reader.
+ *
+ * The member whose elements the array's elements are (`compileBsonMatch`, every element
+ * looked at): `string[] | number[]` by the BSON type of the elements, `Model[] | Tag[]` by
+ * their fields, a tuple by its length and positions. Of several that match, the one that
+ * matches most specifically — the BSON type our serializer writes before one that is
+ * converted (`bigint[]` before `number[]` for LONGs), `{ a, b }[]` before `{ a }[]` — then the
+ * declared order, which is also what an empty array gets. An array that is no member's is an
+ * error, as a document that is no member's is.
+ *
+ * This replaces a dispatch that parsed every element as `any` and converted the values to the
+ * first member whose element type the BSON types allowed (a BOOLEAN counted as a `number`, so
+ * `(string | number)[] | boolean[]` read `[true]` as `[1]`), chose between arrays of objects
+ * by trying their deserializers in declared order (none throws for a foreign document: an
+ * array of the second member came back as rows of the first), and knew no tuple.
+ */
+function createArrayUnionChooser(
+    members: Type[],
     unionName: string,
-): [any[], number] {
-    // Read array envelope
-    const arrSize = readInt32LE(buffer, offset);
-    if (arrSize < 5 || offset + arrSize > buffer.length) {
-        throw new BSONError('Invalid BSON array: size out of bounds', 'DK-B020');
-    }
-    const arrEnd = offset + arrSize - 1;
-    let pos = offset + 4;
+    ctx: BSONBuildState,
+): (buffer: Uint8Array, offset: number) => number {
+    const matches = members.map(member => compileBsonMatch(member, MATCH_DEPTH, ctx));
 
-    // Read all elements as raw values
-    const rawValues: { value: any; bsonType: number }[] = [];
-    while (pos < arrEnd) {
-        const elemBsonType = buffer[pos];
-        pos++;
-        if (elemBsonType === 0) break;
-        // Skip index cstring
-        while (pos < arrEnd && buffer[pos] !== 0) pos++;
-        pos++;
-        const value = parseValueAny(buffer, pos, elemBsonType);
-        rawValues.push({ value, bsonType: elemBsonType });
-        pos = skipValue(buffer, pos, elemBsonType);
-    }
-
-    // Try each array type: pick the one where element BSON types best match
-    const matchingTypes: Type[] = [];
-    for (const arrayType of arrayTypes) {
-        if (arrayType.kind === ReflectionKind.array) {
-            const elemType = (arrayType as TypeArray).type;
-            if (allElementsMatch(rawValues, elemType)) {
-                matchingTypes.push(arrayType);
+    return (buffer, offset) => {
+        let best = -1;
+        let bestScore = NO_MATCH;
+        for (let i = 0; i < matches.length; i++) {
+            const score = matches[i](buffer, offset, BSONType.ARRAY);
+            if (score > bestScore) {
+                bestScore = score;
+                best = i;
             }
         }
-    }
-
-    // If exactly one type matches by BSON type, use it
-    if (matchingTypes.length === 1) {
-        const elemType = (matchingTypes[0] as TypeArray).type;
-        const result = rawValues.map(rv => coerceToType(rv.value, rv.bsonType, elemType));
-        return [result, arrEnd + 1];
-    }
-
-    // Multiple matches (e.g., all class arrays) — use discriminant or trial deserialization
-    if (matchingTypes.length > 1) {
-        // Try discriminant-based dispatch on element types
-        const elemTypes = matchingTypes
-            .filter(t => t.kind === ReflectionKind.array)
-            .map(t => (t as TypeArray).type)
-            .filter(
-                (t): t is TypeObjectLiteral | TypeClass =>
-                    t.kind === ReflectionKind.objectLiteral || t.kind === ReflectionKind.class,
-            );
-        if (elemTypes.length === matchingTypes.length && rawValues.length > 0) {
-            const discriminant = findDiscriminant(elemTypes);
-            const firstElemOff =
-                rawValues[0].bsonType === BSONType.OBJECT ? findFirstArrayElementOffset(buffer, offset) : -1;
-
-            if (discriminant && firstElemOff >= 0) {
-                const discValue = scanForFieldValue(buffer, firstElemOff, discriminant.name);
-                if (discValue !== undefined) {
-                    for (const [idx, val] of discriminant.values) {
-                        if (val === discValue) {
-                            const result = deserializeArrayElements(buffer, offset, elemTypes[idx]);
-                            return [result, arrEnd + 1];
-                        }
-                    }
-                }
-            }
-
-            // No discriminant or no match — filter by property existence, then try trial
-            if (firstElemOff >= 0) {
-                const elemFieldNames = scanObjectFieldNames(buffer, firstElemOff);
-                // When discriminant exists, only try types that either:
-                // (a) don't have the discriminant property, or (b) have matching required fields
-                const candidateTypes = discriminant
-                    ? elemTypes.filter((et, i) => {
-                          // Skip types that have the discriminant (they should have matched above)
-                          if (discriminant.values.has(i)) return false;
-                          // Check that at least one required property exists in the element
-                          return hasMatchingProperty(et, elemFieldNames);
-                      })
-                    : elemTypes.filter(et => hasMatchingProperty(et, elemFieldNames));
-
-                for (const elemType of candidateTypes) {
-                    try {
-                        const result = deserializeArrayElements(buffer, offset, elemType);
-                        return [result, arrEnd + 1];
-                    } catch {
-                        continue;
-                    }
-                }
-
-                // All candidates rejected — throw
-                throw new BSONError(`No union member matched. Expected: ${unionName}`, 'DK-B040');
-            }
-        }
-    }
-
-    // Fallback: use first type (for non-class element types)
-    if (arrayTypes.length > 0 && arrayTypes[0].kind === ReflectionKind.array) {
-        const elemType = (arrayTypes[0] as TypeArray).type;
-        const result = rawValues.map(rv => coerceToType(rv.value, rv.bsonType, elemType));
-        return [result, arrEnd + 1];
-    }
-
-    throw new BSONError(`No union member matched. Expected: ${unionName}`, 'DK-B040');
+        if (best === -1) throw new BSONError(`No union member matched. Expected: ${unionName}`, 'DK-B040');
+        return best;
+    };
 }
 
 /**
@@ -1975,16 +2274,6 @@ function createMultiObjectUnionDispatcher(
     // Callable wrappers — handle.fn is mutated by shape learning
     const deserializerFns = handles.map(h => (buf: Uint8Array, off: number) => h.fn(buf, off));
     return createObjectUnionDispatch(objectMembers, unionName, deserializerFns);
-}
-
-/**
- * Check if all raw values can be matched by the target element type.
- */
-function allElementsMatch(rawValues: { value: any; bsonType: number }[], elemType: Type): boolean {
-    for (const rv of rawValues) {
-        if (!bsonTypeMatchesType(rv.bsonType, elemType)) return false;
-    }
-    return true;
 }
 
 /**
@@ -2023,50 +2312,8 @@ function bsonTypeMatchesType(bsonType: number, type: Type): boolean {
 }
 
 /**
- * Coerce a raw value to a target type (used by multi-array union runtime dispatch).
- */
-function coerceToType(value: any, bsonType: number, type: Type): any {
-    if (type.kind === ReflectionKind.union) {
-        // For union element types, find the matching member and coerce
-        for (const member of (type as TypeUnion).types) {
-            if (bsonTypeMatchesType(bsonType, member)) {
-                return coerceToType(value, bsonType, member);
-            }
-        }
-        return value;
-    }
-    switch (type.kind) {
-        case ReflectionKind.string:
-            return String(value);
-        case ReflectionKind.number:
-            return Number(value);
-        case ReflectionKind.boolean:
-            return Boolean(value);
-        case ReflectionKind.bigint:
-            return BigInt(value);
-        case ReflectionKind.class: {
-            if (value && typeof value === 'object') {
-                const cls = (type as TypeClass).classType;
-                const instance = Object.create(cls.prototype);
-                return Object.assign(instance, value);
-            }
-            return value;
-        }
-        default:
-            return value;
-    }
-}
-
-/**
- * Quickly scan a BSON document for a field value (used for discriminant dispatch).
- * Returns the primitive value of the field, or undefined if not found.
- */
-function scanForFieldValue(buffer: Uint8Array, offset: number, fieldName: string): any {
-    return scanForFieldValuePreEncoded(buffer, offset, encodePropertyName(fieldName));
-}
-
-/**
- * Like scanForFieldValue but with pre-encoded name bytes (zero allocation in hot path).
+ * Scan a BSON document for a field (its name pre-encoded: no allocation) and return the
+ * primitive value of it, or undefined if it is not there. Used for discriminant dispatch.
  */
 function scanForFieldValuePreEncoded(buffer: Uint8Array, offset: number, nameBytes: number[]): any {
     const docSize = readInt32LE(buffer, offset);
@@ -2100,88 +2347,6 @@ function scanForFieldValuePreEncoded(buffer: Uint8Array, offset: number, nameByt
         pos = skipValue(buffer, pos, bsonType);
     }
     return undefined;
-}
-
-/**
- * Scan a BSON object's field names (without reading values).
- */
-function scanObjectFieldNames(buffer: Uint8Array, offset: number): Set<string> {
-    const names = new Set<string>();
-    const docSize = readInt32LE(buffer, offset);
-    if (docSize < 5 || offset + docSize > buffer.length) return names;
-    const end = offset + docSize - 1;
-    let pos = offset + 4;
-    while (pos < end) {
-        const bsonType = buffer[pos];
-        if (bsonType === 0) break;
-        pos++;
-        // Read field name
-        let nameStart = pos;
-        while (pos < end && buffer[pos] !== 0) pos++;
-        const name = String.fromCharCode(...buffer.slice(nameStart, pos));
-        names.add(name);
-        pos++; // skip null terminator
-        pos = skipValue(buffer, pos, bsonType);
-    }
-    return names;
-}
-
-/**
- * Check if a class/object type has at least one required property that exists in the field names set.
- */
-function hasMatchingProperty(type: TypeObjectLiteral | TypeClass, fieldNames: Set<string>): boolean {
-    const props =
-        type.kind === ReflectionKind.class
-            ? type.types.filter((t): t is TypeProperty => t.kind === ReflectionKind.property && !t.static)
-            : type.types.filter((t): t is TypePropertySignature => t.kind === ReflectionKind.propertySignature);
-    for (const prop of props) {
-        const name = memberNameToString(prop.name);
-        if (!isOptional(prop) && fieldNames.has(name)) return true;
-    }
-    return false;
-}
-
-/**
- * Deserialize BSON array elements using a specific object/class element type.
- * Used by multi-array union dispatch for class arrays.
- */
-function deserializeArrayElements(buffer: Uint8Array, offset: number, elemType: TypeObjectLiteral | TypeClass): any[] {
-    const arrSize = readInt32LE(buffer, offset);
-    const arrEnd = offset + arrSize - 1;
-    let pos = offset + 4;
-    const result: any[] = [];
-    const elemDeser = getExtractedDeserializer(elemType);
-
-    while (pos < arrEnd) {
-        const bsonType = buffer[pos];
-        if (bsonType === 0) break;
-        pos++; // skip type byte
-        while (buffer[pos] !== 0) pos++; // skip index cstring
-        pos++; // skip null terminator
-        const [val, newPos] = elemDeser(buffer, pos);
-        result.push(val);
-        pos = newPos;
-    }
-
-    return result;
-}
-
-/**
- * Find the byte offset of the first element in a BSON array.
- * Returns the offset of the element's document (for OBJECT elements), or -1 if empty.
- */
-function findFirstArrayElementOffset(buffer: Uint8Array, offset: number): number {
-    const arrSize = readInt32LE(buffer, offset);
-    const arrEnd = offset + arrSize - 1;
-    let pos = offset + 4;
-    if (pos >= arrEnd) return -1;
-    const bsonType = buffer[pos];
-    if (bsonType === 0) return -1;
-    pos++; // skip type byte
-    // Skip index cstring (e.g., "0\0")
-    while (buffer[pos] !== 0) pos++;
-    pos++; // skip null terminator
-    return pos;
 }
 
 /**
@@ -4122,17 +4287,19 @@ function deserializeUnionInto(
             },
         ]);
     } else if (allArrayMembers.length > 1) {
-        // Multiple array types — use runtime dispatch
-        // Read all elements as `any`, then try to match each array type
+        // Multiple array types — the member is chosen from the elements at run time, and the
+        // array is read by that member's own reader
         cases.push([
             b.eq(bsonType, b.lit(BSONType.ARRAY)),
             () => {
-                const result = b.let(
-                    b.call(deserializeMultiArrayUnion, buffer, b.getVar(o), b.lit(allArrayMembers), b.lit(unionName)),
-                    'multiArrResult',
+                const chooseMember = createArrayUnionChooser(allArrayMembers, unionName, ctx);
+                b.switch_(
+                    b.call(chooseMember, buffer, b.getVar(o)),
+                    allArrayMembers.map((member, index): [number, () => void] => [
+                        index,
+                        () => deserializeValueInto(b, buffer, o, bsonType, member, target, ctx),
+                    ]),
                 );
-                b.setVar(target, b.at(result, 0));
-                b.setVar(o, b.at(result, 1));
             },
         ]);
     }

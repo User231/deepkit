@@ -3100,200 +3100,359 @@ function isObjectShapedMember(type: Type): type is TypeObjectLiteral | TypeClass
 }
 
 /**
- * Whether `value` (never `undefined`) is of the JS kind `type` serializes from — one level deep,
- * no recursion into objects or arrays. Used to tell two union members apart that declare the
- * same property name with different types. Says `true` wherever it cannot tell, so an unknown
- * kind never counts against a member.
+ * What a matcher answers for a value that is not of its type.
  */
-function compileShallowFit(type: Type): (value: any) => boolean {
-    if (isUUIDType(type) || isMongoIdType(type)) return value => typeof value === 'string';
-
-    switch (type.kind) {
-        case ReflectionKind.string:
-        case ReflectionKind.templateLiteral:
-            return value => typeof value === 'string';
-        case ReflectionKind.number:
-            return value => typeof value === 'number';
-        case ReflectionKind.boolean:
-            return value => typeof value === 'boolean';
-        case ReflectionKind.bigint:
-            return value => typeof value === 'bigint';
-        case ReflectionKind.null:
-        case ReflectionKind.undefined:
-            return value => value === null;
-        case ReflectionKind.literal: {
-            const literal = (type as TypeLiteral).literal;
-            return value => value === literal;
-        }
-        case ReflectionKind.enum: {
-            const values = new Set((type as TypeEnum).values);
-            return value => values.has(value);
-        }
-        case ReflectionKind.array:
-        case ReflectionKind.tuple:
-            return Array.isArray;
-        case ReflectionKind.regexp:
-            return value => value instanceof RegExp;
-        case ReflectionKind.objectLiteral:
-            return value => typeof value === 'object' && value !== null && !Array.isArray(value);
-        case ReflectionKind.class: {
-            const classType = (type as TypeClass).classType;
-            if (classType === Date) return value => value instanceof Date;
-            if (binaryTypes.includes(classType)) {
-                return value => ArrayBuffer.isView(value) || value instanceof ArrayBuffer;
-            }
-            // Map, Set, a reference (written as its primary key), a custom class: an object.
-            if (isReferenceType(type)) return () => true;
-            return value => typeof value === 'object' && value !== null;
-        }
-        case ReflectionKind.union: {
-            const members = (type as TypeUnion).types.map(compileShallowFit);
-            return value => {
-                for (const fits of members) if (fits(value)) return true;
-                return false;
-            };
-        }
-        case ReflectionKind.promise:
-            return compileShallowFit((type as TypePromise).type);
-        default:
-            return () => true;
-    }
-}
+const NO_MATCH = -Infinity;
 
 /**
- * Added to the score of a member the value IS, in `createObjectMemberPicker`: more than any
- * sum of the other weights, so such a member is chosen before one the value is not.
+ * How many levels of containers the choice of a union member looks into, below the value
+ * itself: `Model[] | Tag[]` needs two (the elements, their properties), `{ rows: Model[] } |
+ * { rows: Tag[] }` three. A difference further down is not seen, and the first of the members
+ * that are alike down to there is taken.
+ */
+const MATCH_DEPTH = 3;
+
+/**
+ * Added to the score of a member the value IS, in `compileObjectScore`: more than any sum of
+ * the other weights, so such a member is chosen before one the value is not.
  */
 const MEMBER_SCORE = 1e9;
 
 /**
- * What the picker knows about one property of one object member of a union.
+ * What an instance of a member's own class scores as an element (`compileMatch`): more than
+ * any plain object's properties.
  */
-interface PickerProperty {
-    name: string;
-    /** A missing value counts against the member: not optional, no default. */
-    required: boolean;
-    fits: (value: any) => boolean;
-    /** The property's type is a literal: a match is the strongest evidence there is. */
-    literal: boolean;
-    /** Literal properties of a nested object type — a discriminator one level down. */
-    nestedLiterals: { name: string; literal: unknown }[] | undefined;
+const INSTANCE_SCORE = 1e6;
+
+/**
+ * Whether a value is of the JS kind `type` serializes from, and how specifically: `NO_MATCH`
+ * when it is not, else a score (0 for everything that is not an object whose properties were
+ * looked at). `depth` is how many levels of containers are looked into — at 0 an array is "is
+ * an array" and an object "is an object"; above it an array is one whose every element matches
+ * and an object one that IS the type (`compileObjectScore`).
+ *
+ * Used to choose between members of a union that the kind of the value alone does not tell
+ * apart. Answers 0 wherever it cannot tell, so an unknown kind never counts against a member.
+ * A missing value (`undefined`) matches only a type that holds `null` or `undefined`.
+ */
+function compileMatch(type: Type, depth: number): (value: any) => number {
+    if (isUUIDType(type) || isMongoIdType(type)) return value => (typeof value === 'string' ? 0 : NO_MATCH);
+
+    switch (type.kind) {
+        case ReflectionKind.string:
+        case ReflectionKind.templateLiteral:
+            return value => (typeof value === 'string' ? 0 : NO_MATCH);
+        case ReflectionKind.number:
+            return value => (typeof value === 'number' ? 0 : NO_MATCH);
+        case ReflectionKind.boolean:
+            return value => (typeof value === 'boolean' ? 0 : NO_MATCH);
+        case ReflectionKind.bigint:
+            return value => (typeof value === 'bigint' ? 0 : NO_MATCH);
+        case ReflectionKind.null:
+        case ReflectionKind.undefined:
+            return value => (value === null || value === undefined ? 0 : NO_MATCH);
+        case ReflectionKind.literal: {
+            const literal = (type as TypeLiteral).literal;
+            return value => (value === literal ? 0 : NO_MATCH);
+        }
+        case ReflectionKind.enum: {
+            const values = new Set((type as TypeEnum).values);
+            return value => (values.has(value) ? 0 : NO_MATCH);
+        }
+        case ReflectionKind.regexp:
+            return value => (value instanceof RegExp ? 0 : NO_MATCH);
+        case ReflectionKind.array: {
+            if (depth === 0) return value => (Array.isArray(value) ? 0 : NO_MATCH);
+            const element = compileMatch((type as TypeArray).type, depth - 1);
+            return value => {
+                if (!Array.isArray(value)) return NO_MATCH;
+                let score = 0;
+                for (let i = 0; i < value.length; i++) {
+                    const elementScore = element(value[i]);
+                    if (elementScore === NO_MATCH) return NO_MATCH;
+                    score += elementScore;
+                }
+                return score;
+            };
+        }
+        case ReflectionKind.tuple:
+            if (depth === 0) return value => (Array.isArray(value) ? 0 : NO_MATCH);
+            return compileTupleMatch(type as TypeTuple, depth);
+        case ReflectionKind.objectLiteral:
+            if (depth === 0) {
+                return value => (typeof value === 'object' && value !== null && !Array.isArray(value) ? 0 : NO_MATCH);
+            }
+            return compileObjectMatch(type as TypeObjectLiteral, depth);
+        case ReflectionKind.class: {
+            const classType = (type as TypeClass).classType;
+            if (classType === Date) return value => (value instanceof Date ? 0 : NO_MATCH);
+            if (binaryTypes.includes(classType)) {
+                return value => (ArrayBuffer.isView(value) || value instanceof ArrayBuffer ? 0 : NO_MATCH);
+            }
+            // A reference is written as its primary key: whatever holds one.
+            if (isReferenceType(type)) return () => 0;
+            // Map, Set and the other built-in classes: an object. A custom class: one that is it.
+            if (depth === 0 || isGlobalTypeClass(type)) {
+                return value => (typeof value === 'object' && value !== null ? 0 : NO_MATCH);
+            }
+            return compileObjectMatch(type as TypeClass, depth);
+        }
+        case ReflectionKind.union: {
+            const members = (type as TypeUnion).types.map(member => compileMatch(member, depth));
+            return value => {
+                let best = NO_MATCH;
+                for (let i = 0; i < members.length; i++) {
+                    const score = members[i](value);
+                    if (score > best) best = score;
+                }
+                return best;
+            };
+        }
+        case ReflectionKind.promise:
+            return compileMatch((type as TypePromise).type, depth);
+        default:
+            return () => 0;
+    }
+}
+
+/**
+ * `compileMatch` for a tuple: the length the tuple allows, and every element matching the type
+ * of its position — the rest type for the elements a rest element takes.
+ */
+function compileTupleMatch(type: TypeTuple, depth: number): (value: any) => number {
+    const rest = findTupleRest(type);
+    const hasRest = rest.index !== -1;
+    const compileMember = (member: TypeTupleMember) => ({
+        match: compileMatch(member.type, depth - 1),
+        optional: isOptional(member),
+    });
+    const leading = (hasRest ? type.types.slice(0, rest.index) : type.types).map(compileMember);
+    const trailing = hasRest ? type.types.slice(rest.index + 1).map(compileMember) : [];
+    const restMatch = hasRest && rest.type ? compileMatch(rest.type, depth - 1) : () => 0;
+    let required = 0;
+    while (required < leading.length && !leading[required].optional) required++;
+
+    return value => {
+        if (!Array.isArray(value)) return NO_MATCH;
+        const length = value.length;
+        if (length < required + trailing.length) return NO_MATCH;
+        if (!hasRest && length > leading.length) return NO_MATCH;
+
+        const trailingStart = length - trailing.length;
+        const leadingEnd = Math.min(leading.length, trailingStart);
+        let score = 0;
+        for (let i = 0; i < length; i++) {
+            let elementScore: number;
+            if (i < leadingEnd) {
+                if (value[i] === undefined && leading[i].optional) continue;
+                elementScore = leading[i].match(value[i]);
+            } else if (i < trailingStart) {
+                elementScore = restMatch(value[i]);
+            } else {
+                elementScore = trailing[i - trailingStart].match(value[i]);
+            }
+            if (elementScore === NO_MATCH) return NO_MATCH;
+            score += elementScore;
+        }
+        return score;
+    };
+}
+
+/**
+ * `compileMatch` for an object literal or a custom class, properties looked at: `NO_MATCH`
+ * unless the value IS the type, else the score `compileObjectScore` gives it. An instance of
+ * the class itself is it, whatever its properties say.
+ */
+function compileObjectMatch(type: TypeObjectLiteral | TypeClass, depth: number): (value: any) => number {
+    const score = compileObjectScore(type, depth - 1);
+    const classType = type.kind === ReflectionKind.class ? type.classType : undefined;
+
+    return value => {
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) return NO_MATCH;
+        if (classType !== undefined && value.constructor === classType) return INSTANCE_SCORE;
+        const objectScore = score(value, Object.keys(value).length);
+        return objectScore >= MEMBER_SCORE / 2 ? objectScore - MEMBER_SCORE : NO_MATCH;
+    };
+}
+
+/**
+ * Score one object type against an object value: how well the value's properties are this
+ * type's. Built once per type; `keyCount` is the number of the value's own keys.
+ *
+ * BSON writes by the declared type and has no way back from a wrong choice, so the first
+ * question is whether the value IS the type: every required property is there, and every value
+ * that is there matches its property's type (`compileMatch` — this is what tells
+ * `{ value: string }` from `{ value: number }`). Then `MEMBER_SCORE` is added, so that it wins
+ * over a type the value is not. A property in `contested` — one that another member of the
+ * union declares too — is looked into `propertyDepth` levels down, which tells
+ * `{ items: string[] }` from `{ items: number[] }`; any other by its kind alone: nothing
+ * competes for it, and what is wrong inside it is for its own serializer to say, with a path.
+ * Without `contested` every property is looked into.
+ *
+ * Under that — and alone when the value is not the type, so that the nearest one can be named
+ * in an error — the weights are those of `@deepkit/type`'s union handler
+ * (`packages/type/src/serializer/union.ts`), so both serializers choose alike: a declared
+ * property that is present +100, a literal property whose value matches +1000 and one that
+ * does not -500 (also one level down, for a nested discriminator), a key the type does not
+ * declare -10; and a missing required property -100, the weight the BSON deserializer's
+ * dispatch uses.
+ */
+function compileObjectScore(
+    type: TypeObjectLiteral | TypeClass,
+    propertyDepth: number,
+    contested?: Set<string>,
+): (value: any, keyCount: number) => number {
+    const properties: {
+        name: string;
+        /** A missing value counts against the type: not optional, no default. */
+        required: boolean;
+        match: (value: any) => number;
+        /** The property's type is a literal: a match is the strongest evidence there is. */
+        literal: boolean;
+        /** Literal properties of a nested object type — a discriminator one level down. */
+        nestedLiterals: { name: string; literal: unknown }[] | undefined;
+    }[] = [];
+
+    for (const prop of resolveTypeMembers(type)) {
+        if (!isPropertyMemberType(prop)) continue;
+        const nestedLiterals: { name: string; literal: unknown }[] = [];
+        if (prop.type.kind === ReflectionKind.objectLiteral || prop.type.kind === ReflectionKind.class) {
+            for (const nested of resolveTypeMembers(prop.type)) {
+                if (!isPropertyMemberType(nested) || nested.type.kind !== ReflectionKind.literal) continue;
+                nestedLiterals.push({ name: memberNameToString(nested.name), literal: nested.type.literal });
+            }
+        }
+        const name = memberNameToString(prop.name);
+        properties.push({
+            name,
+            required: !isOptional(prop) && !hasDefaultValue(prop),
+            match: compileMatch(prop.type, contested === undefined || contested.has(name) ? propertyDepth : 0),
+            literal: prop.type.kind === ReflectionKind.literal,
+            nestedLiterals: nestedLiterals.length > 0 ? nestedLiterals : undefined,
+        });
+    }
+    // An index signature declares every key: nothing in the value is extra.
+    const open = type.types.some(t => t.kind === ReflectionKind.indexSignature);
+
+    return (value: any, keyCount: number): number => {
+        let score = 0;
+        let present = 0;
+        let isMember = true;
+
+        for (let p = 0; p < properties.length; p++) {
+            const prop = properties[p];
+            const propValue = value[prop.name];
+            if (propValue === undefined) {
+                if (prop.required) {
+                    score -= 100;
+                    isMember = false;
+                }
+                continue;
+            }
+            present++;
+            score += 100;
+            // An optional property that is null is written as null, whatever its type.
+            if (propValue === null && !prop.required) continue;
+            if (prop.match(propValue) === NO_MATCH) {
+                isMember = false;
+                if (prop.literal) score -= 500;
+            } else if (prop.literal) {
+                score += 1000;
+            }
+            const nestedLiterals = prop.nestedLiterals;
+            if (nestedLiterals !== undefined && typeof propValue === 'object' && propValue !== null) {
+                for (const nested of nestedLiterals) {
+                    const nestedValue = propValue[nested.name];
+                    if (nestedValue === nested.literal) {
+                        score += 1000;
+                    } else if (nestedValue !== undefined) {
+                        score -= 500;
+                    }
+                }
+            }
+        }
+
+        // Keys of the value the type does not declare count against it; a declared property
+        // that is present is one of the value's keys, so the keys are only counted.
+        if (!open && keyCount > present) score -= (keyCount - present) * 10;
+
+        return isMember ? score + MEMBER_SCORE : score;
+    };
 }
 
 /**
  * Choose the member of a union that an object value belongs to, among several object members.
- *
  * Built once per union; the returned function gives the index into `members`.
  *
- * BSON writes by the declared type and has no way back from a wrong choice, so the first
- * question is which members the value IS: every required property is there, and every value
- * that is there is of its property's kind (`compileShallowFit` — this is what tells
- * `{ value: string }` from `{ value: number }`). Such a member wins over one the value is not.
- *
- * Among those — or among all of them when the value is none, so that the error names the
- * member it is nearest to — the weights are those of `@deepkit/type`'s union handler
- * (`packages/type/src/serializer/union.ts`), so both serializers choose alike: a declared
- * property that is present +100, a literal property whose value matches +1000 and one that
- * does not -500 (also one level down, for a nested discriminator), a key the member does not
- * declare -10; and a missing required property -100, the weight the BSON deserializer's
- * dispatch uses. Equal scores keep the declared order.
- *
- * An instance of a member's own class is that member, with no scoring.
+ * An instance of a member's own class is that member. Otherwise the member with the best
+ * `compileObjectScore`: one the value IS before one it is not, then the weights of
+ * `@deepkit/type`'s union handler. Equal scores keep the declared order.
  */
 function createObjectMemberPicker(members: (TypeObjectLiteral | TypeClass)[]): (value: any) => number {
-    const infos = members.map(member => {
-        const properties: PickerProperty[] = [];
+    // The property names more than one member declares
+    const declaredBy = new Map<string, number>();
+    for (const member of members) {
         for (const prop of resolveTypeMembers(member)) {
             if (!isPropertyMemberType(prop)) continue;
-            const nestedLiterals: { name: string; literal: unknown }[] = [];
-            if (prop.type.kind === ReflectionKind.objectLiteral || prop.type.kind === ReflectionKind.class) {
-                for (const nested of resolveTypeMembers(prop.type)) {
-                    if (!isPropertyMemberType(nested) || nested.type.kind !== ReflectionKind.literal) continue;
-                    nestedLiterals.push({ name: memberNameToString(nested.name), literal: nested.type.literal });
-                }
-            }
-            properties.push({
-                name: memberNameToString(prop.name),
-                required: !isOptional(prop) && !hasDefaultValue(prop),
-                fits: compileShallowFit(prop.type),
-                literal: prop.type.kind === ReflectionKind.literal,
-                nestedLiterals: nestedLiterals.length > 0 ? nestedLiterals : undefined,
-            });
+            const name = memberNameToString(prop.name);
+            declaredBy.set(name, (declaredBy.get(name) ?? 0) + 1);
         }
-        return {
-            classType: member.kind === ReflectionKind.class ? member.classType : undefined,
-            properties,
-            // An index signature declares every key: nothing in the value is extra.
-            open: member.types.some(t => t.kind === ReflectionKind.indexSignature),
-        };
-    });
-    const hasClassMember = infos.some(info => info.classType !== undefined);
+    }
+    const contested = new Set<string>();
+    for (const [name, count] of declaredBy) if (count > 1) contested.add(name);
+
+    const scores = members.map(member => compileObjectScore(member, MATCH_DEPTH - 1, contested));
+    const classTypes = members.map(member => (member.kind === ReflectionKind.class ? member.classType : undefined));
+    const hasClassMember = classTypes.some(classType => classType !== undefined);
 
     return (value: any): number => {
         if (typeof value !== 'object' || value === null) return 0;
 
         if (hasClassMember) {
             const ctor = value.constructor;
-            for (let i = 0; i < infos.length; i++) {
-                if (infos[i].classType === ctor) return i;
+            for (let i = 0; i < classTypes.length; i++) {
+                if (classTypes[i] === ctor) return i;
             }
         }
 
-        // Keys of the value a member does not declare count against it; a declared property
-        // that is present is one of the value's keys, so the keys are only counted.
         const keyCount = Object.keys(value).length;
         let best = 0;
         let bestScore = -Infinity;
-
-        for (let i = 0; i < infos.length; i++) {
-            const info = infos[i];
-            const properties = info.properties;
-            let score = 0;
-            let present = 0;
-            let isMember = true;
-
-            for (let p = 0; p < properties.length; p++) {
-                const prop = properties[p];
-                const propValue = value[prop.name];
-                if (propValue === undefined) {
-                    if (prop.required) {
-                        score -= 100;
-                        isMember = false;
-                    }
-                    continue;
-                }
-                present++;
-                score += 100;
-                // An optional property that is null is written as null, whatever its type.
-                if (propValue === null && !prop.required) continue;
-                if (!prop.fits(propValue)) {
-                    isMember = false;
-                    if (prop.literal) score -= 500;
-                } else if (prop.literal) {
-                    score += 1000;
-                }
-                const nestedLiterals = prop.nestedLiterals;
-                if (nestedLiterals !== undefined && typeof propValue === 'object' && propValue !== null) {
-                    for (const nested of nestedLiterals) {
-                        const nestedValue = propValue[nested.name];
-                        if (nestedValue === nested.literal) {
-                            score += 1000;
-                        } else if (nestedValue !== undefined) {
-                            score -= 500;
-                        }
-                    }
-                }
-            }
-
-            if (!info.open && keyCount > present) score -= (keyCount - present) * 10;
-
-            if (isMember) score += MEMBER_SCORE;
+        for (let i = 0; i < scores.length; i++) {
+            const score = scores[i](value, keyCount);
             if (score > bestScore) {
                 bestScore = score;
                 best = i;
             }
         }
+        return best;
+    };
+}
 
+/**
+ * Choose the member of a union that an array value belongs to, among several array and tuple
+ * members. Built once per union; the returned function gives the index into `members`.
+ *
+ * The member whose elements the value's elements are (`compileMatch`, every element looked
+ * at): `string[] | number[]` by the kind of the elements, `Model[] | Tag[]` by their
+ * properties, a tuple by its length and positions. Of several that match, the one whose
+ * element types the elements match most specifically (`{ a }[] | { a, b }[]`), then the
+ * declared order — which is also what an empty array gets. When none matches, the first: its
+ * serializer says what does not convert.
+ */
+function createArrayMemberPicker(members: Type[]): (value: any) => number {
+    const matches = members.map(member => compileMatch(member, MATCH_DEPTH));
+
+    return (value: any): number => {
+        let best = 0;
+        let bestScore = NO_MATCH;
+        for (let i = 0; i < matches.length; i++) {
+            const score = matches[i](value);
+            if (score > bestScore) {
+                bestScore = score;
+                best = i;
+            }
+        }
         return best;
     };
 }
@@ -3389,29 +3548,41 @@ function serializeScoredUnion(
     // Several object members (object literals, custom classes): every plain object passes the
     // kind check of each of them, so checking them one by one gave any object to the FIRST —
     // a value of the second was written by the first one's properties (`Cannot convert
-    // undefined to string`, or a wrong value where the shared name has another type). They are
-    // one check, and the member is chosen from the value's properties at run time.
+    // undefined to string`, or a wrong value where the shared name has another type). The same
+    // for several array members (arrays, tuples) and any array. Each such group is one check,
+    // and the member is chosen from the value's properties or elements at run time.
     const objectMembers = type.types.filter(isObjectShapedMember);
-    const objectGroup = objectMembers.length > 1 ? new Set<Type>(objectMembers) : undefined;
-    let objectGroupEmitted = false;
+    const arrayMembers = type.types.filter(t => t.kind === ReflectionKind.array || t.kind === ReflectionKind.tuple);
+    const groups = [
+        {
+            members: objectMembers as Type[],
+            emitted: false,
+            check: () =>
+                b.and(b.isType(value, 'object'), b.and(b.not(b.isNull(value)), b.not(b.call(Array.isArray, value)))),
+            createPicker: () => createObjectMemberPicker(objectMembers),
+        },
+        {
+            members: arrayMembers,
+            emitted: false,
+            check: () => b.call(Array.isArray, value),
+            createPicker: () => createArrayMemberPicker(arrayMembers),
+        },
+    ].filter(group => group.members.length > 1);
 
     // Try each member in priority order
     for (const member of sortedMembers) {
-        if (objectGroup && objectGroup.has(member)) {
-            if (objectGroupEmitted) continue;
-            objectGroupEmitted = true;
-            const pickMember = createObjectMemberPicker(objectMembers);
+        const group = groups.find(candidate => candidate.members.includes(member));
+        if (group) {
+            if (group.emitted) continue;
+            group.emitted = true;
+            const pickMember = group.createPicker();
             b.if_(b.not(b.getVar(matched)), () => {
-                const isObject = b.and(
-                    b.isType(value, 'object'),
-                    b.and(b.not(b.isNull(value)), b.not(b.call(Array.isArray, value))),
-                );
-                b.if_(isObject, () => {
+                b.if_(group.check(), () => {
                     b.switch_(
                         b.call(pickMember, value),
-                        objectMembers.map((objectMember, index): [number, () => void] => [
+                        group.members.map((groupMember, index): [number, () => void] => [
                             index,
-                            () => serializeValue(b, buffer, view, o, name, objectMember, value, ctx),
+                            () => serializeValue(b, buffer, view, o, name, groupMember, value, ctx),
                         ]),
                     );
                     b.setVar(matched, b.lit(true));

@@ -5,6 +5,44 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## Unreleased
 
+### BSON: a union of several array types is written and read by the member the array is
+
+The array half of the entry below. `getBSONSerializer<{ v: string[] | number[] }>()` gave every
+array to the FIRST array member — the check of an array member was `Array.isArray`: `[1, 2]`
+threw `Cannot convert 1 to string at v.[i]`, an array of the second member of `Model[] | Tag[]`
+threw, and `number[] | string[]` wrote `['a']` as a number with no error. The deserializer had a
+dispatch of its own for these unions, and it was wrong in three ways: it parsed every element
+as `any` and converted the values to the first member whose element type allowed the BSON
+types, where a BOOLEAN counted as a `number` (`(string | number)[] | boolean[]` read `[true]`
+as `[1]`); between arrays of objects it tried the members' deserializers in declared order, and
+none throws for a foreign document (`Model[] | Tag[]` read tags as models with `name: ''`); and
+it knew no tuple (`[string, number] | [number, string]` threw `No union member matched`).
+
+- **Serializer** (`createArrayMemberPicker`, `compileMatch`): several array members (arrays,
+  tuples) are one check, and the member is the one whose elements the value's elements are —
+  by their kind, for objects by their properties, for a tuple by its length and positions;
+  every element is looked at. Of several that match, the most specific (`{ a, b }[]` before
+  `{ a }[]`), then the declared order, which is what an empty array gets. When none matches,
+  the first, whose serializer says what does not convert.
+- **Deserializer** (`createArrayUnionChooser`, `compileBsonMatch`): the same choice from the
+  BSON elements — a BSON type our serializer writes for the element type before one that is
+  only converted into it (`bigint[]` before `number[]` for LONGs) — and the array is then read
+  by the chosen member's OWN reader, inline, where it was read as `any` and converted. An array
+  that is no member's throws `No union member matched`, as a document that is no member's does;
+  it used to be converted to the first member (`[null, 'a']` through `string[] | number[]`
+  came back as `['null', 'a']`).
+- **Object unions, one level further**: members that differ only INSIDE a property they both
+  declare are told apart — `{ items: string[] } | { items: number[] }`, `{ data: Model } |
+  { data: Tag }`, `{ rows: Model[] } | { rows: Tag[] }` — in both directions. Only a property
+  more than one member declares is looked into (three levels of containers at most); a property
+  one member alone declares is judged by its kind, so `{ rows: Row[] } | { error: string }`
+  pays nothing, and what is wrong inside `rows` is still said by its own serializer.
+
+50 rows, compiled: `Model[] | Tag[]` encodes in 2.4 µs and decodes in 4.5 µs (`Model[]` alone:
+0.6 and 1.2 µs); `string[] | number[]` of 50 numbers 0.37 and 0.96 µs (0.17 and 0.21 µs).
+Tests: `packages/bson/tests/array-unions.spec.ts` — 32 cases, 29 of them fail on the previous
+source. The golden files are unchanged.
+
 ### BSON: a union of several object types is written and read by the member the value is
 
 `getBSONSerializer<{ v: Model | Tag }>()` gave every object to the FIRST object member of the
@@ -38,8 +76,8 @@ error at all: `{ value: 'x' }` through `{ value: number } | { value: string }` d
   discriminant matched no member tried the others in declared order; it is scored too.
 
 Tests: `packages/bson/tests/object-unions.spec.ts` (bytes equal to the official `bson`
-package's, decoded twice, both JIT modes). The golden files are unchanged. Not covered by this:
-a union of several ARRAY types still takes the first for any array (`docs/todo.md`).
+package's, decoded twice, both JIT modes). The golden files are unchanged. A union of several
+ARRAY types is the entry above.
 
 ### JIT: one statement of each fact, a faster interpreter, and programs the Builder refuses
 

@@ -65,14 +65,17 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   7.7 µs → 436 µs. That is the mode a browser under a strict CSP runs. One thing has been done
   (2026-11-17: one expression compiler, completion signals instead of objects — 3–20% off the
   interpreted times); the AOT tier above is the designed answer.
-- **BSON takes the first ARRAY member of a union for any array.** `getBSONSerializer<{ v:
-  string[] | number[] }>()` throws on `[1, 2]` (`Cannot convert 1 to string at v.[i]`), and
-  `number[] | string[]` writes `['a']` as `[0]` with no error (a `number` is written unguarded);
-  `Model[] | Tag[]` throws on an array of the second. The member check is `Array.isArray`, as it
-  was "is an object" for object members until 2026-11-17 (`createObjectMemberPicker` — the same
-  cure, over the elements, is not built). The deserializer has a dispatch for it
-  (`deserializeMultiArrayUnion`) that still chooses between object rows by trying members in
-  order. Found 2026-11-17 while fixing the object case; no test covers it.
+- **BSON union choice: what is left** (after the object and array fixes of 2026-11-17,
+  `bson/tests/object-unions.spec.ts`, `array-unions.spec.ts`). (a) A union of ARRAYS at the top
+  level is refused when the function is built — `getBSONSerializer<string[] | number[]>()`
+  throws `Type 'union' cannot be serialized to BSON`, the deserializer likewise; only a union of
+  objects is taken there. Loud, and no caller has one. (b) The deserializer's choice between
+  object members has no "the document IS this member" rule, which the serializer's has: a type
+  mismatch costs 5 points against 100 for a field the member declares, so `{ items: string[];
+  x?: number } | { items: number[] }` reads `{ items: [1], x: 2 }` as the first member, `items:
+  ['1']`. Our serializer never writes such a document (it writes the second member, without
+  `x`); another writer could. (c) Members that differ only more than three levels of containers
+  down are not told apart (`MATCH_DEPTH`): the first is taken.
 - **`npm run test:interpreted` is run by hand.** It runs every suite with
   `DEEPKIT_JIT_MODE=interpreted` (all of `core`, `type`, `bson`, `rpc`, `orm`, `http`, `injector`
   … pass, 2026-11-16) and no CI job runs it. The switch covers the JIT; the truly blocked
