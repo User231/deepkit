@@ -1445,12 +1445,18 @@ class CodeGenerator {
         // Place nested functions and helpers at the new Function() scope level (no IIFE).
         // V8 TurboFan generates 2.6x worse machine code when the main function is inside
         // an IIFE closure, even with identical inner functions (168M → 65M for int32x3).
+        //
+        // The source is STRICT, like the interpreter (a module) and like every hand-written file: a
+        // write the target refuses throws instead of being dropped, a write to a name nobody declared
+        // throws instead of making a global. The directive is the first statement of the outer
+        // body, so the nested functions and the returned one inherit it; the returned function
+        // cannot carry its own, a directive being a syntax error beside a parameter default.
         let fnBody: string;
         if (nestedDefs || adoptedDefs || this.helperFunctions.size > 0) {
             const helpers = [...this.helperFunctions.values()].join('');
-            fnBody = `${nestedDefs}${adoptedDefs}${helpers}return function(${argNames}){\n${body}}`;
+            fnBody = `'use strict';\n${nestedDefs}${adoptedDefs}${helpers}return function(${argNames}){\n${body}}`;
         } else {
-            fnBody = `return function(${argNames}){\n${body}}`;
+            fnBody = `'use strict';\nreturn function(${argNames}){\n${body}}`;
         }
 
         if (jitDebug) {

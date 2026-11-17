@@ -326,6 +326,7 @@ export class SqlBuilder {
         const joinedArray = `[${this.joins.map(v => `{}`).join(', ')}]`;
 
         const code = `
+            'use strict';
             return function(row) {
                 if (null === row[${primaryKeyIndex}]) return;
 

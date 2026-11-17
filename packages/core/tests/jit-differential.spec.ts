@@ -81,20 +81,8 @@ function showOutcome(o: Outcome): string {
     return show(o.value);
 }
 
-interface Tolerance {
-    /**
-     * A write to a primitive (or to a property that refuses it) is silently dropped by compiled code,
-     * which runs sloppy, and is a TypeError in the interpreter, which is a strict-mode module. That
-     * difference is known and pinned in "known differences" below; a slot that puts an arbitrary
-     * value in write position accepts exactly that pair.
-     */
-    sloppyWrite?: boolean;
-}
-
-function sameOutcome(compiled: Outcome, interpreted: Outcome, tolerance: Tolerance = {}): boolean {
-    if (compiled.threw !== interpreted.threw) {
-        return !!tolerance.sloppyWrite && !compiled.threw && interpreted.threw && interpreted.error instanceof TypeError;
-    }
+function sameOutcome(compiled: Outcome, interpreted: Outcome): boolean {
+    if (compiled.threw !== interpreted.threw) return false;
     if (compiled.threw && interpreted.threw) {
         const a = compiled.error;
         const b = interpreted.error;
@@ -111,7 +99,7 @@ function sameOutcome(compiled: Outcome, interpreted: Outcome, tolerance: Toleran
  * the modes agree). A program the compiled mode cannot even build is a disagreement by itself:
  * the interpreter has no source text to get wrong.
  */
-function differences(label: string, program: Program, vectors: Inputs[], tolerance: Tolerance = {}): string[] {
+function differences(label: string, program: Program, vectors: Inputs[]): string[] {
     let compiled: (...args: any[]) => any;
     let interpreted: (...args: any[]) => any;
     try {
@@ -128,7 +116,7 @@ function differences(label: string, program: Program, vectors: Inputs[], toleran
     for (const make of vectors) {
         const c = run(compiled, make);
         const i = run(interpreted, make);
-        if (!sameOutcome(c, i, tolerance)) {
+        if (!sameOutcome(c, i)) {
             const inputsNote = same(c.inputs, i.inputs) ? '' : ` | inputs after: compiled ${show(c.inputs)} / interpreted ${show(i.inputs)}`;
             out.push(`${label} on ${show(make())}: compiled ${showOutcome(c)} / interpreted ${showOutcome(i)}${inputsNote}`);
         }
@@ -217,7 +205,6 @@ interface Slot {
     name: string;
     /** This kind, with the child `mk` builds in one operand position and plain inputs in the others. */
     put: (b: Builder, mk: Mk, x: Ref[]) => Ref;
-    tolerance?: Tolerance;
 }
 
 interface ExprRow {
@@ -510,7 +497,7 @@ const UNSUPPORTED_NESTING = new Map<string, string>([['subFn.body<var', 'a sub-f
 // ============================================================================
 
 /** Every position of a statement that takes an expression. */
-const STMT_SLOTS: Array<{ name: string; put: (b: Builder, mk: Mk, x: Ref[]) => Ref | void; tolerance?: Tolerance }> = [
+const STMT_SLOTS: Array<{ name: string; put: (b: Builder, mk: Mk, x: Ref[]) => Ref | void }> = [
     { name: 'let', put: (b, mk, x) => b.let(mk(b, x)) },
     {
         name: 'set object',
@@ -518,7 +505,6 @@ const STMT_SLOTS: Array<{ name: string; put: (b: Builder, mk: Mk, x: Ref[]) => R
             b.set(mk(b, x), 'k', x[0]);
             return x[2];
         },
-        tolerance: { sloppyWrite: true },
     },
     {
         name: 'set key',
@@ -1012,7 +998,7 @@ describe('jit differential: nesting matrix', () => {
                 for (const child of EXPR_KINDS) {
                     const cell = `${parent}.${slot.name}<${child}`;
                     if (UNSUPPORTED_NESTING.has(cell)) continue;
-                    found.push(...differences(cell, (b, ...x) => slot.put(b, EXPR[child].leaf, x), VECTORS, slot.tolerance));
+                    found.push(...differences(cell, (b, ...x) => slot.put(b, EXPR[child].leaf, x), VECTORS));
                 }
             }
             expectNoDifferences(found);
@@ -1023,7 +1009,7 @@ describe('jit differential: nesting matrix', () => {
         test(`every kind in statement position: ${slot.name}`, () => {
             const found: string[] = [];
             for (const child of EXPR_KINDS) {
-                found.push(...differences(`${slot.name}<${child}`, (b, ...x) => slot.put(b, EXPR[child].leaf, x), VECTORS, slot.tolerance));
+                found.push(...differences(`${slot.name}<${child}`, (b, ...x) => slot.put(b, EXPR[child].leaf, x), VECTORS));
             }
             expectNoDifferences(found);
         });
@@ -1604,24 +1590,75 @@ describe('jit differential: a declaration that fails', () => {
 });
 
 // ============================================================================
-// Known differences
+// Refused writes
 // ============================================================================
 
-describe('jit differential: known differences', () => {
-    // Pinned, not endorsed. Compiled code is sloppy-mode source, the interpreter is a strict-mode
-    // module, and the one place a tree can tell them apart is a write that the target refuses.
-    // Changing either side is a decision about what generated code does on a frozen object; when
-    // it is taken this test changes with it.
-    test('a refused write is dropped by compiled code and thrown by the interpreter', () => {
-        const program = (b: Builder, target: Ref) => {
+describe('jit differential: a write the target refuses', () => {
+    // Generated source is strict, like the interpreter (a module): a write that cannot happen is a
+    // TypeError in both modes. Until 2026-11-16 the generated source was sloppy and dropped the
+    // write in silence — the same tree lost a value compiled and threw interpreted.
+    const TARGETS: Record<string, () => unknown> = {
+        'a frozen object': () => Object.freeze({ k: 0 }),
+        'a property with a getter and no setter': () => ({
+            get k() {
+                return 0;
+            },
+        }),
+        'a property that is not writable': () => Object.defineProperty({}, 'k', { value: 0, writable: false, enumerable: true }),
+        'a new key on an object that takes none': () => Object.preventExtensions({}),
+        'a string': () => 'primitive',
+        'a number': () => 7,
+        'a boolean': () => true,
+    };
+    const WRITES: Record<string, Program> = {
+        'set, static key': (b, target) => {
             b.set(target, 'k', b.lit(1));
             return b.lit('survived');
+        },
+        'set, computed key': (b, target, key) => {
+            b.set(target, key, b.lit(1));
+            return b.lit('survived');
+        },
+        'set inside a nested function': (b, target) => {
+            const inner = fn(arg(), (bb: Builder, t: Ref) => {
+                bb.set(t, 'k', bb.lit(1));
+                return bb.lit('survived');
+            });
+            return b.call(inner, target);
+        },
+    };
+
+    for (const [targetName, makeTarget] of Object.entries(TARGETS)) {
+        for (const [writeName, program] of Object.entries(WRITES)) {
+            test(`${writeName} on ${targetName} throws in both modes`, () => {
+                for (const define of [fnJIT, fnExec]) {
+                    const target = makeTarget();
+                    expect(() => compile(define, program)(target, 'k')).toThrow(TypeError);
+                    if (typeof target === 'object') expect((target as { k?: number }).k ?? 0).toBe(0);
+                }
+                expectNoDifferences(differences(`${writeName} on ${targetName}`, program, [() => [makeTarget(), 'k', 0, 0]]));
+            });
+        }
+    }
+
+    test('a frozen array refuses push in both modes', () => {
+        const program: Program = (b, target) => {
+            b.push(target, b.lit(1));
+            return b.lit('survived');
         };
-        const frozen = Object.freeze({ k: 0 });
-        expect(fnJIT(arg(), program)(frozen)).toBe('survived');
-        expect(() => fnExec(arg(), program)(frozen)).toThrow(TypeError);
-        expect(fnJIT(arg(), program)('primitive')).toBe('survived');
-        expect(() => fnExec(arg(), program)('primitive')).toThrow(TypeError);
+        for (const define of [fnJIT, fnExec]) {
+            expect(() => compile(define, program)(Object.freeze([]))).toThrow(TypeError);
+        }
+    });
+
+    test('a write the target accepts is unchanged', () => {
+        const program: Program = (b, target) => {
+            b.set(target, 'k', b.lit(1));
+            return target;
+        };
+        for (const define of [fnJIT, fnExec]) {
+            expect(compile(define, program)({ k: 0 })).toEqual({ k: 1 });
+        }
     });
 });
 

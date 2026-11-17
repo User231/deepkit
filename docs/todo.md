@@ -62,11 +62,6 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   20–75× the compiled time (BSON serialize 1.3 µs → 97 µs, type guard 0.57 µs → 24 µs). That is
   the mode a browser under a strict CSP runs. No benchmark in `benchmarks/` runs with
   `--disallow-code-generation-from-strings`.
-- **One known difference between the modes is pinned, not decided**
-  (`jit-differential.spec.ts`, "known differences"): compiled code is sloppy-mode source, the
-  interpreter a strict-mode module, so a write the target refuses (a frozen object, a
-  getter-only property, a primitive) is dropped silently when compiled and a TypeError when
-  interpreted. Making generated code strict would change what the compiled mode does today.
 - **The Builder accepts programs neither mode can honour** — `break_()` outside a loop, a
   statement inside a `subFn` body. They diverge or fail at run time instead of being refused
   when the tree is built.

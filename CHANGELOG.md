@@ -48,6 +48,23 @@ compiled was asked for. `fn`, `fnJIT`, `fnJITTop` and `fnExec` now share one dec
 `EXPR_KINDS` and `STMT_KINDS` are exported: the runtime lists of the tree's kinds, complete by
 construction. `Arg.defaultValue` holds the value itself (it held a JSON string).
 
+### Generated code is strict
+
+**Behaviour change.** The source the JIT compiles (`core/src/jit.ts`: every `@deepkit/type` and
+`@deepkit/bson` serializer, deserializer, validator and guard) now opens with `'use strict'`. It
+was sloppy-mode source, while the interpreter that runs the same tree where code generation is
+blocked is a strict module. The one thing that changes: **a write the target refuses throws a
+TypeError instead of being dropped in silence.** Deserializing into a class whose constructor
+freezes the instance, or pins a property as non-writable, used to return the object WITHOUT the
+input's value when compiled and to throw when interpreted; it throws in both now. A write to a
+name nobody declared would be a ReferenceError instead of a new global (no generated function did
+that). Measured on six operations in three alternating rounds: no change in speed.
+
+The other two places that built sloppy functions carry the directive too — the SQL row converter
+(`sql/src/sql-builder.ts`) and the benchmark loops of `@deepkit/bench`. `CompilerContext` already
+did. `packages/core/tests/generated-code-strict.spec.ts` lists every place in the shipped source
+that builds code from a string, with how it is strict, and fails on one that is not listed.
+
 ### Standard (TC39) decorators supported — `experimentalDecorators` remains supported
 
 All deepkit decorators (`@entity`, `@http.*`, `@rpc.*`, `@cli`, `@eventDispatcher.listen`, `@t`,

@@ -280,9 +280,10 @@ const EXECUTOR_SIZES = [1, 10, 100, 1000, 10000, 100000, 1000000];
 function getExecutor(times: number): (fn: Function) => number {
     const id = executorId++;
     // Unique bytecode per executor via unique ID comment prevents IC sharing
-    return new Function('fn', `// Executor ${id}\nfor (let i = 0; i < ${times}; i++) fn(); return ${times};`) as (
-        fn: Function,
-    ) => number;
+    return new Function(
+        'fn',
+        `// Executor ${id}\n'use strict';\nfor (let i = 0; i < ${times}; i++) fn(); return ${times};`,
+    ) as (fn: Function) => number;
 }
 
 function getAsyncExecutor(times: number): (fn: Function) => Promise<number> {
@@ -290,7 +291,7 @@ function getAsyncExecutor(times: number): (fn: Function) => Promise<number> {
     // Unique bytecode per executor via unique ID comment prevents IC sharing
     return new AsyncFunction(
         'fn',
-        `// Executor ${id}\nfor (let i = 0; i < ${times}; i++) await fn(); return ${times};`,
+        `// Executor ${id}\n'use strict';\nfor (let i = 0; i < ${times}; i++) await fn(); return ${times};`,
     ) as (fn: Function) => Promise<number>;
 }
 
