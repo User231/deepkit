@@ -1,30 +1,30 @@
 {
-  "savedAt": "2026-11-17T03:43:31.648Z",
+  "savedAt": "2026-11-17T07:05:42.741Z",
   "node": "v26.10.0",
   "cpu": "Apple M4",
   "rounds": 3,
   "times": {
     "compiled": {
-      "type serialize, one object": 482.6691894531249,
-      "type deserialize, one object": 279.41862487792895,
-      "type guard, one object": 156.48492431640568,
-      "type validate, one object": 214.14279937744146,
-      "bson serialize, one object": 189.37984848022526,
-      "bson deserialize, one object": 1730.150878906267,
-      "type deserialize, page of 50": 12169.443847656281,
-      "bson serialize, page of 50": 7614.095214843685,
-      "bson deserialize, page of 50": 12116.83154296872
+      "type serialize, one object": 496.25141906738287,
+      "type deserialize, one object": 283.26734161376874,
+      "type guard, one object": 157.53602981567403,
+      "type validate, one object": 218.0953025817875,
+      "bson serialize, one object": 192.33942031860428,
+      "bson deserialize, one object": 1808.8607788085965,
+      "type deserialize, page of 50": 12456.848144531295,
+      "bson serialize, page of 50": 7723.06323242189,
+      "bson deserialize, page of 50": 12609.83276367178
     },
     "interpreted": {
-      "type serialize, one object": 2276.8554687499914,
-      "type deserialize, one object": 3319.580078125009,
-      "type guard, one object": 2819.6970214843795,
-      "type validate, one object": 3634.401977539059,
-      "bson serialize, one object": 9203.70483398436,
-      "bson deserialize, one object": 14827.595947265681,
-      "type deserialize, page of 50": 185918.6210937498,
-      "bson serialize, page of 50": 502160.79687500326,
-      "bson deserialize, page of 50": 668349.6093749994
+      "type serialize, one object": 2202.662170410152,
+      "type deserialize, one object": 3193.8502197265684,
+      "type guard, one object": 2721.1914062500036,
+      "type validate, one object": 3381.673156738291,
+      "bson serialize, one object": 8179.799316406222,
+      "bson deserialize, one object": 12112.396240234413,
+      "type deserialize, page of 50": 156305.33984374927,
+      "bson serialize, page of 50": 435909.50000000105,
+      "bson deserialize, page of 50": 550795.5781250047
     }
   }
 }

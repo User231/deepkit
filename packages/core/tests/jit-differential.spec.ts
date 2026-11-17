@@ -13,13 +13,36 @@
  *
  * Reproduce a fuzz failure with `JIT_FUZZ_SEED=<seed> JIT_FUZZ_N=<n>`.
  */
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { inspect } from 'node:util';
 
 import { expect } from '@deepkit/run/expect';
 
-import { type Block, Builder, EXPR_KINDS, type Expr, Ref, STMT_KINDS, type Stmt, arg, canJIT, compilesFunctions, fn, fnExec, fnJIT, fnJITTop, getJitMode, getJitThreshold, setJitMode, setJitThreshold, shapeOfExpr, shapeOfStmt } from '../src/jit.js';
+import {
+    type Block,
+    Builder,
+    EXPR_KINDS,
+    type Expr,
+    InvalidProgramError,
+    Ref,
+    STMT_KINDS,
+    type Stmt,
+    arg,
+    canJIT,
+    compilesFunctions,
+    fn,
+    fnExec,
+    fnJIT,
+    fnJITTop,
+    getJitMode,
+    getJitThreshold,
+    setJitMode,
+    setJitThreshold,
+    shapeOfExpr,
+    shapeOfStmt,
+} from '../src/jit.js';
 import { compilationsOf, expectGolden, generatedSource } from './support/generated-source.js';
 
 // ============================================================================
@@ -491,8 +514,8 @@ const EXPR: Record<Expr['kind'], ExprRow> = {
     },
 };
 
-/** Cells of the nesting matrix that are not programs the Builder supports, each with its reason. */
-const UNSUPPORTED_NESTING = new Map<string, string>([['subFn.body<var', 'a sub-function body is one expression: the statement that binds a variable is dropped']]);
+/** Cells of the nesting matrix that are not programs, each with its reason: the Builder must REFUSE them. */
+const UNSUPPORTED_NESTING = new Map<string, string>([['subFn.body<var', 'a sub-function body is one expression: the statement that binds a variable would be dropped']]);
 
 // ============================================================================
 // Statement table
@@ -1079,8 +1102,14 @@ describe('jit differential: nesting matrix', () => {
             for (const slot of EXPR[parent].slots) {
                 for (const child of EXPR_KINDS) {
                     const cell = `${parent}.${slot.name}<${child}`;
-                    if (UNSUPPORTED_NESTING.has(cell)) continue;
-                    found.push(...differences(cell, (b, ...x) => slot.put(b, EXPR[child].leaf, x), VECTORS));
+                    const program: Program = (b, ...x) => slot.put(b, EXPR[child].leaf, x);
+                    if (UNSUPPORTED_NESTING.has(cell)) {
+                        // Not skipped: refused, by both entry points, when it is declared.
+                        expect(() => compile(fnExec, program)).toThrow(InvalidProgramError);
+                        expect(() => compile(fnJIT, program)).toThrow(InvalidProgramError);
+                        continue;
+                    }
+                    found.push(...differences(cell, program, VECTORS));
                 }
             }
             expectNoDifferences(found);
@@ -1688,6 +1717,351 @@ describe('jit differential: argument defaults', () => {
             expect(f(5, 2)).toEqual([false, 2]);
         }
     });
+});
+
+// ============================================================================
+// Programs the Builder refuses
+// ============================================================================
+
+describe('jit differential: programs the Builder refuses', () => {
+    // Until 2026-11-17 each of these was accepted, and the two modes ran it differently: the
+    // compiled one failed (a SyntaxError when it was built, a ReferenceError at the first call)
+    // and the interpreted one answered something — `undefined`, `null` in an array, the wrong
+    // argument. A program that cannot mean the same in both modes is refused when it is DECLARED,
+    // whatever the entry point and whatever the mode.
+    const ENTRY_POINTS: [string, Define][] = [
+        ['fn', fn],
+        ['fnJIT', fnJIT],
+        ['fnJITTop', fnJITTop],
+        ['fnExec', fnExec],
+    ];
+
+    /** A value that only another declaration can hand out, captured from it. */
+    function foreign<T>(make: (b: Builder, x: Ref) => T): T {
+        let captured: T | undefined;
+        fnExec(arg(), (b: Builder, x: Ref) => {
+            captured = make(b, x);
+            return x;
+        });
+        return captured as T;
+    }
+
+    const REFUSED: Record<string, { program: (b: Builder, x: Ref) => Ref | void; says: RegExp }> = {
+        'break_() outside a loop': {
+            program: b => {
+                b.break_();
+                return b.lit('after');
+            },
+            says: /break_\(\) outside a loop/,
+        },
+        'continue_() outside a loop': {
+            program: b => {
+                b.continue_();
+                return b.lit('after');
+            },
+            says: /continue_\(\) outside a loop/,
+        },
+        'break_() in a branch with no loop around it': {
+            program: (b, x) => {
+                b.if_(b.eq(x, b.lit(1)), () => b.break_());
+                return x;
+            },
+            says: /break_\(\) outside a loop/,
+        },
+        'break_() inside a map body, with a loop around the map': {
+            program: (b, x) => {
+                const out = b.let(b.emptyArr());
+                b.loop(x, () => {
+                    b.push(
+                        out,
+                        b.map(x, v => {
+                            b.if_(b.eq(v, b.lit(2)), () => b.break_());
+                            return v;
+                        }),
+                    );
+                });
+                return out;
+            },
+            says: /map\(\) is a function of its own/,
+        },
+        'continue_() inside a map body': {
+            program: (b, x) =>
+                b.map(x, v => {
+                    b.continue_();
+                    return v;
+                }),
+            says: /continue_\(\) outside a loop/,
+        },
+        'a variable of another declaration': {
+            program: b =>
+                b.add(
+                    b.lit(1),
+                    foreign(b2 => b2.let(b2.lit(2), 'theirs')),
+                ),
+            says: /reads an input or a variable of another declaration/,
+        },
+        'a variable of the enclosing declaration, read in a nested function': {
+            program: (b, x) => {
+                const outer = b.let(b.add(x, b.lit(1)), 'outer');
+                const nested = fn(arg(), (b2: Builder, y: Ref) => b2.add(y, outer));
+                return b.call(nested, x);
+            },
+            says: /reads an input or a variable of another declaration/,
+        },
+        'an input of the enclosing declaration, read in a nested function': {
+            program: (b, x) => {
+                const nested = fn(arg(), arg(), (b2: Builder, y: Ref, z: Ref) => b2.add(b2.add(y, z), x));
+                return b.call(nested, x, x);
+            },
+            says: /reads an input or a variable of another declaration/,
+        },
+        'an input of another declaration': {
+            program: b =>
+                b.get(
+                    foreign((_b2, theirs) => theirs),
+                    'k',
+                ),
+            says: /reads an input or a variable of another declaration/,
+        },
+        'a subFn body with a statement': {
+            program: (b, x) =>
+                b.subFn(x, (b2, input) => {
+                    const v = b2.let(b2.add(input, b2.lit(1)));
+                    return v;
+                }),
+            says: /subFn\(\): its body is one expression, and this one wrote 1 statement\(s\) \(let\)/,
+        },
+        'a subFn body that reads a variable of the function around it': {
+            program: b => {
+                const outer = b.let(b.lit(7), 'outer');
+                return b.subFn(b.lit(5), (b2, input) => b2.add(input, outer));
+            },
+            says: /reads an input or a variable of another declaration/,
+        },
+        'a subFn body that reads the input of the function around it': {
+            program: (b, x) => b.subFn(b.lit(5), (b2, input) => b2.add(input, x)),
+            says: /reads an input or a variable of another declaration/,
+        },
+        'setVar() on a variable of another declaration': {
+            program: b => {
+                const theirs = foreign(b2 => b2.var_(0, 'counter'));
+                b.setVar(theirs, b.lit(3));
+            },
+            says: /setVar\(\) on a variable \(counter\) of another declaration/,
+        },
+        'getVar() on a variable of another declaration': {
+            program: b => b.getVar(foreign(b2 => b2.var_(0, 'counter'))),
+            says: /getVar\(\) on a variable \(counter\) of another declaration/,
+        },
+        'a foreign variable deep in a statement of a loop body': {
+            program: (b, x) => {
+                const theirs = foreign(b2 => b2.let(b2.lit(2)));
+                const out = b.let(b.emptyArr());
+                b.loop(x, item => {
+                    b.if_(b.isType(item, 'number'), () => b.push(out, b.mul(item, theirs)));
+                });
+                return out;
+            },
+            says: /reads an input or a variable of another declaration/,
+        },
+    };
+
+    for (const [name, { program, says }] of Object.entries(REFUSED)) {
+        test(name, () => {
+            for (const [entry, define] of ENTRY_POINTS) {
+                let thrown: unknown;
+                try {
+                    define(arg(), program);
+                } catch (error) {
+                    thrown = error;
+                }
+                expect(`${entry}: ${thrown instanceof InvalidProgramError ? 'refused' : `not refused (${show(thrown)})`}`).toBe(`${entry}: refused`);
+                expect((thrown as Error).message).toMatch(says);
+            }
+        });
+    }
+
+    // The refusals above are by example. This one is by table: a foreign operand in EVERY operand
+    // position of every expression kind and of every statement — the positions the nesting matrix
+    // already knows. A Builder method that took an operand without checking it would show here.
+    test('a foreign operand is refused in every operand position there is', () => {
+        const accepted: string[] = [];
+        const foreignChild: Mk = () => foreign((_b2, theirs) => theirs);
+        const refused = (label: string, program: Program) => {
+            try {
+                compile(fnExec, program);
+                accepted.push(label);
+            } catch (error) {
+                if (!(error instanceof InvalidProgramError)) accepted.push(`${label}: threw ${show(error)}`);
+            }
+        };
+        for (const kind of EXPR_KINDS) {
+            for (const slot of EXPR[kind].slots) {
+                // A sub-function body is built from its own input, not from the child handed in.
+                if (kind === 'subFn' && slot.name === 'body') continue;
+                refused(`${kind}.${slot.name}`, (b, ...x) => slot.put(b, foreignChild, x));
+            }
+        }
+        for (const slot of STMT_SLOTS) refused(`statement ${slot.name}`, (b, ...x) => slot.put(b, foreignChild, x));
+        expect(accepted).toEqual([]);
+    });
+
+    test("an expression over foreign operands is foreign, and one over none of anybody's is free", () => {
+        // What a Ref method builds outside any Builder keeps whose it is…
+        const theirs = foreign((_b2, input) => input.get('a').at(0).len());
+        expect(() => fnExec(arg(), (b: Builder) => b.not(theirs))).toThrow(InvalidProgramError);
+        // …and two declarations in one expression are refused where they meet.
+        expect(() => fnExec(arg(), (_b: Builder, x: Ref) => x.get(foreign((_b2, input) => input)))).toThrow(InvalidProgramError);
+        expect(() => fnExec(arg(), (_b: Builder, x: Ref) => x.at(foreign((_b2, input) => input)))).toThrow(InvalidProgramError);
+
+        // Literals, and expressions over literals only, read nothing: any declaration may use them.
+        const free = foreign(b2 => [
+            b2.lit(1),
+            b2.emptyObj(),
+            b2.emptyArr(),
+            b2.add(b2.lit(1), b2.lit(2)),
+            b2.obj({ k: b2.lit(1) }),
+            b2.arr(b2.lit(1)),
+            b2.call(String, b2.lit(1)),
+            b2.concat(b2.lit('a'), b2.lit('b')),
+            b2.ternary(b2.lit(true), b2.lit(1), b2.lit(2)),
+            b2.lit([1, 2]).len(),
+            b2.subFn(b2.lit(2), (b3, input) => b3.mul(input, b3.lit(3))),
+        ]);
+        const f = fnExec(arg(), (b: Builder) => b.arr(...free));
+        expect(f(0)).toEqual([1, {}, [], 3, { k: 1 }, [1], '1', 'ab', 1, 2, 6]);
+    });
+
+    test('nothing in the Builder reads an operand except through the check', () => {
+        // `own()` is the one door to an operand's tree. A method that read `ref.expr` itself would
+        // take an operand unchecked.
+        const source = readFileSync(join(__dirname, '..', 'src', 'jit', 'builder.ts'), 'utf8');
+        const builder = source.slice(source.indexOf('export class Builder {'));
+        const reads = builder
+            .split('\n')
+            .map((line, index) => ({ line: line.trim(), index }))
+            .filter(({ line }) => /\.expr\b/.test(line) && !line.startsWith('//') && !line.startsWith('*'))
+            .map(({ line }) => line);
+        expect(reads).toEqual(['return ref.expr;']);
+    });
+
+    test('break_() and continue_() throw where they are called', () => {
+        let reached = 'nothing';
+        expect(() =>
+            fnExec(arg(), (b: Builder) => {
+                reached = 'before';
+                b.break_();
+                reached = 'after';
+            }),
+        ).toThrow(InvalidProgramError);
+        expect(reached).toBe('before');
+    });
+
+    test('a refused declaration does not capture the functions declared after it', () => {
+        expect(() => fn(arg(), (b: Builder) => b.break_())).toThrow(InvalidProgramError);
+        const after = fn(arg(), (b: Builder, x: Ref) => b.add(x, b.lit(1)));
+        expect((after as { __nestedFnId?: number }).__nestedFnId).toBe(undefined);
+        expect(after(1)).toBe(2);
+    });
+
+    // What stands next to each refusal and is a program: the same shapes, with the loop, the
+    // argument or the declaration in the right place.
+    const ACCEPTED: Record<string, [Program, unknown[], unknown]> = {
+        'break_() in a branch inside a loop': [
+            (b, x) => {
+                const out = b.let(b.emptyArr());
+                b.loop(x, item => {
+                    b.if_(b.eq(item, b.lit(2)), () => b.break_());
+                    b.push(out, item);
+                });
+                return out;
+            },
+            [[1, 2, 3]],
+            [1],
+        ],
+        'break_() in a switch inside a loop': [
+            (b, x) => {
+                const out = b.let(b.emptyArr());
+                b.loop(x, item => {
+                    b.switch_(item, [[2, () => b.break_()]], () => b.push(out, item));
+                });
+                return out;
+            },
+            [[1, 2, 3]],
+            [1],
+        ],
+        'a loop with a break inside a map body': [
+            (b, x) =>
+                b.map(x, row => {
+                    const out = b.let(b.emptyArr());
+                    b.loop(row, item => {
+                        b.if_(b.eq(item, b.lit(0)), () => b.break_());
+                        b.push(out, item);
+                    });
+                    return out;
+                }),
+            [
+                [
+                    [1, 0, 2],
+                    [3, 4],
+                ],
+            ],
+            [[1], [3, 4]],
+        ],
+        'a variable read after the loop that bound it': [
+            (b, x) => {
+                let last: Ref | undefined;
+                b.loop(x, item => {
+                    last = b.let(b.add(item, b.lit(10)));
+                });
+                return last as Ref;
+            },
+            [[1, 2]],
+            12,
+        ],
+        'the value of the enclosing function passed to a nested function as an argument': [
+            (b, x) => {
+                const outer = b.let(b.add(x, b.lit(1)));
+                const nested = fn(arg(), arg(), (b2: Builder, y: Ref, o: Ref) => b2.add(y, o));
+                return b.call(nested, x, outer);
+            },
+            [5],
+            11,
+        ],
+        'the value of the enclosing function passed to a subFn as its argument': [(b, x) => b.subFn(b.add(x, b.lit(1)), (b2, input) => b2.mul(input, b2.lit(2))), [5], 12],
+        'an expression of another declaration that reads none of its inputs or variables': [
+            (b, x) =>
+                b.add(
+                    x,
+                    foreign(b2 => b2.mul(b2.lit(3), b2.lit(4))),
+                ),
+            [1],
+            13,
+        ],
+        'a mutable variable of the function, set inside a map body and a loop': [
+            (b, x) => {
+                const total = b.var_(0);
+                b.loop(x, item => b.setVar(total, b.add(b.getVar(total), item)));
+                b.exec(
+                    b.map(x, item => {
+                        b.setVar(total, b.add(b.getVar(total), item));
+                        return item;
+                    }),
+                );
+                return b.getVar(total);
+            },
+            [[1, 2, 3]],
+            12,
+        ],
+    };
+
+    for (const [name, [program, input, expected]] of Object.entries(ACCEPTED)) {
+        test(`accepted: ${name}`, () => {
+            expectNoDifferences(differences(name, program, [() => [...input, 0, 0, 0].slice(0, ARGC)]));
+            const f = compile(fnExec, program);
+            expect(f(...input)).toEqual(expected);
+        });
+    }
 });
 
 // ============================================================================

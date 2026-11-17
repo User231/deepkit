@@ -439,8 +439,13 @@ cd packages/bson && UPDATE_GOLDEN=1 node --import @deepkit/run --test tests/gene
 cd packages/bson && node --import @deepkit/run benchmarks/modes.ts --compare
 ```
 
-A new expression or statement kind lands with its row in `core/tests/jit-differential.spec.ts`
-(both modes must agree) — the golden text for it follows from the same row. A new place that
+A new expression or statement kind is six edits, and a missing one is a compile error or a failing
+test: the type and its row in `EXPR_SHAPE` / `STMT_SHAPE` (`nodes.ts`), the `Builder` method, the
+case in `codegen.ts` with its row in `EMITTED_PRECEDENCE`, the case in `exec.ts`, and its row in
+`core/tests/jit-differential.spec.ts` (both modes must agree — the golden text for it follows from
+the same row). A `Builder` method takes every operand through `this.own(ref)`, never `ref.expr`:
+that is where an operand of another declaration is refused (`InvalidProgramError`), and the spec
+passes a foreign operand into every position its tables know. A new place that
 builds code from a string is listed in `core/tests/generated-code-strict.spec.ts`.
 
 **`fn()` inside another function's declaration is that function's NESTED function**, and what

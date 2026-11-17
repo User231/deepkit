@@ -531,8 +531,8 @@ export type VisitBlock = (block: Block) => boolean;
 
 /**
  * What a kind is MADE OF — the one statement of it, for everything that walks a tree without
- * caring what the kind does (whether an expression reads a variable, whether a program can be run
- * at all). What a kind DOES is the two modes' business: one case each in `codegen.ts` and `exec.ts`.
+ * caring what the kind does (whether an expression reads a variable). What a kind DOES is the two
+ * modes' business: one case each in `codegen.ts` and `exec.ts`.
  *
  * Each visitor calls `visit` on the children it names, in the order they are evaluated, until one
  * answers `true`, and answers whether one did — so a search stops early and a walk that wants
@@ -543,13 +543,6 @@ export interface Shape<N> {
     exprs(node: N, visit: VisitExpr): boolean;
     /** The blocks the node runs. */
     blocks?(node: N, visit: VisitBlock): boolean;
-    /**
-     * What the node's blocks are to control flow. A `'loop'` is where `break` and `continue`
-     * stop. A `'function'` is a function of its own: `return` stops there, and no `break` or
-     * `continue` crosses it. Left out, the blocks belong to whatever encloses the node (`if`,
-     * `switch`).
-     */
-    body?: 'loop' | 'function';
     /**
      * Expressions that are the body of ANOTHER declaration (`subFn`): built by a Builder of their
      * own, with their own inputs and their own variables.
@@ -608,7 +601,7 @@ export const EXPR_SHAPE: { [K in Expr['kind']]: Shape<Extract<Expr, { kind: K }>
     shr: { exprs: binary },
     ushr: { exprs: binary },
     method: { exprs: (node, visit) => visit(node.obj) || node.args.some(visit) },
-    map: { exprs: (node, visit) => visit(node.arr), blocks: (node, visit) => visit(node.body), body: 'function' },
+    map: { exprs: (node, visit) => visit(node.arr), blocks: (node, visit) => visit(node.body) },
     subFn: { exprs: (node, visit) => visit(node.arg), inner: (node, visit) => visit(node.body) },
 };
 
@@ -631,16 +624,15 @@ export const STMT_SHAPE: { [K in Stmt['kind']]: Shape<Extract<Stmt, { kind: K }>
             (node.start !== undefined && visit(node.start)) ||
             (node.end !== undefined && visit(node.end)),
         blocks: (node, visit) => visit(node.body),
-        body: 'loop',
     },
-    forIn: { exprs: (node, visit) => visit(node.obj), blocks: (node, visit) => visit(node.body), body: 'loop' },
-    forOf: { exprs: (node, visit) => visit(node.iterable), blocks: (node, visit) => visit(node.body), body: 'loop' },
+    forIn: { exprs: (node, visit) => visit(node.obj), blocks: (node, visit) => visit(node.body) },
+    forOf: { exprs: (node, visit) => visit(node.iterable), blocks: (node, visit) => visit(node.body) },
     switch: {
         exprs: value,
         blocks: (node, visit) =>
             node.cases.some(([, block]) => visit(block)) || (node.default !== undefined && visit(node.default)),
     },
-    while: { exprs: (node, visit) => visit(node.cond), blocks: (node, visit) => visit(node.body), body: 'loop' },
+    while: { exprs: (node, visit) => visit(node.cond), blocks: (node, visit) => visit(node.body) },
     break: { exprs: none },
     continue: { exprs: none },
 };

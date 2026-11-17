@@ -5,6 +5,49 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## Unreleased
 
+### JIT: one statement of each fact, a faster interpreter, and programs the Builder refuses
+
+Four changes to `packages/core/src/jit/`, after the split below.
+
+**What a kind is made of is one table.** `EXPR_SHAPE` and `STMT_SHAPE` (`jit/nodes.ts`) say, per
+kind, which operands it evaluates, which blocks it runs, and (`subFn`) which expression belongs
+to another declaration. The records are typed over the unions: a kind without a row does not
+compile. `EXPR_KINDS` / `STMT_KINDS` are their keys. The level of the text the generator emits
+is a record over every kind too, where a `switch` with a `default` called an unlisted kind
+primary and left it without parentheses.
+
+**The interpreter has one expression compiler and one completion protocol.** It compiled
+expressions twice — one compiler for expressions that read no variable, one for the rest, the
+same 42 cases — and a statement answered with an object allocated on every `return` and at the
+end of every block. Now: one compiler, and a statement answers with a signal (`NORMAL`,
+`RETURN`, `BREAK`, `CONTINUE`) while the returned value waits in one slot. Interpreted functions
+are 3–20% faster (`packages/bson/benchmarks/modes.ts`, back to back: bson deserialize of one
+object 14.8 → 11.6 µs, type deserialize of a page 178 → 151 µs); compiled mode is untouched.
+
+**The four entry points are one function.** `fn`, `fnJIT`, `fnJITTop` and `fnExec` are four rows
+of a policy table (`nests`, `runs`, `tiers`) over one `define()`; each does what it did. The
+Builder no longer imports either mode: `Builder.registerNestedFn` takes a definition and answers
+its id (it took a block and answered the marker; nothing outside the JIT called it).
+
+**Behaviour change: the Builder refuses programs the two modes ran differently.** Each of these
+was accepted; compiled it failed (a `SyntaxError` when built, a `ReferenceError` at the first
+call) and interpreted it answered something. Each now throws `InvalidProgramError` while the
+function is declared, at the call that makes the program unrunnable, whatever the entry point
+and the mode:
+
+- `break_()` / `continue_()` with no loop around them — the body of `map()` is a function of its
+  own, so a loop around the map does not count. (Interpreted: the function returned `undefined`,
+  or the map element became `undefined`.)
+- A `subFn()` body that writes a statement. (The statement was dropped.)
+- An operand that reads an input or a variable of ANOTHER declaration: the enclosing function's
+  variable or input used inside a nested `fn()` or a `subFn()` body, a `Ref` kept from another
+  declaration, `setVar()` / `getVar()` on another declaration's `VarRef`. An input was read by
+  index, so both modes agreed — on the wrong argument. Pass the value in as an argument.
+
+Literals and expressions over literals read nothing and may be used in any declaration. A `Ref`
+carries the declaration it reads (`Ref.decl`, -1 for none) and `VarRef` takes it as its second
+constructor argument. No serializer of `@deepkit/type` or `@deepkit/bson` trips a refusal.
+
 ### JIT: `core/src/jit.ts` is six modules
 
 No behaviour change. The 3,567-line file is `packages/core/src/jit/` now — `nodes.ts` (the tree),

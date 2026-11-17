@@ -59,14 +59,17 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
 - **AOT tier** from the JIT/CSP design (`docs/design/jit-serializer-design.md`): never built. The
   interpreter fallback covers CSP environments; AOT would only close the perf gap there.
 - **The interpreter is slow.** `packages/bson/benchmarks/modes.ts` measures both modes side by
-  side and keeps this machine's baseline (`benchmarks/baselines/modes.json`, 2026-11-16, Node 26,
-  Apple arm64): interpreted is 5–67× the compiled time — type serialize 0.47 µs → 2.2 µs, type
-  guard 0.15 µs → 2.7 µs, BSON serialize 0.19 µs → 9.2 µs, a BSON page of 50 rows serialized
-  7 µs → 484 µs. That is the mode a browser under a strict CSP runs. Nothing has been done to
-  make it faster; the AOT tier above is the designed answer.
-- **The Builder accepts programs neither mode can honour** — `break_()` outside a loop, a
-  statement inside a `subFn` body. They diverge or fail at run time instead of being refused
-  when the tree is built.
+  side and keeps this machine's baseline (`benchmarks/baselines/modes.json`, 2026-11-17, Node 26,
+  Apple arm64): interpreted is 4–56× the compiled time — type serialize 0.50 µs → 2.2 µs, type
+  guard 0.16 µs → 2.7 µs, BSON serialize 0.19 µs → 8.2 µs, a BSON page of 50 rows serialized
+  7.7 µs → 436 µs. That is the mode a browser under a strict CSP runs. One thing has been done
+  (2026-11-17: one expression compiler, completion signals instead of objects — 3–20% off the
+  interpreted times); the AOT tier above is the designed answer.
+- **BSON cannot serialize a union of two object types.** `getBSONSerializer<{ v: A | B }>()`
+  takes the first member for any object and throws on a value of the second (`Cannot convert
+  undefined to string at v.name`), in either order of the union; `@deepkit/type`'s `serialize` /
+  `deserialize` / `is` handle the same union. Found 2026-11-17 by a scratch benchmark, not fixed;
+  no test covers it.
 - **`npm run test:interpreted` is run by hand.** It runs every suite with
   `DEEPKIT_JIT_MODE=interpreted` (all of `core`, `type`, `bson`, `rpc`, `orm`, `http`, `injector`
   … pass, 2026-11-16) and no CI job runs it. The switch covers the JIT; the truly blocked
