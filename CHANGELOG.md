@@ -65,14 +65,27 @@ The other two places that built sloppy functions carry the directive too — the
 did. `packages/core/tests/generated-code-strict.spec.ts` lists every place in the shipped source
 that builds code from a string, with how it is strict, and fails on one that is not listed.
 
-### `new FastDate()` reads the wall clock
+### `FastDate` removed — a BSON DATE decodes to a real `Date`
 
-The no-argument constructor read `performance.timeOrigin + performance.now()`, a different clock
-from the one `new Date()` and `Date.now()` read: about one reading in 60,000 was a millisecond
-BEHIND `Date.now()` (a flaky `fast-date.spec.ts`), and after a clock step the two drift apart for
-the life of the process. It reads `Date.now()` now. The comment's "~2x faster than Date.now()"
-did not hold: 26.6 ns against 24.4 ns for `Date.now()` on Node 26. `new FastDate(ms)`, the path
-the BSON decoder uses, is unchanged.
+**Breaking.** `FastDate` (`@deepkit/type`) and `setBSONDateClass` / `getBSONDateClass`
+(`@deepkit/bson`) are gone. The BSON decoder builds native `Date`s, in every position.
+
+`FastDate` was the decoder's default: an object with Date's methods that deferred the real one.
+It was cheaper to build — 6 ns against 30 ns for `new Date(ms)`; a decode of 50 rows with 100
+dates took 2.1 µs against 4.5 µs — and it was not a `Date`:
+
+- `new Date(fastDate)` DROPPED THE MILLISECONDS (the value went through `toString()`);
+- `structuredClone(fastDate)` was `{ _ms }`, `util.types.isDate` false,
+  `Date.prototype.getTime.call(fastDate)` threw;
+- importing `@deepkit/type` replaced `Date[Symbol.hasInstance]` for the whole process, which
+  took `realDate instanceof Date` from 0.8 ns to 3.7 ns everywhere;
+- `new FastDate()` read the performance clock, a millisecond behind `Date.now()` in one reading
+  of 60,000.
+
+A value that is a `Date` in the type is a `Date` at run time. Migration: delete the
+`setBSONDateClass(Date)` call if you had one; replace `new FastDate(ms)` with `new Date(ms)`.
+`packages/bson/tests/deserialize/date.spec.ts` holds the decoder to real Dates and
+`Date[Symbol.hasInstance]` to the engine's own.
 
 ### Standard (TC39) decorators supported — `experimentalDecorators` remains supported
 

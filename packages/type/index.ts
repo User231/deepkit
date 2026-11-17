@@ -36,7 +36,6 @@ export * from './src/type-serialization.js';
 export * from './src/registry.js';
 export * from './src/default.js';
 export * from './src/mixin.js';
-export * from './src/fast-date.js';
 
 export * from './src/reflection/type.js';
 

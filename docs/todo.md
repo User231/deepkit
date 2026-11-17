@@ -62,15 +62,6 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   20–75× the compiled time (BSON serialize 1.3 µs → 97 µs, type guard 0.57 µs → 24 µs). That is
   the mode a browser under a strict CSP runs. No benchmark in `benchmarks/` runs with
   `--disallow-code-generation-from-strings`.
-- **`FastDate` is not a `Date`, and patches `Date` for the whole process** (measured
-  2026-11-16). What it buys is real: `new FastDate(ms)` is 6 ns against 30 ns for `new Date(ms)`
-  (5×, not the 95× its comment says), and a BSON decode of 50 rows with 100 dates is 2.1 µs
-  against 4.5 µs with `setBSONDateClass(Date)`. What it costs: `new Date(fastDate)` DROPS THE
-  MILLISECONDS (the value goes through `toString()`), `structuredClone(fastDate)` is
-  `{ _ms }`, `util.types.isDate` is false, `Date.prototype.getTime.call(fastDate)` throws, and
-  importing `@deepkit/type` replaces `Date[Symbol.hasInstance]`, which takes `realDate instanceof
-  Date` from 0.8 ns to 3.7 ns everywhere. It is the BSON decoder's DEFAULT. Open: make `Date`
-  the default (FastDate opt-in), or remove the class.
 - **The Builder accepts programs neither mode can honour** — `break_()` outside a loop, a
   statement inside a `subFn` body. They diverge or fail at run time instead of being refused
   when the tree is built.
