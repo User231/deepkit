@@ -257,9 +257,8 @@ export class CodeGenerator {
             }
         }
         // Check if already registered
-        for (const [v, name] of this.externals) {
-            if (v === value) return name;
-        }
+        const registered = this.externals.get(value);
+        if (registered !== undefined) return registered;
         const name = this.reserveName(hint);
         this.externals.set(value, name);
         return name;
