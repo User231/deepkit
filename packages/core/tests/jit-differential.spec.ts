@@ -42,6 +42,7 @@ import {
     fnJITTop,
     getJitMode,
     getJitThreshold,
+    isDeclaring,
     setJitMode,
     setJitThreshold,
     shapeOfExpr,
@@ -2758,6 +2759,36 @@ describe('jit differential: a nested function nothing in its unit calls', () => 
             expect(side(1, 0)).toBe(2);
         });
     }
+});
+
+describe('jit differential: whether a function is being declared', () => {
+    // What a builder asks before it gets functions from somewhere else (a converter of
+    // `@deepkit/type`): built during a declaration, they would be that declaration's nested functions.
+    test('isDeclaring() is true inside a body callback, at any depth, and nowhere else', () => {
+        const seen: boolean[] = [isDeclaring()];
+        for (const define of [fn, fnJITTop, fnExec, fnAsync] as Define[]) {
+            define(arg(), (b: Builder, x: Ref) => {
+                seen.push(isDeclaring());
+                const inner = fn(arg(), (b2: Builder, y: Ref) => {
+                    seen.push(isDeclaring());
+                    return y;
+                });
+                seen.push(isDeclaring());
+                return b.call(inner, x);
+            });
+            seen.push(isDeclaring());
+        }
+        expect(seen).toEqual([false, true, true, true, false, true, true, true, false, true, true, true, false, true, true, true, false]);
+    });
+
+    test('a declaration that throws leaves none behind', () => {
+        expect(() =>
+            fn(arg(), () => {
+                throw new RangeError('the body failed');
+            }),
+        ).toThrow(RangeError);
+        expect(isDeclaring()).toBe(false);
+    });
 });
 
 describe('jit differential: a declaration that fails', () => {

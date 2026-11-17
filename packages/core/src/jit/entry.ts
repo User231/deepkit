@@ -29,6 +29,20 @@ import { compilesFunctions, jitThreshold } from './runtime.js';
  */
 let _activeBuilder: Builder | null = null;
 
+/**
+ * Whether a function is being declared right now: the call is made inside the body callback of
+ * `fn()` or one of its siblings.
+ *
+ * It matters to code that asks for OTHER generated functions — a converter, a validator of
+ * `@deepkit/type`: built during a declaration, such a function becomes a nested function of that
+ * declaration, and whoever else holds it (a cache per type) holds a marker. That works, and costs
+ * every later caller the marker's indirection. A builder that needs such functions gets them
+ * first and declares afterwards, and can refuse to be called the wrong way round with this.
+ */
+export function isDeclaring(): boolean {
+    return _activeBuilder !== null;
+}
+
 /** Marker type for function arguments */
 export type Arg<T> = { __brand: 'arg'; __type?: T; name?: string; defaultValue?: T };
 
