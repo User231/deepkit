@@ -2,3 +2,5 @@ yarn.lock
 .angular
 packages/core/src/indent.ts
 packages/type/benchmarks/v8-*.js
+# Generated JIT source, stored byte for byte (UPDATE_GOLDEN=1 rewrites it)
+packages/*/tests/golden/

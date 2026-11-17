@@ -13,12 +13,14 @@
  *
  * Reproduce a fuzz failure with `JIT_FUZZ_SEED=<seed> JIT_FUZZ_N=<n>`.
  */
+import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { inspect } from 'node:util';
 
 import { expect } from '@deepkit/run/expect';
 
-import { type Block, Builder, EXPR_KINDS, type Expr, Ref, STMT_KINDS, type Stmt, arg, fn, fnExec, fnJIT, fnJITTop, setJitThreshold } from '../src/jit.js';
+import { type Block, Builder, EXPR_KINDS, type Expr, Ref, STMT_KINDS, type Stmt, arg, canJIT, fn, fnExec, fnJIT, fnJITTop, setJitThreshold } from '../src/jit.js';
+import { expectGolden, generatedSource } from './support/generated-source.js';
 
 // ============================================================================
 // Harness
@@ -1659,6 +1661,52 @@ describe('jit differential: a write the target refuses', () => {
         for (const define of [fnJIT, fnExec]) {
             expect(compile(define, program)({ k: 0 })).toEqual({ k: 1 });
         }
+    });
+});
+
+// ============================================================================
+// Generated source
+// ============================================================================
+
+describe('jit differential: generated source', () => {
+    // What the compiled mode's functions ANSWER is held above. This holds what they ARE: the text
+    // generated for every row of the two tables, in golden files. A refactor of the generator that
+    // is meant to change nothing leaves them byte-identical; a change that is meant to change the
+    // text is a diff of these files to read. `UPDATE_GOLDEN=1` rewrites them.
+    const section = (title: string, program: Program) => `// ── ${title}\n${generatedSource(() => compile(fnJIT, program))}`;
+    // The text exists only where it can be generated.
+    const needsCodeGeneration = { skip: !canJIT };
+
+    test('every expression kind', needsCodeGeneration, () => {
+        const sections: string[] = [];
+        for (const kind of EXPR_KINDS) {
+            const row = EXPR[kind];
+            for (const [name, mk] of Object.entries({ leaf: row.leaf, ...row.more })) {
+                sections.push(section(`${kind}: ${name}`, (b, ...x) => mk(b, x)));
+            }
+        }
+        expectGolden(join(__dirname, 'golden', 'jit-expressions.js'), sections.join('\n'));
+    });
+
+    test('every statement kind', needsCodeGeneration, () => {
+        const sections: string[] = [];
+        for (const kind of STMT_KINDS) {
+            for (const [name, program] of Object.entries(STMT[kind])) sections.push(section(`${kind}: ${name}`, program));
+        }
+        expectGolden(join(__dirname, 'golden', 'jit-statements.js'), sections.join('\n'));
+    });
+
+    test('functions inside functions, and argument defaults', needsCodeGeneration, () => {
+        const text = generatedSource(() => {
+            fnJIT(arg('list'), arg('factor', 2), (b: Builder, list: Ref, factor: Ref) => {
+                const scale = fnJIT(arg('n'), arg('by', 1), (b2: Builder, n: Ref, by: Ref) => b2.mul(n, by));
+                const label = fnJIT(arg('n'), (b2: Builder, n: Ref) => b2.concat(b2.lit('#'), b2.call(scale, n, b2.lit(10))));
+                return b.map(list, e => b.arr(b.call(scale, e, factor), b.call(label, e)));
+            });
+            // `fnJIT`, not `fn` / `fnJITTop`: the text is wanted whatever mode the suite runs in.
+            fnJIT(arg('value'), (b: Builder, value: Ref) => b.subFn(value, (b2, v) => b2.and(b2.isType(v, 'object'), b2.not(b2.isNull(v)))));
+        });
+        expectGolden(join(__dirname, 'golden', 'jit-functions.js'), text);
     });
 });
 
