@@ -65,11 +65,14 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
   7.7 µs → 436 µs. That is the mode a browser under a strict CSP runs. One thing has been done
   (2026-11-17: one expression compiler, completion signals instead of objects — 3–20% off the
   interpreted times); the AOT tier above is the designed answer.
-- **BSON cannot serialize a union of two object types.** `getBSONSerializer<{ v: A | B }>()`
-  takes the first member for any object and throws on a value of the second (`Cannot convert
-  undefined to string at v.name`), in either order of the union; `@deepkit/type`'s `serialize` /
-  `deserialize` / `is` handle the same union. Found 2026-11-17 by a scratch benchmark, not fixed;
-  no test covers it.
+- **BSON takes the first ARRAY member of a union for any array.** `getBSONSerializer<{ v:
+  string[] | number[] }>()` throws on `[1, 2]` (`Cannot convert 1 to string at v.[i]`), and
+  `number[] | string[]` writes `['a']` as `[0]` with no error (a `number` is written unguarded);
+  `Model[] | Tag[]` throws on an array of the second. The member check is `Array.isArray`, as it
+  was "is an object" for object members until 2026-11-17 (`createObjectMemberPicker` — the same
+  cure, over the elements, is not built). The deserializer has a dispatch for it
+  (`deserializeMultiArrayUnion`) that still chooses between object rows by trying members in
+  order. Found 2026-11-17 while fixing the object case; no test covers it.
 - **`npm run test:interpreted` is run by hand.** It runs every suite with
   `DEEPKIT_JIT_MODE=interpreted` (all of `core`, `type`, `bson`, `rpc`, `orm`, `http`, `injector`
   … pass, 2026-11-16) and no CI job runs it. The switch covers the JIT; the truly blocked

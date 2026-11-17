@@ -1555,9 +1555,8 @@ function createDeserializer(type: Type): BSONDeserializer<any> {
 }
 
 /**
- * Create a deserializer for a union of object types.
- * Tries each member type and returns the first that produces a valid result.
- * Uses discriminant properties when available.
+ * Create a deserializer for a union of object types at the top level.
+ * The member is chosen as for a union inside a document (`createObjectUnionDispatch`).
  */
 function createUnionOfObjectsDeserializer(type: TypeUnion): BSONDeserializer<any> {
     // Collect object/class members
@@ -1572,17 +1571,12 @@ function createUnionOfObjectsDeserializer(type: TypeUnion): BSONDeserializer<any
 
     // Build individual deserializers for each member
     const memberDeserializers = objectMembers.map(member => getBSONDeserializer(member));
+    const dispatch = createObjectUnionDispatch(objectMembers, describeUnion(type), memberDeserializers);
 
-    // Try to find discriminant: a property with different literal types across members
-    const discriminant = findDiscriminant(objectMembers);
-
-    if (discriminant) {
-        // Fast path: use discriminant property to dispatch
-        return createDiscriminantDeserializer(type, objectMembers, memberDeserializers, discriminant);
-    }
-
-    // Slow path: try each member, use the one with most matched properties
-    return createTrialDeserializer(type, objectMembers, memberDeserializers);
+    return (input: Uint8Array, offset: number = 0) => {
+        const buffer = Array.isArray(input) ? (input as unknown as [Uint8Array, number])[0] : input;
+        return dispatch(buffer, offset);
+    };
 }
 
 /**
@@ -1647,286 +1641,208 @@ function findDiscriminant(
 }
 
 /**
- * Create a deserializer that uses a discriminant property to dispatch.
- */
-function createDiscriminantDeserializer(
-    type: TypeUnion,
-    members: (TypeObjectLiteral | TypeClass)[],
-    deserializers: BSONDeserializer<any>[],
-    discriminant: { name: string; values: Map<number, any> },
-): BSONDeserializer<any> {
-    // Build a value → deserializer lookup
-    const lookup = new Map<any, BSONDeserializer<any>>();
-    for (const [idx, value] of discriminant.values) {
-        lookup.set(value, deserializers[idx]);
-    }
-
-    // For members without a discriminant value, use trial deserialization
-    const fallbackIndices: number[] = [];
-    for (let i = 0; i < members.length; i++) {
-        if (!discriminant.values.has(i)) {
-            fallbackIndices.push(i);
-        }
-    }
-
-    return (input: Uint8Array, offset: number = 0) => {
-        let buffer: Uint8Array;
-        if (Array.isArray(input)) {
-            buffer = (input as unknown as [Uint8Array, number])[0];
-        } else {
-            buffer = input;
-        }
-
-        // Quick scan: find discriminant value in the BSON document
-        const discValue = scanForFieldValue(buffer, offset, discriminant.name);
-        if (discValue !== undefined) {
-            const d = lookup.get(discValue);
-            if (d) {
-                try {
-                    return d(buffer, offset);
-                } catch {
-                    // Discriminant matched but deserialization failed, try fallbacks
-                }
-            }
-        }
-
-        // Fallback: try members without discriminant values
-        for (const idx of fallbackIndices) {
-            try {
-                return deserializers[idx](buffer, offset);
-            } catch {
-                continue;
-            }
-        }
-
-        // Last resort: try all members
-        for (const d of deserializers) {
-            try {
-                return d(buffer, offset);
-            } catch {
-                continue;
-            }
-        }
-
-        throw new BSONError(`No union member matched. Expected: ${describeUnion(type)}`, 'DK-B040');
-    };
-}
-
-/**
- * Count the number of fields in a BSON document without allocating strings.
- * Much cheaper than scanFieldNamesAndTypes for the common case.
- */
-function countBSONFields(buffer: Uint8Array, offset: number): number {
-    const docSize = readInt32LE(buffer, offset);
-    if (docSize < 5 || offset + docSize > buffer.length) return 0;
-    const end = offset + docSize - 1;
-    let pos = offset + 4;
-    let count = 0;
-    while (pos < end) {
-        const bsonType = buffer[pos++];
-        if (bsonType === 0) break;
-        count++;
-        while (pos < end && buffer[pos] !== 0) pos++; // skip field name
-        pos++; // null terminator
-        pos = skipValue(buffer, pos, bsonType);
-    }
-    return count;
-}
-
-/**
- * Extract member property info for union scoring. Pre-computed once, reused per call.
- */
-function extractMemberProps(members: (TypeObjectLiteral | TypeClass)[]) {
-    return members.map(m => {
-        const props = m.types.filter(
-            (t): t is TypeProperty | TypePropertySignature =>
-                t.kind === ReflectionKind.propertySignature || t.kind === ReflectionKind.property,
-        );
-        const literals = new Map<string, any>();
-        for (const p of props) {
-            if (p.type.kind === ReflectionKind.literal) {
-                literals.set(String(p.name), (p.type as TypeLiteral).literal);
-            }
-        }
-        return {
-            required: props.filter(p => !isOptional(p)).map(p => String(p.name)),
-            all: props.map(p => ({ name: String(p.name), type: p.type })),
-            literals,
-        };
-    });
-}
-
-/**
- * Check if all members have unique property counts, enabling the fast field-count dispatch.
- * Returns sorted member indices (most properties first) or null if counts aren't unique.
- */
-function buildFieldCountIndex(memberProps: ReturnType<typeof extractMemberProps>): number[] | null {
-    const counts = memberProps.map(p => p.all.length);
-    if (new Set(counts).size !== counts.length) return null;
-    // Sort indices by field count descending (widest first)
-    return counts.map((_, i) => i).sort((a, b) => memberProps[b].all.length - memberProps[a].all.length);
-}
-
-/**
- * Score-based dispatch: scan BSON fields, score each member, try in score order.
- * Used when field-count fast path is not applicable.
+ * Score every object member of a union against one BSON document, without allocating.
  *
- * Scoring weights aligned with packages/type/src/serializer/union.ts:
+ * Built once per union. The returned function scans the document's fields once and fills
+ * `scores` — one entry per member, valid until the next call (so read it before a member's
+ * deserializer runs: that may come back here for a nested document).
+ *
+ * Weights aligned with packages/type/src/serializer/union.ts:
  *   property present +100, BSON type match +5, literal match +1000,
  *   literal mismatch -500, missing required -100, extra property -10
  */
-function scoreAndDispatch(
-    buffer: Uint8Array,
-    offset: number,
-    memberProps: ReturnType<typeof extractMemberProps>,
-    deserializers: ((buffer: Uint8Array, offset: number) => any)[],
-    unionName: string,
-    literalFieldNames: Set<string>,
-): any {
-    const fieldInfo = scanFieldNamesAndTypes(buffer, offset);
+function createUnionMemberScorer(members: (TypeObjectLiteral | TypeClass)[]): {
+    score: (buffer: Uint8Array, offset: number) => void;
+    scores: number[];
+} {
+    // Every property name any member declares gets a slot; a document field is looked up once.
+    const slotOfName = new Map<string, number>();
+    const slotNames: Uint8Array[] = [];
+    const slotHoldsLiteral: boolean[] = [];
+    const nameEncoder = new TextEncoder();
 
-    // Read literal field values once (reuse scanForFieldValue for each)
-    const literalValues = new Map<string, any>();
-    for (const name of literalFieldNames) {
-        if (fieldInfo.has(name)) {
-            literalValues.set(name, scanForFieldValue(buffer, offset, name));
+    const memberProps = members.map(member => {
+        const props: {
+            slot: number;
+            required: boolean;
+            /** Indexed by BSON type: 1 where the type is what the property reads without coercion. */
+            matches: Uint8Array;
+            hasLiteral: boolean;
+            literal: unknown;
+        }[] = [];
+        for (const prop of member.types) {
+            if (prop.kind !== ReflectionKind.propertySignature && prop.kind !== ReflectionKind.property) continue;
+            const name = memberNameToString(prop.name);
+            let slot = slotOfName.get(name);
+            if (slot === undefined) {
+                slot = slotNames.length;
+                slotOfName.set(name, slot);
+                slotNames.push(nameEncoder.encode(name));
+                slotHoldsLiteral.push(false);
+            }
+            const matches = new Uint8Array(256);
+            for (let bsonType = 1; bsonType < 256; bsonType++) {
+                if (bsonTypeMatchesType(bsonType, prop.type)) matches[bsonType] = 1;
+            }
+            const hasLiteral = prop.type.kind === ReflectionKind.literal;
+            if (hasLiteral) slotHoldsLiteral[slot] = true;
+            props.push({
+                slot,
+                required: !isOptional(prop),
+                matches,
+                hasLiteral,
+                literal: hasLiteral ? (prop.type as TypeLiteral).literal : undefined,
+            });
         }
-    }
+        return props;
+    });
 
-    const scored: { index: number; score: number }[] = [];
-    for (let i = 0; i < memberProps.length; i++) {
-        const props = memberProps[i];
-        let score = 0;
+    const slotCount = slotNames.length;
+    /** The BSON type of the field in each slot; 0 = the document has no such field. */
+    const seen = new Uint8Array(slotCount);
+    const literalValues: unknown[] = new Array(slotCount).fill(undefined);
+    const scores: number[] = new Array(members.length).fill(0);
 
-        for (const { name, type: propType } of props.all) {
-            const bType = fieldInfo.get(name);
-            if (bType !== undefined) {
-                score += 100;
-                if (bsonTypeMatchesType(bType, propType)) score += 5;
+    function score(buffer: Uint8Array, offset: number): void {
+        seen.fill(0);
+        let fieldCount = 0;
+
+        const docSize = readInt32LE(buffer, offset);
+        if (docSize >= 5 && offset + docSize <= buffer.length) {
+            const end = offset + docSize - 1;
+            let pos = offset + 4;
+            while (pos < end) {
+                const bsonType = buffer[pos++];
+                if (bsonType === 0) break;
+                const nameStart = pos;
+                while (pos < end && buffer[pos] !== 0) pos++;
+                const nameLength = pos - nameStart;
+                pos++; // null terminator
+                fieldCount++;
+
+                for (let slot = 0; slot < slotCount; slot++) {
+                    const name = slotNames[slot];
+                    if (name.length !== nameLength) continue;
+                    let i = 0;
+                    while (i < nameLength && buffer[nameStart + i] === name[i]) i++;
+                    if (i !== nameLength) continue;
+                    seen[slot] = bsonType;
+                    if (slotHoldsLiteral[slot]) literalValues[slot] = readPrimitiveValue(buffer, pos, bsonType);
+                    break;
+                }
+
+                pos = skipValue(buffer, pos, bsonType);
             }
         }
 
-        // Literal value scoring (+1000 match, -500 mismatch)
-        for (const [name, expectedValue] of props.literals) {
-            const actualValue = literalValues.get(name);
-            if (actualValue !== undefined) {
-                if (actualValue === expectedValue) {
-                    score += 1000;
-                } else {
-                    score -= 500;
+        for (let m = 0; m < memberProps.length; m++) {
+            const props = memberProps[m];
+            let memberScore = 0;
+            let present = 0;
+            for (let p = 0; p < props.length; p++) {
+                const prop = props[p];
+                const bsonType = seen[prop.slot];
+                if (bsonType === 0) {
+                    if (prop.required) memberScore -= 100;
+                    continue;
+                }
+                present++;
+                memberScore += 100;
+                if (prop.matches[bsonType] === 1) memberScore += 5;
+                if (prop.hasLiteral) {
+                    const actual = literalValues[prop.slot];
+                    if (actual !== undefined) memberScore += actual === prop.literal ? 1000 : -500;
                 }
             }
-        }
-
-        for (const name of props.required) {
-            if (!fieldInfo.has(name)) score -= 100;
-        }
-
-        // Extra properties penalty (-10 per extra field)
-        const memberFieldNames = new Set(props.all.map(p => p.name));
-        for (const key of fieldInfo.keys()) {
-            if (!memberFieldNames.has(key)) score -= 10;
-        }
-
-        scored.push({ index: i, score });
-    }
-    scored.sort((a, b) => b.score - a.score);
-
-    for (const { index } of scored) {
-        if (scored[0].score >= 0 || index === scored[0].index) {
-            try {
-                return deserializers[index](buffer, offset);
-            } catch {
-                continue;
-            }
+            // Fields of the document this member does not declare
+            memberScore -= (fieldCount - present) * 10;
+            scores[m] = memberScore;
         }
     }
 
-    throw new BSONError(`No union member matched. Expected: ${unionName}`, 'DK-B040');
+    return { score, scores };
 }
 
 /**
- * Create a trial deserializer that tries each member based on property presence.
+ * Choose the member of a union that a BSON document belongs to, among several object members,
+ * and read the document with that member's deserializer. Built once per union.
+ *
+ * 1. A discriminant (a property that is a different literal in each member that has it): the
+ *    member whose literal the document carries.
+ * 2. Otherwise the member with the best score (`createUnionMemberScorer`); equal scores keep
+ *    the declared order. When that member refuses the document, the others are tried, best
+ *    first — unless nothing matched at all (a negative best score).
+ *
+ * The choice is made from the document's field NAMES. It used to be made from their NUMBER
+ * wherever the members declare different numbers of properties ("the widest member with no
+ * more properties than the document has fields"), relying on a member's deserializer to
+ * throw for a document that is not its own. It does not — a missing property is filled in and
+ * an INT is read into a `string` property — so a three-field document of a four-property member
+ * came back as the three-property one.
  */
-function createTrialDeserializer(
-    type: TypeUnion,
+function createObjectUnionDispatch<R>(
     members: (TypeObjectLiteral | TypeClass)[],
-    deserializers: BSONDeserializer<any>[],
-): BSONDeserializer<any> {
-    const memberProps = extractMemberProps(members);
-    const fieldCountIndex = buildFieldCountIndex(memberProps);
-    const memberFieldCounts = memberProps.map(p => p.all.length);
-    const unionName = describeUnion(type);
-    const allLiteralFields = new Set<string>();
-    for (const props of memberProps) {
-        for (const [name] of props.literals) allLiteralFields.add(name);
+    unionName: string,
+    deserializers: ((buffer: Uint8Array, offset: number) => R)[],
+): (buffer: Uint8Array, offset: number) => R {
+    const discriminant = findDiscriminant(members);
+    const discriminantNameBytes = discriminant ? encodePropertyName(discriminant.name) : undefined;
+    const memberOfDiscriminant = new Map<any, number>();
+    if (discriminant) {
+        for (const [index, value] of discriminant.values) memberOfDiscriminant.set(value, index);
     }
+    const { score, scores } = createUnionMemberScorer(members);
+    const memberCount = members.length;
 
-    return (input: Uint8Array, offset: number = 0) => {
-        let buffer: Uint8Array;
-        if (Array.isArray(input)) {
-            buffer = (input as unknown as [Uint8Array, number])[0];
-        } else {
-            buffer = input;
+    return (buffer: Uint8Array, offset: number): R => {
+        // Discriminant fast path (pre-encoded name bytes — zero allocation)
+        if (discriminantNameBytes) {
+            const discValue = scanForFieldValuePreEncoded(buffer, offset, discriminantNameBytes);
+            if (discValue !== undefined) {
+                const index = memberOfDiscriminant.get(discValue);
+                if (index !== undefined) {
+                    try {
+                        return deserializers[index](buffer, offset);
+                    } catch {
+                        // Discriminant matched but deserialization failed: choose by score
+                    }
+                }
+            }
         }
 
-        if (fieldCountIndex) {
-            // Fast path: count fields, try widest matching member first
-            const fieldCount = countBSONFields(buffer, offset);
-            for (const idx of fieldCountIndex) {
-                if (memberFieldCounts[idx] <= fieldCount) {
-                    try {
-                        return deserializers[idx](buffer, offset);
-                    } catch {
-                        continue;
-                    }
+        score(buffer, offset);
+        let best = 0;
+        for (let i = 1; i < memberCount; i++) {
+            if (scores[i] > scores[best]) best = i;
+        }
+        const bestScore = scores[best];
+
+        try {
+            return deserializers[best](buffer, offset);
+        } catch {
+            // The best member refused the document: the others, below
+        }
+
+        if (bestScore >= 0) {
+            // `scores` may have been overwritten by a nested document of the failed attempt
+            score(buffer, offset);
+            const order: number[] = [];
+            for (let i = 0; i < memberCount; i++) {
+                if (i !== best) order.push(i);
+            }
+            const ranked = scores.slice();
+            order.sort((a, b) => ranked[b] - ranked[a]);
+            for (const index of order) {
+                try {
+                    return deserializers[index](buffer, offset);
+                } catch {
+                    continue;
                 }
             }
-            // Fallback: try members with more fields (might succeed with defaults)
-            for (const idx of fieldCountIndex) {
-                if (memberFieldCounts[idx] > fieldCount) {
-                    try {
-                        return deserializers[idx](buffer, offset);
-                    } catch {
-                        continue;
-                    }
-                }
-            }
-        } else {
-            return scoreAndDispatch(buffer, offset, memberProps, deserializers, unionName, allLiteralFields);
         }
 
         throw new BSONError(`No union member matched. Expected: ${unionName}`, 'DK-B040');
     };
-}
-
-/**
- * Scan a BSON document and return a map of field names to BSON types.
- * Only used for score-based dispatch when field-count fast path is not applicable.
- */
-function scanFieldNamesAndTypes(buffer: Uint8Array, offset: number): Map<string, number> {
-    const docSize = readInt32LE(buffer, offset);
-    const fields = new Map<string, number>();
-    if (docSize < 5 || offset + docSize > buffer.length) return fields;
-    const end = offset + docSize - 1;
-    let pos = offset + 4;
-
-    while (pos < end) {
-        const bsonType = buffer[pos];
-        pos++;
-        if (bsonType === 0) break;
-
-        // Read field name
-        const nameStart = pos;
-        while (pos < end && buffer[pos] !== 0) pos++;
-        const name = String.fromCharCode(...buffer.slice(nameStart, pos));
-        pos++; // skip null terminator
-        fields.set(name, bsonType);
-
-        // Skip value
-        pos = skipValue(buffer, pos, bsonType);
-    }
-    return fields;
 }
 
 /**
@@ -2049,7 +1965,6 @@ function deserializeMultiArrayUnion(
 /**
  * Create a cached dispatcher for unions with multiple object types.
  * Called once at JIT compile time. Returns a fast runtime function.
- * Uses discriminant detection, field-count fast path, or score-based dispatch.
  */
 function createMultiObjectUnionDispatcher(
     objectTypes: Type[],
@@ -2057,63 +1972,9 @@ function createMultiObjectUnionDispatcher(
 ): (buffer: Uint8Array, offset: number) => [any, number] {
     const objectMembers = objectTypes as (TypeObjectLiteral | TypeClass)[];
     const handles = objectMembers.map(t => getNestedShapeHandle(t));
-    const discriminant = findDiscriminant(objectMembers);
-    const discriminantNameBytes = discriminant ? encodePropertyName(discriminant.name) : undefined;
-    const memberProps = extractMemberProps(objectMembers);
-    const fieldCountIndex = buildFieldCountIndex(memberProps);
-    const memberFieldCounts = memberProps.map(p => p.all.length);
-    const allLiteralFields = new Set<string>();
-    for (const props of memberProps) {
-        for (const [name] of props.literals) allLiteralFields.add(name);
-    }
-    // Callable wrappers for scoreAndDispatch — handle.fn is mutated by shape learning
+    // Callable wrappers — handle.fn is mutated by shape learning
     const deserializerFns = handles.map(h => (buf: Uint8Array, off: number) => h.fn(buf, off));
-
-    return (buffer: Uint8Array, offset: number): [any, number] => {
-        // Discriminant fast path (pre-encoded name bytes — zero allocation)
-        if (discriminant && discriminantNameBytes) {
-            const discValue = scanForFieldValuePreEncoded(buffer, offset, discriminantNameBytes);
-            if (discValue !== undefined) {
-                for (const [idx, val] of discriminant.values) {
-                    if (val === discValue) {
-                        try {
-                            return handles[idx].fn(buffer, offset);
-                        } catch {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (fieldCountIndex) {
-            // Fast path: count fields, try widest matching member first (no string allocation)
-            const fieldCount = countBSONFields(buffer, offset);
-            for (const idx of fieldCountIndex) {
-                if (memberFieldCounts[idx] <= fieldCount) {
-                    try {
-                        return handles[idx].fn(buffer, offset);
-                    } catch {
-                        continue;
-                    }
-                }
-            }
-            // Fallback: try members with more fields
-            for (const idx of fieldCountIndex) {
-                if (memberFieldCounts[idx] > fieldCount) {
-                    try {
-                        return handles[idx].fn(buffer, offset);
-                    } catch {
-                        continue;
-                    }
-                }
-            }
-        } else {
-            return scoreAndDispatch(buffer, offset, memberProps, deserializerFns, unionName, allLiteralFields);
-        }
-
-        throw new BSONError(`No union member matched. Expected: ${unionName}`, 'DK-B040');
-    };
+    return createObjectUnionDispatch(objectMembers, unionName, deserializerFns);
 }
 
 /**

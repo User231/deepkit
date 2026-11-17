@@ -5,6 +5,42 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## Unreleased
 
+### BSON: a union of several object types is written and read by the member the value is
+
+`getBSONSerializer<{ v: Model | Tag }>()` gave every object to the FIRST object member of the
+union: the serializer checks a union's members one by one, and the check of an object member was
+"is an object". A value of the second member was written by the first one's properties — it threw
+`Cannot convert undefined to string at v.name`, in either order of the union, as a property, in
+an array, in a record — and where both members declare a name with different types there was no
+error at all: `{ value: 'x' }` through `{ value: number } | { value: string }` decoded as
+`{ value: 0 }`. `@deepkit/type` chose correctly for the same union.
+
+- **Serializer** (`serializeScoredUnion`): several object members (object literals, custom
+  classes) are one check, and the member is chosen from the value at run time
+  (`createObjectMemberPicker`). A member the value IS — every required property there, every
+  present value of its property's kind — wins over one it is not; then the weights of
+  `@deepkit/type`'s union handler decide (property present +100, literal match +1000 / mismatch
+  -500, undeclared key -10, missing required -100), and equal scores keep the declared order. An
+  instance of a member's own class is that member. A union at the top level
+  (`getBSONSerializer<A | B>()`) chooses the same way; it counted matching keys only, so
+  `{ value: string } | { value: number }` was the first member there too. A union with ONE
+  object member, a discriminated union and a nullable type generate the text they generated.
+- **Deserializer** (`createObjectUnionDispatch`): the member is chosen from the document's field
+  NAMES for every union. Where the members declare different numbers of properties it was chosen
+  from the NUMBER of fields — the widest member with no more properties than the document has
+  fields — and a member's deserializer was trusted to throw for a document that is not its own.
+  It does not (a missing property is filled in, an INT is read into a `string`), so a
+  three-field document of a four-property member came back as the three-property member with
+  `name: ''`, and `{ id, value: 5 }` came back as `{ value: '5' }`. The scoring that replaces it
+  scans the document once and allocates nothing: 50 rows of `Model | Tag` decode in 4.6 µs (2.5
+  µs by counting fields), 50 rows of two members with the same names in 3.9 µs (40 µs — that
+  case was already scored, through a `Map` of decoded names). A top-level union whose
+  discriminant matched no member tried the others in declared order; it is scored too.
+
+Tests: `packages/bson/tests/object-unions.spec.ts` (bytes equal to the official `bson`
+package's, decoded twice, both JIT modes). The golden files are unchanged. Not covered by this:
+a union of several ARRAY types still takes the first for any array (`docs/todo.md`).
+
 ### JIT: one statement of each fact, a faster interpreter, and programs the Builder refuses
 
 Four changes to `packages/core/src/jit/`, after the split below.
