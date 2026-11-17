@@ -56,6 +56,23 @@ export function arg<T>(name?: string, defaultValue?: T): Arg<T> {
     return { __brand: 'arg', name, defaultValue } as Arg<T>;
 }
 
+/** Marker for a function's name: see {@link named}. */
+export type FnName = { __brand: 'name'; name: string };
+
+/**
+ * Name the function being declared — `fn(named('factory_Database'), arg('scope'), …)` — so that a
+ * stack trace or a profile says which generated function it is in: the compiled function is
+ * declared under that name (made a valid identifier; a nested function keeps its `_nfn_<id>` in
+ * front). The interpreter's closures have no names to give.
+ */
+export function named(name: string): FnName {
+    return { __brand: 'name', name };
+}
+
+function isFnName(value: unknown): value is FnName {
+    return typeof value === 'object' && value !== null && (value as FnName).__brand === 'name';
+}
+
 /** A function as its declaration built it: the tree, and what its arguments are called and default to. */
 interface FnDefinition extends NestedFnDef {
     /** The Builder whose body callback this declaration ran in, if any. */
@@ -73,6 +90,8 @@ interface FnDefinition extends NestedFnDef {
  */
 function declare(args: any[], isAsync: boolean): FnDefinition {
     const body = args.pop() as (b: Builder, ...inputs: Ref[]) => Ref | void;
+    const name = args.find(isFnName)?.name;
+    if (name !== undefined) args = args.filter(a => !isFnName(a));
     const argCount = args.length;
     const inputNames = args.map((a: Arg<any>, i: number) => a.name || `v${i}`);
     const inputDefaults = args.map((a: Arg<any>) => a.defaultValue);
@@ -86,13 +105,20 @@ function declare(args: any[], isAsync: boolean): FnDefinition {
     } finally {
         _activeBuilder = parent;
     }
-    return { block: builder.build(result || undefined), inputNames, inputDefaults, async: isAsync, parent };
+    return { block: builder.build(result || undefined), inputNames, inputDefaults, async: isAsync, name, parent };
 }
 
 type Compiled<R> = (...args: any[]) => R;
 
 function compileDefinition<R>(def: NestedFnDef): Compiled<R> {
-    const gen = new CodeGenerator(def.inputNames.length, def.inputNames, undefined, def.inputDefaults, def.async);
+    const gen = new CodeGenerator(
+        def.inputNames.length,
+        def.inputNames,
+        undefined,
+        def.inputDefaults,
+        def.async,
+        def.name,
+    );
     return gen.compile<Compiled<R>>(def.block);
 }
 

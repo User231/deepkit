@@ -43,6 +43,7 @@ import {
     getJitMode,
     getJitThreshold,
     isDeclaring,
+    named,
     setJitMode,
     setJitThreshold,
     shapeOfExpr,
@@ -269,6 +270,26 @@ function thenable(value: unknown): { then(resolve: (value: unknown) => void): vo
 
 const holey: unknown[] = [1, 2, 3];
 delete holey[1];
+
+/** A function that answers another: `pairWith(a)(b)` is `[a, b]`. */
+function pairWith(a: unknown): (b: unknown) => unknown[] {
+    return b => [a, b];
+}
+
+function triple(a: unknown, b: unknown, c: unknown): unknown[] {
+    return [a, b, c];
+}
+
+function gather(...all: unknown[]): unknown[] {
+    return all;
+}
+
+/** Says what it was called on: nothing, when it is called as a value. */
+function whoIsThis(this: unknown, extra?: unknown): unknown[] {
+    return [this === undefined ? 'no this' : 'a this', extra];
+}
+
+const methods = { who: whoIsThis };
 
 /** Plain JavaScript that is handed a function and calls it. */
 function callWith(f: (...args: unknown[]) => unknown, ...args: unknown[]): unknown {
@@ -582,6 +603,37 @@ const EXPR: Record<Expr['kind'], ExprRow> = {
             { name: 'argument', put: (b, mk, x) => b.subFn(mk(b, x), (b2, input) => b2.isType(input, 'string')) },
             // A sub-function body sees its one input only; the child is built from it.
             { name: 'body', put: (b, mk, x) => b.subFn(x[2], (b2, input) => mk(b2, [input, input, input, input])) },
+        ],
+    },
+    invoke: {
+        leaf: (b, x) => b.invoke(b.lit(pair), x[0], x[1]),
+        more: {
+            'no argument': b => b.invoke(b.lit(whoIsThis)),
+            'one argument': (b, x) => b.invoke(b.lit(whoIsThis), x[0]),
+            'three arguments': (b, x) => b.invoke(b.lit(triple), x[0], x[1], x[2]),
+            'five arguments': (b, x) => b.invoke(b.lit(gather), x[0], x[1], x[2], x[3], b.lit('fifth')),
+            // A function read off an object is called with no `this`: `o.f(x)` would hand it the object.
+            'read from a property': b => b.invoke(b.get(b.lit(methods), 'who')),
+            'read from an array': b => b.invoke(b.at(b.lit([whoIsThis]), 0)),
+            'read from a computed key': (b, x) => b.invoke(b.get(b.lit(methods), b.concat(b.lit('wh'), b.lit('o'))), x[0]),
+            'what a call answered': (b, x) => b.invoke(b.call(pairWith, x[0]), x[1]),
+            'what an invoke answered': (b, x) => b.invoke(b.invoke(b.lit(pairWith), x[0]), x[1]),
+            'chosen by a condition': (b, x) => b.invoke(b.ternary(b.isType(x[0], 'number'), b.lit(pair), b.lit(triple)), x[0], x[1]),
+            'chosen by a fallback': (b, x) => b.invoke(b.or(b.get(x[2], 'missing'), b.lit(pair)), x[0], x[1]),
+            'a variable that holds it': (b, x) => {
+                const held = b.let(b.lit(pair), 'held');
+                return b.invoke(held, x[1], x[0]);
+            },
+            'a value that is no function': (b, x) => b.invoke(x[0], x[1]),
+            'a nested function, as a value': (b, x) => {
+                const inner = fn(arg(), arg(), (b2: Builder, left: Ref, right: Ref) => b2.arr(b2.lit('inner'), left, right));
+                const chosen = b.let(b.ternary(b.isNullish(x[0]), b.lit(pair), b.lit(inner)));
+                return b.invoke(chosen, x[0], x[1]);
+            },
+        },
+        slots: [
+            { name: 'function', put: (b, mk, x) => b.invoke(mk(b, x), x[0]) },
+            { name: 'argument', put: (b, mk, x) => b.invoke(b.lit(pair), x[0], mk(b, x)) },
         ],
     },
 };
@@ -3156,6 +3208,36 @@ describe('jit differential: generated source', () => {
             for (const [name, program] of Object.entries(STMT[kind])) sections.push(section(`${kind}: ${name}`, program, ASYNC_STMT_KINDS.has(kind) ? fnAsyncJIT : fnJIT));
         }
         expectGolden(join(__dirname, 'golden', 'jit-statements.js'), sections.join('\n'));
+    });
+
+    test('a function carries the name it was given: in its text, in a stack trace, and not in the interpreter', needsCodeGeneration, () => {
+        const failing = (define: Define) =>
+            define(named('outer function'), arg('x'), (b: Builder, x: Ref) => {
+                const inner = fn(named('the-inner-one'), arg('y'), (b2: Builder, y: Ref) => b2.get(b2.get(y, 'missing'), 'deeper'));
+                return b.call(inner, x);
+            });
+
+        const text = generatedSource(() => failing(fnJIT));
+        expect(text).toContain('function _nfn_0_the_inner_one(y){');
+        expect(text).toContain('return function outer_function(x){');
+        expect(text).toContain('return _nfn_0_the_inner_one(x);');
+
+        let stack = '';
+        try {
+            failing(fnJIT)({});
+        } catch (error) {
+            stack = String((error as Error).stack);
+        }
+        expect(stack).toMatch(/at _nfn_\d+_the_inner_one /);
+        expect(stack).toMatch(/at outer_function /);
+
+        // A name is a hint for the compiled text only: the same declaration, interpreted, answers the same.
+        expect(() => failing(fnExec)({})).toThrow(TypeError);
+        expect(failing(fnExec)({ missing: { deeper: 7 } })).toBe(7);
+        expect(failing(fnJIT)({ missing: { deeper: 7 } })).toBe(7);
+        // …and it is not an argument: the function still takes one.
+        expect(fnJIT(named('twice'), arg(), (b: Builder, x: Ref) => b.mul(x, b.lit(2)))(21)).toBe(42);
+        expect(fnAsyncExec(named('later'), arg(), (b: Builder, x: Ref) => b.await_(x))(5)).toBeInstanceOf(Promise);
     });
 
     test('functions inside functions, and argument defaults', needsCodeGeneration, () => {

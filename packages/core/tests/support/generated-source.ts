@@ -48,7 +48,8 @@ export function compilationsOf(build: () => void): Compilation[] {
 function withStableIds(text: string): string {
     for (const family of ['_nfn_', '_fn_']) {
         const order = new Map<string, number>();
-        text = text.replace(new RegExp(`(?<![\\w$])${family}(\\d+)\\b`, 'g'), (_match, id: string) => {
+        // The id ends where the digits do: a named function carries its name after it (`_nfn_12_factory`).
+        text = text.replace(new RegExp(`(?<![\\w$])${family}(\\d+)(?!\\d)`, 'g'), (_match, id: string) => {
             if (!order.has(id)) order.set(id, order.size);
             return `${family}${order.get(id)}`;
         });

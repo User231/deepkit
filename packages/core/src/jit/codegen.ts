@@ -110,7 +110,13 @@ const EMITTED_PRECEDENCE: { [K in Expr['kind']]: number | ((expr: Extract<Expr, 
     method: PREC_MEMBER,
     map: PREC_MEMBER,
     subFn: PREC_MEMBER,
+    invoke: PREC_MEMBER,
 };
+
+/** `_nfn_<id>`, with the function's name hint after it where it has one. */
+function nestedFnName(id: number, def: NestedFnDef | undefined): string {
+    return def?.name ? `_nfn_${id}_${sanitizeIdentifier(def.name)}` : `_nfn_${id}`;
+}
 
 function emittedPrecedence(expr: Expr): number {
     const level = EMITTED_PRECEDENCE[expr.kind] as number | ((expr: Expr) => number);
@@ -119,7 +125,8 @@ function emittedPrecedence(expr: Expr): number {
 
 export class CodeGenerator {
     private externals: Map<any, string>;
-    private reservedNames: Set<string>;
+    /** Per name hint, how many names were handed out for it. */
+    private reservedNames: Map<string, number>;
     /**
      * Ids of the nested functions whose definition THIS compilation unit emits (shared with child
      * generators). A marker outside this set came from another Builder — a sub-function cached per
@@ -166,7 +173,7 @@ export class CodeGenerator {
         inputNames?: string[],
         sharedState?: {
             externals: Map<any, string>;
-            reservedNames: Set<string>;
+            reservedNames: Map<string, number>;
             ownedNested?: Set<number>;
             adoptedNested?: Map<number, string>;
             nestedRefs?: Map<number, Set<number>>;
@@ -175,11 +182,13 @@ export class CodeGenerator {
         inputDefaults?: readonly unknown[],
         /** The unit's own function is an async function. */
         private readonly isAsync = false,
+        /** What the unit's own function is called (a hint, see `NestedFnDef.name`). */
+        private readonly fnName?: string,
     ) {
         this.argCount = argCount;
         // Share externals/reservedNames/nested bookkeeping with parent CodeGenerator if provided
         this.externals = sharedState?.externals || new Map();
-        this.reservedNames = sharedState?.reservedNames || new Set();
+        this.reservedNames = sharedState?.reservedNames || new Map();
         this.ownedNested = sharedState?.ownedNested || new Set();
         this.adoptedNested = sharedState?.adoptedNested || new Map();
         this.nestedRefs = sharedState?.nestedRefs || new Map();
@@ -216,14 +225,12 @@ export class CodeGenerator {
 
     private reserveName(name: string): string {
         const sanitized = sanitizeIdentifier(name);
-        for (let i = 0; i < 10000; i++) {
-            const candidate = sanitized + '_' + i;
-            if (!this.reservedNames.has(candidate)) {
-                this.reservedNames.add(candidate);
-                return candidate;
-            }
-        }
-        throw new Error('Too many external references');
+        // `hint_0`, `hint_1`, …: the next free one. Names are reserved here only, so the count of
+        // those handed out for a hint is the next index — a unit may hold thousands (an injector's
+        // module), and looking for the first free one from 0 each time was quadratic and capped.
+        const index = this.reservedNames.get(sanitized) ?? 0;
+        this.reservedNames.set(sanitized, index + 1);
+        return sanitized + '_' + index;
     }
 
     private addExternal(value: any, hint: string = 'ext'): string {
@@ -243,10 +250,10 @@ export class CodeGenerator {
                 const def = (value as any).__nestedFnDef as NestedFnDef | undefined;
                 if (def) {
                     this.adoptedNested.set(id, this.compileNestedFn(id, def));
-                    return `_nfn_${id}`;
+                    return nestedFnName(id, def);
                 }
             } else {
-                return `_nfn_${id}`;
+                return nestedFnName(id, (value as any).__nestedFnDef as NestedFnDef | undefined);
             }
         }
         // Check if already registered
@@ -482,6 +489,14 @@ export class CodeGenerator {
                 } finally {
                     this.loops = enclosingLoops;
                 }
+            }
+            case 'invoke': {
+                const args = expr.args.map(a => this.exprToCode(a)).join(',');
+                const fn = this.operand(expr.fn, PREC_MEMBER);
+                // `o.f(x)` would call f with `this` being o. A function that is a value is
+                // called with none, in both modes: `(0,o.f)(x)`.
+                const isReference = expr.fn.kind === 'get' || expr.fn.kind === 'at' || expr.fn.kind === 'len';
+                return isReference ? `(0,${fn})(${args})` : `${fn}(${args})`;
             }
             case 'subFn': {
                 // Generate a helper function for better V8 optimization
@@ -796,7 +811,7 @@ export class CodeGenerator {
         }
 
         const argNames = this.parameterList(def.inputNames, def.inputDefaults || []);
-        return `${childNestedDefs}${def.async ? 'async ' : ''}function _nfn_${id}(${argNames}){\n${innerBody}}\n`;
+        return `${childNestedDefs}${def.async ? 'async ' : ''}function ${nestedFnName(id, def)}(${argNames}){\n${innerBody}}\n`;
     }
 
     /** The parameter list of a generated function, defaults included (e.g. `buffer,offset=0`). */
@@ -832,7 +847,14 @@ export class CodeGenerator {
             const uncalled = generator.uncalledNested(block);
             if (uncalled.size === 0) return unit();
             block = withoutNested(block, uncalled);
-            generator = new CodeGenerator(this.argCount, this.inputNames, undefined, this.inputDefaults, this.isAsync);
+            generator = new CodeGenerator(
+                this.argCount,
+                this.inputNames,
+                undefined,
+                this.inputDefaults,
+                this.isAsync,
+                this.fnName,
+            );
         }
     }
 
@@ -889,7 +911,8 @@ export class CodeGenerator {
         // throws instead of making a global. The directive is the first statement of the outer
         // body, so the nested functions and the returned one inherit it; the returned function
         // cannot carry its own, a directive being a syntax error beside a parameter default.
-        const keyword = this.isAsync ? 'async function' : 'function';
+        const keyword =
+            (this.isAsync ? 'async function' : 'function') + (this.fnName ? ' ' + sanitizeIdentifier(this.fnName) : '');
         let fnBody: string;
         if (nestedDefs || adoptedDefs || this.helperFunctions.size > 0) {
             const helpers = [...this.helperFunctions.values()].join('');

@@ -473,6 +473,33 @@ function compileExpr(expr: Expr): EvalFn {
                     return bodyFn(args, vars) === RETURN ? takeReturned() : undefined;
                 });
         }
+        case 'invoke': {
+            // A plain call of the value. What a closure answers is not a reference, so there is no
+            // `this` to pass, whatever expression the function came from.
+            const fnFn = compileExpr(expr.fn);
+            const argFns = expr.args.map(compileExpr);
+            const len = argFns.length;
+            if (len === 0) return (args, vars) => fnFn(args, vars)();
+            if (len === 1) {
+                const a0 = argFns[0];
+                return (args, vars) => fnFn(args, vars)(a0(args, vars));
+            }
+            if (len === 2) {
+                const a0 = argFns[0],
+                    a1 = argFns[1];
+                return (args, vars) => fnFn(args, vars)(a0(args, vars), a1(args, vars));
+            }
+            if (len === 3) {
+                const a0 = argFns[0],
+                    a1 = argFns[1],
+                    a2 = argFns[2];
+                return (args, vars) => fnFn(args, vars)(a0(args, vars), a1(args, vars), a2(args, vars));
+            }
+            return (args, vars) => {
+                const fn = fnFn(args, vars);
+                return fn(...argFns.map(f => f(args, vars)));
+            };
+        }
         case 'subFn': {
             // SubFn evaluates the body with the arg as input(0)
             // The body was built by its own Builder: its variable ids are its own and would

@@ -1365,3 +1365,113 @@ return [v4,_fn_0(v3),v4];
 function _fn_0(v0){return typeof v0;}function _fn_1(v0){return _fn_0(v0.a);}return function(v0,v1,v2,v3){
 return _fn_1(v2);
 }
+
+// ── invoke: leaf
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return const_0(v0,v1);
+}
+
+// ── invoke: no argument
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return const_0();
+}
+
+// ── invoke: one argument
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return const_0(v0);
+}
+
+// ── invoke: three arguments
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return const_0(v0,v1,v2);
+}
+
+// ── invoke: five arguments
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return const_0(v0,v1,v2,v3,"fifth");
+}
+
+// ── invoke: read from a property
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return (0,const_0.who)();
+}
+
+// ── invoke: read from an array
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return (0,const_0[0])();
+}
+
+// ── invoke: read from a computed key
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return (0,const_0[("wh"+"o")])(v0);
+}
+
+// ── invoke: what a call answered
+// externals: pairWith_0
+'use strict';
+return function(v0,v1,v2,v3){
+return pairWith_0(v0)(v1);
+}
+
+// ── invoke: what an invoke answered
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return const_0(v0)(v1);
+}
+
+// ── invoke: chosen by a condition
+// externals: const_0, const_1
+'use strict';
+return function(v0,v1,v2,v3){
+return ("number"===typeof v0?const_0:const_1)(v0,v1);
+}
+
+// ── invoke: chosen by a fallback
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+return (v2.missing||const_0)(v0,v1);
+}
+
+// ── invoke: a variable that holds it
+// externals: const_0
+'use strict';
+return function(v0,v1,v2,v3){
+var held_4=const_0;
+return held_4(v1,v0);
+}
+
+// ── invoke: a value that is no function
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+return v0(v1);
+}
+
+// ── invoke: a nested function, as a value
+// externals: const_0
+'use strict';
+function _nfn_0(v0,v1){
+return ["inner",v0,v1];
+}
+return function(v0,v1,v2,v3){
+var v4=(v0==null?const_0:_nfn_0);
+return v4(v0,v1);
+}

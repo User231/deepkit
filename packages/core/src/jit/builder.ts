@@ -340,6 +340,17 @@ export class Builder {
         return new Ref({ kind: 'call', fn, args: args.map(a => this.own(a)) }, declOfAll(args));
     }
 
+    /**
+     * Call a function that is a value — one read from a table, handed in as an argument, answered
+     * by another call — with no `this`. A function known now is called with {@link call}.
+     */
+    invoke<T>(fn: Ref, ...args: Ref[]): Ref<T> {
+        return new Ref(
+            { kind: 'invoke', fn: this.own(fn), args: args.map(a => this.own(a)) },
+            fn.decl !== NO_DECL ? fn.decl : declOfAll(args),
+        );
+    }
+
     /** Construct a new instance */
     new_<T>(ctor: new (...args: any[]) => T, ...args: Ref[]): Ref<T> {
         return new Ref({ kind: 'new', ctor, args: args.map(a => this.own(a)) }, declOfAll(args));

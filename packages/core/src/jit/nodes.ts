@@ -316,6 +316,17 @@ export interface SubFnExpr {
     readonly fnId: number;
 }
 
+/**
+ * Call a function that is a VALUE: `fn(args...)`, with no `this`. What `call` is for a function
+ * known when the tree is written, this is for one the function computes or is handed — a resolver
+ * looked up in a table, what another call answered.
+ */
+export interface InvokeExpr {
+    readonly kind: 'invoke';
+    readonly fn: Expr;
+    readonly args: readonly Expr[];
+}
+
 /** Union of all expression types */
 export type Expr =
     | LitExpr
@@ -359,7 +370,8 @@ export type Expr =
     | UshrExpr
     | MethodExpr
     | MapExpr
-    | SubFnExpr;
+    | SubFnExpr
+    | InvokeExpr;
 
 // ============================================================================
 // Statement Types
@@ -543,6 +555,11 @@ export interface NestedFnDef {
     readonly inputDefaults?: readonly unknown[];
     /** An async function: it answers a promise, and its statements may `await`. */
     readonly async?: boolean;
+    /**
+     * What the compiled function is called, for whoever reads a stack trace or a profile: a hint,
+     * made a valid identifier by the generator. The interpreter has no use for it.
+     */
+    readonly name?: string;
 }
 
 export interface Block {
@@ -634,6 +651,7 @@ export const EXPR_SHAPE: { [K in Expr['kind']]: Shape<Extract<Expr, { kind: K }>
     method: { exprs: (node, visit) => visit(node.obj) || node.args.some(visit) },
     map: { exprs: (node, visit) => visit(node.arr), blocks: (node, visit) => visit(node.body) },
     subFn: { exprs: (node, visit) => visit(node.arg), inner: (node, visit) => visit(node.body) },
+    invoke: { exprs: (node, visit) => visit(node.fn) || node.args.some(visit) },
 };
 
 /** The shape of every statement kind — held complete the same way as {@link EXPR_SHAPE}. */
