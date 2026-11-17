@@ -81,7 +81,7 @@ This enables a single TypeScript type definition to work everywhere: validation,
 │   { kind: 'class',        Generate code for         function validate(v) { │
 │     properties: [...] }    each type kind            if (typeof v.id !==   │
 │                                                        'number') return err │
-│                           CompilerContext.build()    ...                    │
+│                           fn() of @deepkit/core      ...                    │
 │                                                      }                       │
 │                                                                              │
 │   Functions cached in Type's JIT container                                  │
@@ -123,7 +123,7 @@ Defined in `@deepkit/type-spec`, the bytecode consists of ~90 operations encoded
 
 ```
                     ┌─────────────────┐
-                    │  @deepkit/core  │  ← Utilities, CompilerContext, type guards
+                    │  @deepkit/core  │  ← Utilities, the JIT (fn), type guards
                     └────────┬────────┘
                              │
               ┌──────────────┼──────────────┐
@@ -397,28 +397,20 @@ Deepkit achieves extreme performance through JIT (Just-In-Time) compilation:
 - Generated code avoids reflection overhead at runtime
 - Functions are cached per-type to avoid regeneration
 
-### CompilerContext Pattern
+### The JIT: one tree, two ways to run it
 
 ```typescript
-// packages/core/src/compiler.ts
+// packages/core/src/jit/ — `fn`, `fnAsync`, `arg`, `named`, `Builder`, `Ref`
 
-class CompilerContext {
-    context: Map<string, any> = new Map();  // Variables accessible in generated code
-
-    reserveConst(value: any, name?: string): string {
-        // Returns same variable name for same value (caching)
-    }
-
-    reserveVariable(name?: string, value?: any): string {
-        // Reserves unique variable name
-    }
-
-    build(code: string, ...args: string[]): Function {
-        // Compiles code string to function
-        return new Function(...args, code);
-    }
-}
+const double = fn(arg('x'), (b: Builder, x: Ref) => b.mul(x, b.lit(2)));
 ```
+
+A function is DECLARED as a tree of expressions and statements (`Builder`). Where the
+environment allows code generation the tree is written as JavaScript source and built with
+`new Function`; where it does not (a strict CSP, an edge runtime) the same tree runs as nested
+closures. A function declared inside another's declaration is its nested function, in the same
+compilation unit. Validators, serializers, BSON codecs, the workflow of a request, the HTTP
+router and the injector are all built this way — see `CLAUDE.md` § The JIT's two modes.
 
 ### Template Registry Pattern
 

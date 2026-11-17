@@ -86,8 +86,8 @@ export let jitDebug = false;
  * `'interpreted'` exists for TESTS: the interpreter is what a browser under a strict CSP runs, and
  * a suite that only ever compiles never executes it. Blocking code generation for a whole process
  * (`--disallow-code-generation-from-strings`) does the same and more — it also stops everything
- * else that builds code from a string (`CompilerContext`, a benchmark harness, a test's own
- * tooling) — so a suite that needs those beside it uses this switch instead.
+ * else that builds code from a string (a benchmark harness, a test's own tooling) — so a suite
+ * that needs those beside it uses this switch instead.
  *
  * It decides when a function is BUILT; functions are cached per type, so set it before the first
  * one: `DEEPKIT_JIT_MODE=interpreted` in the environment, or {@link setJitMode} at the top of a

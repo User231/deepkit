@@ -33,8 +33,8 @@ deliberately dropped the rest. Summary so nobody re-derives intent from the old 
 
 - **TypeScript 7 (Go) transformer** — the one live workstream; see
   [`docs/todo.md`](todo.md) § Active Work.
-- Optional, unscheduled: migrate the last `CompilerContext` user (`injector` — server-side
-  only; `workflow` and `http` moved 2026-11-17) to the JIT; cross-runtime CI; BSON deserialize perf
+- Optional, unscheduled (`CompilerContext` is gone since 2026-11-17 — `workflow`, `http` and
+  `injector` are built with the JIT): cross-runtime CI; BSON deserialize perf
   ceiling. Listed with context in [`docs/todo.md`](todo.md) § Known Remaining Work.
 
 ## Explicitly not pursued (dropped with the upstream plan)

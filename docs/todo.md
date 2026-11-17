@@ -52,13 +52,20 @@ Landed and verified (see `CHANGELOG.md` for the full v2 record):
 
 ## Known Remaining Work (optional, not scheduled)
 
-- **`CompilerContext` (v1 string-JIT) still lives in** `injector`, and nowhere else. `workflow`
-  moved to the JIT on 2026-11-17 (the pilot: `fnAsync`, `await_`, `try_` were added for it;
-  `packages/workflow/benchmarks/apply.ts`), `http` — the router, its URL resolver and the
-  parameter loaders of `request-parser.ts` — the same day (`packages/http/benchmarks/router.ts`).
-  The injector is the one left and is not a port: it generates a MODULE — some sixty functions
-  over shared state (`instances`, the lookup tables), returned as seven — where the JIT builds
-  one function and the functions nested in it. It needs a design of its own first.
+- **`CompilerContext` (v1 string-JIT) is gone** (2026-11-17). Its three users moved to the JIT
+  of `packages/core/src/jit/` — `workflow` (`benchmarks/apply.ts`), `http` (`benchmarks/router.ts`),
+  `injector` (`benchmarks/built.ts`) — and `packages/http/tests/csp-fallback.spec.ts` serves whole
+  requests in a process that cannot build code from a string. What still builds code from one is
+  listed, with how it is strict, in `packages/core/tests/generated-code-strict.spec.ts`: the JIT's
+  own `new Function`, `createDynamicClass`, `sql-builder`, the benchmark harness and two schema
+  parsers.
+- **The injector's `resolver()` keeps a resolver it had to create in the SETTER table**
+  (`lookupSetter[containerToken] = resolver` in `Injector.build()`), as the string generator did.
+  It reads like a slip for the getter table, where it would have to be wrapped
+  (`found(scope)` is called on what the table holds). Left as it was: nothing shows what was meant.
+- **Building an injector is quadratic in its providers**: 304 providers take about 70 ms, most of
+  it in `module.ts` / `types.ts` (`getPreparedProvider`, `nominalCompatibility`), not in the
+  generator (`packages/injector/benchmarks/built.ts` measures it).
   Migrating them to `jit.ts` only matters if those packages ever need to run under blocked
   codegen (edge runtimes). No current need.
 - **AOT tier** from the JIT/CSP design (`docs/design/jit-serializer-design.md`): never built. The

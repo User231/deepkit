@@ -115,9 +115,10 @@ const back  = enc.decode(bytes);
 
 `@deepkit/type` and `@deepkit/bson` are now built on a new expression-tree
 `Builder` in `@deepkit/core` (`jit.ts`) instead of the string-concatenating
-`CompilerContext`. `CompilerContext` is retained for back-compat, so existing
-callers keep working — but if you wrote a **custom serializer** against the old
-template API, it must be ported:
+`CompilerContext`. `CompilerContext` was kept for a while and is REMOVED since
+2026-11-17, when its last users (`workflow`, `http`, `injector`) moved to the
+`Builder` too: code that built functions with it is ported to `fn()` / `fnAsync()`.
+If you wrote a **custom serializer** against the old template API, it must be ported:
 
 | v1 (`TemplateState`) | v2 (`Builder` / `Ref`) |
 |---|---|

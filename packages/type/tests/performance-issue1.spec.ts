@@ -12,13 +12,19 @@ import { test } from 'node:test';
 import querystring from 'querystring';
 import { Writable } from 'stream';
 
-import { AbstractClassType, ClassType, CompilerContext, CustomError, arrayRemoveItem, getClassName, isClass, isFunction, urlJoin } from '@deepkit/core';
+import { AbstractClassType, ClassType, CustomError, arrayRemoveItem, getClassName, isClass, isFunction, urlJoin } from '@deepkit/core';
 
 import { SerializationOptions, Serializer } from '../index.js';
 import { entity } from '../src/decorator.js';
 import { isExtendable } from '../src/reflection/extends.js';
 import { ReceiveType, reflect, resolveReceiveType } from '../src/reflection/reflection.js';
 import { Type, isType } from '../src/reflection/type.js';
+
+/**
+ * Stands for the builder of code strings these signatures were copied with (`@deepkit/core` had
+ * one until 2026-11-17). Only the shape of the declarations matters to this test.
+ */
+class CompilerContext {}
 
 export interface ProviderBase {
     /**

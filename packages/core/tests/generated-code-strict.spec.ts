@@ -17,7 +17,6 @@ import { describe, test } from 'node:test';
 
 import { expect } from '@deepkit/run/expect';
 
-import { CompilerContext } from '../src/compiler.js';
 import { Builder, Ref, arg, canJIT, fnJIT } from '../src/jit.js';
 
 const PACKAGES = join(__dirname, '..', '..');
@@ -36,7 +35,6 @@ type How =
     | 'capability probe';
 
 const SITES: Record<string, { count: number; how: How }[]> = {
-    'core/src/compiler.ts': [{ count: 3, how: 'directive' }],
     'core/src/core.ts': [{ count: 2, how: 'class body' }],
     'core/src/jit/codegen.ts': [{ count: 1, how: 'directive' }],
     'core/src/jit/runtime.ts': [{ count: 1, how: 'capability probe' }],
@@ -119,23 +117,8 @@ describe('generated code is strict: the inventory', () => {
 describe('generated code is strict: behaviour', () => {
     const frozen = () => Object.freeze({ k: 0 });
     // These build compiled functions on purpose; where code generation is blocked there is nothing to
-    // check (`CompilerContext` cannot build at all, and the JIT's interpreter is a strict module).
+    // check (the JIT's interpreter is a strict module).
     const needsCodeGeneration = { skip: !canJIT };
-
-    test('CompilerContext.build', needsCodeGeneration, () => {
-        const write = new CompilerContext().build('target.k = 1; return "survived";', 'target');
-        expect(() => write(frozen())).toThrow(TypeError);
-    });
-
-    test('CompilerContext.buildAsync', needsCodeGeneration, async () => {
-        const write = new CompilerContext().buildAsync('target.k = 1; return "survived";', 'target');
-        await expect(write(frozen())).rejects.toThrow(TypeError);
-    });
-
-    test('CompilerContext.raw', needsCodeGeneration, () => {
-        const write = new CompilerContext().raw('return function(target){ target.k = 1; return "survived"; }');
-        expect(() => write(frozen())).toThrow(TypeError);
-    });
 
     test('the JIT, with and without nested functions beside the main one', needsCodeGeneration, () => {
         const plain = fnJIT(arg(), (b: Builder, target: Ref) => {
@@ -152,11 +135,5 @@ describe('generated code is strict: behaviour', () => {
             return b.call(inner, target);
         });
         expect(() => nested(frozen())).toThrow(TypeError);
-    });
-
-    test('a write to a name nobody declared is an error, not a new global', needsCodeGeneration, () => {
-        const leak = new CompilerContext().build('__generatedCodeLeak = 1;');
-        expect(() => leak()).toThrow(ReferenceError);
-        expect('__generatedCodeLeak' in globalThis).toBe(false);
     });
 });

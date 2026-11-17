@@ -149,7 +149,7 @@ TypeScript types → type-compiler → ReflectionOp bytecode → processor VM �
 ### Package Hierarchy
 
 ```
-@deepkit/core                 → Utilities, CompilerContext
+@deepkit/core                 → Utilities, the JIT (fn / fnAsync)
     ↓
 @deepkit/type-spec           → ReflectionOp bytecode definitions (~90 ops)
     ↓
@@ -180,8 +180,9 @@ See `docs/ARCHITECTURE.md` for detailed data flow diagrams.
 
 - `ReceiveType<T>` + `resolveReceiveType()` for runtime type access
 - Type annotations via intersection: `string & MinLength<3>`
-- JIT compilation for performance: `fn()` / `fnAsync()` of `@deepkit/core` (`src/jit/`) in `type`, `bson`,
-  `workflow` and `http`; the older string-built `CompilerContext` only where it still lives (`injector`)
+- JIT compilation for performance: `fn()` / `fnAsync()` of `@deepkit/core` (`src/jit/`) — `type`, `bson`,
+  `workflow`, `http` and `injector`. Nothing builds a function from a string of code any more
+  (`CompilerContext` was removed 2026-11-17): a generator is written as a tree
 
 ## Decorators: standard (TC39) mode is the default; the runtime is dual-mode — keep it that way
 
@@ -310,11 +311,11 @@ throw new SerializationError('Cannot serialize...', 'inlineReference', path);
 throw new BSONError('Cannot serialize inline reference at ' + path);
 ```
 
-**For JIT-compiled templates:** Ensure the error class is in the compiler context:
+**In a generated function** the error class is named like any other: the tree holds the class
+itself, so there is nothing to register.
 
 ```typescript
-compiler.context.set('SerializationError', SerializationError);
-compiler.context.set('BSONError', BSONError);
+b.throw_(b.new_(SerializationError, b.lit('Cannot serialize…'), b.lit('inlineReference'), path));
 ```
 
 ### Key Files
@@ -466,6 +467,17 @@ with `const deferred = (run, a, b) => () => run(a, b)` (`packages/workflow/src/w
 `nested.bind(undefined, a, b)` means the same and costs about 65 ns more per call. State that
 outlives one call is not a variable either: it is a property of an object passed in with `b.lit()`,
 or lives in a plain helper (`providerOf` in `packages/http/src/request-parser.ts`).
+
+**Two more things a declaration can say.** `b.invoke(fn, ...args)` calls a function that is a
+VALUE — one read from a table, handed in, answered by another call — with no `this`; `b.call()`
+is for a function known when the tree is written. `named('factory_Database')` among a
+declaration's arguments names the compiled function, so a stack trace says which generated
+function it is in (`_nfn_12_factory_Database`).
+
+**A unit that answers several functions** is one function that declares them as its nested
+functions and returns them in an object, run once: `Injector.build()` (`fnJITTop`, so it is never
+somebody else's nested function). A nested function may only call one that is declared by then,
+so they are declared in the order of their dependencies, and a circle goes through a lookup.
 
 **Plan first, declare afterwards.** A builder that needs OTHER generated functions — a converter
 or a validator of `@deepkit/type`, a function of the injector — gets them before it calls `fn()`:
