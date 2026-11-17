@@ -9,8 +9,8 @@
  */
 
 /*
- * The entry points: `fn`, `fnJIT`, `fnJITTop`, `fnExec`. Each runs a declaration through a
- * `Builder` and decides which mode runs the tree it built.
+ * The entry points: `fn`, `fnJIT`, `fnJITTop`, `fnExec`, and the async twin of each. Each runs a
+ * declaration through a `Builder` and decides which mode runs the tree it built.
  */
 import { Builder, Ref } from './builder.js';
 import { CodeGenerator } from './codegen.js';
@@ -57,13 +57,13 @@ interface FnDefinition extends NestedFnDef {
  * callback that throws must not leave a dead Builder active, or every function declared afterwards
  * would be taken for its nested function and run interpreted.
  */
-function declare(args: any[]): FnDefinition {
+function declare(args: any[], isAsync: boolean): FnDefinition {
     const body = args.pop() as (b: Builder, ...inputs: Ref[]) => Ref | void;
     const argCount = args.length;
     const inputNames = args.map((a: Arg<any>, i: number) => a.name || `v${i}`);
     const inputDefaults = args.map((a: Arg<any>) => a.defaultValue);
 
-    const builder = new Builder(argCount);
+    const builder = new Builder(argCount, { async: isAsync });
     const parent = _activeBuilder;
     _activeBuilder = builder;
     let result: Ref | void;
@@ -72,18 +72,18 @@ function declare(args: any[]): FnDefinition {
     } finally {
         _activeBuilder = parent;
     }
-    return { block: builder.build(result || undefined), inputNames, inputDefaults, parent };
+    return { block: builder.build(result || undefined), inputNames, inputDefaults, async: isAsync, parent };
 }
 
 type Compiled<R> = (...args: any[]) => R;
 
 function compileDefinition<R>(def: NestedFnDef): Compiled<R> {
-    const gen = new CodeGenerator(def.inputNames.length, def.inputNames, undefined, def.inputDefaults);
+    const gen = new CodeGenerator(def.inputNames.length, def.inputNames, undefined, def.inputDefaults, def.async);
     return gen.compile<Compiled<R>>(def.block);
 }
 
 function interpretDefinition<R>(def: NestedFnDef): Compiled<R> {
-    return createExecutor<R>(def.block, def.inputDefaults);
+    return createExecutor<R>(def.block, def.inputDefaults, def.async);
 }
 
 /**
@@ -159,8 +159,8 @@ const POLICIES = {
 } satisfies Record<string, Policy>;
 
 /** Every entry point: run the declaration, then let the policy say what the tree becomes. */
-function define<R>(policy: Policy, args: any[]): Compiled<R> {
-    const def = declare(args);
+function define<R>(policy: Policy, args: any[], isAsync = false): Compiled<R> {
+    const def = declare(args, isAsync);
     if (policy.nests && def.parent) return nestedFunction<R>(def.parent, def);
     if (policy.runs === 'interpreted' || (policy.runs === 'chosen' && !compilesFunctions())) {
         return interpretDefinition<R>(def);
@@ -220,6 +220,42 @@ export function fnJITTop<R>(...args: any[]): (...args: any[]) => R {
  */
 export function fnExec<R>(...args: any[]): (...args: any[]) => R {
     return define<R>(POLICIES.fnExec, args);
+}
+
+// ============================================================================
+// Async functions
+// ============================================================================
+//
+// An async function answers a promise and its statements may wait (`Builder.await_()`). Whether a
+// function is async is a fact of its DECLARATION, as in JavaScript — a function with no `await`
+// in it still answers a promise — so it is said by the entry point, and each of the four has its
+// async twin with the same policy.
+
+/**
+ * {@link fn}, for an async function: compiled as `async function`, interpreted by closures that
+ * wait where the tree does. Called inside another function's declaration, it is that function's
+ * nested function — an async one.
+ */
+export function fnAsync<R>(...args: any[]): (...args: any[]) => Promise<R> {
+    return define<Promise<R>>(POLICIES.fn, args, true);
+}
+
+/** {@link fnJIT}, for an async function. */
+export function fnAsyncJIT<R>(...args: any[]): (...args: any[]) => Promise<R> {
+    return define<Promise<R>>(POLICIES.fnJIT, args, true);
+}
+
+/** {@link fnJITTop}, for an async function. */
+export function fnAsyncJITTop<R>(...args: any[]): (...args: any[]) => Promise<R> {
+    return define<Promise<R>>(POLICIES.fnJITTop, args, true);
+}
+
+/**
+ * {@link fnExec}, for an async function.
+ * @internal
+ */
+export function fnAsyncExec<R>(...args: any[]): (...args: any[]) => Promise<R> {
+    return define<Promise<R>>(POLICIES.fnExec, args, true);
 }
 
 // ============================================================================

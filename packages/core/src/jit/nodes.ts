@@ -487,6 +487,33 @@ export interface ContinueStmt {
     readonly kind: 'continue';
 }
 
+/**
+ * Wait for a promise and bind what it resolves to: `var id = await expr`. A statement, not an
+ * expression: where a function waits is then a place in its statement list, the expressions of
+ * both modes stay synchronous, and only an async function may hold one (the Builder refuses it
+ * anywhere else).
+ */
+export interface AwaitStmt {
+    readonly kind: 'await';
+    readonly id: number;
+    readonly expr: Expr;
+    readonly name?: string;
+}
+
+/**
+ * `try { body } catch (error) { catch } finally { finally }` — with a `catch`, a `finally`, or
+ * both. The caught value is bound to the variable `errorId`. A `finally` block that ends abruptly
+ * (a return, a break, a throw) replaces what the `try` was ending with, as in JavaScript.
+ */
+export interface TryStmt {
+    readonly kind: 'try';
+    readonly body: Block;
+    readonly errorId?: number;
+    readonly errorName?: string;
+    readonly catch?: Block;
+    readonly finally?: Block;
+}
+
 /** Union of all statement types */
 export type Stmt =
     | LetStmt
@@ -503,7 +530,9 @@ export type Stmt =
     | SwitchStmt
     | WhileStmt
     | BreakStmt
-    | ContinueStmt;
+    | ContinueStmt
+    | AwaitStmt
+    | TryStmt;
 
 /** Block of statements with optional return expression */
 /** Nested function definition: a full function body to be emitted inside the parent's compilation unit */
@@ -512,6 +541,8 @@ export interface NestedFnDef {
     readonly inputNames: string[];
     /** Default per argument, `undefined` where there is none. */
     readonly inputDefaults?: readonly unknown[];
+    /** An async function: it answers a promise, and its statements may `await`. */
+    readonly async?: boolean;
 }
 
 export interface Block {
@@ -635,6 +666,14 @@ export const STMT_SHAPE: { [K in Stmt['kind']]: Shape<Extract<Stmt, { kind: K }>
     while: { exprs: (node, visit) => visit(node.cond), blocks: (node, visit) => visit(node.body) },
     break: { exprs: none },
     continue: { exprs: none },
+    await: { exprs: (node, visit) => visit(node.expr) },
+    try: {
+        exprs: none,
+        blocks: (node, visit) =>
+            visit(node.body) ||
+            (node.catch !== undefined && visit(node.catch)) ||
+            (node.finally !== undefined && visit(node.finally)),
+    },
 };
 
 /** The shape of `expr`, read from the table. */

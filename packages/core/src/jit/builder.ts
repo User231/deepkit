@@ -134,10 +134,17 @@ export class Builder {
     /** How many loops enclose the statements being written — within the current function. */
     private loopDepth = 0;
     private loopDepthStack: number[] = [];
+    /** Whether this declaration is an async function: the only kind that may `await_()`. */
+    readonly async: boolean;
+    /** Whether the statements being written are the async function's own — not a `map` body's. */
+    private awaits: boolean;
+    private awaitsStack: boolean[] = [];
 
-    constructor(argCount: number) {
+    constructor(argCount: number, options: { async?: boolean } = {}) {
         this.argCount = argCount;
         this.nextId = argCount; // Reserve IDs 0..argCount-1 for inputs
+        this.async = options.async === true;
+        this.awaits = this.async;
     }
 
     private allocId(): number {
@@ -157,14 +164,19 @@ export class Builder {
         this.stmtStack.push(this.stmts);
         this.stmts = [];
         this.loopDepthStack.push(this.loopDepth);
+        this.awaitsStack.push(this.awaits);
         if (body === 'loop') this.loopDepth++;
-        else if (body === 'function') this.loopDepth = 0;
+        else if (body === 'function') {
+            this.loopDepth = 0;
+            this.awaits = false;
+        }
     }
 
     private restoreStmts(): Stmt[] {
         const saved = this.stmts;
         this.stmts = this.stmtStack.pop()!;
         this.loopDepth = this.loopDepthStack.pop()!;
+        this.awaits = this.awaitsStack.pop()!;
         return saved;
     }
 
@@ -737,6 +749,69 @@ export class Builder {
     continue_(): void {
         this.requireLoop('continue_()', 'continue');
         this.pushStmt({ kind: 'continue' });
+    }
+
+    /**
+     * `try { body } catch (error) { … } finally { … }`, with a `catch`, a `finally`, or both. A
+     * callback that returns a value returns it from the function, as the branches of `if_()` do.
+     *
+     * The caught value is the `catch` callback's argument. A `finally` that ends abruptly — a
+     * return, a break, a throw — replaces what the `try` was ending with, as in JavaScript.
+     */
+    try_(
+        body: () => Ref | void,
+        handlers: { catch?: (error: Ref) => Ref | void; finally?: () => Ref | void; errorName?: string },
+    ): void {
+        if (!handlers.catch && !handlers.finally) {
+            throw new InvalidProgramError(
+                `try_() with neither a catch nor a finally: there is nothing to do with what the body throws.`,
+            );
+        }
+        const branch = (write: () => Ref | void): Block => {
+            this.saveStmts();
+            const result = write();
+            const block: Block = { stmts: this.restoreStmts() };
+            if (result !== undefined) block.stmts.push({ kind: 'return', value: this.own(result) });
+            return block;
+        };
+
+        const bodyBlock = branch(body);
+        let errorId: number | undefined;
+        let catchBlock: Block | undefined;
+        if (handlers.catch) {
+            const id = (errorId = this.allocId());
+            const onCatch = handlers.catch;
+            catchBlock = branch(() => onCatch(this.mine({ kind: 'var', id, name: handlers.errorName })));
+        }
+        const finallyBlock = handlers.finally ? branch(handlers.finally) : undefined;
+
+        this.pushStmt({
+            kind: 'try',
+            body: bodyBlock,
+            errorId,
+            errorName: handlers.errorName,
+            catch: catchBlock,
+            finally: finallyBlock,
+        });
+    }
+
+    /**
+     * Wait for a promise: `await value`, bound to a variable. Only the statements of an async
+     * function may wait — one declared with `fnAsync()`. The body of `map()` is a plain function
+     * of its own and cannot, whatever encloses it.
+     */
+    await_<T = any>(value: Ref, name?: string): Ref<T> {
+        if (!this.awaits) {
+            throw new InvalidProgramError(
+                this.async
+                    ? `await_() inside the body of map(): that body is a plain function of its own and cannot wait. ` +
+                          `Write a loop, whose body belongs to the async function.`
+                    : `await_() in a function that is not async: declare it with fnAsync().`,
+            );
+        }
+        const id = this.allocId();
+        this.pushStmt({ kind: 'await', id, expr: this.own(value), name });
+        return this.mine({ kind: 'var', id, name });
     }
 
     /** Multiple condition chain (if/else if/else) */

@@ -511,3 +511,284 @@ for(var v5=0,v5_end=v3.length;v5<v5_end;v5++){
 }
 return v1;
 }
+
+// ── await: a promise
+// externals: resolved_0
+'use strict';
+return async function(v0,v1,v2,v3){
+var v4=await resolved_0(v0);
+return v4;
+}
+
+// ── await: a value that is no promise
+// externals: (none)
+'use strict';
+return async function(v0,v1,v2,v3){
+var v4=await v0;
+return v4;
+}
+
+// ── await: a promise that settles later
+// externals: later_0
+'use strict';
+return async function(v0,v1,v2,v3){
+var v4=await later_0(v0);
+return v4;
+}
+
+// ── await: a thenable
+// externals: thenable_0
+'use strict';
+return async function(v0,v1,v2,v3){
+var v4=await thenable_0(v0);
+return v4;
+}
+
+// ── await: a rejection
+// externals: rejected_0
+'use strict';
+return async function(v0,v1,v2,v3){
+var v4=await rejected_0(v0);
+return "never";
+}
+
+// ── await: named, and read twice
+// externals: resolved_0
+'use strict';
+return async function(v0,v1,v2,v3){
+var got_it_4=await resolved_0(v0);
+return [got_it_4,got_it_4];
+}
+
+// ── await: the result is not used
+// externals: resolved_0
+'use strict';
+return async function(v0,v1,v2,v3){
+var v4=await resolved_0(v1.push(v0));
+return v1;
+}
+
+// ── await: in a loop, in order
+// externals: later_0
+'use strict';
+return async function(v0,v1,v2,v3){
+for(var v5=0,v5_end=v3.length;v5<v5_end;v5++){
+    var v4=v3[v5];
+    var v6=await later_0(v4);
+    v1.push(v6);
+}
+return v1;
+}
+
+// ── await: an operand that is a comparison
+// externals: (none)
+'use strict';
+return async function(v0,v1,v2,v3){
+var v4=await (v0===1);
+return v4;
+}
+
+// ── try: catches what the body throws
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    if(v0===1){
+        throw ["thrown",v0];
+    }
+    v1.push("body ran to its end");
+}catch(the_error_4_caught){
+    var the_error_4=the_error_4_caught;
+    v1.push(the_error_4);
+}
+return v1;
+}
+
+// ── try: catches an error of the engine
+// externals: TypeError_0
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    v1.push(v0.missing.deeper);
+}catch(v4_caught){
+    var v4=v4_caught;
+    v1.push((v4 instanceof TypeError_0));
+}
+return v1;
+}
+
+// ── try: finally, with nothing thrown and with something
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    if(v0===2){
+        throw "thrown";
+    }
+    v1.push("body");
+}catch(v4_caught){
+    var v4=v4_caught;
+    v1.push(v4);
+}finally{
+    v1.push("finally");
+}
+return v1;
+}
+
+// ── try: finally without a catch lets the error on
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    if(v0===1){
+        throw v1;
+    }
+}finally{
+    v1.push("finally");
+}
+return v1;
+}
+
+// ── try: a return in the body runs the finally and keeps its value
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    return ["returned",v0];
+}finally{
+    v1.push("finally");
+}
+return "never";
+}
+
+// ── try: a return in the catch
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    throw v0;
+}catch(v4_caught){
+    var v4=v4_caught;
+    return ["caught",v4];
+}
+return "never";
+}
+
+// ── try: a finally that returns replaces a return and an error
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    if(v0===1){
+        throw "lost";
+    }
+    return "lost too";
+}finally{
+    return ["finally wins",v0];
+}
+}
+
+// ── try: a finally that throws replaces a return
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    return "lost";
+}finally{
+    if(v0===2){
+        throw "from finally";
+    }
+}
+}
+
+// ── try: a catch that throws still runs the finally
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    throw "first";
+}catch(v4_caught){
+    var v4=v4_caught;
+    v1.push(v4);
+    throw ["second",v1];
+}finally{
+    v1.push("finally");
+}
+}
+
+// ── try: break and continue leave through the finally
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+for(var v5=0,v5_end=v3.length;v5<v5_end;v5++){
+    var v4=v3[v5];
+    try{
+        if(v5===v0){
+            break;
+        }
+        if(v5===0){
+            continue;
+        }
+        v1.push(v4);
+    }finally{
+        v1.push("finally");
+    }
+    v1.push("after");
+}
+return v1;
+}
+
+// ── try: one inside another
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    try{
+        throw ["inner",v0];
+    }catch(v4_caught){
+        var v4=v4_caught;
+        v1.push(v4);
+        if(v0===1){
+            throw "rethrown";
+        }
+    }finally{
+        v1.push("inner finally");
+    }
+    v1.push("between");
+}catch(v5_caught){
+    var v5=v5_caught;
+    v1.push(["outer",v5]);
+}finally{
+    v1.push("outer finally");
+}
+return v1;
+}
+
+// ── try: the caught value is a variable of the function
+// externals: (none)
+'use strict';
+return function(v0,v1,v2,v3){
+try{
+    if(v0===1){
+        throw "thrown";
+    }
+}catch(v4_caught){
+    var v4=v4_caught;
+}
+return [v4];
+}
+
+// ── try: the value of a return waits while the finally calls a function that returns
+// externals: (none)
+'use strict';
+function _nfn_0(v0){
+v0.push("called");
+return "the callee returned this";
+}
+return function(v0,v1,v2,v3){
+try{
+    return ["mine",v0];
+}finally{
+    _nfn_0(v1);
+}
+}

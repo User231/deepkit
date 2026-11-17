@@ -33,6 +33,10 @@ import {
     canJIT,
     compilesFunctions,
     fn,
+    fnAsync,
+    fnAsyncExec,
+    fnAsyncJIT,
+    fnAsyncJITTop,
     fnExec,
     fnJIT,
     fnJITTop,
@@ -149,6 +153,49 @@ function differences(label: string, program: Program, vectors: Inputs[]): string
     return out;
 }
 
+/** What an async function did, awaited. A call that THROWS instead of answering a promise is its own outcome. */
+async function runAsync(f: (...args: any[]) => any, make: Inputs): Promise<Outcome> {
+    const inputs = make();
+    let answered: unknown;
+    try {
+        answered = f(...inputs);
+    } catch (error) {
+        return { threw: true, error: ['threw before answering a promise', error], inputs };
+    }
+    if (!(answered instanceof Promise)) return { threw: true, error: ['answered no promise', answered], inputs };
+    try {
+        return { threw: false, value: await answered, inputs };
+    } catch (error) {
+        return { threw: true, error, inputs };
+    }
+}
+
+/** {@link differences}, for a program of an async function: declared async, awaited, compared. */
+async function differencesAsync(label: string, program: Program, vectors: Inputs[]): Promise<string[]> {
+    let compiled: (...args: any[]) => any;
+    let interpreted: (...args: any[]) => any;
+    try {
+        compiled = compile(fnAsyncJIT, program);
+    } catch (error) {
+        return [`${label}: compiled mode failed to build — ${error instanceof Error ? `${error.constructor.name}: ${error.message}` : show(error)}`];
+    }
+    try {
+        interpreted = compile(fnAsyncExec, program);
+    } catch (error) {
+        return [`${label}: interpreted mode failed to build — ${error instanceof Error ? `${error.constructor.name}: ${error.message}` : show(error)}`];
+    }
+    const out: string[] = [];
+    for (const make of vectors) {
+        const c = await runAsync(compiled, make);
+        const i = await runAsync(interpreted, make);
+        if (!sameOutcome(c, i)) {
+            const inputsNote = same(c.inputs, i.inputs) ? '' : ` | inputs after: compiled ${show(c.inputs)} / interpreted ${show(i.inputs)}`;
+            out.push(`${label} on ${show(make())}: compiled ${showOutcome(c)} / interpreted ${showOutcome(i)}${inputsNote}`);
+        }
+    }
+    return out;
+}
+
 function expectNoDifferences(found: string[]): void {
     if (found.length === 0) return;
     const shown = found.slice(0, 25).join('\n  ');
@@ -177,7 +224,8 @@ function kindsOf(node: unknown, out = new Set<string>()): Set<string> {
 }
 
 function treeOf(program: Program): Block {
-    const b = new Builder(ARGC);
+    // An async declaration takes every program a plain one does, and the ones that wait as well.
+    const b = new Builder(ARGC, { async: true });
     const result = program(b, ...Array.from({ length: ARGC }, (_, i) => b.input(i)));
     return b.build(result ?? undefined);
 }
@@ -200,8 +248,31 @@ function noteRead(list: unknown[]): unknown[] {
     return list;
 }
 
+/** A promise that settles later than the microtasks queued before it: another task runs in between. */
+function later<T>(value: T): Promise<T> {
+    return new Promise(resolve => setImmediate(() => resolve(value)));
+}
+
+function resolved<T>(value: T): Promise<T> {
+    return Promise.resolve(value);
+}
+
+function rejected(reason: unknown): Promise<never> {
+    return Promise.reject(reason);
+}
+
+/** Not a promise, but awaited like one. */
+function thenable(value: unknown): { then(resolve: (value: unknown) => void): void } {
+    return { then: resolve => resolve(['then', value]) };
+}
+
 const holey: unknown[] = [1, 2, 3];
 delete holey[1];
+
+/** Plain JavaScript that is handed a function and calls it. */
+function callWith(f: (...args: unknown[]) => unknown, ...args: unknown[]): unknown {
+    return f(...args);
+}
 
 const hyphenated = { 'to-text': (suffix: unknown) => 'text' + String(suffix) };
 
@@ -522,7 +593,7 @@ const UNSUPPORTED_NESTING = new Map<string, string>([['subFn.body<var', 'a sub-f
 // ============================================================================
 
 /** Every position of a statement that takes an expression. */
-const STMT_SLOTS: Array<{ name: string; put: (b: Builder, mk: Mk, x: Ref[]) => Ref | void }> = [
+const STMT_SLOTS: Array<{ name: string; put: (b: Builder, mk: Mk, x: Ref[]) => Ref | void; async?: true }> = [
     { name: 'let', put: (b, mk, x) => b.let(mk(b, x)) },
     {
         name: 'set object',
@@ -654,6 +725,8 @@ const STMT_SLOTS: Array<{ name: string; put: (b: Builder, mk: Mk, x: Ref[]) => R
             return b.getVar(turns);
         },
     },
+    // `await a===b` would wait for `a`: every kind is awaited whole.
+    { name: 'await value', async: true, put: (b, mk, x) => b.await_(mk(b, x)) },
 ];
 
 /** Programs for each statement kind; `x1` of the control-flow vectors is the array they record in. */
@@ -938,7 +1011,169 @@ const STMT: Record<Stmt['kind'], Record<string, Program>> = {
             return x1;
         },
     },
+    // Programs of an async function (ASYNC_STMT_KINDS): declared async, and awaited by the harness.
+    await: {
+        'a promise': (b, x0) => b.await_(b.call(resolved, x0)),
+        'a value that is no promise': (b, x0) => b.await_(x0),
+        'a promise that settles later': (b, x0) => b.await_(b.call(later, x0)),
+        'a thenable': (b, x0) => b.await_(b.call(thenable, x0)),
+        'a rejection': (b, x0) => {
+            b.await_(b.call(rejected, x0));
+            return b.lit('never');
+        },
+        'named, and read twice': (b, x0) => {
+            const got = b.await_(b.call(resolved, x0), 'got it');
+            return b.arr(got, got);
+        },
+        'the result is not used': (b, x0, x1) => {
+            b.await_(b.call(resolved, b.method(x1, 'push', x0)));
+            return x1;
+        },
+        'in a loop, in order': (b, x0, x1, x2, x3) => {
+            b.loop(x3, e => b.push(x1, b.await_(b.call(later, e))));
+            return x1;
+        },
+        'an operand that is a comparison': (b, x0) => b.await_(b.eq(x0, b.lit(1))),
+    },
+    try: {
+        'catches what the body throws': (b, x0, x1) => {
+            b.try_(
+                () => {
+                    b.if_(b.eq(x0, b.lit(1)), () => b.throw_(b.arr(b.lit('thrown'), x0)));
+                    b.push(x1, b.lit('body ran to its end'));
+                },
+                { catch: error => b.push(x1, error), errorName: 'the error' },
+            );
+            return x1;
+        },
+        'catches an error of the engine': (b, x0, x1) => {
+            b.try_(() => b.push(x1, b.get(b.get(x0, 'missing'), 'deeper')), { catch: error => b.push(x1, b.isInstance(error, TypeError)) });
+            return x1;
+        },
+        'finally, with nothing thrown and with something': (b, x0, x1) => {
+            b.try_(
+                () => {
+                    b.if_(b.eq(x0, b.lit(2)), () => b.throw_(b.lit('thrown')));
+                    b.push(x1, b.lit('body'));
+                },
+                { catch: error => b.push(x1, error), finally: () => b.push(x1, b.lit('finally')) },
+            );
+            return x1;
+        },
+        'finally without a catch lets the error on': (b, x0, x1) => {
+            b.try_(
+                () => {
+                    b.if_(b.eq(x0, b.lit(1)), () => b.throw_(x1));
+                },
+                { finally: () => b.push(x1, b.lit('finally')) },
+            );
+            return x1;
+        },
+        'a return in the body runs the finally and keeps its value': (b, x0, x1) => {
+            b.try_(() => b.arr(b.lit('returned'), x0), { finally: () => b.push(x1, b.lit('finally')) });
+            return b.lit('never');
+        },
+        'a return in the catch': (b, x0) => {
+            b.try_(
+                () => {
+                    b.throw_(x0);
+                },
+                { catch: error => b.arr(b.lit('caught'), error) },
+            );
+            return b.lit('never');
+        },
+        'a finally that returns replaces a return and an error': (b, x0) => {
+            b.try_(
+                () => {
+                    b.if_(b.eq(x0, b.lit(1)), () => b.throw_(b.lit('lost')));
+                    b.return_(b.lit('lost too'));
+                },
+                { finally: () => b.arr(b.lit('finally wins'), x0) },
+            );
+        },
+        'a finally that throws replaces a return': (b, x0) => {
+            b.try_(() => b.lit('lost'), {
+                finally: () => {
+                    b.if_(b.eq(x0, b.lit(2)), () => b.throw_(b.lit('from finally')));
+                },
+            });
+        },
+        'a catch that throws still runs the finally': (b, x0, x1) => {
+            b.try_(
+                () => {
+                    b.throw_(b.lit('first'));
+                },
+                {
+                    catch: error => {
+                        b.push(x1, error);
+                        b.throw_(b.arr(b.lit('second'), x1));
+                    },
+                    finally: () => b.push(x1, b.lit('finally')),
+                },
+            );
+        },
+        'break and continue leave through the finally': (b, x0, x1, x2, x3) => {
+            b.loop(x3, (e, i) => {
+                b.try_(
+                    () => {
+                        b.if_(b.eq(i, x0), () => b.break_());
+                        b.if_(b.eq(i, b.lit(0)), () => b.continue_());
+                        b.push(x1, e);
+                    },
+                    { finally: () => b.push(x1, b.lit('finally')) },
+                );
+                b.push(x1, b.lit('after'));
+            });
+            return x1;
+        },
+        'one inside another': (b, x0, x1) => {
+            b.try_(
+                () => {
+                    b.try_(
+                        () => {
+                            b.throw_(b.arr(b.lit('inner'), x0));
+                        },
+                        {
+                            catch: error => {
+                                b.push(x1, error);
+                                b.if_(b.eq(x0, b.lit(1)), () => b.throw_(b.lit('rethrown')));
+                            },
+                            finally: () => b.push(x1, b.lit('inner finally')),
+                        },
+                    );
+                    b.push(x1, b.lit('between'));
+                },
+                { catch: error => b.push(x1, b.arr(b.lit('outer'), error)), finally: () => b.push(x1, b.lit('outer finally')) },
+            );
+            return x1;
+        },
+        'the caught value is a variable of the function': (b, x0) => {
+            // Read after the catch, and where nothing was thrown: undefined in both modes.
+            let caught: Ref | undefined;
+            b.try_(
+                () => {
+                    b.if_(b.eq(x0, b.lit(1)), () => b.throw_(b.lit('thrown')));
+                },
+                {
+                    catch: error => {
+                        caught = error;
+                    },
+                },
+            );
+            return b.arr(caught!);
+        },
+        'the value of a return waits while the finally calls a function that returns': (b, x0, x1) => {
+            const noisy = fn(arg(), (b2: Builder, list: Ref) => {
+                b2.push(list, b2.lit('called'));
+                return b2.lit('the callee returned this');
+            });
+            b.try_(() => b.arr(b.lit('mine'), x0), { finally: () => b.exec(b.call(noisy, x1)) });
+        },
+    },
 };
+
+/** The statement kinds whose programs are the statements of an async function. */
+const ASYNC_STMT_KINDS: ReadonlySet<Stmt['kind']> = new Set<Stmt['kind']>(['await']);
 
 /** x0 the iteration that triggers, x1 the array a program records in, x2 an object, x3 an array. */
 const FLOW_VECTORS: Inputs[] = [1, 2, 4, 99].map(trigger => () => [trigger, [], { a: 1, b: 2, c: 3, d: 4 }, [10, 20, 30, 40]]);
@@ -984,7 +1219,7 @@ describe('jit differential: the tables are complete', () => {
         for (const slot of STMT_SLOTS) {
             for (const kind of kindsOf(treeOf((b, ...x) => slot.put(b, EXPR.input.leaf, x)))) covered.add(kind);
         }
-        const takesAnExpression = STMT_KINDS.filter(kind => kind !== 'break' && kind !== 'continue');
+        const takesAnExpression = STMT_KINDS.filter(kind => kind !== 'break' && kind !== 'continue' && kind !== 'try');
         expect(takesAnExpression.filter(kind => !covered.has(kind))).toEqual([]);
     });
 
@@ -1082,10 +1317,11 @@ describe('jit differential: operation matrix', () => {
     }
 
     for (const kind of STMT_KINDS) {
-        test(`statement ${kind}`, () => {
+        test(`statement ${kind}`, async () => {
             const found: string[] = [];
             for (const [name, program] of Object.entries(STMT[kind])) {
-                found.push(...differences(`${kind} / ${name}`, program, STMT_VECTORS));
+                const label = `${kind} / ${name}`;
+                found.push(...(ASYNC_STMT_KINDS.has(kind) ? await differencesAsync(label, program, STMT_VECTORS) : differences(label, program, STMT_VECTORS)));
             }
             expectNoDifferences(found);
         });
@@ -1117,10 +1353,12 @@ describe('jit differential: nesting matrix', () => {
     }
 
     for (const slot of STMT_SLOTS) {
-        test(`every kind in statement position: ${slot.name}`, () => {
+        test(`every kind in statement position: ${slot.name}`, async () => {
             const found: string[] = [];
             for (const child of EXPR_KINDS) {
-                found.push(...differences(`${slot.name}<${child}`, (b, ...x) => slot.put(b, EXPR[child].leaf, x), VECTORS));
+                const label = `${slot.name}<${child}`;
+                const program: Program = (b, ...x) => slot.put(b, EXPR[child].leaf, x);
+                found.push(...(slot.async ? await differencesAsync(label, program, VECTORS) : differences(label, program, VECTORS)));
             }
             expectNoDifferences(found);
         });
@@ -1190,6 +1428,28 @@ const PLACEMENTS: Record<string, (b: Builder, x: Ref[], hit: Ref, act: () => voi
         ]),
     'switch default': (b, x, hit, act) => b.switch_(b.ternary(hit, b.lit(1), b.lit(0)), [[0, () => b.push(x[1], b.lit('zero'))]], act),
     'switch in switch': (b, x, hit, act) => b.switch_(b.lit('outer'), [['outer', () => b.switch_(hit, [[true, act]])]]),
+    'try body': (b, x, hit, act) => b.try_(() => b.if_(hit, act), { finally: () => b.push(x[1], b.lit('finally')) }),
+    'try body, with a catch': (b, x, hit, act) => b.try_(() => b.if_(hit, act), { catch: error => b.push(x[1], b.arr(b.lit('caught'), error)) }),
+    catch: (b, x, hit, act) =>
+        b.try_(
+            () => {
+                b.if_(hit, () => b.throw_(b.lit('to the catch')));
+            },
+            { catch: act, finally: () => b.push(x[1], b.lit('finally')) },
+        ),
+    finally: (b, x, hit, act) => b.try_(() => b.push(x[1], b.lit('in try')), { finally: () => b.if_(hit, act) }),
+    'finally, with an error on its way': (b, x, hit, act) =>
+        b.try_(
+            () => {
+                b.try_(
+                    () => {
+                        b.if_(hit, () => b.throw_(b.lit('on its way')));
+                    },
+                    { finally: () => b.if_(hit, act) },
+                );
+            },
+            { catch: error => b.push(x[1], b.arr(b.lit('outer caught'), error)) },
+        ),
 };
 
 function flowProgram(loop: LoopShape, place: (typeof PLACEMENTS)[string], act: (typeof ACTIONS)[string]): Program {
@@ -1200,6 +1460,24 @@ function flowProgram(loop: LoopShape, place: (typeof PLACEMENTS)[string], act: (
             b.push(x[1], b.arr(b.lit('before'), item));
             place(b, x, b.eq(b.getVar(turn), x[0]), () => act(b, x));
             b.push(x[1], b.arr(b.lit('after'), item));
+        });
+        b.push(x[1], b.lit('done'));
+        return b.arr(b.getVar(turn), x[1]);
+    };
+}
+
+/** {@link flowProgram} in an async function: it waits before the action, inside it and after it. */
+function asyncFlowProgram(loop: LoopShape, place: (typeof PLACEMENTS)[string], act: (typeof ACTIONS)[string]): Program {
+    return (b, ...x) => {
+        const turn = b.var_(0);
+        loop(b, x, item => {
+            b.setVar(turn, b.add(b.getVar(turn), b.lit(1)));
+            b.push(x[1], b.arr(b.lit('before'), b.await_(b.call(resolved, item))));
+            place(b, x, b.eq(b.getVar(turn), x[0]), () => {
+                b.push(x[1], b.await_(b.call(resolved, b.lit('waited in the action'))));
+                act(b, x);
+            });
+            b.push(x[1], b.arr(b.lit('after'), b.await_(item)));
         });
         b.push(x[1], b.lit('done'));
         return b.arr(b.getVar(turn), x[1]);
@@ -1866,6 +2144,69 @@ describe('jit differential: programs the Builder refuses', () => {
         },
     };
 
+    const ASYNC_ENTRY_POINTS: [string, Define][] = [
+        ['fnAsync', fnAsync],
+        ['fnAsyncJIT', fnAsyncJIT],
+        ['fnAsyncJITTop', fnAsyncJITTop],
+        ['fnAsyncExec', fnAsyncExec],
+    ];
+
+    const expectRefused = (entries: [string, Define][], program: (b: Builder, x: Ref) => Ref | void, says: RegExp) => {
+        for (const [entry, define] of entries) {
+            let thrown: unknown;
+            try {
+                define(arg(), program);
+            } catch (error) {
+                thrown = error;
+            }
+            expect(`${entry}: ${thrown instanceof InvalidProgramError ? 'refused' : `not refused (${show(thrown)})`}`).toBe(`${entry}: refused`);
+            expect((thrown as Error).message).toMatch(says);
+        }
+    };
+
+    test('await_() in a function that is not async', () => {
+        // Compiled it would be a SyntaxError when the function is built; interpreted, a statement
+        // that hands a promise on as if it were the value.
+        expectRefused(ENTRY_POINTS, (b, x) => b.await_(x), /await_\(\) in a function that is not async: declare it with fnAsync\(\)/);
+        expectRefused(
+            ENTRY_POINTS,
+            (b, x) => {
+                b.loop(x, e => {
+                    b.if_(b.isType(e, 'object'), () => b.exec(b.await_(e)));
+                });
+            },
+            /await_\(\) in a function that is not async/,
+        );
+    });
+
+    test('await_() inside the body of map(), in an async function', () => {
+        expectRefused(ASYNC_ENTRY_POINTS, (b, x) => b.map(x, e => b.await_(e)), /await_\(\) inside the body of map\(\): that body is a plain function of its own/);
+        // …and a loop in the same function waits.
+        for (const [, define] of ASYNC_ENTRY_POINTS) {
+            expect(() =>
+                define(arg(), (b: Builder, x: Ref) => {
+                    b.loop(x, e => b.exec(b.await_(e)));
+                    return b.map(x, e => e);
+                }),
+            ).not.toThrow();
+        }
+    });
+
+    test('a nested plain function inside an async one does not wait', () => {
+        expectRefused(
+            ASYNC_ENTRY_POINTS,
+            (b, x) => {
+                const plain = fn(arg(), (b2: Builder, y: Ref) => b2.await_(y));
+                return b.call(plain, x);
+            },
+            /await_\(\) in a function that is not async/,
+        );
+    });
+
+    test('try_() with neither a catch nor a finally', () => {
+        expectRefused([...ENTRY_POINTS, ...ASYNC_ENTRY_POINTS], b => b.try_(() => b.lit(1), {}), /try_\(\) with neither a catch nor a finally/);
+    });
+
     for (const [name, { program, says }] of Object.entries(REFUSED)) {
         test(name, () => {
             for (const [entry, define] of ENTRY_POINTS) {
@@ -1887,9 +2228,9 @@ describe('jit differential: programs the Builder refuses', () => {
     test('a foreign operand is refused in every operand position there is', () => {
         const accepted: string[] = [];
         const foreignChild: Mk = () => foreign((_b2, theirs) => theirs);
-        const refused = (label: string, program: Program) => {
+        const refused = (label: string, program: Program, define: Define = fnExec) => {
             try {
-                compile(fnExec, program);
+                compile(define, program);
                 accepted.push(label);
             } catch (error) {
                 if (!(error instanceof InvalidProgramError)) accepted.push(`${label}: threw ${show(error)}`);
@@ -1902,7 +2243,7 @@ describe('jit differential: programs the Builder refuses', () => {
                 refused(`${kind}.${slot.name}`, (b, ...x) => slot.put(b, foreignChild, x));
             }
         }
-        for (const slot of STMT_SLOTS) refused(`statement ${slot.name}`, (b, ...x) => slot.put(b, foreignChild, x));
+        for (const slot of STMT_SLOTS) refused(`statement ${slot.name}`, (b, ...x) => slot.put(b, foreignChild, x), slot.async ? fnAsyncExec : fnExec);
         expect(accepted).toEqual([]);
     });
 
@@ -2533,6 +2874,228 @@ describe('jit differential: a write the target refuses', () => {
 });
 
 // ============================================================================
+// Async functions
+// ============================================================================
+
+describe('jit differential: async functions', () => {
+    // The interpreter has an async twin of every statement that holds a block — the only way to
+    // an `await` — so each of them is run here with an `await` inside it.
+    for (const [loopName, loop] of Object.entries(LOOPS)) {
+        test(`break, continue, return and throw across an await inside ${loopName}`, async () => {
+            const found: string[] = [];
+            for (const [placeName, place] of Object.entries(PLACEMENTS)) {
+                for (const [actionName, act] of Object.entries(ACTIONS)) {
+                    found.push(...(await differencesAsync(`${loopName} / ${actionName} in ${placeName}`, asyncFlowProgram(loop, place, act), FLOW_VECTORS)));
+                }
+            }
+            expectNoDifferences(found);
+        });
+    }
+
+    const PROGRAMS: Record<string, Program> = {
+        'no await at all: still a promise': (b, x0) => b.add(x0, b.lit(1)),
+        'no statement at all': () => undefined,
+        'an error before the first await is a rejection': (b, x0) => {
+            b.throw_(b.arr(b.lit('thrown first'), x0));
+        },
+        'an engine error before the first await is a rejection': (b, x0) => b.get(b.get(x0, 'missing'), 'deeper'),
+        'what it returns is a promise: the promise is adopted': (b, x0) => b.call(later, x0),
+        'what it returns is a rejection': (b, x0) => b.call(rejected, b.arr(b.lit('rejected'), x0)),
+        'a rejection is caught': (b, x0, x1) => {
+            b.try_(
+                () => {
+                    b.await_(b.call(rejected, x0));
+                    b.push(x1, b.lit('never'));
+                },
+                { catch: error => b.push(x1, b.arr(b.lit('caught'), error)), finally: () => b.push(x1, b.await_(b.call(resolved, b.lit('finally')))) },
+            );
+            return x1;
+        },
+        'an await in the catch and in the finally only': (b, x0, x1) => {
+            b.try_(
+                () => {
+                    b.if_(b.eq(x0, b.lit(1)), () => b.throw_(b.lit('thrown')));
+                    b.push(x1, b.lit('body'));
+                },
+                {
+                    catch: error => b.push(x1, b.await_(b.call(resolved, error))),
+                    finally: () => b.push(x1, b.await_(b.call(later, b.lit('finally')))),
+                },
+            );
+            return x1;
+        },
+        'a return waits for a finally that waits': (b, x0, x1) => {
+            b.try_(() => b.arr(b.lit('returned'), x0), {
+                finally: () => {
+                    b.await_(b.call(later, x0));
+                    b.push(x1, b.lit('finally'));
+                },
+            });
+            return b.lit('never');
+        },
+        'a finally that waits and then returns replaces an error': (b, x0) => {
+            b.try_(
+                () => {
+                    b.throw_(b.lit('lost'));
+                },
+                {
+                    finally: () => {
+                        const waited = b.await_(b.call(resolved, x0));
+                        b.if_(b.eq(waited, b.lit(1)), () => b.arr(b.lit('finally wins'), waited));
+                    },
+                },
+            );
+        },
+        'a nested async function is awaited': (b, x0) => {
+            const inner = fnAsync(arg(), (b2: Builder, y: Ref) => {
+                const got = b2.await_(b2.call(later, y));
+                return b2.arr(b2.lit('inner'), got);
+            });
+            return b.arr(b.await_(b.call(inner, x0)), b.await_(b.call(inner, b.lit('again'))));
+        },
+        'a nested async function that rejects': (b, x0, x1) => {
+            const inner = fnAsync(arg(), (b2: Builder, y: Ref) => {
+                b2.await_(b2.call(resolved, y));
+                b2.throw_(b2.arr(b2.lit('from inner'), y));
+            });
+            b.try_(
+                () => {
+                    b.await_(b.call(inner, x0));
+                },
+                { catch: error => b.push(x1, error) },
+            );
+            return x1;
+        },
+        'a plain nested function is called between two awaits': (b, x0) => {
+            const plain = fn(arg(), (b2: Builder, y: Ref) => b2.arr(b2.lit('plain'), y));
+            const first = b.await_(b.call(resolved, x0));
+            const between = b.let(b.call(plain, first));
+            const second = b.await_(b.call(later, between));
+            return b.arr(first, between, second);
+        },
+        // What stands for a closure: a nested function with the values it needs bound as its
+        // leading arguments. Whoever calls it — here plain JavaScript — passes the rest.
+        'a nested function, bound to values of this call, is handed to plain JavaScript': (b, x0, x1) => {
+            const inner = fnAsync(arg(), arg(), arg(), (b2: Builder, list: Ref, held: Ref, passed: Ref) => {
+                b2.push(list, b2.arr(held, b2.await_(b2.call(later, passed))));
+                return b2.lit('inner done');
+            });
+            const bound = b.method(b.lit(inner), 'bind', b.lit(undefined), x1, x0);
+            return b.arr(b.await_(b.call(callWith, bound, b.lit('passed in'))), x1);
+        },
+        'a map between two awaits': (b, x0, x1, x2, x3) => {
+            const first = b.await_(b.call(resolved, x3));
+            const mapped = b.let(b.map(first, (e, i) => b.arr(e, i, x0)));
+            return b.arr(b.await_(b.call(later, mapped)), mapped);
+        },
+    };
+
+    for (const [name, program] of Object.entries(PROGRAMS)) {
+        test(name, async () => {
+            expectNoDifferences(await differencesAsync(name, program, STMT_VECTORS));
+        });
+    }
+
+    // Anchors: both modes agreeing is not enough when both could be wrong the same way.
+    const both = (name: string, body: (defineAsync: Define, define: Define) => Promise<void>) => {
+        test(`${name} (compiled)`, () => body(fnAsyncJIT, fnJIT));
+        test(`${name} (interpreted)`, () => body(fnAsyncExec, fnExec));
+    };
+
+    both('it answers a promise, and what it returns is what the promise resolves to', async defineAsync => {
+        const f = defineAsync(arg(), (b: Builder, x: Ref) => {
+            const got = b.await_(b.call(later, x));
+            return b.arr(b.lit('got'), got);
+        });
+        const answered = f(7);
+        expect(answered).toBeInstanceOf(Promise);
+        expect(await answered).toEqual(['got', 7]);
+    });
+
+    both('an error thrown before the first await rejects, it does not throw', async defineAsync => {
+        const f = defineAsync(arg(), (b: Builder, x: Ref) => {
+            b.throw_(b.new_(RangeError, x));
+        });
+        let answered: unknown;
+        expect(() => (answered = f('too early'))).not.toThrow();
+        await expect(answered as Promise<unknown>).rejects.toThrow('too early');
+    });
+
+    both('calls that overlap keep their own variables and their own return values', async defineAsync => {
+        const f = defineAsync(arg(), arg(), (b: Builder, x: Ref, wait: Ref) => {
+            const before = b.let(b.mul(x, b.lit(10)), 'before');
+            const got = b.await_(b.method(wait, 'call', b.lit(undefined), x));
+            return b.arr(x, before, got);
+        });
+        // The first call is still waiting when the second and the third run to their end.
+        let release!: (value: unknown) => void;
+        const held = new Promise(resolve => (release = resolve));
+        const first = f(1, () => held);
+        const second = await f(2, later);
+        const third = await f(3, resolved);
+        release('released');
+        expect(await first).toEqual([1, 10, 'released']);
+        expect(second).toEqual([2, 20, 2]);
+        expect(third).toEqual([3, 30, 3]);
+    });
+
+    both('a return keeps its value while it waits and other functions return theirs', async (defineAsync, define) => {
+        const f = defineAsync(arg(), arg(), (b: Builder, x: Ref, gate: Ref) => {
+            b.try_(() => b.arr(b.lit('mine'), x), {
+                finally: () => {
+                    b.await_(gate);
+                },
+            });
+        });
+        const other = define(arg(), (b: Builder, x: Ref) => {
+            b.return_(b.arr(b.lit('theirs'), x));
+        });
+        let release!: (value: unknown) => void;
+        const gate = new Promise(resolve => (release = resolve));
+        const waiting = f(1, gate);
+        // While the first return waits in its finally: a plain function returns, and so does
+        // another call of the same async function.
+        expect(other(2)).toEqual(['theirs', 2]);
+        expect(await f(3, undefined)).toEqual(['mine', 3]);
+        expect(other(4)).toEqual(['theirs', 4]);
+        release(undefined);
+        expect(await waiting).toEqual(['mine', 1]);
+    });
+
+    both('statements run in order across the awaits, and a loop waits turn by turn', async defineAsync => {
+        const f = defineAsync(arg(), arg(), (b: Builder, list: Ref, log: Ref) => {
+            b.loop(list, (e, i) => {
+                b.push(log, b.arr(b.lit('start'), i));
+                b.push(log, b.arr(b.lit('end'), b.await_(b.call(later, e))));
+            });
+            return b.len(log);
+        });
+        const log: unknown[] = [];
+        expect(await f(['a', 'b'], log)).toBe(4);
+        expect(log).toEqual([
+            ['start', 0],
+            ['end', 'a'],
+            ['start', 1],
+            ['end', 'b'],
+        ]);
+    });
+
+    test('a function declared inside an async one, and called by it, is in its unit', { skip: !canJIT }, () => {
+        const text = generatedSource(() => {
+            fnAsyncJIT(arg('x'), (b: Builder, x: Ref) => {
+                const inner = fnAsync(arg('y'), (b2: Builder, y: Ref) => b2.await_(b2.call(later, y)));
+                const plain = fn(arg('z'), (b2: Builder, z: Ref) => b2.add(z, b2.lit(1)));
+                return b.call(plain, b.await_(b.call(inner, x)));
+            });
+        });
+        expect(text).toContain('async function _nfn_0(y){');
+        expect(text).toContain('function _nfn_1(z){');
+        expect(text).not.toContain('async function _nfn_1');
+        expect(text).toContain('return async function(x){');
+    });
+});
+
+// ============================================================================
 // Generated source
 // ============================================================================
 
@@ -2541,7 +3104,7 @@ describe('jit differential: generated source', () => {
     // generated for every row of the two tables, in golden files. A refactor of the generator that
     // is meant to change nothing leaves them byte-identical; a change that is meant to change the
     // text is a diff of these files to read. `UPDATE_GOLDEN=1` rewrites them.
-    const section = (title: string, program: Program) => `// ── ${title}\n${generatedSource(() => compile(fnJIT, program))}`;
+    const section = (title: string, program: Program, define: Define = fnJIT) => `// ── ${title}\n${generatedSource(() => compile(define, program))}`;
     // The text exists only where it can be generated.
     const needsCodeGeneration = { skip: !canJIT };
 
@@ -2559,7 +3122,7 @@ describe('jit differential: generated source', () => {
     test('every statement kind', needsCodeGeneration, () => {
         const sections: string[] = [];
         for (const kind of STMT_KINDS) {
-            for (const [name, program] of Object.entries(STMT[kind])) sections.push(section(`${kind}: ${name}`, program));
+            for (const [name, program] of Object.entries(STMT[kind])) sections.push(section(`${kind}: ${name}`, program, ASYNC_STMT_KINDS.has(kind) ? fnAsyncJIT : fnJIT));
         }
         expectGolden(join(__dirname, 'golden', 'jit-statements.js'), sections.join('\n'));
     });
@@ -2603,6 +3166,8 @@ interface Scope {
     vars: Ref[];
     /** False inside a sub-function body, where a statement cannot be emitted. */
     statements: boolean;
+    /** The block is an async function's: about one statement in five waits. */
+    async?: boolean;
 }
 
 function pick<T>(rnd: () => number, list: readonly T[]): T {
@@ -2631,6 +3196,10 @@ function randomBlock(b: Builder, x: Ref[], out: Ref, depth: number, scope: Scope
     const expr = (d = 2): Ref => randomExpr(b, x, d, inner);
     const count = 1 + Math.floor(rnd() * 4);
     for (let n = 0; n < count; n++) {
+        if (scope.async && rnd() < 0.2) {
+            vars.push(b.await_(rnd() < 0.5 ? b.call(resolved, expr()) : expr()));
+            continue;
+        }
         const roll = rnd();
         if (roll < 0.2) {
             b.push(out, expr());
@@ -2680,8 +3249,30 @@ function randomBlock(b: Builder, x: Ref[], out: Ref, depth: number, scope: Scope
             else b.continue_();
         } else if (roll < 0.94) {
             b.return_(rnd() < 0.8 ? b.arr(b.lit('returned'), out, expr()) : undefined);
-        } else if (roll < 0.96) {
+        } else if (roll < 0.955) {
             b.throw_(b.arr(b.lit('thrown'), out));
+        } else if (roll < 0.99 && depth > 0) {
+            const shape = Math.floor(rnd() * 3);
+            const more = (chance: number) => {
+                if (rnd() < chance) randomBlock(b, x, out, depth - 1, inner, inLoop);
+            };
+            b.try_(() => randomBlock(b, x, out, depth - 1, inner, inLoop), {
+                // An engine error is recorded by its class: its message names a generated variable.
+                catch:
+                    shape !== 1
+                        ? error => {
+                              b.push(out, b.arr(b.lit('caught'), b.ternary(b.isInstance(error, Error), b.get(b.get(error, 'constructor'), 'name'), error)));
+                              more(0.5);
+                          }
+                        : undefined,
+                finally:
+                    shape !== 0
+                        ? () => {
+                              b.push(out, b.lit('finally'));
+                              more(0.3);
+                          }
+                        : undefined,
+            });
         } else {
             b.exec(expr());
         }
@@ -2716,6 +3307,19 @@ describe('jit differential: random programs', () => {
                 return out;
             };
             found.push(...report(`block ${n}`, program, differences(`block ${n}`, program, VECTORS)));
+        }
+        expectNoDifferences(found);
+    });
+
+    test(`${count} random statement blocks of an async function, seed ${seed}`, async () => {
+        const found: string[] = [];
+        for (let n = 0; n < count && found.length < 12; n++) {
+            const program: Program = (b, ...x) => {
+                const out = b.let(b.emptyArr());
+                randomBlock(b, x, out, 3, { rnd: mulberry32(seed * 37 + n), vars: [], statements: true, async: true }, false);
+                return out;
+            };
+            found.push(...report(`async block ${n}`, program, await differencesAsync(`async block ${n}`, program, VECTORS)));
         }
         expectNoDifferences(found);
     });

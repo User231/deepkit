@@ -173,6 +173,8 @@ export class CodeGenerator {
             referrer?: number;
         },
         inputDefaults?: readonly unknown[],
+        /** The unit's own function is an async function. */
+        private readonly isAsync = false,
     ) {
         this.argCount = argCount;
         // Share externals/reservedNames/nested bookkeeping with parent CodeGenerator if provided
@@ -710,6 +712,29 @@ export class CodeGenerator {
             }
             case 'continue':
                 return `${ind}continue;\n`;
+            case 'await': {
+                if (stmt.name) this.varNames.set(stmt.id, stmt.name);
+                // `await a===b` waits for `a`: the operand is wrapped unless it binds as tightly.
+                return `${ind}var ${this.varName(stmt.id)}=await ${this.operand(stmt.expr, PREC_UNARY)};\n`;
+            }
+            case 'try': {
+                this.indentLevel++;
+                const bodyCode = this.blockToCode(stmt.body);
+                let code = `${ind}try{\n${bodyCode}${ind}}`;
+                if (stmt.catch && stmt.errorId !== undefined) {
+                    if (stmt.errorName) this.varNames.set(stmt.errorId, stmt.errorName);
+                    // The caught value is a variable of the FUNCTION, like every other: a catch
+                    // parameter would end with its block, where the interpreter's slot does not.
+                    const errorName = this.varName(stmt.errorId);
+                    const catchCode = this.blockToCode(stmt.catch);
+                    code += `catch(${errorName}_caught){\n${this.indent}var ${errorName}=${errorName}_caught;\n${catchCode}${ind}}`;
+                }
+                if (stmt.finally) {
+                    code += `finally{\n${this.blockToCode(stmt.finally)}${ind}}`;
+                }
+                this.indentLevel--;
+                return code + '\n';
+            }
         }
     }
 
@@ -771,7 +796,7 @@ export class CodeGenerator {
         }
 
         const argNames = this.parameterList(def.inputNames, def.inputDefaults || []);
-        return `${childNestedDefs}function _nfn_${id}(${argNames}){\n${innerBody}}\n`;
+        return `${childNestedDefs}${def.async ? 'async ' : ''}function _nfn_${id}(${argNames}){\n${innerBody}}\n`;
     }
 
     /** The parameter list of a generated function, defaults included (e.g. `buffer,offset=0`). */
@@ -807,7 +832,7 @@ export class CodeGenerator {
             const uncalled = generator.uncalledNested(block);
             if (uncalled.size === 0) return unit();
             block = withoutNested(block, uncalled);
-            generator = new CodeGenerator(this.argCount, this.inputNames, undefined, this.inputDefaults);
+            generator = new CodeGenerator(this.argCount, this.inputNames, undefined, this.inputDefaults, this.isAsync);
         }
     }
 
@@ -864,12 +889,13 @@ export class CodeGenerator {
         // throws instead of making a global. The directive is the first statement of the outer
         // body, so the nested functions and the returned one inherit it; the returned function
         // cannot carry its own, a directive being a syntax error beside a parameter default.
+        const keyword = this.isAsync ? 'async function' : 'function';
         let fnBody: string;
         if (nestedDefs || adoptedDefs || this.helperFunctions.size > 0) {
             const helpers = [...this.helperFunctions.values()].join('');
-            fnBody = `'use strict';\n${nestedDefs}${adoptedDefs}${helpers}return function(${argNames}){\n${body}}`;
+            fnBody = `'use strict';\n${nestedDefs}${adoptedDefs}${helpers}return ${keyword}(${argNames}){\n${body}}`;
         } else {
-            fnBody = `'use strict';\nreturn function(${argNames}){\n${body}}`;
+            fnBody = `'use strict';\nreturn ${keyword}(${argNames}){\n${body}}`;
         }
 
         return () => {

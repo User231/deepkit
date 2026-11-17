@@ -12,7 +12,7 @@
  * The interpreted mode: a block turned into nested closures once, then called. What runs where
  * `new Function` is refused (a strict CSP) or the mode says `'interpreted'`.
  */
-import { Block, Expr, Stmt, shapeOfExpr } from './nodes.js';
+import { Block, Expr, Stmt, shapeOfExpr, shapeOfStmt } from './nodes.js';
 
 // ============================================================================
 // Closure-Based Executor (Optimized Exec Mode)
@@ -715,6 +715,54 @@ function compileStmt(stmt: Stmt): StmtFn {
             return breakStmt;
         case 'continue':
             return continueStmt;
+        case 'try': {
+            const bodyFn = compileBlock(stmt.body);
+            const catchFn = stmt.catch ? compileBlock(stmt.catch) : undefined;
+            const finallyFn = stmt.finally ? compileBlock(stmt.finally) : undefined;
+            const errorId = stmt.errorId!;
+            if (!finallyFn) {
+                return (args, vars) => {
+                    try {
+                        return bodyFn(args, vars);
+                    } catch (error) {
+                        vars[errorId] = error;
+                        return catchFn!(args, vars);
+                    }
+                };
+            }
+            return (args, vars) => {
+                let signal: Signal;
+                let held: any;
+                try {
+                    if (catchFn) {
+                        try {
+                            signal = bodyFn(args, vars);
+                        } catch (error) {
+                            vars[errorId] = error;
+                            signal = catchFn(args, vars);
+                        }
+                    } else {
+                        signal = bodyFn(args, vars);
+                    }
+                    // The value of a RETURN waits here while the `finally` runs: that block may
+                    // call anything, an interpreted function with a return of its own included.
+                    held = returned;
+                } catch (error) {
+                    // A `finally` that ends abruptly replaces the error; one that does not lets it on.
+                    const after = finallyFn(args, vars);
+                    if (after !== NORMAL) return after;
+                    throw error;
+                }
+                const after = finallyFn(args, vars);
+                if (after !== NORMAL) return after;
+                returned = held;
+                return signal;
+            };
+        }
+        case 'await':
+            // What `new Function` says of the same tree: only an async function's own statements
+            // wait, and those are compiled by compileAsyncStmt().
+            throw new SyntaxError('await is only valid in the statements of an async function');
     }
 }
 
@@ -759,6 +807,249 @@ function compileBlock(block: Block): StmtFn {
 }
 
 // ============================================================================
+// Async functions
+// ============================================================================
+//
+// An async function is interpreted by the same closures wherever it does not wait: an expression
+// never waits (`await` is a statement), and a statement none of whose blocks holds an `await` is
+// the synchronous closure above. Only the statements ON THE WAY to an `await` — the `await`
+// itself, and the `if`, the `switch`, the loops and the `try` around it — have an async closure
+// here, each the async twin of its case in compileStmt().
+//
+// The modes agree on what an async function does and in which order; they do not agree on how
+// many microtask turns it takes, and nothing should depend on that.
+
+/**
+ * A `RETURN` on its way up through an async function, with its value. The one slot the
+ * synchronous closures share ({@link returned}) cannot hold it across an `await`: anything may
+ * run in between, another interpreted function with a return of its own included.
+ */
+class Returned {
+    constructor(readonly value: unknown) {}
+}
+
+/** How an async statement ended: `NORMAL`, `BREAK`, `CONTINUE`, or a {@link Returned}. */
+type Completion = Signal | Returned;
+
+type AsyncStmtFn = (args: any[], vars: any[]) => Completion | Promise<Completion>;
+
+/** Whether running a statement can wait: it is an `await`, or one of its blocks holds one. */
+function stmtAwaits(stmt: Stmt): boolean {
+    if (stmt.kind === 'await') return true;
+    const shape = shapeOfStmt(stmt);
+    return shape.blocks !== undefined && shape.blocks(stmt, blockAwaits);
+}
+
+function blockAwaits(block: Block): boolean {
+    return block.stmts.some(stmtAwaits);
+}
+
+/** A block of an async function: the async closure when it can wait, the synchronous one when not. */
+function compileBlockOfAsync(block: Block): AsyncStmtFn {
+    if (blockAwaits(block)) return compileAsyncBlock(block);
+    const blockFn = compileBlock(block);
+    return (args, vars) => {
+        const signal = blockFn(args, vars);
+        return signal === RETURN ? new Returned(takeReturned()) : signal;
+    };
+}
+
+function compileAsyncBlock(block: Block): AsyncStmtFn {
+    const count = block.stmts.length;
+    const asyncFns: (AsyncStmtFn | undefined)[] = [];
+    const syncFns: (StmtFn | undefined)[] = [];
+    for (const stmt of block.stmts) {
+        const waits = stmtAwaits(stmt);
+        asyncFns.push(waits ? compileAsyncStmt(stmt) : undefined);
+        syncFns.push(waits ? undefined : compileStmt(stmt));
+    }
+    const returnFn = block.returnExpr ? compileExpr(block.returnExpr) : undefined;
+
+    return async (args, vars) => {
+        for (let i = 0; i < count; i++) {
+            const asyncFn = asyncFns[i];
+            if (asyncFn) {
+                let completion = asyncFn(args, vars);
+                if (completion instanceof Promise) completion = await completion;
+                if (completion !== NORMAL) return completion;
+            } else {
+                const signal = syncFns[i]!(args, vars);
+                if (signal !== NORMAL) return signal === RETURN ? new Returned(takeReturned()) : signal;
+            }
+        }
+        if (returnFn) return new Returned(returnFn(args, vars));
+        return NORMAL;
+    };
+}
+
+/** A statement that can wait ({@link stmtAwaits}). The cases are the ones that hold a block, and `await`. */
+function compileAsyncStmt(stmt: Stmt): AsyncStmtFn {
+    switch (stmt.kind) {
+        case 'await': {
+            const id = stmt.id;
+            const exprFn = compileExpr(stmt.expr);
+            return async (args, vars): Promise<Completion> => {
+                vars[id] = await exprFn(args, vars);
+                return NORMAL;
+            };
+        }
+        case 'if': {
+            const condFn = compileExpr(stmt.cond);
+            const thenFn = compileBlockOfAsync(stmt.then);
+            const elseFn = stmt.else ? compileBlockOfAsync(stmt.else) : undefined;
+            if (!elseFn) return (args, vars) => (condFn(args, vars) ? thenFn(args, vars) : NORMAL);
+            return (args, vars) => (condFn(args, vars) ? thenFn(args, vars) : elseFn(args, vars));
+        }
+        case 'switch': {
+            const valueFn = compileExpr(stmt.value);
+            const cases = stmt.cases.map(([lit, block]) => [lit, compileBlockOfAsync(block)] as const);
+            const defaultFn = stmt.default ? compileBlockOfAsync(stmt.default) : undefined;
+            return (args, vars) => {
+                const value = valueFn(args, vars);
+                for (const [lit, blockFn] of cases) {
+                    if (value === lit) return blockFn(args, vars);
+                }
+                return defaultFn ? defaultFn(args, vars) : NORMAL;
+            };
+        }
+        case 'loop': {
+            const arrFn = stmt.arr ? compileExpr(stmt.arr) : undefined;
+            const startFn = stmt.start ? compileExpr(stmt.start) : undefined;
+            const endFn = stmt.end ? compileExpr(stmt.end) : undefined;
+            const elemId = stmt.elemId;
+            const indexId = stmt.indexId;
+            const bodyFn = compileBlockOfAsync(stmt.body);
+            const readsElem = !!arrFn && !stmt.skipElem;
+            return async (args, vars) => {
+                const arr = arrFn ? arrFn(args, vars) : undefined;
+                const start = startFn ? startFn(args, vars) : 0;
+                const end = endFn ? endFn(args, vars) : arr.length;
+                for (let i = start; i < end; i++) {
+                    vars[indexId] = i;
+                    if (readsElem) {
+                        vars[elemId] = arr[i];
+                    }
+                    const completion = await bodyFn(args, vars);
+                    if (completion instanceof Returned) return completion;
+                    if (completion === BREAK) break;
+                }
+                return NORMAL;
+            };
+        }
+        case 'forIn': {
+            const objFn = compileExpr(stmt.obj);
+            const keyId = stmt.keyId;
+            const bodyFn = compileBlockOfAsync(stmt.body);
+            return async (args, vars) => {
+                const obj = objFn(args, vars);
+                for (const key in obj) {
+                    vars[keyId] = key;
+                    const completion = await bodyFn(args, vars);
+                    if (completion instanceof Returned) return completion;
+                    if (completion === BREAK) break;
+                }
+                return NORMAL;
+            };
+        }
+        case 'forOf': {
+            const iterableFn = compileExpr(stmt.iterable);
+            const valueId = stmt.valueId;
+            const keyId = stmt.keyId;
+            const bodyFn = compileBlockOfAsync(stmt.body);
+            // Leaving the loop early closes the iterator, and that may run anything — but a
+            // Returned carries its own value, so there is nothing to take aside here.
+            if (keyId !== undefined) {
+                return async (args, vars) => {
+                    for (const [key, value] of iterableFn(args, vars)) {
+                        vars[keyId] = key;
+                        vars[valueId] = value;
+                        const completion = await bodyFn(args, vars);
+                        if (completion instanceof Returned) return completion;
+                        if (completion === BREAK) break;
+                    }
+                    return NORMAL;
+                };
+            }
+            return async (args, vars) => {
+                for (const item of iterableFn(args, vars)) {
+                    vars[valueId] = item;
+                    const completion = await bodyFn(args, vars);
+                    if (completion instanceof Returned) return completion;
+                    if (completion === BREAK) break;
+                }
+                return NORMAL;
+            };
+        }
+        case 'while': {
+            const condFn = compileExpr(stmt.cond);
+            const bodyFn = compileBlockOfAsync(stmt.body);
+            return async (args, vars) => {
+                while (condFn(args, vars)) {
+                    const completion = await bodyFn(args, vars);
+                    if (completion instanceof Returned) return completion;
+                    if (completion === BREAK) break;
+                }
+                return NORMAL;
+            };
+        }
+        case 'try': {
+            const bodyFn = compileBlockOfAsync(stmt.body);
+            const catchFn = stmt.catch ? compileBlockOfAsync(stmt.catch) : undefined;
+            const finallyFn = stmt.finally ? compileBlockOfAsync(stmt.finally) : undefined;
+            const errorId = stmt.errorId!;
+            return async (args, vars) => {
+                let completion: Completion;
+                try {
+                    try {
+                        completion = await bodyFn(args, vars);
+                    } catch (error) {
+                        if (!catchFn) throw error;
+                        vars[errorId] = error;
+                        completion = await catchFn(args, vars);
+                    }
+                } catch (error) {
+                    if (!finallyFn) throw error;
+                    // A `finally` that ends abruptly replaces the error; one that does not lets it on.
+                    const after = await finallyFn(args, vars);
+                    if (after !== NORMAL) return after;
+                    throw error;
+                }
+                if (finallyFn) {
+                    const after = await finallyFn(args, vars);
+                    if (after !== NORMAL) return after;
+                }
+                return completion;
+            };
+        }
+        // No block to hold an `await`: stmtAwaits() answers false, and compileStmt() has the case.
+        case 'let':
+        case 'set':
+        case 'push':
+        case 'setVar':
+        case 'exec':
+        case 'return':
+        case 'throw':
+        case 'break':
+        case 'continue':
+            return compileBlockOfAsync({ stmts: [stmt] });
+    }
+}
+
+/**
+ * An async function: it answers a promise whatever happens — an error thrown before the first
+ * `await` is a rejection, not a throw — and what it returns is what the promise resolves to.
+ */
+function createAsyncExecutor<T>(block: Block, defaults?: readonly unknown[]): (...args: any[]) => T {
+    const blockFn = compileBlockOfAsync(block);
+    const run = async (...args: any[]): Promise<unknown> => {
+        let completion = blockFn(defaults ? withDefaults(args, defaults) : args, []);
+        if (completion instanceof Promise) completion = await completion;
+        return completion instanceof Returned ? completion.value : undefined;
+    };
+    return run as (...args: any[]) => T;
+}
+
+// ============================================================================
 // The executor: a block as a function
 // ============================================================================
 
@@ -775,10 +1066,16 @@ function isPureBlock(block: Block): boolean {
  * A block that binds no variable (the common case for type guards) is its one expression, called
  * without a variable array of its own.
  */
-function createClosureExecutor<T>(block: Block, inputDefaults?: readonly unknown[]): (...args: any[]) => T {
+function createClosureExecutor<T>(
+    block: Block,
+    inputDefaults?: readonly unknown[],
+    isAsync = false,
+): (...args: any[]) => T {
     // An argument that is left out, or passed as undefined, takes its default — as the parameter
     // list of the compiled function says it does.
     const defaults = inputDefaults && inputDefaults.some(value => value !== undefined) ? inputDefaults : undefined;
+
+    if (isAsync) return createAsyncExecutor<T>(block, defaults);
 
     if (isPureBlock(block)) {
         if (!block.returnExpr) {
@@ -810,6 +1107,10 @@ function withDefaults(args: any[], defaults: readonly unknown[]): any[] {
  * Uses closure-based compilation for best performance.
  * Returns a function that accepts rest parameters and executes the block.
  */
-export function createExecutor<T>(block: Block, inputDefaults?: readonly unknown[]): (...args: any[]) => T {
-    return createClosureExecutor<T>(block, inputDefaults);
+export function createExecutor<T>(
+    block: Block,
+    inputDefaults?: readonly unknown[],
+    isAsync = false,
+): (...args: any[]) => T {
+    return createClosureExecutor<T>(block, inputDefaults, isAsync);
 }

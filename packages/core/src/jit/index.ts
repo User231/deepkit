@@ -41,7 +41,7 @@
  *   codegen.ts  the compiled mode: a block as JavaScript source, built with `new Function`
  *   exec.ts     the interpreted mode: a block as nested closures
  *   builder.ts  how a tree is written: Builder, Ref, VarRef (it imports nodes.ts only)
- *   entry.ts    fn / fnJIT / fnJITTop / fnExec: a declaration, and which mode runs it
+ *   entry.ts    fn / fnJIT / fnJITTop / fnExec and their async twins: a declaration, and which mode runs it
  *
  * This file is the PUBLIC surface, and `../jit.ts` re-exports it. What a module exports for its
  * neighbours only (`CodeGenerator`, `createExecutor`, `interpretedValue`, the `jitThreshold` and
