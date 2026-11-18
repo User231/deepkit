@@ -94,6 +94,7 @@ export class HandlerRegistry<Ctx extends SerializerBuildContext = SerializerBuil
         name: string;
         inlineReferences: boolean;
         setExplicitUndefined(type: Type, state: Ctx): boolean;
+        omitUndefinedOfOptionalNullable?(type: Type, state: Ctx): boolean;
     };
 
     private kindHandlers = new Map<ReflectionKind, TypeHandler<any, Ctx>[]>();

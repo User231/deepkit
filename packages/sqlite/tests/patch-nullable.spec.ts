@@ -46,6 +46,48 @@ test('patchMany leaves untouched nullable columns alone', async () => {
 });
 
 /**
+ * A column declared `note?: string | null` is optional AND nullable. On a JSON wire an `undefined`
+ * for such a member is left out (absent = untouched, see type/tests/optional-nullable.spec.ts) —
+ * a DATABASE serializer must not follow: an entity property set to `undefined` is a NULL column,
+ * and a patch that carries it has to write that NULL.
+ */
+test('a patch carrying undefined for an optional nullable column writes NULL', async () => {
+    @entity.name('ut_patch_optional_nullable')
+    class Row {
+        id: integer & PrimaryKey & AutoIncrement = 0;
+        title: string = '';
+        note?: string | null;
+    }
+
+    const database = await databaseFactory([Row]);
+    try {
+        const row = new Row();
+        row.title = 'a';
+        row.note = 'kept';
+        await database.persist(row);
+
+        // Untouched: the patch does not name the column.
+        await database.query(Row).filter({ id: row.id }).patchMany({ title: 'b' });
+        expect((await database.query(Row).filter({ id: row.id }).findOne()).note).toBe('kept');
+
+        // Named with undefined: cleared.
+        await database.query(Row).filter({ id: row.id }).patchMany({ note: undefined });
+        expect((await database.query(Row).filter({ id: row.id }).findOne()).note).toBe(null);
+
+        // The unit of work clears it the same way.
+        const session = database.createSession();
+        const loaded = await session.query(Row).filter({ id: row.id }).findOne();
+        loaded.note = 'again';
+        await session.commit();
+        loaded.note = undefined;
+        await session.commit();
+        expect((await database.query(Row).filter({ id: row.id }).findOne()).note).toBe(null);
+    } finally {
+        database.disconnect();
+    }
+});
+
+/**
  * The patch resolver must resolve `DatabaseField<{name}>`-renamed properties to their REAL column
  * names, like the Postgres resolver does via `entity.fieldMap` — it used to build SET/select
  * clauses from property names, so patching any renamed column failed with

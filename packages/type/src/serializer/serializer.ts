@@ -107,6 +107,18 @@ export class Serializer {
     }
 
     /**
+     * Whether serialize LEAVES OUT a member declared `x?: T | null` whose value is `undefined`,
+     * instead of writing it as `null`. For such a member absence and `null` are two different
+     * values (absent = untouched, `null` = cleared — a patch), so a wire format without `undefined`
+     * has to drop the key to carry the difference. The JSON serializer does. The default is `false`
+     * because a database serializer must not: an entity property set to `undefined` is a NULL
+     * column, and a patch that carries it has to write that NULL.
+     */
+    public omitUndefinedOfOptionalNullable(type: Type, state: JsonBuildContext): boolean {
+        return false;
+    }
+
+    /**
      * Register default serializers. Override in subclasses to customize.
      */
     protected registerSerializers(): void {
@@ -511,6 +523,11 @@ export function getPartialSerializeFunction(
 class JSONSerializer extends Serializer {
     // JSON is a presentation serializer: a bare `& Reference & Inline` serializes as a nested object.
     override inlineReferences: boolean = true;
+
+    // JSON has no `undefined`: a `x?: T | null` member holding it is left out, never written as `null`.
+    override omitUndefinedOfOptionalNullable(): boolean {
+        return true;
+    }
 
     constructor() {
         super('json');

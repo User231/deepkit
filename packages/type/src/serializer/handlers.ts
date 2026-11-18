@@ -2368,11 +2368,32 @@ export const handleObjectLiteral: JsonTypeHandler = (type, input, b, state) => {
 };
 
 /**
+ * A member that may be LEFT OUT and may also hold `null` (`x?: T | null`). Absence and `null` are
+ * two different values of such a member — it is the shape of a PATCH, where absent means "leave it"
+ * and `null` means "clear it" — so neither direction may turn one into the other:
+ *
+ *  - deserialize leaves an absent key absent (a member that is nullable but REQUIRED still reads
+ *    an absent key as `null`: there `null` is the only value that satisfies the type);
+ *  - serialize leaves an `undefined` value out where the serializer says so
+ *    ({@link Serializer.omitUndefinedOfOptionalNullable} — JSON does; a database serializer writes
+ *    `undefined` as NULL and keeps doing so).
+ *
+ * Before 2026-11-18 deserialize filled every absent nullable member with `null`, optional or not:
+ * an RPC action that took `{ status?: string | null }` could not tell a caller who left `status`
+ * out from one who cleared it, and a patch of one field cleared the others.
+ */
+function keepsAbsenceApartFromNull(memberType: TypeProperty | TypePropertySignature): boolean {
+    return isOptional(memberType) && isNullable(memberType);
+}
+
+/**
  * Emit the assignment for a property whose deserialize input is present but nullish (the DB/JSON
  * returned `null`/`undefined`). A nullable property becomes `null`; an optional (non-nullable)
  * property is set to an explicit `undefined` UNLESS the owning serializer opts out via
  * {@link Serializer.setExplicitUndefined} (e.g. @deepkit/sql, so a `NULL` column for `foo?: string`
- * leaves the property *absent* rather than `{ foo: undefined }`).
+ * leaves the property *absent* rather than `{ foo: undefined }`). A property that is BOTH
+ * ({@link keepsAbsenceApartFromNull}) keeps the two apart: `null` stays `null`, `undefined` is
+ * handled as the optional property it is.
  */
 function setNullishOptionalProperty(
     b: Builder,
@@ -2381,14 +2402,26 @@ function setNullishOptionalProperty(
     outputKey: string,
     memberType: TypeProperty | TypePropertySignature,
     propState: JsonBuildContext,
+    value: Ref,
 ): void {
-    if (isNullable(memberType)) {
-        b.set(target, outputKey, b.lit(null));
-    } else if (isOptional(memberType)) {
+    const setUndefined = () => {
         const setExplicit = state.registry.serializer?.setExplicitUndefined(memberType, propState) !== false;
         if (setExplicit) {
             b.set(target, outputKey, b.lit(undefined));
         }
+    };
+    if (keepsAbsenceApartFromNull(memberType)) {
+        b.if_(
+            b.isNull(value),
+            () => {
+                b.set(target, outputKey, b.lit(null));
+            },
+            setUndefined,
+        );
+    } else if (isNullable(memberType)) {
+        b.set(target, outputKey, b.lit(null));
+    } else if (isOptional(memberType)) {
+        setUndefined();
     }
 }
 
@@ -2566,47 +2599,71 @@ function buildObjectLiteralBody(
                                 b.set(result, outputKey, propState.build(propType, propInput));
                             },
                             () => {
-                                setNullishOptionalProperty(b, state, result, outputKey, memberType, propState);
+                                setNullishOptionalProperty(
+                                    b,
+                                    state,
+                                    result,
+                                    outputKey,
+                                    memberType,
+                                    propState,
+                                    propInput,
+                                );
                             },
                         );
                     } else {
-                        // The pass-through shortcut assumes string/number/boolean serialize to
-                        // themselves. That only holds when no annotation decorator (UUID, MongoId,
-                        // BinaryBigInt, …) would transform the value — otherwise we must dispatch
-                        // through the registry so the decorator runs (e.g. MongoDB filter ids).
-                        const isPrimitivePassThrough =
-                            (propType.kind === ReflectionKind.string ||
-                                propType.kind === ReflectionKind.number ||
-                                propType.kind === ReflectionKind.boolean) &&
-                            !state.registry.hasDecoratorFor(propType);
+                        const serializeMember = () => {
+                            // The pass-through shortcut assumes string/number/boolean serialize to
+                            // themselves. That only holds when no annotation decorator (UUID, MongoId,
+                            // BinaryBigInt, …) would transform the value — otherwise we must dispatch
+                            // through the registry so the decorator runs (e.g. MongoDB filter ids).
+                            const isPrimitivePassThrough =
+                                (propType.kind === ReflectionKind.string ||
+                                    propType.kind === ReflectionKind.number ||
+                                    propType.kind === ReflectionKind.boolean) &&
+                                !state.registry.hasDecoratorFor(propType);
 
-                        if (isPrimitivePassThrough) {
-                            // Use ternary for nullish coalesce: value ?? null
-                            b.set(result, outputKey, b.ternary(b.isNullish(propInput), b.lit(null), propInput));
+                            if (isPrimitivePassThrough) {
+                                // Use ternary for nullish coalesce: value ?? null
+                                b.set(result, outputKey, b.ternary(b.isNullish(propInput), b.lit(null), propInput));
+                            } else {
+                                b.if_(
+                                    b.not(b.isNullish(propInput)),
+                                    () => {
+                                        b.set(result, outputKey, propState.build(propType, propInput));
+                                    },
+                                    () => {
+                                        if (isNullable(memberType) || isOptional(memberType)) {
+                                            b.set(result, outputKey, b.lit(null));
+                                        }
+                                    },
+                                );
+                            }
+                        };
+                        // `x?: T | null` holding `undefined`: on a wire that has no `undefined` the
+                        // member is LEFT OUT, never written as `null` — `null` is another value of it
+                        // (keepsAbsenceApartFromNull). A database serializer does not opt in: there
+                        // an `undefined` property is a NULL column.
+                        const omitUndefined =
+                            keepsAbsenceApartFromNull(memberType) &&
+                            state.registry.serializer?.omitUndefinedOfOptionalNullable?.(memberType, propState) ===
+                                true;
+                        if (omitUndefined) {
+                            b.if_(b.not(b.eq(propInput, b.lit(undefined))), serializeMember);
                         } else {
-                            b.if_(
-                                b.not(b.isNullish(propInput)),
-                                () => {
-                                    b.set(result, outputKey, propState.build(propType, propInput));
-                                },
-                                () => {
-                                    if (isNullable(memberType) || isOptional(memberType)) {
-                                        b.set(result, outputKey, b.lit(null));
-                                    }
-                                },
-                            );
+                            serializeMember();
                         }
                     }
                 },
                 () => {
                     // Property ABSENT from the input. Only deserialize fills a nullable member with
-                    // null (a missing DB column/JSON key IS null for the target class). In serialize
+                    // null (a missing DB column/JSON key IS null for the target class), and only a
+                    // REQUIRED one: `x?: T | null` stays absent (keepsAbsenceApartFromNull). In serialize
                     // mode this branch only runs for OPTIONAL members (needsHasCheck), where absence
                     // must stay absence: a Partial<T>/patch serialize that invented `null` here wrote
                     // `col = NULL` over every untouched nullable column of an UPDATE (found 2026-08-05
                     // when `patchMany({status})` on a bot-outbox row silently erased its unique
                     // `dedupe_key` — the outbox replay-idempotency key).
-                    if (isDeserialize && isNullable(memberType)) {
+                    if (isDeserialize && isNullable(memberType) && !isOptional(memberType)) {
                         b.set(result, outputKey, b.lit(null));
                     }
                 },
@@ -3221,12 +3278,14 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                                 propName,
                                 memberType,
                                 state.forProperty(propName),
+                                propInput,
                             );
                         },
                     );
                 },
                 () => {
-                    if (isNullable(memberType)) {
+                    // Absent: `null` only for a nullable member that is REQUIRED (keepsAbsenceApartFromNull).
+                    if (isNullable(memberType) && !isOptional(memberType)) {
                         b.set(result, propName, b.lit(null));
                     }
                 },
@@ -3367,7 +3426,14 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                     },
                     () => {
                         if (isNullable(property.property)) {
-                            b.setVar(argValue, b.lit(null));
+                            if (isOptional(property.property)) {
+                                // `x?: T | null`: only a real `null` is null — `undefined` stays the absent argument.
+                                b.if_(b.isNull(propInput), () => {
+                                    b.setVar(argValue, b.lit(null));
+                                });
+                            } else {
+                                b.setVar(argValue, b.lit(null));
+                            }
                         }
                     },
                 );
@@ -3411,12 +3477,14 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                                 propName,
                                 memberType,
                                 state.forProperty(propName),
+                                propInput,
                             );
                         },
                     );
                 },
                 () => {
-                    if (isNullable(memberType)) {
+                    // Absent: `null` only for a nullable member that is REQUIRED (keepsAbsenceApartFromNull).
+                    if (isNullable(memberType) && !isOptional(memberType)) {
                         b.set(result, propName, b.lit(null));
                     }
                 },
@@ -3455,12 +3523,21 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                         b.set(result, propName, state.forProperty(propName).build(propType, propInput));
                     },
                     () => {
-                        setNullishOptionalProperty(b, state, result, propName, memberType, state.forProperty(propName));
+                        setNullishOptionalProperty(
+                            b,
+                            state,
+                            result,
+                            propName,
+                            memberType,
+                            state.forProperty(propName),
+                            propInput,
+                        );
                     },
                 );
             },
             () => {
-                if (isNullable(memberType)) {
+                // Absent: `null` only for a nullable member that is REQUIRED (keepsAbsenceApartFromNull).
+                if (isNullable(memberType) && !isOptional(memberType)) {
                     b.set(result, propName, b.lit(null));
                 }
             },
