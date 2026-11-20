@@ -1,5 +1,6 @@
 import { ValidationError, cast } from '@deepkit/type';
 
+import { McpTool } from './decorator.js';
 import {
     ContentBlock,
     ERROR,
@@ -13,6 +14,7 @@ import {
     McpProtocolError,
     ResourceContents,
     ServerCapabilities,
+    ToolDefinition,
     invalidParams,
     invalidRequest,
     methodNotFound,
@@ -63,6 +65,14 @@ export interface McpServerOptions {
      * unset; stdio and tests set it.
      */
     authorize?: (groups: readonly string[], context: McpRequestContext) => void | Promise<void>;
+    /**
+     * Which tools `tools/list` shows THIS caller. Credentials are per-request
+     * input in this revision, so the list may differ per caller: a binding that
+     * knows what the caller may call hides the rest. It is a courtesy to the
+     * model, not the gate — a call is still refused by the guard or by
+     * `authorize`. Unset = every tool.
+     */
+    listable?: (tool: McpTool, context: McpRequestContext) => boolean | Promise<boolean>;
     /** The text block's budget; a result past it is cut and the cut is named. Default 64 KiB. */
     maxTextChars?: number;
 }
@@ -197,7 +207,7 @@ export class McpServer {
                 return {};
             case 'tools/list':
                 this.refuseForeignCursor(params);
-                return { tools: registry.tools().map(entry => entry.definition) };
+                return { tools: await this.listTools(context) };
             case 'tools/call':
                 return yield* this.callTool(params, meta, context);
             case 'resources/list':
@@ -211,6 +221,18 @@ export class McpServer {
             default:
                 throw methodNotFound(method);
         }
+    }
+
+    /** The tool definitions this caller is shown — every one, or the ones `listable` admits; the order is the registry's. */
+    private async listTools(context: McpRequestContext): Promise<ToolDefinition[]> {
+        const entries = this.options.registry.tools();
+        const listable = this.options.listable;
+        if (!listable) return entries.map(entry => entry.definition);
+        const shown: ToolDefinition[] = [];
+        for (const entry of entries) {
+            if (await listable(entry.tool, context)) shown.push(entry.definition);
+        }
+        return shown;
     }
 
     /** Lists are one page; a cursor this server never issued is a malformed request. */

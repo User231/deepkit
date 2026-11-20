@@ -272,6 +272,30 @@ test('the authorize hook refuses as a TOOL error; without groups it is never ask
     }
 });
 
+test('listable hides tools from tools/list per caller, keeps the order, and does not gate a call', async () => {
+    const hiding = new McpServer({
+        registry,
+        serverInfo: { name: 'fake', version: '0.0.1' },
+        // A tool is shown to a caller that holds every group it declares; one without groups is shown to everyone.
+        listable: async (tool, context) => tool.groups.every(group => (context.principal as string[]).includes(group)),
+    });
+    const list = async (principal: string[]) => {
+        const out: McpFrame[] = [];
+        for await (const frame of hiding.handle(request('tools/list'), { principal })) out.push(frame);
+        const last = out[out.length - 1];
+        if (last.kind !== 'response' || !('result' in last.message)) throw new Error('unreachable');
+        return (last.message.result as any).tools.map((t: any) => t.name);
+    };
+    expect(await list([])).toEqual(['fail', 'slow', 'noInput', 'meta']);
+    expect(await list(['role:admin'])).toEqual(['fail', 'slow', 'noInput', 'big', 'meta']);
+    expect(await list(['role:reader', 'role:admin'])).toEqual(['echo', 'fail', 'slow', 'noInput', 'big', 'meta']);
+    // Hidden is not refused: the gate is the guard's (or `authorize`), which this server has none of.
+    const out: McpFrame[] = [];
+    for await (const frame of hiding.handle(request('tools/call', { name: 'big', arguments: { rows: 1 } }), { principal: [] })) out.push(frame);
+    const last = out[out.length - 1];
+    expect(last.kind === 'response' && 'result' in last.message && (last.message.result as any).isError).toBe(false);
+});
+
 test('a result past the text budget is cut, the cut named, and structuredContent withheld', async () => {
     const r = await result(request('tools/call', { name: 'big', arguments: { rows: 100 } }));
     expect(r.isError).toBe(false);
