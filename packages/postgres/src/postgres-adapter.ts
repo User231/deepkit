@@ -146,14 +146,35 @@ export class PostgresConnection extends SQLConnection {
     protected changes: number = 0;
     public lastReturningRows: any[] = [];
 
+    /**
+     * Set once the client reported an error while this connection held it: the
+     * server ended the session, or the socket broke. Every later query on it is
+     * refused by the driver, and the pool destroys the client on release.
+     */
+    public lost?: Error;
+
+    /**
+     * The client's `error` listener for the time of the checkout. The driver's pool
+     * listens to a client only while it sits IDLE: it takes its own listener off
+     * when it hands the client out. An `error` event nobody listens to is thrown
+     * by Node — an uncaught exception of the process — so whoever holds the client
+     * must listen. A lost connection usually reports twice (the server's last
+     * word, then the socket closing); the first is the cause.
+     */
+    readonly onClientError = (error: Error): void => {
+        if (this.lost) return;
+        this.lost = error;
+        this.pool.connectionLost(error, 'checked out');
+    };
+
     constructor(
-        connectionPool: PostgresConnectionPool,
+        protected pool: PostgresConnectionPool,
         public connection: PoolClient,
         logger: Logger,
         transaction?: DatabaseTransaction,
         stopwatch?: Stopwatch,
     ) {
-        super(connectionPool, logger, transaction, stopwatch);
+        super(pool, logger, transaction, stopwatch);
     }
 
     async prepare(sql: string) {
@@ -230,11 +251,25 @@ export class PostgresDatabaseTransaction extends DatabaseTransaction {
         if (!this.connection) return;
 
         if (this.ended) throw new DeepkitError('DK-PG001', 'Transaction ended already');
-        await this.connection.run('ROLLBACK');
-        this.ended = true;
-        this.connection.release();
+        try {
+            await this.connection.run('ROLLBACK');
+        } catch (error: any) {
+            // A ROLLBACK that fails leaves a client nobody can trust (most often its
+            // connection is gone, and the server has rolled back by itself): the
+            // pool destroys it instead of handing it out again.
+            this.connection.lost ??= error;
+            throw error;
+        } finally {
+            // Whatever the answer, the transaction is over and the client goes back.
+            // Left checked out, it would hold a place in the pool for good.
+            this.ended = true;
+            this.connection.release();
+        }
     }
 }
+
+/** Where a connection was when it was lost. */
+export type PostgresConnectionHolder = 'idle' | 'checked out' | 'closing';
 
 /**
  * What a pool can say about itself. The first three are the driver's own
@@ -264,8 +299,29 @@ export class PostgresConnectionPool extends SQLConnectionPool {
         protected pool: Pool,
         protected logger: Logger,
         stopwatch?: Stopwatch,
+        /** Names the pool in what it logs. The database's name only — connection options hold the password. */
+        protected database: string = '',
     ) {
         super(logger, stopwatch);
+    }
+
+    /**
+     * A connection ended without us ending it: an administrator terminated the
+     * backend, the server failed over, a proxy in front of it restarted. That is
+     * an event of the connection, never of the process — the driver has dropped
+     * the client (or will on release), and the next checkout opens a new one.
+     *
+     * Only the error's code and message are logged. The driver hangs the client on
+     * an idle client's error (`error.client`), and the client holds the password.
+     */
+    connectionLost(error: Error, holder: PostgresConnectionHolder): void {
+        const code = (error as { code?: unknown }).code;
+        const reason = (typeof code === 'string' ? code + ' ' : '') + error.message;
+        const message = `Postgres connection lost (database "${this.database}", ${holder}): ${reason}`;
+        const logger = this.logger.scoped(scope);
+        // While the pool is closing the connection was on its way out anyway.
+        if (holder === 'closing') logger.debug(message);
+        else logger.warn(message);
     }
 
     getStats(): PostgresPoolStats {
@@ -290,6 +346,7 @@ export class PostgresConnectionPool extends SQLConnectionPool {
         this.acquireWaitMs += performance.now() - askedAt;
         this.activeConnections++;
         const connection = new PostgresConnection(this, poolClient, this.logger, transaction, this.stopwatch);
+        poolClient.on('error', connection.onClientError);
         if (transaction) {
             transaction.connection = connection;
             try {
@@ -309,7 +366,11 @@ export class PostgresConnectionPool extends SQLConnectionPool {
         if (connection.transaction && !connection.transaction.ended) return;
 
         super.release(connection);
-        connection.connection.release();
+        // The driver's pool puts its own listener back inside release(), in the same
+        // tick: the client is never without one. A client that was lost while it
+        // was held is released WITH its error, which makes the pool destroy it.
+        connection.connection.removeListener('error', connection.onClientError);
+        connection.connection.release(connection.lost);
     }
 }
 
@@ -739,6 +800,11 @@ export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
     public platform = new PostgresPlatform();
     closed = false;
 
+    /** The clients whose socket is open: from the pool's `connect` to its `remove`. */
+    protected openClients = new Set<PoolClient>();
+    protected whenNoClients: (() => void)[] = [];
+    protected closing?: Promise<void>;
+
     constructor(options: PoolConfig | string, additional: Partial<PoolConfig> = {}) {
         super();
         const defaults: PoolConfig = {};
@@ -758,7 +824,28 @@ export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
             } as any;
         }
         this.pool = new pg.Pool(this.options);
-        this.connectionPool = new PostgresConnectionPool(this.pool, this.logger, this.stopwatch);
+        this.connectionPool = new PostgresConnectionPool(
+            this.pool,
+            this.logger,
+            this.stopwatch,
+            databaseNameOf(this.options),
+        );
+        // The driver's pool reports an IDLE client that errored as an `error` event
+        // of the pool, after it has removed the client. Without a listener Node
+        // throws that event: one terminated backend took the whole process down.
+        // The listener stays for the pool's whole life — a client that is being
+        // closed by disconnect() reports here too.
+        this.pool.on('error', error => {
+            this.connectionPool.connectionLost(error, this.closed ? 'closing' : 'idle');
+        });
+        this.pool.on('connect', client => {
+            this.openClients.add(client);
+        });
+        this.pool.on('remove', client => {
+            this.openClients.delete(client);
+            if (this.openClients.size > 0) return;
+            for (const resolve of this.whenNoClients.splice(0)) resolve();
+        });
     }
 
     setLogger(logger: Logger) {
@@ -794,9 +881,49 @@ export class PostgresDatabaseAdapter extends SQLDatabaseAdapter {
         return new PostgresSQLDatabaseQueryFactory(this.connectionPool, this.platform, session);
     }
 
+    /**
+     * STARTS the close and returns. Nothing here waits: the connections are still
+     * closing when this returns. A caller that must know they are gone — one that
+     * drops the database next, or measures what is left — awaits `close()`.
+     */
     disconnect(force?: boolean): void {
-        if (this.closed) return;
-        this.closed = true;
-        this.pool.end().catch(console.error);
+        this.close().catch(error => {
+            this.logger
+                .scoped(scope)
+                .error(`Postgres pool (database "${databaseNameOf(this.options)}") failed to close:`, error);
+        });
     }
+
+    /**
+     * Closes the pool, and resolves once every connection it had open is CLOSED —
+     * the socket has ended, so the server has no session of this pool left.
+     *
+     * The driver's own `pool.end()` does not say that: it resolves as soon as the
+     * clients are off its list, while their sockets are still closing. So this
+     * follows the pool's `connect` / `remove` events, which bracket a client's
+     * socket.
+     *
+     * A connection that is checked out is closed when its holder releases it, and
+     * this waits for that. It waits for the server too: against one that no longer
+     * answers, the caller bounds the wait. Safe to call more than once, and after
+     * `disconnect()` — every call waits for the same close.
+     */
+    close(): Promise<void> {
+        if (!this.closing) {
+            this.closed = true;
+            this.closing = this.pool.end().then(() => {
+                if (this.openClients.size === 0) return;
+                return new Promise<void>(resolve => {
+                    this.whenNoClients.push(resolve);
+                });
+            });
+        }
+        return this.closing;
+    }
+}
+
+function databaseNameOf(options: PoolConfig): string {
+    if (options.database) return options.database;
+    if (options.connectionString) return parseConnectionString(options.connectionString).database || '';
+    return '';
 }

@@ -10,6 +10,9 @@ function fakePool() {
     const queue: Array<(client: { release(): void }) => void> = [];
     let busy = false;
     const client = {
+        // The pool listens to a client's errors for the time it holds it.
+        on() {},
+        removeListener() {},
         release() {
             const next = queue.shift();
             if (next) next(client);
