@@ -2,37 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Code Changes - Diligence Workflow
-
-For any non-trivial code changes (bug fixes, features, refactoring), use the diligence workflow to ensure thorough research before implementation:
-
-### Workflow
-
-1. **Start**: Call `mcp__diligence__start` with task description
-2. **Worker**: Spawn sub-agent (Task tool, subagent_type=Explore) to:
-   - Call `mcp__diligence__get_worker_brief` for context
-   - Research codebase thoroughly (trace data flow, find patterns)
-   - Call `mcp__diligence__propose` with file:line citations
-3. **Reviewer**: Spawn separate sub-agent (fresh context) to:
-   - Call `mcp__diligence__get_reviewer_brief`
-   - Independently verify every claim by searching codebase
-   - Call `mcp__diligence__review` with APPROVED or NEEDS_WORK
-4. **Loop**: If NEEDS_WORK, spawn new Worker with feedback (max 5 rounds)
-5. **Implement**: When APPROVED, call `mcp__diligence__implement` and make changes
-6. **Complete**: Call `mcp__diligence__complete` with summary
-
-### Why Sub-Agents?
-
-- **Worker** researches and proposes with citations
-- **Reviewer** has fresh context (doesn't see Worker's searches), must independently verify
-- This prevents rubber-stamping and catches architectural mistakes
-
-### Skip Diligence For
-
-- Trivial changes (typos, formatting)
-- User explicitly requests quick fix
-- Emergency hotfixes (but follow up with proper review)
-
 ## When Working on Issues or Improvements
 
 If asked to fix bugs, improve packages, or work on GitHub issues:
