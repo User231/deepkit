@@ -2741,7 +2741,8 @@ function buildObjectLiteralBody(
         const valueType = indexSignature.type;
         const valueAllowsNull = isNullable(indexSignature) || isOptional(indexSignature);
         const indexType = indexSignature.index;
-        const hasExplicit = explicitProps.has.bind(explicitProps);
+        // One call per key, in both modes of the JIT: the interpreter pays for every node of a test.
+        const isIndexKey = (key: string): boolean => !explicitProps.has(key);
 
         b.forIn(input, (key, value) => {
             const copyKey = (): void => {
@@ -2811,7 +2812,7 @@ function buildObjectLiteralBody(
             };
             // Skip explicit (named) properties. A type that names none asks no set per key.
             if (explicitProps.size === 0) copyKey();
-            else b.if_(b.not(b.call(hasExplicit, key)), copyKey);
+            else b.if_(b.call(isIndexKey, key), copyKey);
         });
     }
 
@@ -3169,7 +3170,8 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
         const valueType = indexSignature.type;
         const valueAllowsNull = isNullable(indexSignature) || isOptional(indexSignature);
         const indexType = indexSignature.index;
-        const hasExplicit = explicitProps.has.bind(explicitProps);
+        // One call per key, in both modes of the JIT: the interpreter pays for every node of a test.
+        const isIndexKey = (key: string): boolean => !explicitProps.has(key);
 
         b.forIn(input, (key, value) => {
             const copyKey = (): void => {
@@ -3228,7 +3230,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
             };
             // Skip explicit (named) properties. A type that names none asks no set per key.
             if (explicitProps.size === 0) copyKey();
-            else b.if_(b.not(b.call(hasExplicit, key)), copyKey);
+            else b.if_(b.call(isIndexKey, key), copyKey);
         });
     };
 
