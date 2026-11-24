@@ -10,6 +10,7 @@
 
 export * from './src/core.js';
 export * from './src/changes.js';
+export * from './src/input-key.js';
 export * from './src/decorator.js';
 export * from './src/decorator-builder.js';
 export * from './src/reference.js';

@@ -18,6 +18,7 @@ import {
     typedArrayToBase64,
     unpopulatedSymbol,
 } from '../core.js';
+import { setInputKey } from '../input-key.js';
 import { createReference, isReferenceInstance } from '../reference.js';
 import { extendTemplateLiteral, isExtendable } from '../reflection/extends.js';
 import { resolveRuntimeType } from '../reflection/processor.js';
@@ -2743,8 +2744,7 @@ function buildObjectLiteralBody(
         const hasExplicit = explicitProps.has.bind(explicitProps);
 
         b.forIn(input, (key, value) => {
-            // Skip explicit (named) properties
-            b.if_(b.not(b.call(hasExplicit, key)), () => {
+            const copyKey = (): void => {
                 if (indexType.kind === ReflectionKind.templateLiteral) {
                     // Template literal index: check key matches, set undefined if not
                     const matchesTemplate = b.call(
@@ -2760,15 +2760,15 @@ function buildObjectLiteralBody(
                                 b.neq(value, b.lit(undefined)),
                                 () => {
                                     const childState = state.forKey(key);
-                                    b.set(result, key, childState.build(valueType, value));
+                                    setInputKey(b, result, key, childState.build(valueType, value));
                                 },
                                 () => {
-                                    if (valueAllowsNull) b.set(result, key, b.lit(null));
+                                    if (valueAllowsNull) setInputKey(b, result, key, b.lit(null));
                                 },
                             );
                         },
                         () => {
-                            b.set(result, key, b.lit(undefined));
+                            setInputKey(b, result, key, b.lit(undefined));
                         },
                     );
                 } else if (indexType.kind === ReflectionKind.number) {
@@ -2784,15 +2784,15 @@ function buildObjectLiteralBody(
                                 b.neq(value, b.lit(undefined)),
                                 () => {
                                     const childState = state.forKey(key);
-                                    b.set(result, key, childState.build(valueType, value));
+                                    setInputKey(b, result, key, childState.build(valueType, value));
                                 },
                                 () => {
-                                    if (valueAllowsNull) b.set(result, key, b.lit(null));
+                                    if (valueAllowsNull) setInputKey(b, result, key, b.lit(null));
                                 },
                             );
                         },
                         () => {
-                            b.set(result, key, b.lit(undefined));
+                            setInputKey(b, result, key, b.lit(undefined));
                         },
                     );
                 } else {
@@ -2801,14 +2801,17 @@ function buildObjectLiteralBody(
                         b.neq(value, b.lit(undefined)),
                         () => {
                             const childState = state.forKey(key);
-                            b.set(result, key, childState.build(valueType, value));
+                            setInputKey(b, result, key, childState.build(valueType, value));
                         },
                         () => {
-                            if (valueAllowsNull) b.set(result, key, b.lit(null));
+                            if (valueAllowsNull) setInputKey(b, result, key, b.lit(null));
                         },
                     );
                 }
-            });
+            };
+            // Skip explicit (named) properties. A type that names none asks no set per key.
+            if (explicitProps.size === 0) copyKey();
+            else b.if_(b.not(b.call(hasExplicit, key)), copyKey);
         });
     }
 
@@ -3169,8 +3172,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
         const hasExplicit = explicitProps.has.bind(explicitProps);
 
         b.forIn(input, (key, value) => {
-            // Skip explicit (named) properties
-            b.if_(b.not(b.call(hasExplicit, key)), () => {
+            const copyKey = (): void => {
                 const buildValueConversion = () => {
                     b.if_(
                         b.neq(value, b.lit(undefined)),
@@ -3181,22 +3183,22 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                                     b.neq(value, b.lit(null)),
                                     () => {
                                         const childState = state.forKey(key);
-                                        b.set(result, key, childState.build(valueType, value));
+                                        setInputKey(b, result, key, childState.build(valueType, value));
                                     },
                                     () => {
-                                        b.set(result, key, b.lit(null));
+                                        setInputKey(b, result, key, b.lit(null));
                                     },
                                 );
                             } else {
                                 // Null not allowed: skip null values, convert others
                                 b.if_(b.neq(value, b.lit(null)), () => {
                                     const childState = state.forKey(key);
-                                    b.set(result, key, childState.build(valueType, value));
+                                    setInputKey(b, result, key, childState.build(valueType, value));
                                 });
                             }
                         },
                         () => {
-                            if (valueAllowsNull) b.set(result, key, b.lit(null));
+                            if (valueAllowsNull) setInputKey(b, result, key, b.lit(null));
                         },
                     );
                 };
@@ -3209,7 +3211,7 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                         b.lit(indexType),
                     );
                     b.if_(matchesTemplate, buildValueConversion, () => {
-                        b.set(result, key, b.lit(undefined));
+                        setInputKey(b, result, key, b.lit(undefined));
                     });
                 } else if (indexType.kind === ReflectionKind.number) {
                     const isNumeric = b.call((k: string) => {
@@ -3217,13 +3219,16 @@ export const deserializeClass: JsonTypeHandler = (type, input, b, state) => {
                         return !isNaN(n) && k !== '';
                     }, key);
                     b.if_(isNumeric, buildValueConversion, () => {
-                        b.set(result, key, b.lit(undefined));
+                        setInputKey(b, result, key, b.lit(undefined));
                     });
                 } else {
                     // String index (most common): all keys match
                     buildValueConversion();
                 }
-            });
+            };
+            // Skip explicit (named) properties. A type that names none asks no set per key.
+            if (explicitProps.size === 0) copyKey();
+            else b.if_(b.not(b.call(hasExplicit, key)), copyKey);
         });
     };
 

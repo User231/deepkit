@@ -1,4 +1,4 @@
-// externals: isSignedNumericString_0, String_0, Number_0, stringifyValueWithType_0, validationErrorCreate_0, isArray_0, fn_0, validationErrorCreate_1, bound_has_0, validationErrorCreate_2, validationErrorCreate_3, validationErrorCreate_4, validationErrorCreate_5, validationErrorCreate_6, validationErrorCreate_7, validationErrorCreate_8, validationErrorCreate_9
+// externals: isSignedNumericString_0, String_0, Number_0, stringifyValueWithType_0, validationErrorCreate_0, isArray_0, fn_0, validationErrorCreate_1, ownProtoKey_0, validationErrorCreate_2, validationErrorCreate_3, validationErrorCreate_4, validationErrorCreate_5, validationErrorCreate_6, validationErrorCreate_7, validationErrorCreate_8, validationErrorCreate_9
 'use strict';
 return function(v0,v1){
 var v2=(v1??{});
@@ -33,49 +33,50 @@ return v8;
     if("object"===typeof v0.meta&&null!==v0.meta){
         var v13={};
         for(var v14 in v0.meta){
-            if(!(bound_has_0(v14))){
-                if(v0.meta[v14]!==undefined){
-                    var v15=undefined;
-                    var v16=false;
-                    if(!(v16)){
-                        if((v2.loosely!==false?("number"===typeof v0.meta[v14]||"string"===typeof v0.meta[v14]&&fn_0(v0.meta[v14])):"number"===typeof v0.meta[v14])){
-                            var v17=false;
-                            if(v2.loosely!==false&&"string"===typeof v0.meta[v14]){
-                                v17=isSignedNumericString_0(v0.meta[v14]);
-                            }
-                            v15=("number"===typeof v0.meta[v14]?v0.meta[v14]:(v2.loosely!==false&&"boolean"===typeof v0.meta[v14]?(v0.meta[v14]?1:0):(v17?Number_0(v0.meta[v14]):v0.meta[v14])));
-                            v16=true;
+            if(v0.meta[v14]!==undefined){
+                var v15=undefined;
+                var v16=false;
+                if(!(v16)){
+                    if((v2.loosely!==false?("number"===typeof v0.meta[v14]||"string"===typeof v0.meta[v14]&&fn_0(v0.meta[v14])):"number"===typeof v0.meta[v14])){
+                        var v17=false;
+                        if(v2.loosely!==false&&"string"===typeof v0.meta[v14]){
+                            v17=isSignedNumericString_0(v0.meta[v14]);
                         }
+                        v15=("number"===typeof v0.meta[v14]?v0.meta[v14]:(v2.loosely!==false&&"boolean"===typeof v0.meta[v14]?(v0.meta[v14]?1:0):(v17?Number_0(v0.meta[v14]):v0.meta[v14])));
+                        v16=true;
                     }
-                    if(!(v16)){
-                        if("string"===typeof v0.meta[v14]){
-                            var v18=v0.meta[v14];
-                            if(v2.loosely!==false&&("number"===typeof v0.meta[v14]||"boolean"===typeof v0.meta[v14]||"bigint"===typeof v0.meta[v14])){
-                                v18=String_0(v0.meta[v14]);
-                            }
-                            v15=v18;
-                            v16=true;
-                        }
-                    }
-                    if(v2.loosely!==false){
-                        if(!(v16)){
-                            if(("string"===typeof v0.meta[v14]||"number"===typeof v0.meta[v14]||"boolean"===typeof v0.meta[v14]||"bigint"===typeof v0.meta[v14])){
-                                var v19=v0.meta[v14];
-                                if(v2.loosely!==false&&("number"===typeof v0.meta[v14]||"boolean"===typeof v0.meta[v14]||"bigint"===typeof v0.meta[v14])){
-                                    v19=String_0(v0.meta[v14]);
-                                }
-                                v15=v19;
-                                v16=true;
-                            }
-                        }
-                    }
-                    if(!(v16)){
-                        var v20=[];
-                        v20.push({code:"type",path:("meta"+"."+String_0(v14)),message:("Cannot convert "+stringifyValueWithType_0(v0.meta[v14])+" to "+"string | number"+". No union member matches")});
-                        throw validationErrorCreate_1(v20);
-                    }
-                    v13[v14]=v15;
                 }
+                if(!(v16)){
+                    if("string"===typeof v0.meta[v14]){
+                        var v18=v0.meta[v14];
+                        if(v2.loosely!==false&&("number"===typeof v0.meta[v14]||"boolean"===typeof v0.meta[v14]||"bigint"===typeof v0.meta[v14])){
+                            v18=String_0(v0.meta[v14]);
+                        }
+                        v15=v18;
+                        v16=true;
+                    }
+                }
+                if(v2.loosely!==false){
+                    if(!(v16)){
+                        if(("string"===typeof v0.meta[v14]||"number"===typeof v0.meta[v14]||"boolean"===typeof v0.meta[v14]||"bigint"===typeof v0.meta[v14])){
+                            var v19=v0.meta[v14];
+                            if(v2.loosely!==false&&("number"===typeof v0.meta[v14]||"boolean"===typeof v0.meta[v14]||"bigint"===typeof v0.meta[v14])){
+                                v19=String_0(v0.meta[v14]);
+                            }
+                            v15=v19;
+                            v16=true;
+                        }
+                    }
+                }
+                if(!(v16)){
+                    var v20=[];
+                    v20.push({code:"type",path:("meta"+"."+String_0(v14)),message:("Cannot convert "+stringifyValueWithType_0(v0.meta[v14])+" to "+"string | number"+". No union member matches")});
+                    throw validationErrorCreate_1(v20);
+                }
+                if(v14==="__proto__"){
+                    ownProtoKey_0(v13);
+                }
+                v13[v14]=v15;
             }
         }
         v12=v13;

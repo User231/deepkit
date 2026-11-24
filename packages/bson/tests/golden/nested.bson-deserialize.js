@@ -319,7 +319,7 @@ result_8.h=h_7;
 return [result_8,(end_3+1)];
 }
 
-// externals: const_0, readDouble_0, nanToZero_0, readNumberValue_0, readInt32LE_0, skipCString_0, readBSONStringDirect_0, readStringValue_0, skipValue_0, makeBsonConversionError_0, create_0, readCStringHelper_0, makeUnionNoMatchError_0, fn_0, makeUndefinedConversionError_0
+// externals: const_0, readDouble_0, nanToZero_0, readNumberValue_0, readInt32LE_0, skipCString_0, readBSONStringDirect_0, readStringValue_0, skipValue_0, makeBsonConversionError_0, readCStringHelper_0, makeUnionNoMatchError_0, ownProtoKey_0, fn_0, makeUndefinedConversionError_0
 'use strict';
 return function(buffer,offset){
 var docSize_2=((buffer[offset]|(buffer[(offset+1)]<<8))|((buffer[(offset+2)]<<16)|(buffer[(offset+3)]<<24)));
@@ -446,7 +446,7 @@ while(o_4<end_3){
                         var docSize_31=((buffer[o_4]|(buffer[(o_4+1)]<<8))|((buffer[(o_4+2)]<<16)|(buffer[(o_4+3)]<<24)));
                         var end_32=(o_4+(docSize_31-1));
                         var o_33=(o_4+4);
-                        var indexObj_34=create_0(null);
+                        var indexObj_34={};
                         while(o_33<end_32){
                             var type_35=buffer[o_33];
                             o_33+=1;
@@ -503,6 +503,9 @@ while(o_4<end_3){
                                         throw makeUnionNoMatchError_0(type_35,"string | number");
                                     }
                                 }
+                            }
+                            if(nameResult_36[0]==="__proto__"){
+                                ownProtoKey_0(indexObj_34);
                             }
                             indexObj_34[nameResult_36[0]]=indexVal_37;
                         }
@@ -665,7 +668,7 @@ if(owner_10!==const_0){
 return result_65;
 }
 
-// externals: readDouble_0, nanToZero_0, readNumberValue_0, const_0, const_1, readInt32LE_0, skipCString_0, readBSONStringDirect_0, readStringValue_0, skipValue_0, makeBsonConversionError_0, create_0, readCStringHelper_0, makeUnionNoMatchError_0, fn_0, fn_1, makeUndefinedConversionError_0
+// externals: readDouble_0, nanToZero_0, readNumberValue_0, const_0, const_1, readInt32LE_0, skipCString_0, readBSONStringDirect_0, readStringValue_0, skipValue_0, makeBsonConversionError_0, readCStringHelper_0, makeUnionNoMatchError_0, ownProtoKey_0, fn_0, fn_1, makeUndefinedConversionError_0
 'use strict';
 function _nfn_10(buffer,o,ft){
 var ho_3=o;
@@ -814,7 +817,7 @@ if((ft===10||ft===6)){
         var docSize_5=((buffer[ho_3]|(buffer[(ho_3+1)]<<8))|((buffer[(ho_3+2)]<<16)|(buffer[(ho_3+3)]<<24)));
         var end_6=(ho_3+(docSize_5-1));
         var o_7=(ho_3+4);
-        var indexObj_8=create_0(null);
+        var indexObj_8={};
         while(o_7<end_6){
             var type_9=buffer[o_7];
             o_7+=1;
@@ -871,6 +874,9 @@ if((ft===10||ft===6)){
                         throw makeUnionNoMatchError_0(type_9,"string | number");
                     }
                 }
+            }
+            if(nameResult_10[0]==="__proto__"){
+                ownProtoKey_0(indexObj_8);
             }
             indexObj_8[nameResult_10[0]]=indexVal_11;
         }

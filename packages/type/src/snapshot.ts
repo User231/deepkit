@@ -17,6 +17,7 @@ import {
     typeSettings,
     typedArrayToBase64,
 } from './core.js';
+import { setInputKey } from './input-key.js';
 import { ReflectionClass, ReflectionProperty } from './reflection/reflection.js';
 import { ReflectionKind, Type, binaryTypes } from './reflection/type.js';
 import { Serializer, serializer as defaultSerializer } from './serializer/serializer.js';
@@ -235,10 +236,10 @@ function buildSnapshotObject(
                     b.not(b.isNullish(propAccess)),
                     () => {
                         const value = buildSnapshotValue(b, propAccess, indexSig.type, direction, visited);
-                        b.set(result, key, value);
+                        setInputKey(b, result, key, value);
                     },
                     () => {
-                        b.set(result, key, b.lit(null));
+                        setInputKey(b, result, key, b.lit(null));
                     },
                 );
             };

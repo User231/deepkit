@@ -1,4 +1,4 @@
-// externals: String_0, isArray_0, stringifyValueWithType_0, validationErrorCreate_0, bound_has_0, validationErrorCreate_1, validationErrorCreate_2, validationErrorCreate_3
+// externals: String_0, isArray_0, stringifyValueWithType_0, validationErrorCreate_0, ownProtoKey_0, validationErrorCreate_1, validationErrorCreate_2, validationErrorCreate_3
 'use strict';
 return function(v0,v1){
 var v2=(v1??{});
@@ -13,45 +13,46 @@ return {id:v4.id,label:v6};
 }
 var v7={};
 for(var v8 in v0.meta){
-    if(!(bound_has_0(v8))){
-        if(v0.meta[v8]!==undefined){
-            var v9=undefined;
-            var v10=false;
-            if(!(v10)){
-                if("number"===typeof v0.meta[v8]){
-                    v9=v0.meta[v8];
-                    v10=true;
-                }
+    if(v0.meta[v8]!==undefined){
+        var v9=undefined;
+        var v10=false;
+        if(!(v10)){
+            if("number"===typeof v0.meta[v8]){
+                v9=v0.meta[v8];
+                v10=true;
             }
-            if(!(v10)){
-                if("string"===typeof v0.meta[v8]){
-                    var v11=v0.meta[v8];
-                    if(v2.loosely!==false&&("number"===typeof v0.meta[v8]||"boolean"===typeof v0.meta[v8]||"bigint"===typeof v0.meta[v8])){
-                        v11=String_0(v0.meta[v8]);
-                    }
-                    v9=v11;
-                    v10=true;
-                }
-            }
-            if(false){
-                if(!(v10)){
-                    if(("string"===typeof v0.meta[v8]||"number"===typeof v0.meta[v8]||"boolean"===typeof v0.meta[v8]||"bigint"===typeof v0.meta[v8])){
-                        var v12=v0.meta[v8];
-                        if(v2.loosely!==false&&("number"===typeof v0.meta[v8]||"boolean"===typeof v0.meta[v8]||"bigint"===typeof v0.meta[v8])){
-                            v12=String_0(v0.meta[v8]);
-                        }
-                        v9=v12;
-                        v10=true;
-                    }
-                }
-            }
-            if(!(v10)){
-                var v13=[];
-                v13.push({code:"type",path:("meta"+"."+String_0(v8)),message:("Cannot convert "+stringifyValueWithType_0(v0.meta[v8])+" to "+"string | number"+". No union member matches")});
-                throw validationErrorCreate_0(v13);
-            }
-            v7[v8]=v9;
         }
+        if(!(v10)){
+            if("string"===typeof v0.meta[v8]){
+                var v11=v0.meta[v8];
+                if(v2.loosely!==false&&("number"===typeof v0.meta[v8]||"boolean"===typeof v0.meta[v8]||"bigint"===typeof v0.meta[v8])){
+                    v11=String_0(v0.meta[v8]);
+                }
+                v9=v11;
+                v10=true;
+            }
+        }
+        if(false){
+            if(!(v10)){
+                if(("string"===typeof v0.meta[v8]||"number"===typeof v0.meta[v8]||"boolean"===typeof v0.meta[v8]||"bigint"===typeof v0.meta[v8])){
+                    var v12=v0.meta[v8];
+                    if(v2.loosely!==false&&("number"===typeof v0.meta[v8]||"boolean"===typeof v0.meta[v8]||"bigint"===typeof v0.meta[v8])){
+                        v12=String_0(v0.meta[v8]);
+                    }
+                    v9=v12;
+                    v10=true;
+                }
+            }
+        }
+        if(!(v10)){
+            var v13=[];
+            v13.push({code:"type",path:("meta"+"."+String_0(v8)),message:("Cannot convert "+stringifyValueWithType_0(v0.meta[v8])+" to "+"string | number"+". No union member matches")});
+            throw validationErrorCreate_0(v13);
+        }
+        if(v8==="__proto__"){
+            ownProtoKey_0(v7);
+        }
+        v7[v8]=v9;
     }
 }
 var v14=undefined;

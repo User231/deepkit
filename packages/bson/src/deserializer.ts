@@ -45,6 +45,7 @@ import {
     nodeBufferToArrayBuffer,
     resolveReceiveType,
     resolveTypeMembers,
+    setInputKey,
 } from '@deepkit/type';
 
 import { BSONBuildState } from './context.js';
@@ -2460,11 +2461,14 @@ function buildDocumentBody(
         propVars.set(bsonName, { varRef, prop, bsonName, usesSentinel: !canSkipSentinel });
     }
 
-    // For index signatures, we need a null-prototype object to collect unknown keys.
-    // Using Object.create(null) prevents prototype pollution via __proto__ keys in BSON data.
+    // For index signatures, a plain object collects the unknown keys. A key of the document never
+    // runs a setter (`setInputKey`): `__proto__` becomes an own property like any other key, the
+    // rule `@deepkit/type` decodes by. Until 2026-11-24 this was an object with no prototype, which
+    // protected a record and nothing else — the copy onto a class instance ran the setter, and the
+    // record came back without `toString` or `hasOwnProperty`.
     let indexObj: Ref<any> | undefined;
     if (indexSignature) {
-        indexObj = b.let(b.call(Object.create, b.lit(null)), 'indexObj');
+        indexObj = b.let(b.emptyObj(), 'indexObj');
     }
 
     // ═══ UNROLLED FAST PATH (Per-Field Reader Functions) ═══
@@ -2895,7 +2899,7 @@ function buildDocumentBody(
         b.forIn(
             indexObj,
             (key, value) => {
-                b.set(result, key, value);
+                setInputKey(b, result, key, value);
             },
             'key',
         );
@@ -3005,12 +3009,12 @@ function buildFieldMatcher(
             if (valueType.kind === ReflectionKind.any || valueType.kind === ReflectionKind.unknown) {
                 const indexValue = b.let(b.call(parseValueAny, buffer, b.getVar(o), bsonType), 'indexValue');
                 b.setVar(o, b.call(skipValue, buffer, b.getVar(o), bsonType));
-                b.set(indexObj, fieldName, indexValue);
+                setInputKey(b, indexObj, fieldName, indexValue);
             } else {
                 const elemCtx = ctx.forIndex();
                 const indexVar = b.var_<any>(undefined, 'indexVal');
                 deserializeValueInto(b, buffer, o, bsonType, valueType, indexVar, elemCtx);
-                b.set(indexObj, fieldName, b.getVar(indexVar));
+                setInputKey(b, indexObj, fieldName, b.getVar(indexVar));
             }
         } else {
             // Skip field name

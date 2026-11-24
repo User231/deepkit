@@ -10,6 +10,7 @@
 import { Builder, Ref, arg, empty, fn, toFastProperties } from '@deepkit/core';
 
 import { Changes, ItemChanges, changeSetSymbol } from './changes.js';
+import { setInputKey } from './input-key.js';
 import { ReflectionClass } from './reflection/reflection.js';
 import { ReflectionKind, Type, TypeIndexSignature } from './reflection/type.js';
 import { getConverterForSnapshot } from './snapshot.js';
@@ -158,7 +159,7 @@ function buildComparator(
             // writes the stale snapshot value back over the row — silently
             // reverting whatever else had updated that column.
             b.if_(b.not(b.call<boolean>(dateEqual, last, current)), () => {
-                b.set(changesSlot, changedKey, b.get(item, changedKey));
+                setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                 onChanged();
             });
         } else if (
@@ -204,13 +205,13 @@ function buildComparator(
         ) {
             // Use generic comparison for any/never/union types
             b.if_(b.not(b.call<boolean>(genericEqual, last, current)), () => {
-                b.set(changesSlot, changedKey, b.get(item, changedKey));
+                setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                 onChanged();
             });
         } else {
             // Primitive comparison (number, string, boolean, etc.)
             b.if_(b.neq(last, current), () => {
-                b.set(changesSlot, changedKey, b.get(item, changedKey));
+                setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                 onChanged();
             });
         }
@@ -244,7 +245,7 @@ function buildArrayComparator(
                 b.or(b.and(current, b.not(last)), b.and(b.not(current), last)),
                 () => {
                     // One exists, other doesn't - change
-                    b.set(changesSlot, changedKey, b.get(item, changedKey));
+                    setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                     onChanged();
                 },
                 () => {
@@ -253,7 +254,7 @@ function buildArrayComparator(
                         b.neq(b.len(current), b.len(last)),
                         () => {
                             // Different lengths - change
-                            b.set(changesSlot, changedKey, b.get(item, changedKey));
+                            setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                             onChanged();
                         },
                         () => {
@@ -287,7 +288,7 @@ function buildArrayComparator(
                             });
 
                             b.if_(b.getVar(changed), () => {
-                                b.set(changesSlot, changedKey, b.get(item, changedKey));
+                                setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                                 onChanged();
                             });
                         },
@@ -324,7 +325,7 @@ function buildReferenceComparator(
                 b.or(b.and(current, b.not(last)), b.and(b.not(current), last)),
                 () => {
                     // One exists, other doesn't - change
-                    b.set(changesSlot, changedKey, b.get(item, changedKey));
+                    setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                     onChanged();
                 },
                 () => {
@@ -355,7 +356,7 @@ function buildReferenceComparator(
                     }
 
                     b.if_(b.getVar(changed), () => {
-                        b.set(changesSlot, changedKey, b.get(item, changedKey));
+                        setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                         onChanged();
                     });
                 },
@@ -391,7 +392,7 @@ function buildNestedObjectComparator(
                 b.or(b.and(current, b.not(last)), b.and(b.not(current), last)),
                 () => {
                     // One exists, other doesn't - change
-                    b.set(changesSlot, changedKey, b.get(item, changedKey));
+                    setInputKey(b, changesSlot, changedKey, b.get(item, changedKey));
                     onChanged();
                 },
                 () => {
@@ -429,7 +430,7 @@ function buildNestedObjectComparator(
                     );
 
                     b.if_(b.and(thisChanged, b.not(b.call<boolean>(empty, thisChanged))), () => {
-                        b.set(changesSlot, changedKey, itemValue);
+                        setInputKey(b, changesSlot, changedKey, itemValue);
                         onChanged();
                     });
                 },
@@ -590,7 +591,7 @@ function createJITChangeDetectorForSnapshot(
                 // Check for keys in last but not in current (deleted)
                 b.forIn(last, (key, _value) => {
                     b.if_(b.not(b.has(current, key)), () => {
-                        b.set(changes, key, b.get(item, key));
+                        setInputKey(b, changes, key, b.get(item, key));
                     });
                 });
             }

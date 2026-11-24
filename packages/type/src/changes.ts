@@ -9,6 +9,8 @@
  */
 import { empty } from '@deepkit/core';
 
+import { assignInputKey } from './input-key.js';
+
 export type NumberFields<T> = { [K in keyof T]: T[K] extends number | bigint ? K : never }[keyof T];
 export type Expression<T> = { [P in keyof T & string]?: string };
 
@@ -74,28 +76,28 @@ export class Changes<T extends object> {
         if (!this.$set) this.$set = {};
         for (const i in $set as any) {
             if (!this.fieldNames.includes(i)) this.fieldNames.push(i);
-            (this.$set as any)[i] = ($set as any)[i];
+            assignInputKey(this.$set, i, ($set as any)[i]);
         }
         this.detectEmpty();
     }
 
     increase(property: NumberFields<T>, increase: number = 1) {
         if (!this.$inc) this.$inc = {};
-        (this.$inc as any)[property] = increase;
+        assignInputKey(this.$inc, property, increase);
         if ('string' === typeof property && !this.fieldNames.includes(property)) this.fieldNames.push(property);
         this.empty = false;
     }
 
     set(property: keyof T & string, value: any) {
         if (!this.$set) this.$set = {};
-        (this.$set as any)[property] = value;
+        assignInputKey(this.$set, property, value);
         if ('string' === typeof property && !this.fieldNames.includes(property)) this.fieldNames.push(property);
         this.empty = false;
     }
 
     unset(property: keyof T & string, unset = true) {
         if (!this.$unset) this.$unset = {};
-        (this.$unset as any)[property] = unset;
+        assignInputKey(this.$unset, property, unset);
         if ('string' === typeof property && !this.fieldNames.includes(property)) this.fieldNames.push(property);
         this.empty = false;
     }
@@ -103,8 +105,8 @@ export class Changes<T extends object> {
     has(name: keyof T & string): boolean {
         return Boolean(
             (this.$set && name in this.$set) ||
-                (this.$unset && name in this.$unset) ||
-                (this.$inc && name in this.$inc),
+            (this.$unset && name in this.$unset) ||
+            (this.$inc && name in this.$inc),
         );
     }
 }
@@ -124,12 +126,12 @@ export class ItemChanges<T extends object> extends Changes<T> {
 
     set(property: keyof T & string, value: any) {
         super.set(property, value);
-        (this.item as any)[property] = value;
+        assignInputKey(this.item, property, value);
     }
 
     unset(property: keyof T & string, unset: boolean = true) {
         super.unset(property, unset);
-        (this.item as any)[property] = undefined;
+        assignInputKey(this.item, property, undefined);
     }
 }
 
