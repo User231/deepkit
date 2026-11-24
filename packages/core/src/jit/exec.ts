@@ -74,6 +74,32 @@ function flattenAnd(expr: Expr): Expr[] {
 }
 
 /**
+ * `a === b` and `a !== b`. A comparison with a CONSTANT is the commonest test a generated function
+ * makes — `value !== undefined` once per property, a key against a name, a discriminator — so the
+ * constant is held instead of asked for, and a variable beside it is read in place: one closure
+ * call where there were three. A literal has no effect of its own, so the order in which the two
+ * sides are evaluated is unchanged.
+ */
+function compileEquality(a: Expr, b: Expr, negated: boolean): EvalFn {
+    const constant = a.kind === 'lit' ? a : b.kind === 'lit' ? b : undefined;
+    if (!constant) {
+        const aFn = compileExpr(a);
+        const bFn = compileExpr(b);
+        return negated
+            ? (args, vars) => aFn(args, vars) !== bFn(args, vars)
+            : (args, vars) => aFn(args, vars) === bFn(args, vars);
+    }
+    const value = interpretedValue(constant.value);
+    const other = constant === a ? b : a;
+    if (other.kind === 'var') {
+        const id = other.id;
+        return negated ? (_args, vars) => vars[id] !== value : (_args, vars) => vars[id] === value;
+    }
+    const otherFn = compileExpr(other);
+    return negated ? (args, vars) => otherFn(args, vars) !== value : (args, vars) => otherFn(args, vars) === value;
+}
+
+/**
  * An expression as a closure: built once from the tree, called with the call's arguments and its
  * variables. ONE compiler for every expression — until 2026-11-17 there were two, one for
  * expressions that read no variable and one for the rest, the same cases written twice.
@@ -160,16 +186,10 @@ function compileExpr(expr: Expr): EvalFn {
             const elemFns = expr.elements.map(compileExpr);
             return (args, vars) => elemFns.map(f => f(args, vars));
         }
-        case 'eq': {
-            const aFn = compileExpr(expr.a);
-            const bFn = compileExpr(expr.b);
-            return (args, vars) => aFn(args, vars) === bFn(args, vars);
-        }
-        case 'neq': {
-            const aFn = compileExpr(expr.a);
-            const bFn = compileExpr(expr.b);
-            return (args, vars) => aFn(args, vars) !== bFn(args, vars);
-        }
+        case 'eq':
+            return compileEquality(expr.a, expr.b, false);
+        case 'neq':
+            return compileEquality(expr.a, expr.b, true);
         case 'lt': {
             const aFn = compileExpr(expr.a);
             const bFn = compileExpr(expr.b);
